@@ -1,0 +1,5 @@
+#!/bin/zsh
+docker stop ClientDB
+docker rm -v ClientDB
+docker rmi kessenger_db      ##   delete unused image
+

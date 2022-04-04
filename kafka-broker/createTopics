@@ -1,0 +1,15 @@
+#!/bin/zsh
+# create some topic
+docker exec kafka kafka-topics.sh \
+                     --bootstrap-server localhost:9092 \
+                     --topic spark-streaming-output \
+                     --create \
+                     --if-not-exists \
+                     --config "cleanup.policy=compact"
+
+
+# TODO -- Add how to verify if created topic exists
+#
+
+
+#
