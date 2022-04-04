@@ -6,11 +6,14 @@ lazy val root = (project in file("."))
   .settings(
     name := "ClientCliApp",
     idePackagePrefix := Some("com.github.malyszaryczlowiek")
+    // assembly / assemblyJarName := name.+"-"+version+".jar"
+    // TODO check how to change jar name
+    // assemblyOutputPath in assembly := "..."
   )
 
 assembly / mainClass := Some("com.github.malyszaryczlowiek.MainObject")
 
-assemblyMergeStrategy in assembly := {
+assembly / assemblyMergeStrategy := {
   case PathList("META-INF", xs @ _*) => MergeStrategy.discard
   case x => MergeStrategy.first
 }

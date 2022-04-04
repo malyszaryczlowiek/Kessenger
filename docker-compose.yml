@@ -60,9 +60,8 @@ services:
   client_cli_app:
     container_name: client_cli_app
     build: ./ClientCliApp    # ClientCliApp is folder where Dockerfile can be found
-    # Dockerfile do api
-    ports:
-      - "8080:8080"
+#    ports:
+#      - "8080:8080"
     depends_on:
       - db
     restart: always

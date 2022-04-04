@@ -1,0 +1,4 @@
+#!/bin/zsh
+cd ClientCliApp
+sbt assembly
+cd ..
