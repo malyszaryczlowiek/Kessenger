@@ -1,7 +1,10 @@
 *.class
 *.log
+TODO
 ./.idea
 ./ClientCliApp/.bsp
 ./ClientCliApp/.idea
 ./ClientCliApp/project
 ./ClientCliApp/target
+
+./kafka-broker/kafka-volume

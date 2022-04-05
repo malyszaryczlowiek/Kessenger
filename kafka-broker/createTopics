@@ -5,11 +5,11 @@ docker exec kafka kafka-topics.sh \
                      --topic spark-streaming-output \
                      --create \
                      --if-not-exists \
+                     --partitions 3 \
+                     --replication-factor 3 \
                      --config "cleanup.policy=compact"
 
 
-# TODO -- Add how to verify if created topic exists
-#
 
 
-#
+
