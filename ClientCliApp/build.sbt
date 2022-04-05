@@ -1,14 +1,11 @@
 ThisBuild / version := "0.1.0-SNAPSHOT"
-
 ThisBuild / scalaVersion := "3.1.1"
 
 lazy val root = (project in file("."))
   .settings(
     name := "ClientCliApp",
-    idePackagePrefix := Some("com.github.malyszaryczlowiek")
-    // assembly / assemblyJarName := name.+"-"+version+".jar"
-    // TODO check how to change jar name
-    // assemblyOutputPath in assembly := "..."
+    idePackagePrefix := Some("com.github.malyszaryczlowiek"),
+    assembly / assemblyJarName := s"${name.value}-${version.value}.jar"
   )
 
 assembly / mainClass := Some("com.github.malyszaryczlowiek.MainObject")
