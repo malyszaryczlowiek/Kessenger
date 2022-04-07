@@ -75,13 +75,14 @@ services:
     ports:
       - '5438:5432'
 
-  client_cli_app:
-    container_name: client_cli_app
-    build: ./ClientCliApp    # ClientCliApp is folder where Dockerfile can be found
-#    ports:
-#      - "8080:8080"
-    depends_on:
-      - db
-    restart: always
-    networks:
-      - my-simple-network
+# client removed from main App docker container
+#  client_cli_app:
+#    container_name: client_cli_app
+#    build: ./ClientCliApp    # ClientCliApp is folder where Dockerfile can be found
+##    ports:
+##      - "8080:8080"
+#    depends_on:
+#      - db
+#    restart: always
+#    networks:
+#      - my-simple-network

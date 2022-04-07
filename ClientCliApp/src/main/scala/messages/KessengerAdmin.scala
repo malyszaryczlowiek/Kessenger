@@ -2,24 +2,27 @@ package com.github.malyszaryczlowiek
 package messages
 
 import org.apache.kafka.clients.admin.{Admin, AdminClientConfig, CreateTopicsResult, DeleteTopicsResult, NewTopic}
+import org.apache.kafka.clients.consumer.KafkaConsumer
+import org.apache.kafka.clients.producer.KafkaProducer
 import org.apache.kafka.common.KafkaFuture
 import org.apache.kafka.common.config.TopicConfig
 
 import java.util.{Collections, Properties}
 import scala.util.Try
 import scala.jdk.javaapi.CollectionConverters
+import com.github.malyszaryczlowiek.domain.{Domain, User}
+import com.github.malyszaryczlowiek.domain.Domain.{ChatId, WritingId}
 
-import com.github.malyszaryczlowiek.domain.Domain
-import com.github.malyszaryczlowiek.domain.Domain.{TalkId, WriteId}
 
-object KessengerAdmin {
+protected object KessengerAdmin {
 
   val properties = new Properties
-  properties.put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG,"kafka1:9092")
+  properties.put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG,"localhost:9093")
+  properties.put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG,"localhost:9094")
   private val admin: Admin = Admin.create(properties)
 
 
-  def createNewTalk(topics: (TalkId, WriteId)): Try[Any] =
+  def createNewChat(topics: (ChatId, WritingId)): Try[Any] =
     Try {
       val partitionsNum = 3
       val replicationFactor: Short = 3
@@ -36,8 +39,8 @@ object KessengerAdmin {
         CollectionConverters.asJava(
           Map(
             TopicConfig.CLEANUP_POLICY_CONFIG -> TopicConfig.CLEANUP_POLICY_DELETE,
-            TopicConfig.RETENTION_MS_CONFIG -> "1000",
-            TopicConfig.DELETE_RETENTION_MS_CONFIG -> "1000"
+            TopicConfig.RETENTION_MS_CONFIG -> "1000"
+            // ,TopicConfig.DELETE_RETENTION_MS_CONFIG -> "1000"
           )
         )
 
@@ -65,13 +68,22 @@ object KessengerAdmin {
 
   /**
    * Method removes topics of selected talk
-   * @param talk
-   * @param write
+   * @param chatId
+   * @param writingId
    * @return
    */
-  def removeTalk(talk: String, write: String): Map[String, KafkaFuture[Void]] =
-    val deleteTopicResult: DeleteTopicsResult = admin.deleteTopics(java.util.List.of(talk, write))
+  def removeChat(chatId: ChatId, writingId: WritingId): Map[String, KafkaFuture[Void]] =
+    val deleteTopicResult: DeleteTopicsResult = admin.deleteTopics(java.util.List.of(chatId, writingId))
     CollectionConverters.asScala[String, KafkaFuture[Void]](deleteTopicResult.topicNameValues()).toMap
+
+
+  def createProducer: KafkaProducer[User, Message] =
+    val properties = new Properties
+
+
+    new KafkaProducer[User, Message](properties)
+
+  def createConsumer(chatId: ChatId): KafkaConsumer[User, Message] = ???
 
 
 

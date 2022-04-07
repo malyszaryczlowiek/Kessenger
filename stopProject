@@ -1,5 +1,8 @@
 #!/bin/zsh
 
+docker stop KessengerClientCli
+docker rm -v KessengerClientCli
+
 docker stop client_cli_app
 docker rm -v client_cli_app
 #docker rmi kessenger_client_cli_app      ##   delete unused image

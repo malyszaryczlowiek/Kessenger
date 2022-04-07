@@ -8,44 +8,6 @@ import scala.util.control.Breaks.break
 
 object MainObject:
 
-  private def readMessage(): String =
-    val sb: StringBuilder = StringBuilder()
-    try {
-      var readNext = true
-      while (readNext) {
-        val c = readChar()
-        if c == '\n' then
-          readNext = false
-        else
-          // TODO here send info to topic whoWrite
-          sb.append(c)
-      }
-      sb.toString()
-    }
-    catch
-      case e: java.io.EOFException => "no message"
-      case e: java.lang.StringIndexOutOfBoundsException => sb.toString()
-
-
-
-
-  @tailrec
-  def programExecution(): Unit =
-    Thread.sleep(100)
-    println("App running")
-
-
-
-
-    programExecution()
-
-
-
-
-
-
-
-
   def main(args: Array[String]): Unit =
 
     println("Type your second name:")

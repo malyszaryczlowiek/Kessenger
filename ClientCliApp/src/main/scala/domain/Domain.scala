@@ -10,13 +10,11 @@ object Domain {
   type Sender       = UUID
   type Interlocutor = UUID
 
+  type ChatName = String
+  type ChatId   = String
+  type WritingId  = String
 
-  Zmień talk na Chat
-  type TalkName = String
-  type TalkId   = String
-  type WriteId  = String
-
-  def getTalksIds(sender: Sender, interlocutor: Interlocutor): (TalkId, WriteId) =
+  def getTalksIds(sender: Sender, interlocutor: Interlocutor): (ChatId, WritingId) =
     val merged = s"$sender--$interlocutor"
     val talkTopicName = s"talk-$merged"
     val whoWriteTopicName = s"whoWrite-$merged"

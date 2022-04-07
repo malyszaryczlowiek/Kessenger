@@ -3,7 +3,7 @@ package db
 
 import java.util.UUID
 import scala.collection.mutable.ListBuffer
-import com.github.malyszaryczlowiek.domain.Domain.{TalkId, TalkName}
+import com.github.malyszaryczlowiek.domain.Domain.{ChatId, ChatName}
 import com.github.malyszaryczlowiek.domain.User
 
 /**
@@ -15,13 +15,14 @@ object DB {
     User(UUID.randomUUID(), "User2", "Name2")
   )
 
-  val talks: ListBuffer[(TalkId, TalkName, List[UUID])] = new ListBuffer[(TalkId, TalkName, List[UUID])]
+  val talks: ListBuffer[(ChatId, ChatName, List[UUID])] = new ListBuffer[(ChatId, ChatName, List[UUID])]
 
 
   def searchUser(secName:String): Option[User] =
     users.find(_.secondName == secName)
 
-  def getUsersTalks(user: User): List[(TalkId, TalkName)] =
+
+  def getUsersTalks(user: User): List[(ChatId, ChatName)] =
     talks.filter(_._3.contains(user.userId)).map(talk => (talk._1, talk._2)).toList
     TODO
     1. wyciągnij teraz dane topiki
