@@ -3,14 +3,14 @@ package messages
 
 import org.apache.kafka.clients.admin.{Admin, AdminClientConfig, CreateTopicsResult, DeleteTopicsResult, NewTopic}
 import org.apache.kafka.clients.consumer.KafkaConsumer
-import org.apache.kafka.clients.producer.KafkaProducer
+import org.apache.kafka.clients.producer.{KafkaProducer, ProducerConfig}
 import org.apache.kafka.common.KafkaFuture
 import org.apache.kafka.common.config.TopicConfig
 
-import java.util.{Collections, Properties}
+import java.util.{Collections, Properties, UUID}
 import scala.util.Try
 import scala.jdk.javaapi.CollectionConverters
-import com.github.malyszaryczlowiek.domain.{Domain, User}
+import com.github.malyszaryczlowiek.domain.Domain
 import com.github.malyszaryczlowiek.domain.Domain.{ChatId, WritingId}
 
 
@@ -30,8 +30,8 @@ protected object KessengerAdmin {
       val talkConfig: java.util.Map[String, String] =
         CollectionConverters.asJava(
           Map(
-            TopicConfig.CLEANUP_POLICY_CONFIG -> TopicConfig.CLEANUP_POLICY_COMPACT,
-            TopicConfig.RETENTION_MS_CONFIG -> "-1"
+            TopicConfig.CLEANUP_POLICY_CONFIG -> TopicConfig.CLEANUP_POLICY_DELETE,
+            TopicConfig.RETENTION_MS_CONFIG -> "-1" // keep all logs forever
           )
         )
 
@@ -39,8 +39,8 @@ protected object KessengerAdmin {
         CollectionConverters.asJava(
           Map(
             TopicConfig.CLEANUP_POLICY_CONFIG -> TopicConfig.CLEANUP_POLICY_DELETE,
-            TopicConfig.RETENTION_MS_CONFIG -> "1000"
-            // ,TopicConfig.DELETE_RETENTION_MS_CONFIG -> "1000"
+            TopicConfig.RETENTION_MS_CONFIG -> "1000",   // () in -1 no limit time is applied
+            TopicConfig.MESSAGE_TIMESTAMP_DIFFERENCE_MAX_MS_CONFIG -> "1000" // difference to assume that log is too late
           )
         )
 
@@ -77,15 +77,18 @@ protected object KessengerAdmin {
     CollectionConverters.asScala[String, KafkaFuture[Void]](deleteTopicResult.topicNameValues()).toMap
 
 
-  def createProducer: KafkaProducer[User, Message] =
+  def createStringMessageProducer(): KafkaProducer[String, String] =
     val properties = new Properties
+    properties.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, "localhost:9093")
+    properties.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, "localhost:9093")
+    properties.put(ProducerConfig.ACKS_CONFIG, "all")  // (1) this configuration specifies the minimum number of replicas that must acknowledge a write for the write to be considered successful
+    properties.put(ProducerConfig.RETRIES_CONFIG, 0)
+    // properties.put(ProducerConfig.LINGER_MS_CONFIG, 1) // ???
+    properties.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, "org.apache.kafka.common.serialization.StringSerializer")
+    properties.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, "org.apache.kafka.common.serialization.StringSerializer")
+    new KafkaProducer[String, String](properties)
 
-
-    new KafkaProducer[User, Message](properties)
-
-  def createConsumer(chatId: ChatId): KafkaConsumer[User, Message] = ???
-
-
+  def createStringMessageConsumer: KafkaConsumer[String, String] = ???
 
 
 }

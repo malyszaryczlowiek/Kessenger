@@ -19,8 +19,8 @@ object MainObject:
       DB.searchUser(name) match {
         case Some(user) =>
           println(s"$name your talks:")
-          DB.getUsersTalks(user).foreach( tutaj wypisz talki)
-          ERROR
+          DB.getUsersTalks(user).foreach((index, chatId, chatName) => println(s"$index) $chatName"))
+          // ERROR
         case None =>
           println(s"Incorrect name: \"$name\". There is no such user in the system.")
           println(s"Would you like to continue or exit program? Type any key to continue or \"exit\" to end program. ")

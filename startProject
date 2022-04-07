@@ -1,6 +1,4 @@
 #!/bin/zsh
 # before starting project we need generate JAR file of clientCliApp
-
 docker-compose up -d
 ./ClientCliApp/generateJAR
-./ClientCliApp/createClientImage

@@ -22,12 +22,19 @@ object DB {
     users.find(_.secondName == secName)
 
 
-  def getUsersTalks(user: User): List[(ChatId, ChatName)] =
-    talks.filter(_._3.contains(user.userId)).map(talk => (talk._1, talk._2)).toList
-    TODO
-    1. wyciągnij teraz dane topiki
-    2. z topików wyciągnij timestampy
-    3. przypisz timestampy do talka
-    4. uszereguj talka względem od najnowszego do najstarszego.
+  def getUsersTalks(user: User): Vector[(Int, ChatId, ChatName)] =
+    talks
+      .filter( _._3.contains(user.userId) )
+      .map(talk => (talk._1, talk._2))
+      .zipWithIndex
+      .map((t, index) => (index, t._1, t._2))
+      .toVector
+
+
+  //    TODO
+//    1. wyciągnij teraz dane topiki
+//    2. z topików wyciągnij timestampy
+//    3. przypisz timestampy do talka
+//    4. uszereguj talka względem od najnowszego do najstarszego.
 
 }

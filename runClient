@@ -1,2 +1,4 @@
 #!/bin/zsh
-docker run KessengerClientCli:latest
+#CONTAINER_NAME=$1
+#docker run --name $CONTAINER_NAME kessenger-client-cli
+java -jar $(pwd)/ClientCliApp/target/scala-3.1.1/ClientCliApp-0.1.0.jar

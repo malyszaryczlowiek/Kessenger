@@ -6,5 +6,6 @@ TODO
 ./ClientCliApp/.idea
 ./ClientCliApp/project
 ./ClientCliApp/target
+./ClientCliApp/createClientImage
 
 ./kafka-broker/kafka-volume
