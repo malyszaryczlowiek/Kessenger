@@ -1,9 +1,5 @@
 #!/bin/zsh
 
-docker stop client_cli_app
-docker rm -v client_cli_app
-#docker rmi kessenger_client_cli_app      ##   delete unused image
-
 docker stop ClientDB
 docker rm -v ClientDB
 #docker rmi kessenger_db      ##   delete unused image
@@ -14,6 +10,9 @@ docker rm -v kafka1
 
 docker stop kafka2
 docker rm -v kafka2
+
+docker stop kafka3
+docker rm -v kafka3
 
 docker stop zookeeper
 docker rm -v zookeeper

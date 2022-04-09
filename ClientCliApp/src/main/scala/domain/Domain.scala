@@ -3,23 +3,26 @@ package domain
 
 import java.util.UUID
 
-
-
 object Domain {
 
   type Sender       = UUID
   type Interlocutor = UUID
 
-  type ChatName = String
-  type ChatId   = String
-  type WritingId  = String
+  type ChatName  = String
+  type ChatId    = String
+  type WritingId = String
+  type JoinId    = String
 
-  def getTalksIds(sender: Sender, interlocutor: Interlocutor): (ChatId, WritingId) =
-    val merged = s"$sender--$interlocutor"
-    val talkTopicName = s"talk-$merged"
-    val whoWriteTopicName = s"whoWrite-$merged"
-    (talkTopicName, whoWriteTopicName)
+  def generateChatId(sender: Sender, interlocutor: Interlocutor): ChatId =
+    s"chat---$sender--$interlocutor"
 
+
+  def generateWritingId(sender: Sender, interlocutor: Interlocutor): WritingId =
+    s"whoIsWriting--$sender--$interlocutor"
+
+
+  def generateJoinId(user: UUID): JoinId =
+    s"join--$sender--$interlocutor"
 
 
 }

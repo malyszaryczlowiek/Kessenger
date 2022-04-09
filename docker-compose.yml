@@ -61,6 +61,27 @@ services:
     networks:
       - my-simple-network
 
+  kafka3:
+    container_name: kafka3
+    #hostname: kafka3
+    build: ./kafka-broker
+    ports:
+      - "9090:9092"
+      - "9095:9095"
+    environment:
+      - ALLOW_PLAINTEXT_LISTENER=yes
+      - KAFKA_CFG_ZOOKEEPER_CONNECT=zookeeper:2181
+      - KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP=CLIENT:PLAINTEXT,EXTERNAL:PLAINTEXT
+      - KAFKA_CFG_LISTENERS=CLIENT://:9092,EXTERNAL://:9095
+      - KAFKA_CFG_ADVERTISED_LISTENERS=CLIENT://kafka2:9092,EXTERNAL://localhost:9095
+      - KAFKA_CFG_INTER_BROKER_LISTENER_NAME=CLIENT
+    depends_on:
+      - zookeeper
+    restart: always
+    networks:
+      - my-simple-network
+
+
   db:
     container_name: ClientDB
     build: ./db
