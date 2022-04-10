@@ -1,8 +1,8 @@
 #!/bin/zsh
 
-docker stop ClientDB
-docker rm -v ClientDB
-#docker rmi kessenger_db      ##   delete unused image
+docker stop KessengerDB
+docker rm -v KessengerDB
+docker rmi kessenger_db      ##   delete unused image
 
 docker stop kafka1
 docker rm -v kafka1

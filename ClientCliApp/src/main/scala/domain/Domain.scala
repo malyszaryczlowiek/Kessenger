@@ -14,7 +14,7 @@ object Domain {
   type JoinId    = String
 
   def generateChatId(sender: Sender, interlocutor: Interlocutor): ChatId =
-    s"chat---$sender--$interlocutor"
+    s"chat--$sender--$interlocutor"
 
 
   def generateWritingId(sender: Sender, interlocutor: Interlocutor): WritingId =
@@ -22,7 +22,7 @@ object Domain {
 
 
   def generateJoinId(user: UUID): JoinId =
-    s"join--$sender--$interlocutor"
+    s"join--${user.toString}"
 
 
 }

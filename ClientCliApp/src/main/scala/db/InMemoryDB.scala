@@ -9,10 +9,10 @@ import com.github.malyszaryczlowiek.domain.User
 /**
  * In memory DB
  */
-object DB {
+object InMemoryDB extends DataBase {
   val users = List(
-    User(UUID.randomUUID(), "User1", "Name1"),
-    User(UUID.randomUUID(), "User2", "Name2")
+    User(UUID.fromString("9039d5ad-99d5-47af-a9ae-a8afee0bf2e8"), "User1", "Name1"), //
+    User(UUID.fromString("197cc871-2da6-4f76-9ead-6c45f0020768"), "User2", "Name2")  //
   )
 
   val talks: ListBuffer[(ChatId, ChatName, List[UUID])] = new ListBuffer[(ChatId, ChatName, List[UUID])]
@@ -22,7 +22,7 @@ object DB {
     users.find(_.secondName == secName)
 
 
-  def getUsersTalks(user: User): Vector[(Int, ChatId, ChatName)] =
+  def getUsersChats(user: User): Vector[(Int, ChatId, ChatName)] =
     talks
       .filter( _._3.contains(user.userId) )
       .map(talk => (talk._1, talk._2))
