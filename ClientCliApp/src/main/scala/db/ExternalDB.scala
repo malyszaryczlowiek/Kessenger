@@ -1,12 +1,13 @@
 package com.github.malyszaryczlowiek
 package db
 
-import domain.User
-
 import com.github.malyszaryczlowiek.db.ExternalDB.connection
 import com.github.malyszaryczlowiek.db.queries.{QueryError, Queryable}
 import com.github.malyszaryczlowiek.domain.Domain.{ChatId, ChatName}
+import com.github.malyszaryczlowiek.domain.PasswordConverter.Password
+import com.github.malyszaryczlowiek.domain.User
 import com.github.malyszaryczlowiek.messages.Chat
+
 
 import java.sql.{Connection, DriverManager, Statement}
 import java.util.{Properties, UUID}
@@ -14,7 +15,7 @@ import scala.util.Try
 
 class ExternalDB[A <: Queryable](statement: A) extends DataBase:
 
-  def createUser(user: User): Try[Either[QueryError, User]] = ???
+  def createUser(login: String, pass: Password): Try[Either[QueryError, User]] = ???
   def createChat(chatId: ChatId, chatName: ChatName): Try[Either[QueryError, Chat]] = ???
 
   // from Readable
@@ -33,10 +34,7 @@ class ExternalDB[A <: Queryable](statement: A) extends DataBase:
   def deleteChat(chatId: ChatId): Try[Either[QueryError, User]] = ???
 
 
-
-  def closeConnection(): Try[Unit] = Try {
-    connection.commit()
-  }
+  def closeConnection(): Try[Unit] = Try { connection.commit() }
 
 
 object ExternalDB:

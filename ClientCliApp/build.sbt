@@ -14,7 +14,9 @@ lazy val root = (project in file("."))
       "io.circe" %% "circe-generic" % "0.14.1",
       "io.circe" %% "circe-parser" % "0.14.1",
       "org.postgresql" % "postgresql" % "42.3.3" ,
-      ("com.github.t3hnar" %% "scala-bcrypt" % "4.3.0").cross(CrossVersion.for3Use2_13)   // for bcrypt    // https://mvnrepository.com/artifact/com.github.t3hnar/scala-bcrypt
+      ("com.github.t3hnar" %% "scala-bcrypt" % "4.3.0").cross(CrossVersion.for3Use2_13)   // for bcrypt
+      // https://mvnrepository.com/artifact/com.github.t3hnar/scala-bcrypt
+      // https://github.com/t3hnar/scala-bcrypt
     )
   )
 

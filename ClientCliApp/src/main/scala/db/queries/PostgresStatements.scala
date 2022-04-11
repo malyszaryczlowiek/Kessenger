@@ -3,14 +3,15 @@ package db.queries
 
 import com.github.malyszaryczlowiek.domain.User
 import com.github.malyszaryczlowiek.domain.Domain.{ChatId, ChatName}
+import com.github.malyszaryczlowiek.domain.PasswordConverter.Password
 
 import java.util.UUID
 
 object PostgresStatements extends Queryable:
 
   // from Creatable
-  def createUser(user: User): Query =
-    s"INSERT INTO users VALUES ( gen_random_uuid (), '${user.login}', '${user.pass}')"
+  def createUser(login: String, pass: Password): Query =
+    s"INSERT INTO users VALUES ( gen_random_uuid (), '${login}', '${pass}')"
   def createChat(chatId: ChatId, chatName: ChatName): Query =
     s"INSERT INTO chats(chat_id, chat_name) VALUES ('$chatId', '$chatName')"
 
