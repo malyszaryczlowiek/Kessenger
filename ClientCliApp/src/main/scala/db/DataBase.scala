@@ -25,4 +25,4 @@ trait DataBase:
   def deleteUser(userId: UUID): Try[Either[QueryError, User]]
   def deleteChat(chatId: ChatId): Try[Either[QueryError, User]]
 
-
+  def closeConnection(): Try[Unit]

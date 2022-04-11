@@ -34,34 +34,9 @@ class ExternalDB[A <: Queryable](statement: A) extends DataBase:
 
 
 
-
-
-
-
-
-
-  def createUser(newUser: User): Try[User] =
-    Try {
-      val stat = connection.prepareStatement( statement.createUser() )
-      stat.set
-    }
-
-
-  def searchUser(name: String): Try[Option[User]] =
-    Try {
-      None
-    }
-
-
-  def searchUsersChats(user: User): Try[Option[List[Chat]]] =
-    Try {
-      None
-    }
-
-  def closeConnection(): Try[Unit] =
-    Try {
-      connection.commit()
-    }
+  def closeConnection(): Try[Unit] = Try {
+    connection.commit()
+  }
 
 
 object ExternalDB:
@@ -72,10 +47,9 @@ object ExternalDB:
   dbProps.setProperty("password","passw")
   private var connection: Connection = _
 
-  def connectToDb(): Try[Unit] =
-    Try {
-      connection = DriverManager.getConnection(dbUrl, dbProps)
-    }
+  def connectToDb(): Try[Unit] = Try {
+    connection = DriverManager.getConnection(dbUrl, dbProps)
+  }
 
 
 
