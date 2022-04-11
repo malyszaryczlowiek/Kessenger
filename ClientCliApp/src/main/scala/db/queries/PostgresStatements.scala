@@ -31,3 +31,8 @@ object PostgresStatements extends Queryable:
   def deleteUser(user: User): Query = ???
   def deleteUser(userId: UUID): Query = ???
   def deleteChat(chatId: ChatId): Query = ???
+
+
+// TODO tutaj należy teraz zaimplementować wszystkie
+//   i popisac trochę testów sprawdzających poprawność
+//   napisać test czy rege w Security Validator działa poprawnie.
