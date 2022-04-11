@@ -3,4 +3,4 @@ package domain
 
 import java.util.UUID
 
-case class User(userId: UUID, secondName: String, firstName: String)
+case class User(userId: UUID, login: String, pass: String)
