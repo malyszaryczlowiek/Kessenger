@@ -1,13 +1,13 @@
 package com.github.malyszaryczlowiek
 package domain
 
+import com.github.malyszaryczlowiek.domain.Domain.Password
 import com.github.malyszaryczlowiek.programExecution.SecurityValidator
 import com.github.t3hnar.bcrypt.*
 
 import scala.util.{Failure, Success, Try}
 
 object PasswordConverter:
-  type Password = String
 
   def convert(pas: String): Either[String, Password] =
     val notAcceptable = SecurityValidator.isValid(pas)

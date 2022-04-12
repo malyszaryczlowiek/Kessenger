@@ -2,36 +2,51 @@ package com.github.malyszaryczlowiek
 package db.queries
 
 import com.github.malyszaryczlowiek.domain.User
-import com.github.malyszaryczlowiek.domain.Domain.{ChatId, ChatName}
-import com.github.malyszaryczlowiek.domain.PasswordConverter.Password
+import com.github.malyszaryczlowiek.domain.Domain.{ChatId, ChatName, Login, UserID, Password}
+
 
 import java.util.UUID
 
 object PostgresStatements extends Queryable:
 
   // from Creatable
-  def createUser(login: String, pass: Password): Query =
+  def createUser(login: Login, pass: Password): Query =
     s"INSERT INTO users VALUES ( gen_random_uuid (), '${login}', '${pass}')"
   def createChat(chatId: ChatId, chatName: ChatName): Query =
     s"INSERT INTO chats(chat_id, chat_name) VALUES ('$chatId', '$chatName')"
 
 
   // from Readable
-  def readUsersChats(user: User, pass: String): Query = ???
-  def findUser(user: User): Query = ???
-  def findUser(login: String): Query = ???
+  def findUsersChats(user: User): Query =
+    s"SELECT users_chats.chat_id, chats.chat_name FROM users_chats INNER JOIN chats WHERE users_chats.user_id = chats.chat_id AND users_chats.user_id = ${user.userId}"
+  def findUsersChats(userId: UserID): Query =
+    s"SELECT users_chats.chat_id, chats.chat_name FROM users_chats INNER JOIN chats WHERE users_chats.user_id = chats.chat_id AND users_chats.user_id = ${userId}"
+  def findUsersChats(login: Login): Query =
+    s"SELECT users_chats.chat_id, chats.chat_name FROM users_chats INNER JOIN chats WHERE users_chats.user_id = chats.chat_id AND users.login = ${login}"
+  def findUser(login: Login): Query =
+    s"SELECT * FROM users WHERE login=$login"
+  def findUser(userId: UserID): Query =
+    s"SELECT * FROM users WHERE user_id=$userId"
+
 
   // from Updatable
-  def updateUsersPassword(user: User, pass: String): Query = ???
-  def updateChatName(chatId: ChatId, newName: String): Query = ???
-  def updateUsersChat(userId: UUID, chatId: ChatId): Query = ???
+  def updateUsersPassword(user: User, pass: Password): Query =
+    s"UPDATE users SET pass = $pass WHERE users.user_id = ${user.userId} AND users.login = ${user.login}"
+  def updateChatName(chatId: ChatId, newName: ChatName): Query =
+    s"UPDATE chats SET chat_name = $newName WHERE chats.chat_id = ${chatId}"
+  def updateUsersChat(userId: UserID, chatId: ChatId): Query =
+    s"INSERT INTO users_chats( chat_id, user_id ) VALUES ( $chatId, $userId )"
 
 
   // from Deletable
-  def deleteUser(user: User): Query = ???
-  def deleteUser(userId: UUID): Query = ???
-  def deleteChat(chatId: ChatId): Query = ???
-
+  def deleteUserPermanently(user: User): Query =
+    s"DELETE FROM users WHERE user_id = ${user.userId} AND login = ${user.login} RETURNING *"
+  def deleteUserPermanently(userId: UserID): Query =
+    s"DELETE FROM users WHERE user_id = ${userId} RETURNING *"
+  def deleteUserFromChat(chatId: ChatId, userId: UserID): Query =
+    s"DELETE FROM users_chats WHERE chat_id = $chatId AND user_id = ${userId} RETURNING *"
+  def deleteChat(chatId: ChatId): Query =
+    s"DELETE FROM chats WHERE chat_id = $chatId"
 
 // TODO tutaj należy teraz zaimplementować wszystkie
 //   i popisac trochę testów sprawdzających poprawność

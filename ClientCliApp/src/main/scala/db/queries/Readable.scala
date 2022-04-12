@@ -3,9 +3,12 @@ package db.queries
 
 import domain.User
 
-trait Readable extends DbStatements:
-  def readUsersChats(user: User, pass: String): Query
-  def findUser(user: User): Query
-  def findUser(login: String): Query
+import com.github.malyszaryczlowiek.domain.Domain.{Login, UserID}
 
-  // login is not changeable.
+trait Readable extends DbStatements:
+  def findUsersChats(user: User): Query
+  def findUsersChats(userId: UserID): Query
+  def findUsersChats(login: Login): Query
+  def findUser(login: Login): Query
+  def findUser(userId: UserID): Query
+// login is not changeable.

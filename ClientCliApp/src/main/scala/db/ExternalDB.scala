@@ -3,36 +3,33 @@ package db
 
 import com.github.malyszaryczlowiek.db.ExternalDB.connection
 import com.github.malyszaryczlowiek.db.queries.{QueryError, Queryable}
-import com.github.malyszaryczlowiek.domain.Domain.{ChatId, ChatName}
-import com.github.malyszaryczlowiek.domain.PasswordConverter.Password
+import com.github.malyszaryczlowiek.domain.Domain.{ChatId, ChatName, Login, Password, UserID}
 import com.github.malyszaryczlowiek.domain.User
 import com.github.malyszaryczlowiek.messages.Chat
-
 
 import java.sql.{Connection, DriverManager, Statement}
 import java.util.{Properties, UUID}
 import scala.util.Try
 
-class ExternalDB[A <: Queryable](statement: A) extends DataBase:
+class ExternalDB extends DataBase: // [A <: Queryable](statement: A)
 
-  def createUser(login: String, pass: Password): Try[Either[QueryError, User]] = ???
-  def createChat(chatId: ChatId, chatName: ChatName): Try[Either[QueryError, Chat]] = ???
+  def createUser(login: Login, pass: Password): QueryResult[User] = ???
+  def createChat(chatId: ChatId, chatName: ChatName): QueryResult[Chat] = ???
 
-  // from Readable
-  def readUsersChats(user: User, pass: String): Try[Either[QueryError, Seq[Chat]]] = ???
-  def findUser(user: User): Try[Either[QueryError, User]] = ???
-  def findUser(login: String): Try[Either[QueryError, User]] = ???
+  def findUsersChats(user: User): QueryResult[Seq[Chat]] = ???
+  def findUsersChats(userId: UserID): QueryResult[Seq[Chat]] = ???
+  def findUsersChats(login: Login): QueryResult[Seq[Chat]] = ???
+  def findUser(login: Login): QueryResult[User] = ???
+  def findUser(userId: UserID): QueryResult[User] = ???
 
-  // from Updatable
-  def updateUsersPassword(user: User, pass: String): Try[Either[QueryError, Boolean]] = ???
-  def updateChatName(chatId: ChatId, newName: String): Try[Either[QueryError, String]] = ???
-  def updateUsersChat(userId: UUID, chatId: ChatId): Try[Either[QueryError, Boolean]] = ???
+  def updateUsersPassword(user: User, pass: Password): QueryResult[Boolean] = ???
+  def updateChatName(chatId: ChatId, newName: ChatName): QueryResult[ChatName] = ???
+  def updateUsersChat(userId: UserID, chatId: ChatId): QueryResult[Boolean] = ???  // add user to chat
 
-  // from Deletable
-  def deleteUser(user: User): Try[Either[QueryError, User]] = ???
-  def deleteUser(userId: UUID): Try[Either[QueryError, User]] = ???
-  def deleteChat(chatId: ChatId): Try[Either[QueryError, User]] = ???
-
+  def deleteUserPermanently(user: User): QueryResult[User] = ???
+  def deleteUserPermanently(userId: UserID): QueryResult[User] = ???
+  def deleteUserFromChat(chatId: ChatId, userID: UserID): QueryResult[User] = ???
+  def deleteChat(chatId: ChatId): QueryResult[Chat] = ???
 
   def closeConnection(): Try[Unit] = Try { connection.commit() }
 

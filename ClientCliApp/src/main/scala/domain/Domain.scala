@@ -7,6 +7,10 @@ object Domain {
 
   type Sender       = UUID
   type Interlocutor = UUID
+  type UserID       = UUID
+
+  type Login     = String
+  type Password  = String
 
   type ChatName  = String
   type ChatId    = String

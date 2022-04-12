@@ -3,11 +3,13 @@ package db.queries
 
 import domain.User
 
-import com.github.malyszaryczlowiek.domain.Domain.ChatId
+import com.github.malyszaryczlowiek.db.queries.PostgresStatements.Query
+import com.github.malyszaryczlowiek.domain.Domain.{ChatId, UserID}
 
 import java.util.UUID
 
 trait Deletable extends DbStatements :
-  def deleteUser(user: User): Query
-  def deleteUser(userId: UUID): Query
+  def deleteUserPermanently(user: User): Query
+  def deleteUserPermanently(userId: UserID): Query
+  def deleteUserFromChat(chatId: ChatId, userId: UserID): Query
   def deleteChat(chatId: ChatId): Query
