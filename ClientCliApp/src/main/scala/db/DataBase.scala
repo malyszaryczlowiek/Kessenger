@@ -30,5 +30,3 @@ trait DataBase:
   def deleteUserPermanently(userId: UserID): QueryResult[User]
   def deleteUserFromChat(chatId: ChatId, userID: UserID): QueryResult[User]
   def deleteChat(chatId: ChatId): QueryResult[Chat]
-
-  def closeConnection(): Try[Unit]

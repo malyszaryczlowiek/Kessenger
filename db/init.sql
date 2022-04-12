@@ -1,12 +1,9 @@
 -- CREATE DATABASE with user information
 CREATE TABLE users (
-  -- user_id uuid DEFAULT gen_random_uuid () PRIMARY KEY,
-  user_id uuid NOT NULL,
-  login varchar(255) NOT NULL,
-  pass  varchar(255) NOT NULL,
-  PRIMARY KEY (user_id, login)
-  -- second_name varchar(255) NOT NULL,
-  -- first_name varchar(255) NOT NULL
+  user_id uuid DEFAULT gen_random_uuid () PRIMARY KEY,
+  login varchar(255) NOT NULL UNIQUE,
+  pass  varchar(255) NOT NULL
+  -- PRIMARY KEY (user_id, login)
 );
 
 CREATE TABLE chats (
@@ -19,12 +16,12 @@ CREATE TABLE chats (
 CREATE TABLE users_chats (
   chat_id varchar(255) REFERENCES chats(chat_id),
   user_id uuid REFERENCES users(user_id),
-  CONSTRAINT user_chat PRIMARY KEY(chat_id, user_id)
+  PRIMARY KEY (chat_id, user_id)
 );
 
 -- add to db to clients
-INSERT INTO users (user_id, login, pass) VALUES ( '9039d5ad-99d5-47af-a9ae-a8afee0bf2e8', 'Walo', 'aaa');
-INSERT INTO users (user_id, login, pass) VALUES ( '197cc871-2da6-4f76-9ead-6c45f0020768', 'Spejson', 'bbb');
+INSERT INTO users (login, pass) VALUES ( 'Walo', 'aaa');
+INSERT INTO users (login, pass) VALUES ( 'Spejson', 'bbb');
 
 
 

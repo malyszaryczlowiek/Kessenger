@@ -2,49 +2,121 @@ package com.github.malyszaryczlowiek
 package db
 
 import com.github.malyszaryczlowiek.db.ExternalDB.connection
-import com.github.malyszaryczlowiek.db.queries.{QueryError, Queryable}
+import com.github.malyszaryczlowiek.db.queries.PostgresStatements.Query
+import com.github.malyszaryczlowiek.db.queries.{PostgresStatements, QueryError, Queryable}
 import com.github.malyszaryczlowiek.domain.Domain.{ChatId, ChatName, Login, Password, UserID}
 import com.github.malyszaryczlowiek.domain.User
 import com.github.malyszaryczlowiek.messages.Chat
 
-import java.sql.{Connection, DriverManager, Statement}
+import java.sql.{Connection, DriverManager, PreparedStatement, ResultSet, SQLType, Statement}
 import java.util.{Properties, UUID}
-import scala.util.Try
+import scala.util.{Try, Using}
 
 class ExternalDB extends DataBase: // [A <: Queryable](statement: A)
 
-  def createUser(login: Login, pass: Password): QueryResult[User] = ???
-  def createChat(chatId: ChatId, chatName: ChatName): QueryResult[Chat] = ???
+  def createUser(login: Login, pass: Password): QueryResult[User] =
+    Using ( connection.prepareStatement( "INSERT INTO users(login,pass) VALUES (?,?)", Statement.RETURN_GENERATED_KEYS) ) {
+      (statement: PreparedStatement) => // ,      Statement.RETURN_GENERATED_KEYS
+        statement.setString(1, login)
+        statement.setString(2, pass)
+        val affectedRows: Int = statement.executeUpdate()
+        if affectedRows == 1 then
+          val keys: ResultSet = statement.getGeneratedKeys
+          if keys.next() then
+            val user_id: UserID = keys.getObject(1, classOf[UUID])
+            val login_db: Login = keys.getString("login")
+            keys.close()
+            statement.close()
+            Right(User(user_id, login_db))
+          else
+            keys.close()
+            statement.close()
+            Left(QueryError("User with this login exists now. Please select another login: "))
+        else
+          statement.close()
+          Left(QueryError("User with this login exists now. Please select another login: "))
+    }
+
+
+  def createChat(chatId: ChatId, chatName: ChatName): QueryResult[Chat] =
+    Using ( connection.prepareStatement( "INSERT INTO chats(chat_id,chat_name) VALUES (?,?)" ) ) {
+      (statement: PreparedStatement) => // ,      Statement.RETURN_GENERATED_KEYS
+        statement.setString(1, chatId)
+        statement.setString(2, chatName)
+        val affectedRows = statement.executeUpdate()
+        if affectedRows == 1 then
+          val resultSet = statement.getResultSet
+          val chat_id: ChatId = resultSet.getString("chat_id")
+          val chat_name: Login   = resultSet.getString("chat_name")
+          resultSet.close()
+          statement.close()
+          Right(Chat(chat_id, chat_name))
+        else
+          statement.close()
+          Left(QueryError("Oooppppsss some error with chat creation"))
+    }
+
+
 
   def findUsersChats(user: User): QueryResult[Seq[Chat]] = ???
   def findUsersChats(userId: UserID): QueryResult[Seq[Chat]] = ???
   def findUsersChats(login: Login): QueryResult[Seq[Chat]] = ???
-  def findUser(login: Login): QueryResult[User] = ???
-  def findUser(userId: UserID): QueryResult[User] = ???
+  def findUser(login: Login): QueryResult[User] =
+    Using ( connection.prepareStatement( "SELECT user_id, login FROM users WHERE login = ?" ) ) { statement => // ,      Statement.RETURN_GENERATED_KEYS
+      statement.setString(1, login)
+      val resultSet = statement.executeQuery()
+      if resultSet.next() then
+        val userId: UserID = resultSet.getObject[UUID]("user_id", classOf[UUID])
+        val login: Login   = resultSet.getString("login")
+        resultSet.close()
+        statement.close()
+        Right(User(userId, login))
+      else
+        statement.close()
+        Left(QueryError("User with this login does not exists."))
+    }
+  def findUser(userId: UserID): QueryResult[User] =
+    Using ( connection.prepareStatement( "SELECT user_id, login FROM users WHERE user_id = ?" ) ) { statement => // ,      Statement.RETURN_GENERATED_KEYS
+      statement.setObject(1,userId)
+      val resultSet = statement.executeQuery()
+      if resultSet.next() then
+        val userId: UserID = resultSet.getObject[UUID]("user_id", classOf[UUID])
+        val login: Login   = resultSet.getString("login")
+        resultSet.close()
+        statement.close()
+        Right(User(userId, login))
+      else
+        statement.close()
+        Left(QueryError("User with this login does not exists."))
+    }
+
+
 
   def updateUsersPassword(user: User, pass: Password): QueryResult[Boolean] = ???
   def updateChatName(chatId: ChatId, newName: ChatName): QueryResult[ChatName] = ???
   def updateUsersChat(userId: UserID, chatId: ChatId): QueryResult[Boolean] = ???  // add user to chat
+
+
 
   def deleteUserPermanently(user: User): QueryResult[User] = ???
   def deleteUserPermanently(userId: UserID): QueryResult[User] = ???
   def deleteUserFromChat(chatId: ChatId, userID: UserID): QueryResult[User] = ???
   def deleteChat(chatId: ChatId): QueryResult[Chat] = ???
 
-  def closeConnection(): Try[Unit] = Try { connection.commit() }
+
+
+
 
 
 object ExternalDB:
 
-  private val dbUrl = "jdbc:postgresql://localhost:5432/kessenger_schema"
+  private val dbUrl = "jdbc:postgresql://localhost:5438/kessenger_schema"
   private val dbProps = new Properties
   dbProps.setProperty("user","admin")
   dbProps.setProperty("password","passw")
-  private var connection: Connection = _
+  Class.forName("org.postgresql.Driver")
+  private val connection: Connection = DriverManager.getConnection(dbUrl, dbProps)
+  connection.setAutoCommit(false)
 
-  def connectToDb(): Try[Unit] = Try {
-    connection = DriverManager.getConnection(dbUrl, dbProps)
-  }
-
-
+  def closeConnection(): Try[Unit] = Try { connection.close() }
 

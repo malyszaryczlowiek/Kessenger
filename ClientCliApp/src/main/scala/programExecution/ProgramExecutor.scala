@@ -14,20 +14,17 @@ object ProgramExecutor :
 
 //  private var continueProgram = true
 //  private var continueSelectingChat = true
-//  
-//  
-//  
 //  private var selectChat = true
 //  private var searchUser = true
 
   def runProgram(): Unit =
 //    try {
-//      val eDB: ExternalDB[Queryable] = new ExternalDB[PostgresStatement]()  
+//      val eDB: ExternalDB[Queryable] = new ExternalDB[PostgresStatement]()
 //    }
 //    finally {
-//      
+//
 //    }
-    
+
     println("Type your second name:")
     print("> ")
     val name = readLine()
