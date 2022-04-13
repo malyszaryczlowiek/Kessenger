@@ -10,17 +10,17 @@ import sys.process.*
 
 /**
  * Integration tests for DB.
- * Each test runs on separate freshly build DB container
+ * Each test runs on separate freshly build DB docker container
  */
 class DatabaseTests extends munit.FunSuite:
 
   private var cd: ExternalDB = _
 
   val pathToScripts = "./src/test/scala/integrationTests/db"
-  val waitingTimeMS = 5000
+  val waitingTimeMS = 3000
 
   /**
-   * Before all integration test we must set database
+   * Before all integration tests we must set database
    * generating and removing scripts executable. Even if they so.
    */
   override def beforeAll(): Unit =
@@ -34,7 +34,7 @@ class DatabaseTests extends munit.FunSuite:
    */
   override def beforeEach(context: BeforeEach): Unit =
     val outputOfDockerStarting = s"./${pathToScripts}/startTestDB".!!
-    Thread.sleep(waitingTimeMS) // we must give some time to initialize
+    Thread.sleep(waitingTimeMS) // we must give some time to initialize container
     println(outputOfDockerStarting)
     println("Database prepared...")
     ExternalDB.recreateConnection()
