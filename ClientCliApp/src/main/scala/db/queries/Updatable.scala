@@ -3,7 +3,7 @@ package db.queries
 
 import domain.User
 
-import com.github.malyszaryczlowiek.domain.Domain.{ChatId, ChatName, Password, UserID}
+import com.github.malyszaryczlowiek.domain.Domain.*
 
 trait Updatable extends DbStatements:
   def updateUsersPassword(user: User, pass: Password): Query

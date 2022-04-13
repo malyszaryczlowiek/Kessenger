@@ -1,13 +1,8 @@
 package com.github.malyszaryczlowiek
 package programExecution
 
-import com.github.malyszaryczlowiek.db.queries.Queryable
-
 import scala.annotation.tailrec
 import scala.io.StdIn.{readChar, readInt, readLine}
-import com.github.malyszaryczlowiek.db.{DataBase, ExternalDB, InMemoryDB}
-import com.github.malyszaryczlowiek.domain.{Domain, User}
-import com.github.malyszaryczlowiek.domain.Domain.{ChatId, ChatName, WritingId}
 import com.github.malyszaryczlowiek.messages.ChatManager
 
 object ProgramExecutor :

@@ -1,9 +1,7 @@
 package com.github.malyszaryczlowiek
 package db.queries
 
-import domain.User
-
-import com.github.malyszaryczlowiek.domain.Domain.{ChatId, ChatName, Password, Login}
+import domain.Domain.{ChatId, ChatName, Login, Password}
 
 
 trait Creatable extends DbStatements :

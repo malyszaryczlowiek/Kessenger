@@ -1,6 +1,7 @@
 package com.github.malyszaryczlowiek
 package messages
 
+import com.github.malyszaryczlowiek.domain.Domain.{ChatId, JoinId, WritingId}
 import org.apache.kafka.clients.admin.{Admin, AdminClientConfig, CreateTopicsResult, DeleteTopicsResult, NewTopic}
 import org.apache.kafka.clients.consumer.KafkaConsumer
 import org.apache.kafka.clients.producer.{KafkaProducer, ProducerConfig}
@@ -10,8 +11,6 @@ import org.apache.kafka.common.config.TopicConfig
 import java.util.{Collections, Properties, UUID}
 import scala.util.Try
 import scala.jdk.javaapi.CollectionConverters
-import com.github.malyszaryczlowiek.domain.{Domain, User}
-import com.github.malyszaryczlowiek.domain.Domain.{ChatId, JoinId, WritingId}
 
 
 protected object KessengerAdmin {

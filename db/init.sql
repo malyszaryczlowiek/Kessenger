@@ -1,13 +1,18 @@
 -- CREATE DATABASE with user information
 CREATE TABLE users (
-  user_id uuid DEFAULT gen_random_uuid () PRIMARY KEY,
+  user_id uuid DEFAULT gen_random_uuid () UNIQUE,
   login varchar(255) NOT NULL UNIQUE,
-  pass  varchar(255) NOT NULL
-  -- PRIMARY KEY (user_id, login)
+  pass  varchar(255) NOT NULL,
+  PRIMARY KEY (user_id, login)
+
+--  user_id varchar(255) NOT NULL UNIQUE, -- uuidexit
+--    login varchar(255) NOT NULL UNIQUE,
+--    pass  varchar(255) NOT NULL,
+--    PRIMARY KEY (user_id, login)
 );
 
 CREATE TABLE chats (
-  chat_id varchar(255) PRIMARY KEY,
+  chat_id varchar(255) REFERENCES chats(chat_id) PRIMARY KEY,
   chat_name varchar(255) NOT NULL
 );
 
@@ -38,7 +43,7 @@ INSERT INTO users (login, pass) VALUES ( 'Spejson', 'bbb');
 -- \dt
 
 -- check content of clients table
--- SELECT * FROM clients;
+-- SELECT * FROM users;
 
 
 -- to exit from psql type exit

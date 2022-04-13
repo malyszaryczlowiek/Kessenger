@@ -1,7 +1,8 @@
 package com.github.malyszaryczlowiek
-package db
+package integrationTests.db
 
-import com.github.malyszaryczlowiek.domain.PasswordConverter
+import com.github.malyszaryczlowiek.db.*
+
 
 import java.sql.Connection
 import scala.util.{Failure, Success}
@@ -17,7 +18,7 @@ class DatabaseTests extends munit.FunSuite:
   private var cd: DataBase = _
 //
 //  override def beforeEach(context: BeforeEach): Unit =
-//    val outputOfDockerRestarting = "./initializeDB".!!
+//    val outputOfDockerRestarting = "./initializeTestDB".!!
 //    Thread.sleep(5000)
 //    println(outputOfDockerRestarting)
 //    println("Database prepared")
@@ -28,6 +29,10 @@ class DatabaseTests extends munit.FunSuite:
 //      case Failure(exception) => println(exception.getMessage)
 //      case Success(value) => println("connection closed properly")
 //    }
+
+  override def afterAll(): Unit =
+    ExternalDB.closeConnection()
+    super.afterAll()
 
 
 
@@ -41,7 +46,7 @@ class DatabaseTests extends munit.FunSuite:
       case Success(value) =>
         value match {
           case Left(value) => assert(false, value.description)
-          case Right(dbUser) => assert(dbUser.login == "name")
+          case Right(dbUser) => assert(dbUser.login == "name", "There is no such user")
         }
     }
   }
@@ -54,7 +59,7 @@ class DatabaseTests extends munit.FunSuite:
       case Success(value) =>
         value match {
           case Left(value) => assert(false, value.description)
-          case Right(dbUser) => assert(dbUser.login == "Spejson")
+          case Right(dbUser) => assert(dbUser.login == "Spejson", "Not the same login")
         }
     }
   }

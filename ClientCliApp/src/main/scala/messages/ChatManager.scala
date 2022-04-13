@@ -2,7 +2,7 @@ package com.github.malyszaryczlowiek
 package messages
 
 import com.github.malyszaryczlowiek.domain.Domain
-import com.github.malyszaryczlowiek.domain.Domain.{ChatId, Interlocutor, JoinId, Sender, WritingId}
+import com.github.malyszaryczlowiek.domain.Domain.*
 import org.apache.kafka.clients.consumer.KafkaConsumer
 import org.apache.kafka.clients.producer.{Callback, KafkaProducer, ProducerRecord, RecordMetadata}
 

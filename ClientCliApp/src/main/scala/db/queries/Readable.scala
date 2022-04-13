@@ -1,9 +1,9 @@
 package com.github.malyszaryczlowiek
 package db.queries
 
-import domain.User
+import domain.Domain.*
 
-import com.github.malyszaryczlowiek.domain.Domain.{Login, UserID}
+import com.github.malyszaryczlowiek.domain.User
 
 trait Readable extends DbStatements:
   def findUsersChats(user: User): Query

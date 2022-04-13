@@ -1,5 +1,7 @@
 package com.github.malyszaryczlowiek
-package domain
+package unitTests.domain
+
+import com.github.malyszaryczlowiek.domain.PasswordConverter
 
 import scala.util.{Failure, Success}
 

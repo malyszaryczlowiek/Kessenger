@@ -3,8 +3,6 @@ package db
 
 import java.util.UUID
 import scala.collection.mutable.ListBuffer
-import com.github.malyszaryczlowiek.domain.Domain.{ChatId, ChatName}
-import com.github.malyszaryczlowiek.domain.User
 
 /**
  * In memory DB

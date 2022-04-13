@@ -1,10 +1,9 @@
 package com.github.malyszaryczlowiek
 package db
 
-import domain.User
-
 import com.github.malyszaryczlowiek.db.queries.QueryError
-import com.github.malyszaryczlowiek.domain.Domain.{ChatId, ChatName, Interlocutor, Login, Password, Sender, UserID}
+import com.github.malyszaryczlowiek.domain.Domain.{ChatId, ChatName, Login, Password, UserID}
+import com.github.malyszaryczlowiek.domain.User
 import com.github.malyszaryczlowiek.messages.Chat
 
 import java.util.UUID

@@ -1,10 +1,8 @@
 package com.github.malyszaryczlowiek
 package db.queries
 
-import domain.User
-
-import com.github.malyszaryczlowiek.db.queries.PostgresStatements.Query
 import com.github.malyszaryczlowiek.domain.Domain.{ChatId, UserID}
+import com.github.malyszaryczlowiek.domain.User
 
 import java.util.UUID
 
