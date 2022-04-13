@@ -1,0 +1,4 @@
+#!/bin/zsh
+docker stop test-db
+docker rm -v test-db
+docker rmi test-db

@@ -1,8 +1,7 @@
 package com.github.malyszaryczlowiek
 package integrationTests.db
 
-import com.github.malyszaryczlowiek.db.*
-
+import com.github.malyszaryczlowiek.db.{ExternalDB, *}
 
 import java.sql.Connection
 import scala.util.{Failure, Success}
@@ -10,29 +9,49 @@ import sys.process.*
 
 
 /**
- * Integration tests for DB. Each test is run on separate
- * preinitialized DB build in docker container.
+ * Integration tests for DB.
+ * Each test runs on separate freshly build DB container
  */
 class DatabaseTests extends munit.FunSuite:
 
-  private var cd: DataBase = _
-//
-//  override def beforeEach(context: BeforeEach): Unit =
-//    val outputOfDockerRestarting = "./initializeTestDB".!!
-//    Thread.sleep(5000)
-//    println(outputOfDockerRestarting)
-//    println("Database prepared")
-//    cd = new ExternalDB()
-//
-//  override def afterEach(context: AfterEach): Unit =
-//    cd.closeConnection() match {
-//      case Failure(exception) => println(exception.getMessage)
-//      case Success(value) => println("connection closed properly")
-//    }
+  private var cd: ExternalDB = _
 
-  override def afterAll(): Unit =
-    ExternalDB.closeConnection()
-    super.afterAll()
+  val pathToScripts = "./src/test/scala/integrationTests/db"
+  val waitingTimeMS = 5000
+
+  /**
+   * Before all integration test we must set database
+   * generating and removing scripts executable. Even if they so.
+   */
+  override def beforeAll(): Unit =
+    val executableStartTest = s"chmod +x ${pathToScripts}/startTestDB".!!
+    val executableStopTest = s"chmod +x ${pathToScripts}/stopTestDB".!!
+    super.beforeAll()
+
+  /**
+   * Each test has its own connection,
+   * @param context
+   */
+  override def beforeEach(context: BeforeEach): Unit =
+    val outputOfDockerStarting = s"./${pathToScripts}/startTestDB".!!
+    Thread.sleep(waitingTimeMS) // we must give some time to initialize
+    println(outputOfDockerStarting)
+    println("Database prepared...")
+    ExternalDB.recreateConnection()
+    cd = new ExternalDB()
+
+  override def afterEach(context: AfterEach): Unit =
+    ExternalDB.closeConnection() match {
+      case Failure(exception) => println(exception.getMessage)
+      case Success(value) => println("connection closed correctly")
+    }
+    val outputOfDockerStopping = s"./${pathToScripts}/stopTestDB".!!
+    println(outputOfDockerStopping)
+
+
+//  override def afterAll(): Unit =
+//    ExternalDB.closeConnection()
+//    super.afterAll()
 
 
 

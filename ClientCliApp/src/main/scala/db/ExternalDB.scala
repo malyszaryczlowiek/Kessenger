@@ -12,9 +12,6 @@ import scala.util.{Try, Using}
 
 class ExternalDB extends DataBase: // [A <: Queryable](statement: A)
 
-  // var connection: Connection = ExternalDB.
-  // import com.github.malyszaryczlowiek.db.ExternalDB.connection
-
   var connection: Connection = ExternalDB.getConnection
 
   def createUser(login: Login, pass: Password): QueryResult[User] =
@@ -121,7 +118,7 @@ object ExternalDB:
 
   def closeConnection(): Try[Unit] = Try { connection.close() }
   protected def getConnection: Connection = connection
-  protected def recreateConnection(): Try[Unit] = Try {
+  def recreateConnection(): Try[Unit] = Try {
     if connection.isClosed then
       connection = DriverManager.getConnection(dbUrl, dbProps)
       connection.setAutoCommit(false)
