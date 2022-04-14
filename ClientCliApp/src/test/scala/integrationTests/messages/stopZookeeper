@@ -1,0 +1,4 @@
+#!/bin/zsh
+docker stop zookeeper-test
+docker rm -v zookeeper-test
+docker network rm integration-tests-network

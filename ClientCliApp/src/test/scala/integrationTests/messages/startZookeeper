@@ -1,0 +1,14 @@
+#!/bin/zsh
+docker network create -d bridge integration-tests-network
+docker run -d \
+ -p 2181:2181 \
+ --restart always \
+ --network integration-tests-network \
+ --name zookeeper-test \
+ zookeeper:3.8.0
+
+
+
+
+
+

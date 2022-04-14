@@ -1,0 +1,8 @@
+#!/bin/zsh
+docker exec kafka-test kafka-topics.sh \
+                       --bootstrap-server localhost:9093 \
+                       --topic $1 \
+                       --create \
+                       --if-not-exists \
+                       --partitions 1 \
+                       --replication-factor 1
