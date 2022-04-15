@@ -1,4 +1,4 @@
 #!/bin/zsh
-docker stop kafka-test
-docker rm -v kafka-test
+docker stop kafka-test-broker
+docker rm -v kafka-test-broker
 

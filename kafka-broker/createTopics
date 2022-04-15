@@ -1,9 +1,0 @@
-#!/bin/zsh
-# create some topic
-docker exec kafka kafka-topics.sh \
-                     --bootstrap-server localhost:9092 \
-                     --topic spark-streaming-output \
-                     --create \
-                     --if-not-exists \
-                     --partitions 1 \
-                     --replication-factor 3

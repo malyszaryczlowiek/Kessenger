@@ -23,7 +23,7 @@ trait DataBase:
 
   def updateUsersPassword(user: User, pass: Password): QueryResult[Boolean]
   def updateChatName(chatId: ChatId, newName: ChatName): QueryResult[ChatName]
-  def updateUsersChat(userId: UserID, chatId: ChatId): QueryResult[Boolean]  // add user to chat
+  def addUserToChat(userId: UserID, chatId: ChatId): QueryResult[Boolean]  // add user to chat
 
   def deleteUserPermanently(user: User): QueryResult[User]
   def deleteUserPermanently(userId: UserID): QueryResult[User]

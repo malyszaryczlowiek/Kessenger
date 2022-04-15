@@ -8,6 +8,7 @@ import com.github.malyszaryczlowiek.messages.Chat
 
 import java.sql.{Connection, DriverManager, PreparedStatement, ResultSet, SQLType, Statement}
 import java.util.{Properties, UUID}
+import scala.collection.mutable.ListBuffer
 import scala.util.{Try, Using}
 
 class ExternalDB extends DataBase: // [A <: Queryable](statement: A)
@@ -44,6 +45,7 @@ class ExternalDB extends DataBase: // [A <: Queryable](statement: A)
         statement.setString(1, chatId)
         statement.setString(2, chatName)
         val affectedRows = statement.executeUpdate()
+        connection.commit()
         if affectedRows == 1 then
           val resultSet = statement.getResultSet
           val chat_id: ChatId = resultSet.getString("chat_id")
@@ -55,9 +57,8 @@ class ExternalDB extends DataBase: // [A <: Queryable](statement: A)
     }
 
 
-  def findUsersChats(user: User): QueryResult[Seq[Chat]] = ???
-  def findUsersChats(userId: UserID): QueryResult[Seq[Chat]] = ???
-  def findUsersChats(login: Login): QueryResult[Seq[Chat]] = ???
+
+
   def findUser(login: Login): QueryResult[User] =
     Using ( connection.prepareStatement( "SELECT user_id, login FROM users WHERE login = ?" ) ) { statement => // ,      Statement.RETURN_GENERATED_KEYS
       statement.setString(1, login)
@@ -71,6 +72,7 @@ class ExternalDB extends DataBase: // [A <: Queryable](statement: A)
         resultSet.close()
         Left(QueryError("User with this login does not exists."))
     }
+
 
   def findUser(userId: UserID): QueryResult[User] =
     Using ( connection.prepareStatement( "SELECT user_id, login FROM users WHERE user_id = ?" ) ) { statement => // ,      Statement.RETURN_GENERATED_KEYS
@@ -88,12 +90,31 @@ class ExternalDB extends DataBase: // [A <: Queryable](statement: A)
         Left(QueryError("User with this login does not exists."))
     }
 
+  def findUsersChats(user: User): QueryResult[Seq[Chat]] =
+    Using ( connection.prepareStatement("SELECT users_chats.chat_id AS chat_id, chats.chat_name AS chat_name FROM users_chats INNER JOIN chats WHERE users_chats.user_id = chats.chat_id AND users_chats.user_id = ? ") ) {
+      (statement: PreparedStatement) =>
+        statement.setObject(1, user.userId)
+        val resultSet: ResultSet = statement.executeQuery()
+        val list: ListBuffer[Chat] = ListBuffer()
+        while (resultSet.next())
+          val chatId: ChatId = resultSet.getString("chat_id")
+          val chatName: ChatName = resultSet.getString("chat_name")
+          list += Chat(chatId, chatName)
+        resultSet.close()
+        val seq = list.toSeq
+        if seq.isEmpty then Left(QueryError("Oooppppsss some error with chat creation"))
+        else Right(seq)
+    }
+
+  def findUsersChats(userId: UserID): QueryResult[Seq[Chat]] = ???
+  def findUsersChats(login: Login): QueryResult[Seq[Chat]] = ???
+
 
 
   def updateUsersPassword(user: User, pass: Password): QueryResult[Boolean] = ???
   def updateChatName(chatId: ChatId, newName: ChatName): QueryResult[ChatName] = ???
-  def updateUsersChat(userId: UserID, chatId: ChatId): QueryResult[Boolean] = ???  // add user to chat
-
+  def addUserToChat(userId: UserID, chatId: ChatId): QueryResult[Boolean] = ???  // add user to  existing chat
+  // add user to chat
 
 
   def deleteUserPermanently(user: User): QueryResult[User] = ???
@@ -117,7 +138,9 @@ object ExternalDB:
   connection.setAutoCommit(false)
 
   def closeConnection(): Try[Unit] = Try { connection.close() }
+
   protected def getConnection: Connection = connection
+
   def recreateConnection(): Try[Unit] = Try {
     if connection.isClosed then
       connection = DriverManager.getConnection(dbUrl, dbProps)

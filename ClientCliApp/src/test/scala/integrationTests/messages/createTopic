@@ -1,5 +1,5 @@
 #!/bin/zsh
-docker exec kafka-test kafka-topics.sh \
+docker exec kafka-test-broker kafka-topics.sh \
                        --bootstrap-server localhost:9093 \
                        --topic $1 \
                        --create \

@@ -46,6 +46,7 @@ class ChatManagerTests extends munit.FunSuite {
    */
   override def beforeEach(context: BeforeEach): Unit =
     val outputOfKafkaStarting = s"./${pathToScripts}/startKafka".!!
+    println(s"Created kafka-test-container container")
     Thread.sleep(1_000)
     super.beforeEach(context)
 
@@ -56,7 +57,8 @@ class ChatManagerTests extends munit.FunSuite {
    */
   override def afterEach(context: AfterEach): Unit =
     val outputOfKafkaStopping = s"./${pathToScripts}/stopKafka".!!
-    println( outputOfKafkaStopping )
+    val name = outputOfKafkaStopping.split('\n')
+    println( s"Stopped ${name(0)} container\nDeleted ${name(1)} container" )
     Thread.sleep(2_000)
     super.afterEach(context)
 
@@ -66,7 +68,8 @@ class ChatManagerTests extends munit.FunSuite {
    */
   override def afterAll(): Unit =
     val outputOfZookeeperStopping = s"./${pathToScripts}/stopZookeeper".!!
-    println( outputOfZookeeperStopping )
+    val names = outputOfZookeeperStopping.split('\n')
+    println( s"Stopped ${names(0)} container\nDeleted ${names(1)} container\nDeleted \'${names(2)}\' docker testing network" )
     super.afterAll()
 
   private def createTopic(topicName: String): Unit =
