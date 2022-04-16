@@ -21,9 +21,9 @@ trait DataBase:
   def findUser(login: Login): QueryResult[User]
   def findUser(userId: UserID): QueryResult[User]
 
-  def updateUsersPassword(user: User, pass: Password): QueryResult[Boolean]
+  def updateUsersPassword(user: User, pass: Password): QueryResult[User]
   def updateChatName(chatId: ChatId, newName: ChatName): QueryResult[ChatName]
-  def addUserToChat(userId: UserID, chatId: ChatId): QueryResult[Boolean]  // add user to chat
+  def addUsersToChat(userIds: List[UserID], chatId: ChatId): List[QueryResult[UserID]]  // add user to chat
 
   def deleteUserPermanently(user: User): QueryResult[User]
   def deleteUserPermanently(userId: UserID): QueryResult[User]

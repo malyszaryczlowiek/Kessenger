@@ -37,7 +37,13 @@ class ExternalDB extends DataBase: // [A <: Queryable](statement: A)
       case Success(either) => either
     }
 
-
+  /**
+   * TODO refactor this method to take list of ChatId's, chat name
+   *   and returning chat
+   * @param chatId
+   * @param chatName
+   * @return
+   */
   def createChat(chatId: ChatId, chatName: ChatName): QueryResult[Chat] =
     Using ( connection.prepareStatement( "INSERT INTO chats(chat_id, chat_name) VALUES (?,?)" ) ) {
       (statement: PreparedStatement) => // ,      Statement.RETURN_GENERATED_KEYS
@@ -93,7 +99,7 @@ class ExternalDB extends DataBase: // [A <: Queryable](statement: A)
         Right(User(userId, login))
       else
         resultSet.close()
-        Left(QueryError("User with this login does not exists."))
+        Left(QueryError("User not found."))
     } match {
       case Failure(ex) =>
         if ex.getMessage == "FATAL: terminating connection due to administrator command" then // no connection to db
@@ -118,7 +124,7 @@ class ExternalDB extends DataBase: // [A <: Queryable](statement: A)
         else
           resultSet.close()
           statement.close()
-          Left(QueryError("User with this login does not exists."))
+          Left(QueryError("User not found."))
     } match {
       case Failure(ex) =>
         if ex.getMessage == "FATAL: terminating connection due to administrator command" then // no connection to db
@@ -152,9 +158,37 @@ class ExternalDB extends DataBase: // [A <: Queryable](statement: A)
 
 
 
-  def updateUsersPassword(user: User, pass: Password): QueryResult[Boolean] = ???
+  def updateUsersPassword(user: User, pass: Password): QueryResult[User] = ???
   def updateChatName(chatId: ChatId, newName: ChatName): QueryResult[ChatName] = ???
-  def addUserToChat(userId: UserID, chatId: ChatId): QueryResult[Boolean] = ???  // add user to  existing chat
+
+  def addUsersToChat(userIds: List[UserID], chatId: ChatId): List[QueryResult[UserID]] =
+    userIds.map( (userId: UserID) =>
+      Using( connection.prepareStatement("INSERT INTO users_chats (chat_id, user_id) VALUES (?, ?)")) {
+        (statement: PreparedStatement) =>
+          statement.setString(1, chatId)
+          statement.setObject(2, userId)
+          val affectedUpdates: Int = statement.executeUpdate()
+          connection.commit()
+          if affectedUpdates == 1 then
+            Right(userId)
+          else
+            Left( QueryError("Undefined Error") )
+      } match {
+        case Failure(ex) =>
+          if ex.getMessage.contains("duplicate key value violates unique constraint") then
+            Left( QueryError( s"Sorry Login is taken, try with another one."))
+          else if ex.getMessage == "FATAL: terminating connection due to administrator command" then
+            Left( QueryError( s"Connection to DB lost. Try again later." ) )
+          else
+            Left( QueryError(ex.getMessage) )
+        case Success(either) => either
+      }
+    )
+
+
+
+
+  // add user to  existing chat
   // add user to chat
 
 

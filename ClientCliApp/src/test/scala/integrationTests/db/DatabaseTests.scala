@@ -148,6 +148,7 @@ class DatabaseTests extends munit.FunSuite:
 
   /**
    * Create chat when both users information are taken from DB
+   * TODO ----> rewrite the test for many users <----
    */
   test("chat creation when both users are taken from DB") {
 
@@ -194,6 +195,7 @@ class DatabaseTests extends munit.FunSuite:
 
   /**
    * Trying to create chat when DB is unavailable
+   * TODO ----> rewrite the test for many users <----
    */
   test("Trying to create new chat when DB is unavailable") {
     val user1: User = User(UUID.randomUUID(), "pass1")
@@ -244,15 +246,15 @@ class DatabaseTests extends munit.FunSuite:
   test("Searching user by login when user is unavailable in DB") {
     cd.findUser("NonExistingLogin") match {
       case Left(queryError: QueryError) =>
-        assert(queryError.description == "User with this login does not exists.",
+        assert(queryError.description == "User not found.",
           s"""Assertion error, should get error message:
-             |=> \"User with this login does not exists.\"
+             |=> \"User not found.\"
              |but got error:
              |=> ${queryError.description}""".stripMargin)
       case Right(dbUser: User) =>
         assert(false,
           s"""Assertion error, function should return Query error:
-             |=> \"User with this login does not exists.\"
+             |=> \"User not found.\"
              |but returned not existing user:
              |=> ${dbUser.login}""".stripMargin)
     }
@@ -275,7 +277,7 @@ class DatabaseTests extends munit.FunSuite:
       case Right(dbUser: User) =>
         assert(false,
           s"""Assertion error, function should return Query error:
-             |=> \"User with this login does not exists.\"
+             |=> \"User not found.\"
              |but returned not existing user:
              |=> ${dbUser.login}""".stripMargin)
     }
@@ -305,23 +307,45 @@ class DatabaseTests extends munit.FunSuite:
   }
 
   /**
-   * TODO Searching user by userId when user is unavailable in DB
+   * Searching user by userId when user is unavailable in DB
    */
-  test("Searching user by userID when user is unavailable in DB") {
-
+  test("Searching user by userID when userId is not found.") {
+    cd.findUser(UUID.randomUUID()) match {
+      case Left(queryError: QueryError) =>
+        assert(queryError.description == "User not found.",
+          s"""Assertion error, should get error message:
+             |=> \"User not found.\"
+             |but got error:
+             |=> ${queryError.description}""".stripMargin)
+      case Right(dbUser) => assert(false,
+        s"""Assertion error, function should return Query error:
+           |=> \"User not found.\"
+           |but returned not existing user:
+           |=> ${dbUser.login}""".stripMargin)
+    }
   }
 
   /**
-   * TODO Searching user by userId when DB is down
+   * Searching user by userId when DB is down
    */
   test(" Searching user by userID when DB is down.") {
 
+    switchOffDbManually()
+
+    cd.findUser(UUID.randomUUID()) match {
+      case Left(queryError: QueryError) =>
+        assert(queryError.description == "Connection to DB lost. Try again later.",
+          s"""Assertion error, should get error message:
+             |=> \"Connection to DB lost. Try again later.\"
+             |but got error:
+             |=> ${queryError.description}""".stripMargin)
+      case Right(dbUser) => assert(false,
+        s"""Assertion error, function should return Query error:
+           |=> \"User not found.\"
+           |but returned not existing user:
+           |=> ${dbUser.login}""".stripMargin)
+    }
   }
-
-
-
-
-
 
 
 
@@ -329,17 +353,46 @@ class DatabaseTests extends munit.FunSuite:
 
   /**
    * TODO Searching user's chats by user's login when user exists in DB
+   *   ----> rewrite the test <-----
    */
-  test("Searching user by login when user exists in DB") {
-//    cd.findUsersChats("Spejson") match {
-//      case Failure(exception) =>
-//        assert(false, "ERROR BAZY: " + exception.getMessage)
-//      case Success(value) =>
-//        value match {
-//          case Left(value) => assert(false, value.description)
-//          case Right(seqChats) => zrobić asercję
-//        }
-//    }
+  test("Searching user's chats by his/her login when user exists in DB") {
+
+    // inserting needed data to DB
+
+    val user1: User = cd.findUser("Walo") match {
+      case Left(queryError: QueryError) =>
+        assert(false, s"${queryError.description}")
+        User(UUID.randomUUID(), "")
+      case Right(user: User) => user
+    }
+
+    val user2: User = cd.findUser("Spejson") match {
+      case Left(queryError: QueryError) =>
+        assert(false, s"${queryError.description}")
+        User(UUID.randomUUID(), "")
+      case Right(user: User) => user
+    }
+
+    val chatId: ChatId     = Domain.generateChatId(user1.userId, user2.userId)
+    val chatName: ChatName = "Walo-Spejson"
+
+    val chat: Chat = cd.createChat(chatId, chatName) match {
+      case Right(chat: Chat) => chat
+      case Left(queryError: QueryError) =>
+        assert(false, "Assertion error, Method should return Chat object")
+        Chat("Null", "Null")
+    }
+
+    val returnedChatId = chat.chatId
+
+
+    //
+
+
+
+
+
+
   }
 
   /**
@@ -450,7 +503,7 @@ class DatabaseTests extends munit.FunSuite:
    * TODO Add user to existing chat
    */
   test("Add user to existing chat") {
-
+    // TODO here implement
   }
 
   /**

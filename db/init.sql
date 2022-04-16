@@ -17,7 +17,7 @@ CREATE TABLE IF NOT EXISTS chats (
 );
 
 
--- connecting users and chats, no duplicate possible
+-- connecting users and chats, no duplicate pairs possible
 CREATE TABLE users_chats (
   chat_id varchar(255) REFERENCES chats(chat_id) ON DELETE CASCADE,
   user_id uuid REFERENCES users(user_id) ON DELETE CASCADE,
