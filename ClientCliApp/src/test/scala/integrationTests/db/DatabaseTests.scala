@@ -23,7 +23,7 @@ class DatabaseTests extends munit.FunSuite:
 
   /**
    * we must give some time to initialize container, because
-   * docker container is started as demon to not block test
+   * docker container is started as demon and starting script returns immediately
    */
   val waitingTimeMS = 3000
   val pathToScripts = "./src/test/scala/integrationTests/db"
@@ -66,6 +66,11 @@ class DatabaseTests extends munit.FunSuite:
       val outputOfDockerStopping = s"./${pathToScripts}/stopTestDB".!!
       println(outputOfDockerStopping)
 
+
+  def switchOffDbManually(): Unit =
+    val outputOfDockerStopping = s"./${pathToScripts}/stopTestDB".!!
+    println(outputOfDockerStopping)
+    switchOffDbEarlier = true
 
 
   // testing of creation/insertions
@@ -114,9 +119,7 @@ class DatabaseTests extends munit.FunSuite:
    */
   test("Testing user insertion with login present in DB when DB is not available") {
     // here we switch off docker container
-    val outputOfDockerStopping = s"./${pathToScripts}/stopTestDB".!!
-    println(outputOfDockerStopping)
-    switchOffDbEarlier = true
+    switchOffDbManually()
     //  normally try to execute user insertion.
     val name = "Walo"
     PasswordConverter.convert("simplePassword") match {
@@ -144,9 +147,10 @@ class DatabaseTests extends munit.FunSuite:
   // chat creation
 
   /**
-   * Create chat when both users information are taken from DB TODO
+   * Create chat when both users information are taken from DB
    */
   test("chat creation when both users are taken from DB") {
+
     val user1: User = cd.findUser("Walo") match {
       case Left(queryError: QueryError) =>
         //Thread.sleep(120_000)
@@ -154,14 +158,17 @@ class DatabaseTests extends munit.FunSuite:
         User(UUID.randomUUID(), "")
       case Right(user: User) => user
     }
+
     val user2: User = cd.findUser("Spejson") match {
       case Left(queryError: QueryError) =>
         assert(false, s"${queryError.description}")
         User(UUID.randomUUID(), "")
       case Right(user: User) => user
     }
+
     val chatId: ChatId     = Domain.generateChatId(user1.userId, user2.userId)
     val chatName: ChatName = "Walo-Spejson"
+
     cd.createChat(chatId, chatName) match {
       case Right(chat: Chat) =>
         assert(chat.chatId == chatId, s"Chat id from DB: ${chat.chatId} does not match inserted to DB: $chatId")
@@ -176,70 +183,125 @@ class DatabaseTests extends munit.FunSuite:
 
 
   /**
+   * TODO this test may by omitted
    * TODO In this test we try to create chat using users who are absent in db,
    * due to DB constraint in user_chat to use only user_id present in
    * users table db returns exception and test fails.
    */
   test("Testing chat creation using two users which one of them not exists in DB ") {
-    // valo exists in DB
-//    val walo: User = cd.findUser("Walo") match {
-//      case Left(queryError: QueryError) =>
-//        assert(false, s"${queryError.description}")
-//        User(UUID.randomUUID(), "foo")
-//      case Right(user: User) => user
-//    }
-//    val nonExistingUser = User(UUID.randomUUID(), "Foo")
-//    val chatId: ChatId     = Domain.generateChatId(user1.userId, user2.userId)
-//    val chatName: ChatName = "Walo-NonExisting"
-//    cd.createChat()
+    // **** not implement yet.
   }
 
   /**
-   * TODO Trying to create chat when DB is unavailable
+   * Trying to create chat when DB is unavailable
    */
   test("Trying to create new chat when DB is unavailable") {
+    val user1: User = User(UUID.randomUUID(), "pass1")
+    val user2: User = User(UUID.randomUUID(), "pass2")
 
+    val chatId: ChatId     = Domain.generateChatId(user1.userId, user2.userId)
+    val chatName: ChatName = "ChatName"
+
+    switchOffDbManually() // IMPORTANT we need lost connection to db
+
+    cd.createChat(chatId, chatName) match {
+      case Right(chat: Chat) =>
+        assert(false, s"""Assertion error, should return
+                  |=> \"Connection to DB lost. Try again later.\"
+                  |but returned:
+                  |=> Chat object: $chat
+                  |""")
+      case Left(queryError: QueryError) =>
+        assert(queryError.description == "Connection to DB lost. Try again later.",
+        s"""Wrong error message:
+           |=> ${queryError.description}
+           |should return:
+           |=> \"Connection to DB lost. Try again later.\"""".stripMargin)
+    }
   }
-
-
-
-
-
-
 
 
 
   // searching user's chats
 
   /**
-   * TODO Searching user by login when user exists in DB
+   * Searching user by login when user exists in DB
    */
   test("Searching user by login when user exists in DB") {
     cd.findUser("Spejson") match {
-          case Left(value) => assert(false, value.description)
-          case Right(dbUser) => assert(dbUser.login == "Spejson", "Not the same login")
-        }
+      case Left(queryError: QueryError) =>
+        assert(false,
+          s"""Assertion error, should find user in db,
+             |but returned error:
+             |=> ${queryError.description}""".stripMargin)
+      case Right(dbUser) => assert(dbUser.login == "Spejson", "Not the same login")
+    }
   }
 
   /**
-   * TODO Searching user by login when user is unavailable in DB
+   * Searching user by login when user is unavailable in DB
    */
   test("Searching user by login when user is unavailable in DB") {
-
+    cd.findUser("NonExistingLogin") match {
+      case Left(queryError: QueryError) =>
+        assert(queryError.description == "User with this login does not exists.",
+          s"""Assertion error, should get error message:
+             |=> \"User with this login does not exists.\"
+             |but got error:
+             |=> ${queryError.description}""".stripMargin)
+      case Right(dbUser: User) =>
+        assert(false,
+          s"""Assertion error, function should return Query error:
+             |=> \"User with this login does not exists.\"
+             |but returned not existing user:
+             |=> ${dbUser.login}""".stripMargin)
+    }
   }
 
   /**
-   * TODO Searching user by login when DB is down
+   * Searching user by login when DB is down
    */
   test(" Searching user by login when DB is down.") {
 
+    switchOffDbManually()
+
+    cd.findUser("NonExistingLogin") match {
+      case Left(queryError: QueryError) =>
+        assert(queryError.description == "Connection to DB lost. Try again later.",
+          s"""Assertion error, should get error message:
+             |=> \"Connection to DB lost. Try again later.\"
+             |but got error:
+             |=> ${queryError.description}""".stripMargin)
+      case Right(dbUser: User) =>
+        assert(false,
+          s"""Assertion error, function should return Query error:
+             |=> \"User with this login does not exists.\"
+             |but returned not existing user:
+             |=> ${dbUser.login}""".stripMargin)
+    }
   }
 
   /**
-   * TODO Searching user by userId when user exists in DB
+   * Searching user by userId when user exists in DB
    */
   test("Searching user by userID when user exists in DB") {
 
+    // we need take the user id
+    val user: User = cd.findUser("Spejson") match {
+      case Left(queryError: QueryError) =>
+        assert(false, s"${queryError.description}")
+        User(UUID.randomUUID(), "")
+      case Right(user: User) => user
+    }
+
+    cd.findUser(user.userId) match {
+      case Left(queryError: QueryError) =>
+        assert(false,
+          s"""Assertion error, should find user in db,
+             |but returned error:
+             |=> ${queryError.description}""".stripMargin)
+      case Right(dbUser) => assert(dbUser.login == "Spejson", "Not the same login")
+    }
   }
 
   /**

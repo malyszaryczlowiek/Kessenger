@@ -1,7 +1,7 @@
 -- CREATE DATABASE with user information
 CREATE TABLE IF NOT EXISTS users (
   user_id uuid DEFAULT gen_random_uuid () UNIQUE,
-  login varchar(255) UNIQUE, -- NOT NULL UNIQUE
+  login varchar(255) UNIQUE,
   pass  varchar(255) NOT NULL,
   PRIMARY KEY (user_id, login)
 
