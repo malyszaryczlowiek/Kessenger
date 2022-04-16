@@ -3,7 +3,9 @@ package integrationTests.db
 
 import com.github.malyszaryczlowiek.db.queries.QueryError
 import com.github.malyszaryczlowiek.db.{ExternalDB, *}
-import com.github.malyszaryczlowiek.domain.{PasswordConverter, User}
+import com.github.malyszaryczlowiek.domain.Domain.{ChatId, ChatName}
+import com.github.malyszaryczlowiek.domain.{Domain, PasswordConverter, User}
+import com.github.malyszaryczlowiek.messages.Chat
 
 import java.sql.Connection
 import java.util.UUID
@@ -19,8 +21,13 @@ class DatabaseTests extends munit.FunSuite:
 
   private var cd: ExternalDB = _
 
+  /**
+   * we must give some time to initialize container, because
+   * docker container is started as demon to not block test
+   */
+  val waitingTimeMS = 3000
   val pathToScripts = "./src/test/scala/integrationTests/db"
-  val waitingTimeMS = 5000
+  var switchOffDbEarlier = false
 
   /**
    * Before all integration tests we must set database
@@ -37,15 +44,17 @@ class DatabaseTests extends munit.FunSuite:
    * @param context
    */
   override def beforeEach(context: BeforeEach): Unit =
+    switchOffDbEarlier = false
     val outputOfDockerStarting = s"./${pathToScripts}/startTestDB".!!
-    Thread.sleep(waitingTimeMS) // we must give some time to initialize container
+    Thread.sleep(waitingTimeMS)
     println(outputOfDockerStarting)
     println("Database prepared...")
     ExternalDB.recreateConnection()
     cd = new ExternalDB()
 
   /**
-   * After Each test we close used connection.
+   * After Each test we close used connection, and if required
+   * switch off and delete db container as well.
    * @param context
    */
   override def afterEach(context: AfterEach): Unit =
@@ -53,8 +62,10 @@ class DatabaseTests extends munit.FunSuite:
       case Failure(exception) => println(exception.getMessage)
       case Success(value) => println("connection closed correctly")
     }
-    val outputOfDockerStopping = s"./${pathToScripts}/stopTestDB".!!
-    println(outputOfDockerStopping)
+    if !switchOffDbEarlier then
+      val outputOfDockerStopping = s"./${pathToScripts}/stopTestDB".!!
+      println(outputOfDockerStopping)
+
 
 
   // testing of creation/insertions
@@ -78,39 +89,52 @@ class DatabaseTests extends munit.FunSuite:
   }
 
   /**
-   * TODO Testing user insertion when user with this login exists now in DB
+   * Testing user insertion when user with this login exists now in DB
    */
   test("Testing user insertion with login present in DB"){
-    val name = "Wojtas"
+    val name = "Walo"
     PasswordConverter.convert("simplePassword") match {
       case Left(value) =>
         assert(false, "UUUUps Password converter failed")
       case Right(pass) =>
         cd.createUser(name, pass) match {
-          case Left(value) => assert(false, value.description)
-          case Right(dbUser) => assert(dbUser.login == name, "Returned user login does not match inserted.")
+          case Left(queryError: QueryError) =>
+            println(s"${queryError.description}")
+            assert(queryError.description == "Sorry Login is taken, try with another one.",
+              s"Result error does not contain: ${queryError.description}")
+          case Right(dbUser) => assert(false, "This test should return Left(QueryError)")
         }
     }
   }
 
 
   /**
-   * TODO Testing user insertion when DB is not available
-   * here we switch off DB container.
+   * Testing user insertion when DB is not available,
+   * here we switch off DB container before inserting user to them.
    */
-  test("Testing user insertion with login present in DB") {
+  test("Testing user insertion with login present in DB when DB is not available") {
     // here we switch off docker container
     val outputOfDockerStopping = s"./${pathToScripts}/stopTestDB".!!
     println(outputOfDockerStopping)
-    // ando normally try to execute user insertion.
-    val name = "Wojtas"
+    switchOffDbEarlier = true
+    //  normally try to execute user insertion.
+    val name = "Walo"
     PasswordConverter.convert("simplePassword") match {
       case Left(value) =>
         assert(false, "UUUUps Password converter failed")
       case Right(pass) =>
         cd.createUser(name, pass) match {
-          case Left(value) => assert(false, value.description)
-          case Right(dbUser) => assert(dbUser.login == name, "Returned user login does not match inserted.")
+          case Left(queryError: QueryError) =>
+            println(s"${queryError.description}") // prints
+            // Server Error: FATAL: terminating connection due to administrator command
+            assert(queryError.description == "Connection to DB lost. Try again later.",
+              s"""Returned error message
+                  |=> \"${queryError.description}
+                  |is other than expected
+                  |\"Connection to DB lost. Try again later.\"
+                """)
+          case Right(dbUser) =>
+            assert(false, "Returned user login does not match inserted.")
         }
     }
   }
@@ -120,10 +144,31 @@ class DatabaseTests extends munit.FunSuite:
   // chat creation
 
   /**
-   * TODO Create chat when both users information are taken from DB
+   * Create chat when both users information are taken from DB TODO
    */
   test("chat creation when both users are taken from DB") {
-
+    val user1: User = cd.findUser("Walo") match {
+      case Left(queryError: QueryError) =>
+        //Thread.sleep(120_000)
+        assert(false, s"${queryError.description}")
+        User(UUID.randomUUID(), "")
+      case Right(user: User) => user
+    }
+    val user2: User = cd.findUser("Spejson") match {
+      case Left(queryError: QueryError) =>
+        assert(false, s"${queryError.description}")
+        User(UUID.randomUUID(), "")
+      case Right(user: User) => user
+    }
+    val chatId: ChatId     = Domain.generateChatId(user1.userId, user2.userId)
+    val chatName: ChatName = "Walo-Spejson"
+    cd.createChat(chatId, chatName) match {
+      case Right(chat: Chat) =>
+        assert(chat.chatId == chatId, s"Chat id from DB: ${chat.chatId} does not match inserted to DB: $chatId")
+        assert(chat.chatName == chatName, s"Chat name from DB: ${chat.chatName} does not match inserted to DB: $chatName")
+      case Left(queryError: QueryError) =>
+        assert(false, queryError.description)
+    }
   }
 
 
@@ -135,15 +180,18 @@ class DatabaseTests extends munit.FunSuite:
    * due to DB constraint in user_chat to use only user_id present in
    * users table db returns exception and test fails.
    */
-  test("Testing chat creation using two users which one of them not exists in DB ".fail) {
+  test("Testing chat creation using two users which one of them not exists in DB ") {
     // valo exists in DB
-    val randomUUID = UUID.randomUUID()
-    val walo: User = cd.findUser("Walo") match {
-      case Left(queryError: QueryError) =>
-        assert(false, s"${queryError.description}")
-        User(randomUUID, "foo")
-      case Right(user: User) => user
-    }
+//    val walo: User = cd.findUser("Walo") match {
+//      case Left(queryError: QueryError) =>
+//        assert(false, s"${queryError.description}")
+//        User(UUID.randomUUID(), "foo")
+//      case Right(user: User) => user
+//    }
+//    val nonExistingUser = User(UUID.randomUUID(), "Foo")
+//    val chatId: ChatId     = Domain.generateChatId(user1.userId, user2.userId)
+//    val chatName: ChatName = "Walo-NonExisting"
+//    cd.createChat()
   }
 
   /**

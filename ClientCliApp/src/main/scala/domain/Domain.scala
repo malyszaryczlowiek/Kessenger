@@ -28,5 +28,5 @@ object Domain {
   def generateJoinId(user: UUID): JoinId =
     s"join--${user.toString}"
 
-
+  // def generateChatName
 }

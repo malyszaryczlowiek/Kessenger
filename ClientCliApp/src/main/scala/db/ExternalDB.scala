@@ -27,24 +27,42 @@ class ExternalDB extends DataBase: // [A <: Queryable](statement: A)
         else
           Left( QueryError(s"Oooopss... Some Error.. Affected rows: $affectedRows != 1") )
     } match {
-      case Failure(ex) => Left( QueryError( s"Server Error: ${ex.getMessage}"))
+      case Failure(ex) => 
+        if ex.getMessage.contains("duplicate key value violates unique constraint") then
+          Left( QueryError( s"Sorry Login is taken, try with another one."))
+        else if ex.getMessage == "FATAL: terminating connection due to administrator command" then
+          Left( QueryError( s"Connection to DB lost. Try again later." ) )  
+        else
+          Left( QueryError(ex.getMessage) )  
       case Success(either) => either
     }
 
 
   def createChat(chatId: ChatId, chatName: ChatName): QueryResult[Chat] =
-    Using ( connection.prepareStatement( "INSERT INTO chats(chat_id,chat_name) VALUES (?,?)" ) ) {
+    Using ( connection.prepareStatement( "INSERT INTO chats(chat_id, chat_name) VALUES (?,?)" ) ) {
       (statement: PreparedStatement) => // ,      Statement.RETURN_GENERATED_KEYS
         statement.setString(1, chatId)
         statement.setString(2, chatName)
         val affectedRows = statement.executeUpdate()
         connection.commit()
         if affectedRows == 1 then
-          val resultSet = statement.getResultSet
-          val chat_id: ChatId = resultSet.getString("chat_id")
-          val chat_name: Login   = resultSet.getString("chat_name")
-          resultSet.close()
-          Right(Chat(chat_id, chat_name))
+          var resultChatId: ChatId = ""
+          var resultChatName = ""
+          Using(connection.prepareStatement("SELECT chat_id, chat_name FROM chats")) {
+            (innerStatement: PreparedStatement) =>
+              val resultSet: ResultSet = innerStatement.executeQuery()
+              if resultSet.next() then
+                resultChatId = resultSet.getString("chat_id")
+                resultChatName = resultSet.getString("chat_name")
+                resultSet.close()
+                Right(Chat(chatId, chatName))
+              else
+                Left(QueryError("Created chat not found in DB"))
+          } match {
+            case Failure(ex) =>
+              Left( QueryError(ex.getMessage) )
+            case Success( either ) => either
+          }
         else
           Left(QueryError("Oooppppsss some error with chat creation"))
     } match {
