@@ -20,14 +20,14 @@ class DatabaseTests extends munit.FunSuite:
   private var cd: ExternalDB = _
 
   val pathToScripts = "./src/test/scala/integrationTests/db"
-  val waitingTimeMS = 3000
+  val waitingTimeMS = 5000
 
   /**
    * Before all integration tests we must set database
    * generating and removing scripts executable. Even if they so.
    */
   override def beforeAll(): Unit =
-    val executableStartTest = s"chmod +x ${pathToScripts}/startTestDB".!!
+    val executableStartTest = s"chmod +x ${pathToScripts}/startTestDB ".!!
     val executableStopTest = s"chmod +x ${pathToScripts}/stopTestDB".!!
     super.beforeAll()
 
@@ -68,15 +68,11 @@ class DatabaseTests extends munit.FunSuite:
       case Left(value) =>
         assert(false, "UUUUps Password converter failed")
       case Right(pass) =>
-        cd.createUser(name, pass) match {
-          case Failure(exception) =>
-            println(exception.getMessage)
-            assert(false, "ERROR BAZY: " + exception.getMessage)
-          case Success(value) =>
-            value match {
-              case Left(value) => assert(false, value.description)
-              case Right(dbUser) => assert(dbUser.login == name, "Returned user not matched inserted.")
-            }
+        cd.createUser(name, pass)  match {
+          case Left(queryError: QueryError) =>
+            assert(false, queryError.description)
+          case Right(dbUser: User) =>
+            assert(dbUser.login == name, s"Returned user's login does not match inserted. Returned: ${dbUser.login}")
         }
     }
   }
@@ -91,14 +87,8 @@ class DatabaseTests extends munit.FunSuite:
         assert(false, "UUUUps Password converter failed")
       case Right(pass) =>
         cd.createUser(name, pass) match {
-          case Failure(exception) =>
-            println(exception.getMessage)
-            assert(false, "ERROR BAZY: " + exception.getMessage)
-          case Success(value) =>
-            value match {
-              case Left(value) => assert(false, value.description)
-              case Right(dbUser) => assert(dbUser.login == name, "Returned user not matched inserted.")
-            }
+          case Left(value) => assert(false, value.description)
+          case Right(dbUser) => assert(dbUser.login == name, "Returned user login does not match inserted.")
         }
     }
   }
@@ -108,7 +98,7 @@ class DatabaseTests extends munit.FunSuite:
    * TODO Testing user insertion when DB is not available
    * here we switch off DB container.
    */
-  test("Testing user insertion with login present in DB"){
+  test("Testing user insertion with login present in DB") {
     // here we switch off docker container
     val outputOfDockerStopping = s"./${pathToScripts}/stopTestDB".!!
     println(outputOfDockerStopping)
@@ -119,14 +109,8 @@ class DatabaseTests extends munit.FunSuite:
         assert(false, "UUUUps Password converter failed")
       case Right(pass) =>
         cd.createUser(name, pass) match {
-          case Failure(exception) =>
-            println(exception.getMessage)
-            assert(false, "ERROR BAZY: " + exception.getMessage)
-          case Success(value) =>
-            value match {
-              case Left(value) => assert(false, value.description)
-              case Right(dbUser) => assert(dbUser.login == name, "Returned user not matched inserted.")
-            }
+          case Left(value) => assert(false, value.description)
+          case Right(dbUser) => assert(dbUser.login == name, "Returned user login does not match inserted.")
         }
     }
   }
@@ -155,18 +139,11 @@ class DatabaseTests extends munit.FunSuite:
     // valo exists in DB
     val randomUUID = UUID.randomUUID()
     val walo: User = cd.findUser("Walo") match {
-      case Failure(ex) =>
-        assert(false, s"Some DB exception ${ex.getMessage}")
+      case Left(queryError: QueryError) =>
+        assert(false, s"${queryError.description}")
         User(randomUUID, "foo")
-      case Success(either) =>
-        either match {
-          case Left(queryError: QueryError) =>
-            assert(false, s"${queryError.description}")
-            User(randomUUID, "foo")
-          case Right(user: User) => user
-        }
+      case Right(user: User) => user
     }
-
   }
 
   /**
@@ -191,14 +168,9 @@ class DatabaseTests extends munit.FunSuite:
    */
   test("Searching user by login when user exists in DB") {
     cd.findUser("Spejson") match {
-      case Failure(exception) =>
-        assert(false, "ERROR BAZY: " + exception.getMessage)
-      case Success(value) =>
-        value match {
           case Left(value) => assert(false, value.description)
           case Right(dbUser) => assert(dbUser.login == "Spejson", "Not the same login")
         }
-    }
   }
 
   /**
@@ -218,21 +190,21 @@ class DatabaseTests extends munit.FunSuite:
   /**
    * TODO Searching user by userId when user exists in DB
    */
-  test("Searching user by login when user exists in DB") {
+  test("Searching user by userID when user exists in DB") {
 
   }
 
   /**
    * TODO Searching user by userId when user is unavailable in DB
    */
-  test("Searching user by login when user is unavailable in DB") {
+  test("Searching user by userID when user is unavailable in DB") {
 
   }
 
   /**
    * TODO Searching user by userId when DB is down
    */
-  test(" Searching user by login when DB is down.") {
+  test(" Searching user by userID when DB is down.") {
 
   }
 
@@ -249,15 +221,15 @@ class DatabaseTests extends munit.FunSuite:
    * TODO Searching user's chats by user's login when user exists in DB
    */
   test("Searching user by login when user exists in DB") {
-    cd.findUsersChats("Spejson") match {
-      case Failure(exception) =>
-        assert(false, "ERROR BAZY: " + exception.getMessage)
-      case Success(value) =>
-        value match {
-          case Left(value) => assert(false, value.description)
-          case Right(seqChats) => zrobić asercję
-        }
-    }
+//    cd.findUsersChats("Spejson") match {
+//      case Failure(exception) =>
+//        assert(false, "ERROR BAZY: " + exception.getMessage)
+//      case Success(value) =>
+//        value match {
+//          case Left(value) => assert(false, value.description)
+//          case Right(seqChats) => zrobić asercję
+//        }
+//    }
   }
 
   /**
@@ -393,7 +365,10 @@ class DatabaseTests extends munit.FunSuite:
 
   // DELETING
 
+  test("Testing deleting user by user object permanently") {
 
+
+  }
 
 
 

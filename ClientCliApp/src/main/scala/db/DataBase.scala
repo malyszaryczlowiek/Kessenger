@@ -10,7 +10,7 @@ import java.util.UUID
 import scala.util.Try
 
 trait DataBase:
-  type QueryResult[A] = Try[Either[QueryError, A]]
+  type QueryResult[A] = Either[QueryError, A]
 
   def createUser(login: Login, pass: Password): QueryResult[User]
   def createChat(chatId: ChatId, chatName: ChatName): QueryResult[Chat]

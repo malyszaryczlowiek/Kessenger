@@ -1,6 +1,6 @@
 -- CREATE DATABASE with user information
 CREATE TABLE users (
-  user_id uuid DEFAULT gen_random_uuid () UNIQUE,
+  user_id uuid DEFAULT gen_random_uuid () ,
   login varchar(255) NOT NULL UNIQUE,
   pass  varchar(255) NOT NULL,
   PRIMARY KEY (user_id, login)
@@ -19,8 +19,8 @@ CREATE TABLE chats (
 
 -- connecting users and chats, no duplicate possible
 CREATE TABLE users_chats (
-  chat_id varchar(255) REFERENCES chats(chat_id),
-  user_id uuid REFERENCES users(user_id),
+  chat_id varchar(255) REFERENCES chats(chat_id) ON DELETE CASCADE,
+  user_id uuid REFERENCES users(user_id) ON DELETE CASCADE,
   PRIMARY KEY (chat_id, user_id)
 );
 

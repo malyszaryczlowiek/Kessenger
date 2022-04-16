@@ -9,33 +9,26 @@ import com.github.malyszaryczlowiek.messages.Chat
 import java.sql.{Connection, DriverManager, PreparedStatement, ResultSet, SQLType, Statement}
 import java.util.{Properties, UUID}
 import scala.collection.mutable.ListBuffer
-import scala.util.{Try, Using}
+import scala.util.{Failure, Success, Try, Using}
 
 class ExternalDB extends DataBase: // [A <: Queryable](statement: A)
 
   var connection: Connection = ExternalDB.getConnection
 
   def createUser(login: Login, pass: Password): QueryResult[User] =
-    Using ( connection.prepareStatement( "INSERT INTO users (login, pass)  VALUES (?, ?)") ) {      // "INSERT INTO users(login,pass) VALUES (?,?)"
-      (statement: PreparedStatement) => // ,      Statement.RETURN_GENERATED_KEYS
-        //statement.setString(1, UUID.randomUUID())
+    Using(connection.prepareStatement("INSERT INTO users (login, pass)  VALUES (?, ?)")) {
+      (statement: PreparedStatement) => // , Statement.RETURN_GENERATED_KEYS
         statement.setString(1, login)
         statement.setString(2, pass)
-        val affectedRows: Int = statement.executeUpdate()//executeQuery()//executeUpdate()
+        val affectedRows: Int  = statement.executeUpdate()
         connection.commit()
-        // if affectedRows == 1 then
-        // val result = statement.executeUpdate( PostgresStatements.createUser(login, pass) )//executeUpdate()
-        if affectedRows > 0 then
-          println(s"Affected on $affectedRows") // (user_id, login, pass)
-//          val resultSet = statement.getResultSet
-//          resultSet.next()
-//          val user_id: UserID = resultSet.getObject(1, classOf[UUID])
-//          val login_db: Login = resultSet.getString(2)
-//          resultSet.close()
-          // statement.close()
-          Right(User(UUID.randomUUID(), login))
+        if affectedRows == 1 then
+          findUser(login)
         else
-          Left(QueryError("User with this login exists now. Please select another login: "))
+          Left( QueryError(s"Oooopss... Some Error.. Affected rows: $affectedRows != 1") )
+    } match {
+      case Failure(ex) => Left( QueryError( s"Server Error: ${ex.getMessage}"))
+      case Success(either) => either
     }
 
 
@@ -54,8 +47,10 @@ class ExternalDB extends DataBase: // [A <: Queryable](statement: A)
           Right(Chat(chat_id, chat_name))
         else
           Left(QueryError("Oooppppsss some error with chat creation"))
+    } match {
+      case Failure(ex) => Left( QueryError( s"Server Error: ${ex.getMessage}"))
+      case Success(either) => either
     }
-
 
 
 
@@ -71,6 +66,9 @@ class ExternalDB extends DataBase: // [A <: Queryable](statement: A)
       else
         resultSet.close()
         Left(QueryError("User with this login does not exists."))
+    } match {
+      case Failure(ex) => Left( QueryError( s"Server Error: ${ex.getMessage}"))
+      case Success(either) => either
     }
 
 
@@ -88,10 +86,14 @@ class ExternalDB extends DataBase: // [A <: Queryable](statement: A)
         resultSet.close()
         statement.close()
         Left(QueryError("User with this login does not exists."))
+    } match {
+      case Failure(ex) =>
+        Left( QueryError( s"Server Error: ${ex.getMessage}"))
+      case Success(either) => either
     }
 
   def findUsersChats(user: User): QueryResult[Seq[Chat]] =
-    Using ( connection.prepareStatement("SELECT users_chats.chat_id AS chat_id, chats.chat_name AS chat_name FROM users_chats INNER JOIN chats WHERE users_chats.user_id = chats.chat_id AND users_chats.user_id = ? ") ) {
+    Using(connection.prepareStatement("SELECT users_chats.chat_id AS chat_id, chats.chat_name AS chat_name FROM users_chats INNER JOIN chats WHERE users_chats.user_id = chats.chat_id AND users_chats.user_id = ? ")) {
       (statement: PreparedStatement) =>
         statement.setObject(1, user.userId)
         val resultSet: ResultSet = statement.executeQuery()
@@ -104,6 +106,9 @@ class ExternalDB extends DataBase: // [A <: Queryable](statement: A)
         val seq = list.toSeq
         if seq.isEmpty then Left(QueryError("Oooppppsss some error with chat creation"))
         else Right(seq)
+    } match {
+      case Failure(ex) => Left(QueryError(s"Server Error: ${ex.getMessage}"))
+      case Success(either) => either
     }
 
   def findUsersChats(userId: UserID): QueryResult[Seq[Chat]] = ???
@@ -125,7 +130,6 @@ class ExternalDB extends DataBase: // [A <: Queryable](statement: A)
 
 
 
-//
 
 object ExternalDB:
 

@@ -10,5 +10,5 @@ docker run -d \
  -e KAFKA_CFG_LISTENERS=CLIENT://:9092,EXTERNAL://:9093 \
  -e KAFKA_CFG_ADVERTISED_LISTENERS=CLIENT://kafka-test-broker:9092,EXTERNAL://localhost:9093 \
  -e KAFKA_CFG_INTER_BROKER_LISTENER_NAME=CLIENT \
- --name kafka-test-broker  \
+ --name kafka-test-broker \
  bitnami/kafka:3.1
