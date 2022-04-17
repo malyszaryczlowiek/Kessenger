@@ -16,6 +16,13 @@ import sys.process.*
 /**
  * Integration tests for DB.
  * Each test runs on separate freshly build DB docker container
+ *
+ * NOTE:
+ * watch out if you stop running test before its end. If you do so,
+ * you have started docker container which you must stop manually before
+ * starting any next test. Otherwise next started test will fail due to
+ * << docker container name collision >>
+ *
  */
 class DatabaseTests extends munit.FunSuite:
 
@@ -73,158 +80,8 @@ class DatabaseTests extends munit.FunSuite:
     switchOffDbEarlier = true
 
 
-  // testing of creation/insertions
 
-  /**
-   * Testing normal user insertion
-   */
-  test("Testing user insertion"){
-    val name = "Wojtas"
-    PasswordConverter.convert("simplePassword") match {
-      case Left(value) =>
-        assert(false, "UUUUps Password converter failed")
-      case Right(pass) =>
-        cd.createUser(name, pass)  match {
-          case Left(queryError: QueryError) =>
-            assert(false, queryError.description)
-          case Right(dbUser: User) =>
-            assert(dbUser.login == name, s"Returned user's login does not match inserted. Returned: ${dbUser.login}")
-        }
-    }
-  }
-
-  /**
-   * Testing user insertion when user with this login exists now in DB
-   */
-  test("Testing user insertion with login present in DB"){
-    val name = "Walo"
-    PasswordConverter.convert("simplePassword") match {
-      case Left(value) =>
-        assert(false, "UUUUps Password converter failed")
-      case Right(pass) =>
-        cd.createUser(name, pass) match {
-          case Left(queryError: QueryError) =>
-            println(s"${queryError.description}")
-            assert(queryError.description == "Sorry Login is taken, try with another one.",
-              s"Result error does not contain: ${queryError.description}")
-          case Right(dbUser) => assert(false, "This test should return Left(QueryError)")
-        }
-    }
-  }
-
-
-  /**
-   * Testing user insertion when DB is not available,
-   * here we switch off DB container before inserting user to them.
-   */
-  test("Testing user insertion with login present in DB when DB is not available") {
-    // here we switch off docker container
-    switchOffDbManually()
-    //  normally try to execute user insertion.
-    val name = "Walo"
-    PasswordConverter.convert("simplePassword") match {
-      case Left(value) =>
-        assert(false, "UUUUps Password converter failed")
-      case Right(pass) =>
-        cd.createUser(name, pass) match {
-          case Left(queryError: QueryError) =>
-            println(s"${queryError.description}") // prints
-            // Server Error: FATAL: terminating connection due to administrator command
-            assert(queryError.description == "Connection to DB lost. Try again later.",
-              s"""Returned error message
-                  |=> \"${queryError.description}
-                  |is other than expected
-                  |\"Connection to DB lost. Try again later.\"
-                """)
-          case Right(dbUser) =>
-            assert(false, "Returned user login does not match inserted.")
-        }
-    }
-  }
-
-
-
-  // chat creation
-
-  /**
-   * Create chat when both users information are taken from DB
-   * TODO ----> rewrite the test for many users <----
-   */
-  test("chat creation when both users are taken from DB") {
-
-    val user1: User = cd.findUser("Walo") match {
-      case Left(queryError: QueryError) =>
-        //Thread.sleep(120_000)
-        assert(false, s"${queryError.description}")
-        User(UUID.randomUUID(), "")
-      case Right(user: User) => user
-    }
-
-    val user2: User = cd.findUser("Spejson") match {
-      case Left(queryError: QueryError) =>
-        assert(false, s"${queryError.description}")
-        User(UUID.randomUUID(), "")
-      case Right(user: User) => user
-    }
-
-    val chatId: ChatId     = Domain.generateChatId(user1.userId, user2.userId)
-    val chatName: ChatName = "Walo-Spejson"
-
-    cd.createChat(chatId, chatName) match {
-      case Right(chat: Chat) =>
-        assert(chat.chatId == chatId, s"Chat id from DB: ${chat.chatId} does not match inserted to DB: $chatId")
-        assert(chat.chatName == chatName, s"Chat name from DB: ${chat.chatName} does not match inserted to DB: $chatName")
-      case Left(queryError: QueryError) =>
-        assert(false, queryError.description)
-    }
-  }
-
-
-
-
-
-  /**
-   * TODO this test may by omitted
-   * TODO In this test we try to create chat using users who are absent in db,
-   * due to DB constraint in user_chat to use only user_id present in
-   * users table db returns exception and test fails.
-   */
-  test("Testing chat creation using two users which one of them not exists in DB ") {
-    // **** not implement yet.
-  }
-
-  /**
-   * Trying to create chat when DB is unavailable
-   * TODO ----> rewrite the test for many users <----
-   */
-  test("Trying to create new chat when DB is unavailable") {
-    val user1: User = User(UUID.randomUUID(), "pass1")
-    val user2: User = User(UUID.randomUUID(), "pass2")
-
-    val chatId: ChatId     = Domain.generateChatId(user1.userId, user2.userId)
-    val chatName: ChatName = "ChatName"
-
-    switchOffDbManually() // IMPORTANT we need lost connection to db
-
-    cd.createChat(chatId, chatName) match {
-      case Right(chat: Chat) =>
-        assert(false, s"""Assertion error, should return
-                  |=> \"Connection to DB lost. Try again later.\"
-                  |but returned:
-                  |=> Chat object: $chat
-                  |""")
-      case Left(queryError: QueryError) =>
-        assert(queryError.description == "Connection to DB lost. Try again later.",
-        s"""Wrong error message:
-           |=> ${queryError.description}
-           |should return:
-           |=> \"Connection to DB lost. Try again later.\"""".stripMargin)
-    }
-  }
-
-
-
-  // searching user's chats
+  // searching user in db
 
   /**
    * Searching user by login when user exists in DB
@@ -349,6 +206,243 @@ class DatabaseTests extends munit.FunSuite:
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+  // testing of creation/insertions of new user
+
+  /**
+   * TODO first insert user and in second step find them with
+   *   and if number of results is other than 1 then test fails
+   * Testing normal user insertion
+   */
+  test("Testing user insertion"){
+
+    val login = "Wojtas"
+    val randomUUID = UUID.randomUUID()
+    val errorUser = User(randomUUID, "Null")
+
+    val user: User = PasswordConverter.convert("simplePassword") match {
+      case Left(value) =>
+        assert(false, "UUUUps Password converter failed")
+        errorUser
+      case Right(pass) =>
+        cd.createUser(login, pass)  match {
+          case Left(queryError: QueryError) =>
+            assert(false, queryError.description)
+            errorUser
+          case Right(dbUser: User) =>
+            assert(dbUser.login == login, s"Returned user's login does not match inserted. Returned: ${dbUser.login}")
+            dbUser
+        }
+    }
+  }
+
+  /**
+   * Testing user insertion when user with this login exists now in DB
+   */
+  test("Testing user insertion with login present in DB"){
+    val name = "Walo"
+    PasswordConverter.convert("simplePassword") match {
+      case Left(value) =>
+        assert(false, "UUUUps Password converter failed")
+      case Right(pass) =>
+        cd.createUser(name, pass) match {
+          case Left(queryError: QueryError) =>
+            println(s"${queryError.description}")
+            assert(queryError.description == "Sorry Login is taken, try with another one.",
+              s"Result error does not contain: ${queryError.description}")
+          case Right(dbUser) => assert(false, "This test should return Left(QueryError)")
+        }
+    }
+  }
+
+
+  /**
+   * Testing user insertion when DB is not available,
+   * here we switch off DB container before inserting user to them.
+   */
+  test("Testing user insertion with login present in DB when DB is not available") {
+
+    switchOffDbManually() // here we switch off docker container
+
+
+    //  normally try to execute user insertion.
+    val name = "Walo"
+    PasswordConverter.convert("simplePassword") match {
+      case Left(value) =>
+        assert(false, "UUUUps Password converter failed")
+      case Right(pass) =>
+        cd.createUser(name, pass) match {
+          case Left(queryError: QueryError) =>
+            // println(s"${queryError.description}") // prints
+            // Server Error: FATAL: terminating connection due to administrator command
+            assert(queryError.description == "Connection to DB lost. Try again later.",
+              s"""Returned error message
+                  |=> \"${queryError.description}
+                  |is other than expected
+                  |\"Connection to DB lost. Try again later.\"
+                """)
+          case Right(dbUser) =>
+            assert(false,
+              s"""Test should not return User object,
+                |but returned QueryError object with message:
+                |=> \"Connection to DB lost. Try again later.\"""".stripMargin)
+        }
+    }
+  }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  // chat creation
+
+
+  /**
+   * Testing that there is not possible to create
+   * chat for single user.
+   *
+   * In reality it is unit test, because if list.size < 2
+   * there is no call to db.
+   */
+  test("Impossible chat creation for single user.") {
+
+    val user: User = cd.findUser("Walo") match {
+      case Left(queryError: QueryError) =>
+        assert(false, s"${queryError.description}")
+        User(UUID.randomUUID(), "")
+      case Right(user: User) => user
+    }
+
+    cd.createChat(List(user), "Some chat name") match {
+      case Left(queryError: QueryError) =>
+        assert(
+          queryError.description == "To create new chat, you have to select two users at least.",
+          s"""Wrong error message:
+            |=>${queryError.description}
+            |but should be:
+            |=>\"To create new chat, you have to select two users at least.\"""".stripMargin
+        )
+      case _ => assert(false,
+        s"""Method should return Query error with message:
+           |=>\"To create new chat, you have to select two users at least.\"""".stripMargin)
+    }
+  }
+
+
+  /**
+   * Create chat when both users information are taken from DB
+   * TODO ----> rewrite the test for many users <----
+   */
+  test("chat creation when both users are taken from DB") {
+
+    val user1: User = cd.findUser("Walo") match {
+      case Left(queryError: QueryError) =>
+        //Thread.sleep(120_000)
+        assert(false, s"${queryError.description}")
+        User(UUID.randomUUID(), "")
+      case Right(user: User) => user
+    }
+
+    val user2: User = cd.findUser("Spejson") match {
+      case Left(queryError: QueryError) =>
+        assert(false, s"${queryError.description}")
+        User(UUID.randomUUID(), "")
+      case Right(user: User) => user
+    }
+
+    val chatName: ChatName = "Walo-Spejson"
+
+    cd.createChat(List(user1, user2), chatName) match {
+      case Right(chat: Chat) =>
+        // assert(chat.chatId == chatId, s"Chat id from DB: ${chat.chatId} does not match inserted to DB: $chatId")
+        assert(chat.chatName == chatName, s"Chat name from DB: ${chat.chatName} does not match inserted to DB: $chatName")
+      case Left(queryError: QueryError) =>
+        assert(false, queryError.description)
+    }
+  }
+
+
+  /**
+   * due to DB constraint in user_chat to use only user_id present in
+   * users table db returns exception and test fails.
+   */
+  test("Testing chat creation using two users which one of them not exists in DB ") {
+
+    val user1: User = cd.findUser("Walo") match {
+      case Left(queryError: QueryError) =>
+        //Thread.sleep(120_000)
+        assert(false, s"${queryError.description}")
+        User(UUID.randomUUID(), "")
+      case Right(user: User) => user
+    }
+
+    val user2 = User(UUID.randomUUID(), "NonExistingInDb")
+
+    cd.createChat(List(user1, user2), "Any chat name") match {
+      case Left(queryError: QueryError)  =>
+        assert(
+          queryError.description == s"${user2.login} not found.",
+          s"""Wrong Error message:
+             |=> ${queryError.description}
+             |should return following one:
+             |=> \"${user2.login} not found.\"""".stripMargin)
+      case Right(_) => assert(false, "Function should return Query error. ")
+    }
+  }
+
+  /**
+   * Trying to create chat when DB is unavailable
+   * TODO ----> rewrite the test for many users <----
+   */
+  test("Trying to create new chat when DB is unavailable") {
+    val user1: User = User(UUID.randomUUID(), "pass1")
+    val user2: User = User(UUID.randomUUID(), "pass2")
+
+    val chatName: ChatName = "ChatName"
+
+    switchOffDbManually() // IMPORTANT we need lost connection to db
+
+    cd.createChat(List(user1, user2), chatName) match {
+      case Right(chat: Chat) =>
+        assert(false, s"""Assertion error, should return
+                  |=> \"Connection to DB lost. Try again later.\"
+                  |but returned:
+                  |=> Chat object: $chat
+                  |""")
+      case Left(queryError: QueryError) =>
+        assert(queryError.description == "Connection to DB lost. Try again later.",
+        s"""Wrong error message:
+           |=> ${queryError.description}
+           |should return:
+           |=> \"Connection to DB lost. Try again later.\"""".stripMargin)
+    }
+  }
+
+
+
   // searching user's chats
 
   /**
@@ -373,10 +467,10 @@ class DatabaseTests extends munit.FunSuite:
       case Right(user: User) => user
     }
 
-    val chatId: ChatId     = Domain.generateChatId(user1.userId, user2.userId)
+    //val chatId: ChatId     = Domain.generateChatId(user1.userId, user2.userId)
     val chatName: ChatName = "Walo-Spejson"
 
-    val chat: Chat = cd.createChat(chatId, chatName) match {
+    val chat: Chat = cd.createChat(List(user1, user2), chatName) match {
       case Right(chat: Chat) => chat
       case Left(queryError: QueryError) =>
         assert(false, "Assertion error, Method should return Chat object")
