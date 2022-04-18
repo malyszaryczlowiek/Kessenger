@@ -1,4 +1,4 @@
 package com.github.malyszaryczlowiek
 package db.queries
 
-case class QueryError(description: String)
+case class QueryError(queryErrorType: QueryErrorType, description: QueryErrorMessage)

@@ -1,8 +1,8 @@
 package com.github.malyszaryczlowiek
 package integrationTests.db
 
-import com.github.malyszaryczlowiek.db.queries.QueryError
-import com.github.malyszaryczlowiek.db.{ExternalDB, *}
+import com.github.malyszaryczlowiek.db.queries.{QueryErrors, QueryError, QueryErrorMessage}
+import com.github.malyszaryczlowiek.db.*
 import com.github.malyszaryczlowiek.domain.Domain.{ChatId, ChatName}
 import com.github.malyszaryczlowiek.domain.{Domain, PasswordConverter, User}
 import com.github.malyszaryczlowiek.messages.Chat
@@ -66,7 +66,7 @@ class DatabaseTests extends munit.FunSuite:
    */
   override def afterEach(context: AfterEach): Unit =
     ExternalDB.closeConnection() match {
-      case Failure(exception) => println(exception.getMessage)
+      case Failure(ex) => println(ex.getMessage)
       case Success(value) => println("connection closed correctly")
     }
     if !switchOffDbEarlier then
@@ -81,6 +81,9 @@ class DatabaseTests extends munit.FunSuite:
 
 
 
+
+
+
   // searching user in db
 
   /**
@@ -88,11 +91,8 @@ class DatabaseTests extends munit.FunSuite:
    */
   test("Searching user by login when user exists in DB") {
     cd.findUser("Spejson") match {
-      case Left(queryError: QueryError) =>
-        assert(false,
-          s"""Assertion error, should find user in db,
-             |but returned error:
-             |=> ${queryError.description}""".stripMargin)
+      case Left(_) =>
+        assert(false, s"""Assertion error, should find user in db""".stripMargin)
       case Right(dbUser) => assert(dbUser.login == "Spejson", "Not the same login")
     }
   }
@@ -102,12 +102,12 @@ class DatabaseTests extends munit.FunSuite:
    */
   test("Searching user by login when user is unavailable in DB") {
     cd.findUser("NonExistingLogin") match {
-      case Left(queryError: QueryError) =>
-        assert(queryError.description == "User not found.",
-          s"""Assertion error, should get error message:
-             |=> \"User not found.\"
-             |but got error:
-             |=> ${queryError.description}""".stripMargin)
+      case Left(queryErrors: QueryErrors) =>
+        assert(queryErrors.listOfErrors.nonEmpty
+          && queryErrors.listOfErrors.size == 1
+          && queryErrors.listOfErrors.head.description == QueryErrorMessage.UserNotFound("NonExistingLogin"),
+          s"""Assertion error, should get one error message of:
+             |=> ${QueryErrorMessage.UserNotFound("NonExistingLogin")}""".stripMargin)
       case Right(dbUser: User) =>
         assert(false,
           s"""Assertion error, function should return Query error:
@@ -125,95 +125,18 @@ class DatabaseTests extends munit.FunSuite:
     switchOffDbManually()
 
     cd.findUser("NonExistingLogin") match {
-      case Left(queryError: QueryError) =>
-        assert(queryError.description == "Connection to DB lost. Try again later.",
+      case Left(queryErrors: QueryErrors) =>
+        assert( queryErrors.listOfErrors.nonEmpty
+          && queryErrors.listOfErrors.length == 1
+          && queryErrors.listOfErrors.head.description == QueryErrorMessage.NoDbConnection,
           s"""Assertion error, should get error message:
-             |=> \"Connection to DB lost. Try again later.\"
-             |but got error:
-             |=> ${queryError.description}""".stripMargin)
+             |=> ${QueryErrorMessage.UserNotFound("NonExistingLogin")}""".stripMargin)
       case Right(dbUser: User) =>
         assert(false,
           s"""Assertion error, function should return Query error:
-             |=> \"User not found.\"
-             |but returned not existing user:
-             |=> ${dbUser.login}""".stripMargin)
+             |=> ${QueryErrorMessage.UserNotFound("NonExistingLogin")}""".stripMargin)
     }
   }
-
-  /**
-   * Searching user by userId when user exists in DB
-   */
-  test("Searching user by userID when user exists in DB") {
-
-    // we need take the user id
-    val user: User = cd.findUser("Spejson") match {
-      case Left(queryError: QueryError) =>
-        assert(false, s"${queryError.description}")
-        User(UUID.randomUUID(), "")
-      case Right(user: User) => user
-    }
-
-    cd.findUser(user.userId) match {
-      case Left(queryError: QueryError) =>
-        assert(false,
-          s"""Assertion error, should find user in db,
-             |but returned error:
-             |=> ${queryError.description}""".stripMargin)
-      case Right(dbUser) => assert(dbUser.login == "Spejson", "Not the same login")
-    }
-  }
-
-  /**
-   * Searching user by userId when user is unavailable in DB
-   */
-  test("Searching user by userID when userId is not found.") {
-    cd.findUser(UUID.randomUUID()) match {
-      case Left(queryError: QueryError) =>
-        assert(queryError.description == "User not found.",
-          s"""Assertion error, should get error message:
-             |=> \"User not found.\"
-             |but got error:
-             |=> ${queryError.description}""".stripMargin)
-      case Right(dbUser) => assert(false,
-        s"""Assertion error, function should return Query error:
-           |=> \"User not found.\"
-           |but returned not existing user:
-           |=> ${dbUser.login}""".stripMargin)
-    }
-  }
-
-  /**
-   * Searching user by userId when DB is down
-   */
-  test(" Searching user by userID when DB is down.") {
-
-    switchOffDbManually()
-
-    cd.findUser(UUID.randomUUID()) match {
-      case Left(queryError: QueryError) =>
-        assert(queryError.description == "Connection to DB lost. Try again later.",
-          s"""Assertion error, should get error message:
-             |=> \"Connection to DB lost. Try again later.\"
-             |but got error:
-             |=> ${queryError.description}""".stripMargin)
-      case Right(dbUser) => assert(false,
-        s"""Assertion error, function should return Query error:
-           |=> \"User not found.\"
-           |but returned not existing user:
-           |=> ${dbUser.login}""".stripMargin)
-    }
-  }
-
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -236,8 +159,8 @@ class DatabaseTests extends munit.FunSuite:
         errorUser
       case Right(pass) =>
         cd.createUser(login, pass)  match {
-          case Left(queryError: QueryError) =>
-            assert(false, queryError.description)
+          case Left(queryErrors: QueryErrors) =>
+            assert(false,s"user should be added normally.")
             errorUser
           case Right(dbUser: User) =>
             assert(dbUser.login == login, s"Returned user's login does not match inserted. Returned: ${dbUser.login}")
@@ -256,10 +179,11 @@ class DatabaseTests extends munit.FunSuite:
         assert(false, "UUUUps Password converter failed")
       case Right(pass) =>
         cd.createUser(name, pass) match {
-          case Left(queryError: QueryError) =>
-            println(s"${queryError.description}")
-            assert(queryError.description == "Sorry Login is taken, try with another one.",
-              s"Result error does not contain: ${queryError.description}")
+          case Left(queryErrors: QueryErrors) =>
+            assert( queryErrors.listOfErrors.nonEmpty
+              && queryErrors.listOfErrors.length == 1
+              && queryErrors.listOfErrors.head.description == QueryErrorMessage.LoginTaken,
+              s"Result error does not contain: ${QueryErrorMessage.LoginTaken}")
           case Right(dbUser) => assert(false, "This test should return Left(QueryError)")
         }
     }
@@ -282,12 +206,13 @@ class DatabaseTests extends munit.FunSuite:
         assert(false, "UUUUps Password converter failed")
       case Right(pass) =>
         cd.createUser(name, pass) match {
-          case Left(queryError: QueryError) =>
-            // println(s"${queryError.description}") // prints
+          case Left(queryErrors: QueryErrors) =>
             // Server Error: FATAL: terminating connection due to administrator command
-            assert(queryError.description == "Connection to DB lost. Try again later.",
+            assert( queryErrors.listOfErrors.nonEmpty
+              && queryErrors.listOfErrors.length == 1
+              && queryErrors.listOfErrors.head.description == QueryErrorMessage.NoDbConnection,
               s"""Returned error message
-                  |=> \"${queryError.description}
+                  |=> \"${QueryErrorMessage.LoginTaken}
                   |is other than expected
                   |\"Connection to DB lost. Try again later.\"
                 """)
@@ -330,20 +255,18 @@ class DatabaseTests extends munit.FunSuite:
   test("Impossible chat creation for single user.") {
 
     val user: User = cd.findUser("Walo") match {
-      case Left(queryError: QueryError) =>
-        assert(false, s"${queryError.description}")
+      case Left(_) =>
+        assert(false, s"Db call should return user, but returned Error")
         User(UUID.randomUUID(), "")
       case Right(user: User) => user
     }
 
     cd.createChat(List(user), "Some chat name") match {
-      case Left(queryError: QueryError) =>
-        assert(
-          queryError.description == "To create new chat, you have to select two users at least.",
-          s"""Wrong error message:
-            |=>${queryError.description}
-            |but should be:
-            |=>\"To create new chat, you have to select two users at least.\"""".stripMargin
+      case Left(queryErrors: QueryErrors) =>
+        assert( queryErrors.listOfErrors.nonEmpty
+          && queryErrors.listOfErrors.length == 1
+          && queryErrors.listOfErrors.head.description == QueryErrorMessage.AtLeastTwoUsers,
+          s"""Wrong error message: ${QueryErrorMessage.AtLeastTwoUsers}""".stripMargin
         )
       case _ => assert(false,
         s"""Method should return Query error with message:
@@ -359,16 +282,16 @@ class DatabaseTests extends munit.FunSuite:
   test("chat creation when both users are taken from DB") {
 
     val user1: User = cd.findUser("Walo") match {
-      case Left(queryError: QueryError) =>
+      case Left(_) =>
         //Thread.sleep(120_000)
-        assert(false, s"${queryError.description}")
+        assert(false, s"Db call should return user")
         User(UUID.randomUUID(), "")
       case Right(user: User) => user
     }
 
     val user2: User = cd.findUser("Spejson") match {
-      case Left(queryError: QueryError) =>
-        assert(false, s"${queryError.description}")
+      case Left(_) =>
+        assert(false, s"Db call should return user")
         User(UUID.randomUUID(), "")
       case Right(user: User) => user
     }
@@ -377,10 +300,9 @@ class DatabaseTests extends munit.FunSuite:
 
     cd.createChat(List(user1, user2), chatName) match {
       case Right(chat: Chat) =>
-        // assert(chat.chatId == chatId, s"Chat id from DB: ${chat.chatId} does not match inserted to DB: $chatId")
         assert(chat.chatName == chatName, s"Chat name from DB: ${chat.chatName} does not match inserted to DB: $chatName")
-      case Left(queryError: QueryError) =>
-        assert(false, queryError.description)
+      case Left(queryErrors: QueryErrors) =>
+        assert(false, "Some error returned.")
     }
   }
 
@@ -392,9 +314,8 @@ class DatabaseTests extends munit.FunSuite:
   test("Testing chat creation using two users which one of them not exists in DB ") {
 
     val user1: User = cd.findUser("Walo") match {
-      case Left(queryError: QueryError) =>
-        //Thread.sleep(120_000)
-        assert(false, s"${queryError.description}")
+      case Left(_) =>
+        assert(false, s"DB call should return user.")
         User(UUID.randomUUID(), "")
       case Right(user: User) => user
     }
@@ -402,11 +323,42 @@ class DatabaseTests extends munit.FunSuite:
     val user2 = User(UUID.randomUUID(), "NonExistingInDb")
 
     cd.createChat(List(user1, user2), "Any chat name") match {
-      case Left(queryError: QueryError)  =>
-        assert(
-          queryError.description == s"${user2.login} not found.",
+      case Left(queryErrors: QueryErrors)  =>
+        assert( queryErrors.listOfErrors.nonEmpty
+          && queryErrors.listOfErrors.length == 1
+          && queryErrors.listOfErrors.head.description == QueryErrorMessage.UserNotFound("NonExistingInDb"),
           s"""Wrong Error message:
-             |=> ${queryError.description}
+             |=> ${QueryErrorMessage.UserNotFound("NonExistingInDb")}
+             |should return following one:
+             |=> \"${user2.login} not found.\"""".stripMargin)
+      case Right(_) => assert(false, "Function should return Query error. ")
+    }
+  }
+
+  /**
+   * due to DB constraint in user_chat to use only user_id present in
+   * users table db returns exception and test fails.
+   */
+  test("Testing chat creation using three users which two of them not exists in DB ") {
+
+    val user1: User = cd.findUser("Walo") match {
+      case Left(_) =>
+        assert(false, s"DB call should return user.")
+        User(UUID.randomUUID(), "")
+      case Right(user: User) => user
+    }
+
+    val user2 = User(UUID.randomUUID(), "NonExistingInDb")
+    val user3 = User(UUID.randomUUID(), "NonExistingInDb2")
+
+    cd.createChat(List(user1, user2, user3), "Any chat name") match {
+      case Left(queryErrors: QueryErrors)  =>
+        assert( queryErrors.listOfErrors.nonEmpty
+          && queryErrors.listOfErrors.length == 2
+          && queryErrors.listOfErrors.head.description == QueryErrorMessage.UserNotFound("NonExistingInDb")
+          && queryErrors.listOfErrors(1).description == QueryErrorMessage.UserNotFound("NonExistingInDb2"),
+          s"""Wrong Error message:
+             |=> ${QueryErrorMessage.UserNotFound("NonExistingInDb")}
              |should return following one:
              |=> \"${user2.login} not found.\"""".stripMargin)
       case Right(_) => assert(false, "Function should return Query error. ")
@@ -420,24 +372,24 @@ class DatabaseTests extends munit.FunSuite:
   test("Trying to create new chat when DB is unavailable") {
     val user1: User = User(UUID.randomUUID(), "pass1")
     val user2: User = User(UUID.randomUUID(), "pass2")
+    val user3: User = User(UUID.randomUUID(), "pass3")
 
     val chatName: ChatName = "ChatName"
 
     switchOffDbManually() // IMPORTANT we need lost connection to db
 
-    cd.createChat(List(user1, user2), chatName) match {
+    cd.createChat(List(user1, user2, user3, user1,user2), chatName) match {
       case Right(chat: Chat) =>
         assert(false, s"""Assertion error, should return
                   |=> \"Connection to DB lost. Try again later.\"
                   |but returned:
-                  |=> Chat object: $chat
-                  |""")
-      case Left(queryError: QueryError) =>
-        assert(queryError.description == "Connection to DB lost. Try again later.",
-        s"""Wrong error message:
-           |=> ${queryError.description}
-           |should return:
-           |=> \"Connection to DB lost. Try again later.\"""".stripMargin)
+                  |=> Chat object: $chat""".stripMargin)
+      case Left(queryErrors: QueryErrors) =>
+        assert( queryErrors.listOfErrors.nonEmpty
+          && queryErrors.listOfErrors.length == 1
+          && queryErrors.listOfErrors.head.description == QueryErrorMessage.NoDbConnection,
+        s"Non Empty: ${queryErrors.listOfErrors.nonEmpty}; Size = ${queryErrors.listOfErrors.length};" +
+          s" Head description: ${queryErrors.listOfErrors.tail.head.description}")
     }
   }
 
@@ -453,31 +405,31 @@ class DatabaseTests extends munit.FunSuite:
 
     // inserting needed data to DB
 
-    val user1: User = cd.findUser("Walo") match {
-      case Left(queryError: QueryError) =>
-        assert(false, s"${queryError.description}")
-        User(UUID.randomUUID(), "")
-      case Right(user: User) => user
-    }
-
-    val user2: User = cd.findUser("Spejson") match {
-      case Left(queryError: QueryError) =>
-        assert(false, s"${queryError.description}")
-        User(UUID.randomUUID(), "")
-      case Right(user: User) => user
-    }
-
-    //val chatId: ChatId     = Domain.generateChatId(user1.userId, user2.userId)
-    val chatName: ChatName = "Walo-Spejson"
-
-    val chat: Chat = cd.createChat(List(user1, user2), chatName) match {
-      case Right(chat: Chat) => chat
-      case Left(queryError: QueryError) =>
-        assert(false, "Assertion error, Method should return Chat object")
-        Chat("Null", "Null")
-    }
-
-    val returnedChatId = chat.chatId
+//    val user1: User = cd.findUser("Walo") match {
+//      case Left(queryError: QueryError) =>
+//        assert(false, s"${queryError.description}")
+//        User(UUID.randomUUID(), "")
+//      case Right(user: User) => user
+//    }
+//
+//    val user2: User = cd.findUser("Spejson") match {
+//      case Left(queryError: QueryError) =>
+//        assert(false, s"${queryError.description}")
+//        User(UUID.randomUUID(), "")
+//      case Right(user: User) => user
+//    }
+//
+//    //val chatId: ChatId     = Domain.generateChatId(user1.userId, user2.userId)
+//    val chatName: ChatName = "Walo-Spejson"
+//
+//    val chat: Chat = cd.createChat(List(user1, user2), chatName) match {
+//      case Right(chat: Chat) => chat
+//      case Left(queryError: QueryError) =>
+//        assert(false, "Assertion error, Method should return Chat object")
+//        Chat("Null", "Null")
+//    }
+//
+//    val returnedChatId = chat.chatId
 
 
     //

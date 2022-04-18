@@ -1,5 +1,4 @@
 package com.github.malyszaryczlowiek
 package db.queries
 
-trait DbStatements:
-  type Query = String
+case class QueryErrors(listOfErrors: List[QueryError])
