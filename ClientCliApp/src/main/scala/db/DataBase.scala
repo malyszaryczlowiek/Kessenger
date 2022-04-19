@@ -16,17 +16,14 @@ trait DataBase:
   def createChat(users: List[User], chatName: ChatName): Either[QueryErrors, Chat]
 
   def findUsersChats(user: User): Either[QueryErrors,Seq[Chat]]
-  def findUsersChats(userId: UserID): Either[QueryErrors,Seq[Chat]]
-  def findUsersChats(login: Login): Either[QueryErrors,Seq[Chat]]
   def findUser(user: User): Either[QueryErrors, User]
-  def findUser(login: Login): Either[QueryErrors,User]
-  // def findUser(userId: UserID): Either[QueryErrors,User]
+  def findUser(login: Login): Either[QueryErrors, User]
 
-  def updateUsersPassword(user: User, pass: Password): Either[QueryErrors,User]
+  def updateUsersPassword(me: User, pass: Password): Either[QueryErrors,User]
+  def updateMyLogin(me: User, newLogin: Login, pass: Password): Either[QueryErrors,User]
   def updateChatName(chatId: ChatId, newName: ChatName): Either[QueryErrors,ChatName]
-  def addNewUsersToChat(userIds: List[UserID], chatId: ChatId): List[Either[QueryErrors,UserID]]  // add user to chat
+  def addNewUsersToChat(userIds: List[User], chat: Chat): Either[QueryErrors,Chat]
 
-  def deleteUserPermanently(user: User): Either[QueryErrors,User]
-  def deleteUserPermanently(userId: UserID): Either[QueryErrors,User]
-  def deleteUsersFromChat(chatId: ChatId, userID: UserID): Either[QueryErrors,User]
-  def deleteChat(chatId: ChatId): Either[QueryErrors,Chat]
+  def deleteMyAccountPermanently(user: User): Either[QueryErrors,User]
+  def deleteUsersFromChat(chat: Chat, users: List[User]): Either[QueryErrors,List[User]] // if your role in chat is Admin
+  def deleteChat(chat: Chat): Either[QueryErrors,Chat] // if your role in chat is Admin

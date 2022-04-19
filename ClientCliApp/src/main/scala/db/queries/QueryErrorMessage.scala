@@ -17,4 +17,4 @@ enum QueryErrorMessage(message: String):
   case SomeUsersNotAddedToChat           extends QueryErrorMessage("Some users not added to chat.")
   case CannotAddUserToChat(login: Login) extends QueryErrorMessage(s"Cannot add user $login to chat.")
   case TryingToAddNonExistingUser        extends QueryErrorMessage(s"You trying to add non existing user.")
-  // case UserIsParticipantOfChat
+  case TimeOutError                      extends QueryErrorMessage(s"Timeout Error.")

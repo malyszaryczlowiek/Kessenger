@@ -143,28 +143,21 @@ class DatabaseTests extends munit.FunSuite:
   // testing of creation/insertions of new user
 
   /**
-   * TODO first insert user and in second step find them with
-   *   and if number of results is other than 1 then test fails
-   * Testing normal user insertion
+   * Testing user insertion not present in db
    */
   test("Testing user insertion"){
 
     val login = "Wojtas"
-    val randomUUID = UUID.randomUUID()
-    val errorUser = User(randomUUID, "Null")
 
-    val user: User = PasswordConverter.convert("simplePassword") match {
+    PasswordConverter.convert("simplePassword") match {
       case Left(value) =>
         assert(false, "UUUUps Password converter failed")
-        errorUser
       case Right(pass) =>
         cd.createUser(login, pass)  match {
           case Left(queryErrors: QueryErrors) =>
             assert(false,s"user should be added normally.")
-            errorUser
           case Right(dbUser: User) =>
             assert(dbUser.login == login, s"Returned user's login does not match inserted. Returned: ${dbUser.login}")
-            dbUser
         }
     }
   }
@@ -198,8 +191,6 @@ class DatabaseTests extends munit.FunSuite:
 
     switchOffDbManually() // here we switch off docker container
 
-
-    //  normally try to execute user insertion.
     val name = "Walo"
     PasswordConverter.convert("simplePassword") match {
       case Left(value) =>
@@ -212,33 +203,17 @@ class DatabaseTests extends munit.FunSuite:
               && queryErrors.listOfErrors.length == 1
               && queryErrors.listOfErrors.head.description == QueryErrorMessage.NoDbConnection,
               s"""Returned error message
-                  |=> \"${QueryErrorMessage.LoginTaken}
+                  |=> \"${queryErrors.listOfErrors.head.description}
                   |is other than expected
-                  |\"Connection to DB lost. Try again later.\"
-                """)
+                  |\"${QueryErrorMessage.NoDbConnection}\"""".stripMargin)
           case Right(dbUser) =>
             assert(false,
               s"""Test should not return User object,
                 |but returned QueryError object with message:
-                |=> \"Connection to DB lost. Try again later.\"""".stripMargin)
+                |=> \"${QueryErrorMessage.NoDbConnection}\"""".stripMargin)
         }
     }
   }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -277,7 +252,6 @@ class DatabaseTests extends munit.FunSuite:
 
   /**
    * Create chat when both users information are taken from DB
-   * TODO ----> rewrite the test for many users <----
    */
   test("chat creation when both users are taken from DB") {
 
@@ -322,7 +296,7 @@ class DatabaseTests extends munit.FunSuite:
 
     val user2 = User(UUID.randomUUID(), "NonExistingInDb")
 
-    cd.createChat(List(user1, user2), "Any chat name") match {
+    cd.createChat(List(user2, user1), "Any chat name") match {
       case Left(queryErrors: QueryErrors)  =>
         assert( queryErrors.listOfErrors.nonEmpty
           && queryErrors.listOfErrors.length == 1
@@ -367,7 +341,6 @@ class DatabaseTests extends munit.FunSuite:
 
   /**
    * Trying to create chat when DB is unavailable
-   * TODO ----> rewrite the test for many users <----
    */
   test("Trying to create new chat when DB is unavailable") {
     val user1: User = User(UUID.randomUUID(), "pass1")
@@ -463,19 +436,7 @@ class DatabaseTests extends munit.FunSuite:
 
   }
 
-  /**
-   * TODO Searching user's chats by userId when user is unavailable in DB
-   */
-  test("Searching user by login when user is unavailable in DB") {
 
-  }
-
-  /**
-   * TODO Searching user's chats by userId when  DB is down
-   */
-  test(" Searching user by login when DB is down.") {
-
-  }
 
 
 
@@ -520,12 +481,7 @@ class DatabaseTests extends munit.FunSuite:
   }
 
 
-  /**
-   * TODO Testing of updating of chat name when chat_id is now found in DB
-   */
-  test("Testing of updating of chat name") {
 
-  }
 
 
   /**
@@ -614,15 +570,6 @@ class DatabaseTests extends munit.FunSuite:
 
 
 
-
-
-
-
-
-//  test("generate Wojtas") {
-//    val uuid = UUID.randomUUID()
-//    println(uuid)
-//  }
 
 
 
