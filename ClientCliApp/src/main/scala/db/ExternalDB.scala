@@ -245,7 +245,7 @@ class ExternalDB extends DataBase:
 
 
   /**
-   * TODO Write tests
+   * No modify
    * @param user
    * @param oldPass
    * @param newPass
@@ -271,39 +271,48 @@ class ExternalDB extends DataBase:
           Right(user)
         else
           connection.rollback(beforeUpdate)
-          Left(QueryErrors(List(QueryError(QueryErrorType.ERROR, QueryErrorMessage.DataProcessingError))))
+          Left(QueryErrors(List(QueryError(QueryErrorType.ERROR, QueryErrorMessage.IncorrectLoginOrPassword))))
     }
 
 
   /**
-   * TODO wirte tests
+   * No modify
    * @param me
    * @param newLogin
    * @param pass
    * @return
    */
   def updateMyLogin(me: User, newLogin: Login, pass: Password): Either[QueryErrors,User] =
-    val beforeUpdate = connection.setSavepoint()
-    connection.setAutoCommit(false)
-    Using(connection.prepareStatement("UPDATE users SET login = ? WHERE user_id = ? AND login = ? AND pass = ?")) {
-      (statement: PreparedStatement) =>
-        statement.setString(1, newLogin)
-        statement.setObject(2, me.userId)
-        statement.setString(3, me.login)
-        statement.setString(4, pass)
-        statement.executeUpdate()
-    } match {
-      case Failure(ex) =>
-        connection.rollback(beforeUpdate)
-        handleExceptionMessage(ex)
-      case Success(value) =>
-        if value == 1 then
-          connection.commit()
-          Right(User(me.userId, newLogin))
-        else
-          connection.rollback(beforeUpdate)
-          Left(QueryErrors(List(QueryError(QueryErrorType.ERROR, QueryErrorMessage.DataProcessingError))))
+    findUser(newLogin) match {
+      case Right(value) => Left(QueryErrors(List(QueryError(QueryErrorType.ERROR, QueryErrorMessage.LoginTaken))))
+      case l @ Left(queryErrors: QueryErrors) =>
+        if queryErrors.listOfErrors.nonEmpty
+          && queryErrors.listOfErrors.head.description == QueryErrorMessage.UserNotFound(s"$newLogin") then
+          val beforeUpdate = connection.setSavepoint()
+          connection.setAutoCommit(false)
+          Using(connection.prepareStatement("UPDATE users SET login = ? WHERE user_id = ? AND login = ? AND pass = ?")) {
+            (statement: PreparedStatement) =>
+              statement.setString(1, newLogin)
+              statement.setObject(2, me.userId)
+              statement.setString(3, me.login)
+              statement.setString(4, pass)
+              statement.executeUpdate()
+          } match {
+            case Failure(ex) =>
+              connection.rollback(beforeUpdate)
+              handleExceptionMessage(ex)
+            case Success(value) =>
+              if value == 1 then
+                connection.commit()
+                Right(User(me.userId, newLogin))
+              else
+                connection.rollback(beforeUpdate)
+                Left(QueryErrors(List(QueryError(QueryErrorType.ERROR, QueryErrorMessage.IncorrectPassword))))
+          }
+        else l
     }
+
+
 
 
   /**
@@ -497,7 +506,7 @@ class ExternalDB extends DataBase:
     else if ex.getMessage.contains("was aborted: ERROR: insert or update on table \"users_chats\" violates foreign key constraint") then
       Left(QueryErrors(List(QueryError(QueryErrorType.FATAL_ERROR, QueryErrorMessage.TryingToAddNonExistingUser))))
     else
-      Left(QueryErrors(List(QueryError(QueryErrorType.FATAL_ERROR, QueryErrorMessage.UndefinedError()))))
+      Left(QueryErrors(List(QueryError(QueryErrorType.FATAL_ERROR, QueryErrorMessage.UndefinedError(ex.getMessage)))))
 
 
 object ExternalDB:

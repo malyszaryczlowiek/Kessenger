@@ -1,9 +1,9 @@
 package com.github.malyszaryczlowiek
 package integrationTests.db
 
-import com.github.malyszaryczlowiek.db.queries.{QueryErrors, QueryError, QueryErrorMessage}
+import com.github.malyszaryczlowiek.db.queries.{QueryError, QueryErrorMessage, QueryErrors}
 import com.github.malyszaryczlowiek.db.*
-import com.github.malyszaryczlowiek.domain.Domain.{ChatId, ChatName}
+import com.github.malyszaryczlowiek.domain.Domain.{ChatId, ChatName, Login, Password}
 import com.github.malyszaryczlowiek.domain.{Domain, PasswordConverter, User}
 import com.github.malyszaryczlowiek.messages.Chat
 
@@ -429,12 +429,6 @@ class DatabaseTests extends munit.FunSuite:
   }
 
 
-  /**
-   * TODO Searching user's chats by userId when user exists in DB
-   */
-  test("Searching user by login when user exists in DB") {
-
-  }
 
 
 
@@ -442,32 +436,285 @@ class DatabaseTests extends munit.FunSuite:
 
 
 
-
-
-
-  // testing updates to DB
+  // testing password update
 
 
   /**
-   * TODO Testing update user's password when user is present in DB
+   * Testing update user's password when user is present in DB
    */
-
   test("Testing update user's password when user is present in DB") {
 
+    val nullUser = User(UUID.randomUUID(), "NullLogin")
+
+    val oldPass: Password = PasswordConverter.convert("oldPass") match {
+      case Left(value) =>
+        throw new Exception("Password conversion failed")
+        "Null password"
+      case Right(value) => value
+    }
+
+    val wojtas = cd.createUser("Wojtas", oldPass) match {
+      case Left(_) =>
+        throw new Exception("User should be found in Db and user object should be returned. ")
+        nullUser
+      case Right(dbUser) =>
+        assert(dbUser.login == "Wojtas", "Not the same login")
+        dbUser
+    }
+
+    val newPass: Password = PasswordConverter.convert("newPass") match {
+      case Left(value) =>
+        throw new Exception("Password conversion failed")
+        "Null password"
+      case Right(value) => value
+    }
+
+
+    cd.updateUsersPassword(wojtas, oldPass, newPass) match {
+      case Right(user) =>
+        assert(user.login == "Wojtas", "not matching login")
+      case Left(_) => assert( false, "should change password correctly")
+    }
   }
 
+
   /**
-   * TODO Testing update user's password when user is absent in DB
+   * Testing update user's password when user is present in DB,
+   * but old password is incorrect.
+   */
+  test("Testing update user's password when user is present in DB, but old password is incorrect") {
+
+    val nullUser = User(UUID.randomUUID(), "NullLogin")
+
+    val oldPass: Password = PasswordConverter.convert("oldPass") match {
+      case Left(value) =>
+        throw new Exception("Password conversion failed")
+        "Null password"
+      case Right(value) => value
+    }
+
+    val wojtas = cd.createUser("Wojtas", oldPass) match {
+      case Left(_) =>
+        throw new Exception("Method should return user Object.")
+        nullUser
+      case Right(dbUser) =>
+        if dbUser.login != "Wojtas" then
+          throw new Exception("Incorrect login returned.")
+        dbUser
+    }
+
+    val incorrectOldPass: Password = PasswordConverter.convert("incorrectOldPass") match {
+      case Left(value) =>
+        throw new Exception("Password conversion failed")
+        "Null password"
+      case Right(value) => value
+    }
+
+    val newPass: Password = PasswordConverter.convert("newPass") match {
+      case Left(value) =>
+        throw new Exception("Password conversion failed")
+        "Null password"
+      case Right(value) => value
+    }
+
+
+    cd.updateUsersPassword(wojtas, incorrectOldPass, newPass) match {
+      case Right(user) =>
+        assert(false, "Method should return QueryErrors object")
+      case Left(queryErrors: QueryErrors) =>
+        assert( queryErrors.listOfErrors.nonEmpty
+          && queryErrors.listOfErrors.length == 1
+          && queryErrors.listOfErrors.head.description == QueryErrorMessage.IncorrectLoginOrPassword,
+          s"Test should return error message: ${QueryErrorMessage.IncorrectLoginOrPassword}")
+    }
+  }
+
+
+  /**
+   * Testing update user's password when user is absent in DB
    */
   test("Testing update user's password when user is absent in DB") {
 
+    val nullUser = User(UUID.randomUUID(), "NullLogin")
+
+    val oldPass: Password = PasswordConverter.convert("oldPass") match {
+      case Left(value) =>
+        throw new Exception("Password conversion failed")
+        "Null password"
+      case Right(value) => value
+    }
+
+
+    val incorrectOldPass: Password = PasswordConverter.convert("incorrectOldPass") match {
+      case Left(value) =>
+        throw new Exception("Password conversion failed")
+        "Null password"
+      case Right(value) => value
+    }
+
+    val newPass: Password = PasswordConverter.convert("newPass") match {
+      case Left(value) =>
+        throw new Exception("Password conversion failed")
+        "Null password"
+      case Right(value) => value
+    }
+
+
+    cd.updateUsersPassword(nullUser, incorrectOldPass, newPass) match {
+      case Right(user) =>
+        assert(false, "Method should return QueryErrors object")
+      case Left(queryErrors: QueryErrors) =>
+        assert( queryErrors.listOfErrors.nonEmpty
+          && queryErrors.listOfErrors.length == 1
+          && queryErrors.listOfErrors.head.description == QueryErrorMessage.IncorrectLoginOrPassword,
+          s"Test should return error message: ${QueryErrorMessage.IncorrectLoginOrPassword}")
+    }
   }
 
-  /**
-   * TODO Testing update user's password when DB is down
-   */
-  test("Testing update user's password when DB is down.") {
 
+  /**
+   * Testing update user's password when DB is unavailable
+   */
+  test("Testing update user's password when user is absent in DB") {
+
+    val nullUser = User(UUID.randomUUID(), "NullLogin")
+
+    val oldPass: Password = PasswordConverter.convert("oldPass") match {
+      case Left(value) =>
+        throw new Exception("Password conversion failed")
+        "Null password"
+      case Right(value) => value
+    }
+
+
+    val incorrectOldPass: Password = PasswordConverter.convert("incorrectOldPass") match {
+      case Left(value) =>
+        throw new Exception("Password conversion failed")
+        "Null password"
+      case Right(value) => value
+    }
+
+    val newPass: Password = PasswordConverter.convert("newPass") match {
+      case Left(value) =>
+        throw new Exception("Password conversion failed")
+        "Null password"
+      case Right(value) => value
+    }
+
+    switchOffDbManually()
+
+    cd.updateUsersPassword(nullUser, incorrectOldPass, newPass) match {
+      case Right(user) =>
+        assert(false, "Method should return QueryErrors object")
+      case Left(queryErrors: QueryErrors) =>
+        assert( queryErrors.listOfErrors.nonEmpty
+          && queryErrors.listOfErrors.length == 1
+          && queryErrors.listOfErrors.head.description == QueryErrorMessage.NoDbConnection,
+          s"Test should return error message: ${QueryErrorMessage.NoDbConnection}")
+    }
+  }
+
+
+
+  // Testing login update
+
+  test("Testing update user's login when user is present in DB and login is changeable.") {
+
+    val nullUser = User(UUID.randomUUID(), "NullLogin")
+
+    val oldPass: Password = PasswordConverter.convert("oldPass") match {
+      case Left(value) =>
+        throw new Exception("Password conversion failed")
+        "Null password"
+      case Right(value) => value
+    }
+
+    val wojtas = cd.createUser("Wojtas", oldPass) match {
+      case Left(_) =>
+        throw new Exception("Assertion error, should find user in db")
+        nullUser
+      case Right(dbUser) =>
+        if dbUser.login != "Wojtas" then
+          throw new Exception("Returned login is not matching.")
+        dbUser
+    }
+
+    val newLogin: Login = "Wojtasso"
+
+    cd.updateMyLogin(wojtas, newLogin, oldPass) match {
+      case Right(user) => assert(user.login == "Wojtasso", "not matching login")
+      case Left(_)     => assert( false, "should change password correctly")
+    }
+  }
+
+
+  test("Testing update user's login when user is present in DB and login is taken.") {
+
+    val nullUser = User(UUID.randomUUID(), "NullLogin")
+
+    val oldPass: Password = PasswordConverter.convert("oldPass") match {
+      case Left(value) =>
+        throw new Exception("Password conversion failed")
+        "Null password"
+      case Right(value) => value
+    }
+
+    val wojtas = cd.createUser("Wojtas", oldPass) match {
+      case Left(_) =>
+        throw new Exception("Assertion error, should find user in db")
+        nullUser
+      case Right(dbUser) =>
+        if dbUser.login != "Wojtas" then
+          throw new Exception("Returned login is not matching.")
+        dbUser
+    }
+
+    val newLogin: Login = "Spejson" //  this login is currently taken.
+
+    cd.updateMyLogin(wojtas, newLogin, oldPass) match {
+      case Right(_) => assert(false, s"Method should return QueryErrors object with message: ${QueryErrorMessage.LoginTaken}")
+      case Left(queryErrors: QueryErrors) =>
+        assert( queryErrors.listOfErrors.nonEmpty
+          && queryErrors.listOfErrors.length == 1
+          && queryErrors.listOfErrors.head.description == QueryErrorMessage.LoginTaken,
+          s"Method should return: ${QueryErrorMessage.LoginTaken}")
+    }
+  }
+
+
+  test("Testing update user's login when user is present in DB but DB is not available.") {
+
+    val nullUser = User(UUID.randomUUID(), "NullLogin")
+
+    val oldPass: Password = PasswordConverter.convert("oldPass") match {
+      case Left(value) =>
+        throw new Exception("Password conversion failed")
+        "Null password"
+      case Right(value) => value
+    }
+
+    val wojtas = cd.createUser("Wojtas", oldPass) match {
+      case Left(_) =>
+        throw new Exception("Assertion error, should find user in db")
+        nullUser
+      case Right(dbUser) =>
+        if dbUser.login != "Wojtas" then
+          throw new Exception("Returned login is not matching.")
+        dbUser
+    }
+
+    val newLogin: Login = "NewLogin" //  this login is currently taken.
+
+    switchOffDbManually()
+
+    cd.updateMyLogin(wojtas, newLogin, oldPass) match {
+      case Right(_) => assert(false, s"Method should return QueryErrors object with message: ${QueryErrorMessage.NoDbConnection}")
+      case Left(queryErrors: QueryErrors) =>
+        assert( queryErrors.listOfErrors.nonEmpty
+          && queryErrors.listOfErrors.length == 1
+          && queryErrors.listOfErrors.head.description == QueryErrorMessage.NoDbConnection,
+          s"Method should return: ${QueryErrorMessage.NoDbConnection}")
+    }
   }
 
 
