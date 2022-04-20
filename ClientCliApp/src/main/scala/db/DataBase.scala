@@ -26,8 +26,3 @@ trait DataBase:
 
   def deleteMeFromChat(me: User, chat: Chat): Either[QueryErrors, Chat]
   def deleteMyAccountPermanently(user: User, pass: Password): Either[QueryErrors,User]
-
-  @deprecated("This method will be replaced by deleteMeFromChat() method")
-  def deleteUsersFromChat(chat: Chat, users: List[User]): Either[QueryErrors,List[User]] // if your role in chat is Admin
-  @deprecated("This method should not be implemented.")
-  def deleteChat(chat: Chat): Either[QueryErrors,Chat] // if your role in chat is Admin

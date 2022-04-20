@@ -3,7 +3,7 @@ package db.queries
 
 import domain.User
 
-import com.github.malyszaryczlowiek.domain.Domain.Login
+import com.github.malyszaryczlowiek.domain.Domain.{ChatName, Login}
 
 enum QueryErrorMessage(message: String):
   override def toString: String = message
@@ -20,6 +20,7 @@ enum QueryErrorMessage(message: String):
   case TimeOutDBError                     extends QueryErrorMessage(s"Timeout Error.")
   case UserIsAMemberOfChat(login: Login)  extends QueryErrorMessage(s"User $login is a member of chat currently.")
   case UserHasNoChats                     extends QueryErrorMessage("User has no chats.")
-  case NotAllUsersRemovedFromChat         extends QueryErrorMessage("Not all selected Users removed from chat.")
+  // case NotAllUsersRemovedFromChat         extends QueryErrorMessage("Not all selected Users removed from chat.")
   case IncorrectLoginOrPassword           extends QueryErrorMessage("Incorrect Login or Password.")
   case IncorrectPassword                  extends QueryErrorMessage("Incorrect Password.")
+  case ChatDoesNotExist(name: ChatName)   extends QueryErrorMessage(s"Chat $name does not exist.")

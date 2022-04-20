@@ -219,7 +219,11 @@ class ExternalDB extends DataBase:
     }
 
 
-
+  /**
+   * todo write tests
+   * @param user
+   * @return
+   */
   def findUsersChats(user: User): Either[QueryErrors,Seq[Chat]] =
     Using(connection.prepareStatement("SELECT users_chats.chat_id AS chat_id, chats.chat_name AS chat_name FROM users_chats INNER JOIN chats WHERE users_chats.user_id = chats.chat_id AND users_chats.user_id = ? ")) {
       (statement: PreparedStatement) =>
@@ -252,8 +256,6 @@ class ExternalDB extends DataBase:
    * @return
    */
   def updateUsersPassword(user: User, oldPass: Password, newPass: Password): Either[QueryErrors,User] =
-    val beforeUpdate = connection.setSavepoint()
-    connection.setAutoCommit(false)
     Using(connection.prepareStatement("UPDATE users SET pass = ? WHERE user_id = ? AND login = ? AND pass = ?")) {
       (statement: PreparedStatement) =>
         statement.setString(1, newPass)
@@ -262,16 +264,10 @@ class ExternalDB extends DataBase:
         statement.setString(4, oldPass)
         statement.executeUpdate()
     } match {
-      case Failure(ex) =>
-        connection.rollback(beforeUpdate)
-        handleExceptionMessage(ex)
+      case Failure(ex) => handleExceptionMessage(ex)
       case Success(value) =>
-        if value == 1 then
-          connection.commit()
-          Right(user)
-        else
-          connection.rollback(beforeUpdate)
-          Left(QueryErrors(List(QueryError(QueryErrorType.ERROR, QueryErrorMessage.IncorrectLoginOrPassword))))
+        if value == 1 then Right(user)
+        else Left(QueryErrors(List(QueryError(QueryErrorType.ERROR, QueryErrorMessage.IncorrectLoginOrPassword))))
     }
 
 
@@ -288,8 +284,6 @@ class ExternalDB extends DataBase:
       case l @ Left(queryErrors: QueryErrors) =>
         if queryErrors.listOfErrors.nonEmpty
           && queryErrors.listOfErrors.head.description == QueryErrorMessage.UserNotFound(s"$newLogin") then
-          val beforeUpdate = connection.setSavepoint()
-          connection.setAutoCommit(false)
           Using(connection.prepareStatement("UPDATE users SET login = ? WHERE user_id = ? AND login = ? AND pass = ?")) {
             (statement: PreparedStatement) =>
               statement.setString(1, newLogin)
@@ -298,32 +292,22 @@ class ExternalDB extends DataBase:
               statement.setString(4, pass)
               statement.executeUpdate()
           } match {
-            case Failure(ex) =>
-              connection.rollback(beforeUpdate)
-              handleExceptionMessage(ex)
+            case Failure(ex) => handleExceptionMessage(ex)
             case Success(value) =>
-              if value == 1 then
-                connection.commit()
-                Right(User(me.userId, newLogin))
-              else
-                connection.rollback(beforeUpdate)
-                Left(QueryErrors(List(QueryError(QueryErrorType.ERROR, QueryErrorMessage.IncorrectPassword))))
+              if value == 1 then Right(User(me.userId, newLogin))
+              else Left(QueryErrors(List(QueryError(QueryErrorType.ERROR, QueryErrorMessage.IncorrectPassword))))
           }
         else l
     }
 
 
-
-
   /**
-   * TODO write tests
+   * No modify
    * @param chat
    * @param newName
    * @return
    */
   def updateChatName(chat: Chat, newName: ChatName): Either[QueryErrors,ChatName] =
-    val beforeUpdate = connection.setSavepoint()
-    connection.setAutoCommit(false)
     Using(connection.prepareStatement("UPDATE chats SET chat_name = ? WHERE chat_id = ? AND chat_name = ?")) {
       (statement: PreparedStatement) =>
         statement.setString(1, newName)
@@ -332,15 +316,10 @@ class ExternalDB extends DataBase:
         statement.executeUpdate()
     } match {
       case Failure(ex) =>
-        connection.rollback(beforeUpdate)
         handleExceptionMessage(ex)
       case Success(value) =>
-        if value == 1 then
-          connection.commit()
-          Right(newName)
-        else
-          connection.rollback(beforeUpdate)
-          Left(QueryErrors(List(QueryError(QueryErrorType.ERROR, QueryErrorMessage.DataProcessingError))))
+        if value == 1 then Right(newName)
+        else Left(QueryErrors(List(QueryError(QueryErrorType.ERROR, QueryErrorMessage.ChatDoesNotExist(chat.chatName)))))
     }
 
 
@@ -361,7 +340,7 @@ class ExternalDB extends DataBase:
         connection.setAutoCommit(false)
         val futureList = users.map[Future[Int]](
           user =>
-            Future {
+            Future { // each insertion executed in separate thread
               Using(connection.prepareStatement("INSERT INTO users_chats (chat_id, user_id) VALUES (?, ?)")) {
                 (statement: PreparedStatement) =>
                   statement.setString(1, chat.chatId)
@@ -379,119 +358,57 @@ class ExternalDB extends DataBase:
           connection.commit()
           Right(chat)
         else
-          throw new Exception("Not all Users added to chat.")
+          throw new Exception("Data processing error.")
     } match {
       case Failure(ex) =>
         connection.rollback(stateBeforeInsertion)
-        if ex.getMessage.contains("duplicate key value violates unique constraint") then
-          Left(QueryErrors(List(QueryError(QueryErrorType.ERROR, QueryErrorMessage.UserIsAMemberOfChat(""))) ))// TODO change to another error type
-        else handleExceptionMessage[Chat](ex)
+        handleExceptionMessage[Chat](ex)  // returns DataProcessing Error
       case Success(either) => either
     }
 
 
 
   /**
-   * TODO write tests
-   *
-   * TODO check in tests weather user_id is cascade remove form users_chats.
-   *
+   * No modify
    * @param user
    * @return
    */
   def deleteMyAccountPermanently(me: User, pass: Password): Either[QueryErrors,User] =
-    val beforeUpdate = connection.setSavepoint()
-    connection.setAutoCommit(false)
-    Using(connection.prepareStatement("DELETE FROM users  WHERE user_id = ? AND login = ? AND pass = ?")) {
+    Using(connection.prepareStatement("DELETE FROM users WHERE user_id = ? AND login = ? AND pass = ?")) {
       (statement: PreparedStatement) =>
         statement.setObject(1, me.userId)
         statement.setString(2, me.login)
         statement.setString(3, pass)
         statement.executeUpdate()
     } match {
-      case Failure(ex) =>
-        connection.rollback(beforeUpdate)
-        handleExceptionMessage(ex)
+      case Failure(ex) => handleExceptionMessage(ex)
       case Success(value) =>
-        if value == 1 then
-          connection.commit()
-          Right(me)
-        else
-          connection.rollback(beforeUpdate)
-          Left(QueryErrors(List(QueryError(QueryErrorType.ERROR, QueryErrorMessage.DataProcessingError))))
+        if value == 1 then Right(me)
+        else handleExceptionMessage(new Exception("Incorrect login or password"))
     }
 
 
+  /**
+   * TODO write tests
+   * @param me
+   * @param chat
+   * @return
+   */
   def deleteMeFromChat(me: User, chat: Chat): Either[QueryErrors, Chat] =
-    val beforeUpdate = connection.setSavepoint()
-    connection.setAutoCommit(false)
     Using(connection.prepareStatement("DELETE FROM users_chats WHERE chat_id = ? AND user_id = ?")) {
       (statement: PreparedStatement) =>
         statement.setString(1, chat.chatId)
         statement.setObject(2, me.userId)
         statement.executeUpdate()
     } match {
-      case Failure(ex) =>
-        connection.rollback(beforeUpdate)
-        handleExceptionMessage(ex)
+      case Failure(ex) => handleExceptionMessage(ex)
       case Success(value) =>
-        if value == 1 then
-          connection.commit()
-          Right(chat)
-        else
-          connection.rollback(beforeUpdate)
-          Left(QueryErrors(List(QueryError(QueryErrorType.ERROR, QueryErrorMessage.DataProcessingError))))
+        if value == 1 then Right(chat)
+        else Left(QueryErrors(List(QueryError(QueryErrorType.ERROR, QueryErrorMessage.DataProcessingError))))
+      // handleExceptionMessage(new Exception("Incorrect login or password"))
   }
 
 
-  /**
-   * This method will not be used
-   * @param chat
-   * @param users
-   * @return
-   */
-  def deleteUsersFromChat(chat: Chat, users: List[User]): Either[QueryErrors, List[User]] =  // if your role in chat is Admin
-    val beforeRemoval = connection.setSavepoint()
-    Try {
-      val filtered = filterUsersExistingInDb(users)
-      if filtered.nonEmpty then
-        Left(QueryErrors(filtered))
-      else // if all users are present in db we can try add them to chat
-        connection.setAutoCommit(false)
-        val futureList = users.map[Future[Int]](
-          user =>
-            Future {
-              Using(connection.prepareStatement("DELETE FROM users_chats WHERE chat_id = ? AND user_id = ?")) {
-                (statement: PreparedStatement) =>
-                  statement.setString(1, chat.chatId)
-                  statement.setObject(2, user.userId)
-                  statement.executeUpdate()
-              } match {
-                case Failure(ex) => throw ex
-                case Success(value) => value
-              }
-            }
-        )
-        val zippedFuture = futureList.reduceLeft((f1, f2) => f1.zipWith(f2)(_+_))
-        val affected = Await.result(zippedFuture, Duration.create(5L, duration.SECONDS))
-        if affected == users.length then
-          connection.commit()
-          Right(users)
-        else
-          throw new Exception("Not all selected Users removed from chat.")
-    } match {
-      case Failure(ex) =>
-        connection.rollback(beforeRemoval)
-        handleExceptionMessage[List[User]](ex)
-      case Success(either) => either
-    }
-
-  /**
-   * This method should not be implemented. All created chats should be persistent (???)
-   * @param chat
-   * @return
-   */
-  def deleteChat(chat: Chat): Either[QueryErrors,Chat] = ??? // if your role in chat is Admin
 
   private def handleExceptionMessage[A](ex: Throwable): Either[QueryErrors, A] =
     if ex.getMessage == "FATAL: terminating connection due to administrator command"
@@ -499,10 +416,11 @@ class ExternalDB extends DataBase:
       Left(QueryErrors(List(QueryError(QueryErrorType.FATAL_ERROR, QueryErrorMessage.NoDbConnection))))
     else if ex.getMessage.toLowerCase.contains("timeout") then
       Left(QueryErrors(List(QueryError(QueryErrorType.FATAL_ERROR, QueryErrorMessage.TimeOutDBError))))
-    else if ex.getMessage.contains("duplicate key value violates unique constraint") then
+    else if ex.getMessage == "Incorrect login or password" then
+      Left(QueryErrors(List(QueryError(QueryErrorType.FATAL_ERROR, QueryErrorMessage.IncorrectLoginOrPassword))))
+    else if ex.getMessage.contains("duplicate key value violates unique constraint")
+      || ex.getMessage == "Data processing error." then
       Left(QueryErrors(List(QueryError( QueryErrorType.FATAL_ERROR, QueryErrorMessage.DataProcessingError))))
-    else if ex.getMessage == "Not all selected Users removed from chat." then
-      Left(QueryErrors(List(QueryError( QueryErrorType.FATAL_ERROR, QueryErrorMessage.NotAllUsersRemovedFromChat))))
     else if ex.getMessage.contains("was aborted: ERROR: insert or update on table \"users_chats\" violates foreign key constraint") then
       Left(QueryErrors(List(QueryError(QueryErrorType.FATAL_ERROR, QueryErrorMessage.TryingToAddNonExistingUser))))
     else

@@ -151,7 +151,7 @@ class DatabaseTests extends munit.FunSuite:
 
     PasswordConverter.convert("simplePassword") match {
       case Left(value) =>
-        assert(false, "UUUUps Password converter failed")
+        throw new Exception("Password converter failed")
       case Right(pass) =>
         cd.createUser(login, pass)  match {
           case Left(queryErrors: QueryErrors) =>
@@ -169,7 +169,7 @@ class DatabaseTests extends munit.FunSuite:
     val name = "Walo"
     PasswordConverter.convert("simplePassword") match {
       case Left(value) =>
-        assert(false, "UUUUps Password converter failed")
+        throw new Exception("Password converter failed")
       case Right(pass) =>
         cd.createUser(name, pass) match {
           case Left(queryErrors: QueryErrors) =>
@@ -194,7 +194,7 @@ class DatabaseTests extends munit.FunSuite:
     val name = "Walo"
     PasswordConverter.convert("simplePassword") match {
       case Left(value) =>
-        assert(false, "UUUUps Password converter failed")
+        throw new Exception("Password converter failed")
       case Right(pass) =>
         cd.createUser(name, pass) match {
           case Left(queryErrors: QueryErrors) =>
@@ -231,7 +231,7 @@ class DatabaseTests extends munit.FunSuite:
 
     val user: User = cd.findUser("Walo") match {
       case Left(_) =>
-        assert(false, s"Db call should return user, but returned Error")
+        throw new Exception("Db call should return user, but returned Error")
         User(UUID.randomUUID(), "")
       case Right(user: User) => user
     }
@@ -257,15 +257,14 @@ class DatabaseTests extends munit.FunSuite:
 
     val user1: User = cd.findUser("Walo") match {
       case Left(_) =>
-        //Thread.sleep(120_000)
-        assert(false, s"Db call should return user")
+        throw new Exception("Db call should return user, but returned Error")
         User(UUID.randomUUID(), "")
       case Right(user: User) => user
     }
 
     val user2: User = cd.findUser("Spejson") match {
       case Left(_) =>
-        assert(false, s"Db call should return user")
+        throw new Exception("Db call should return user, but returned Error")
         User(UUID.randomUUID(), "")
       case Right(user: User) => user
     }
@@ -289,7 +288,7 @@ class DatabaseTests extends munit.FunSuite:
 
     val user1: User = cd.findUser("Walo") match {
       case Left(_) =>
-        assert(false, s"DB call should return user.")
+        throw new Exception("Db call should return user, but returned Error")
         User(UUID.randomUUID(), "")
       case Right(user: User) => user
     }
@@ -317,7 +316,7 @@ class DatabaseTests extends munit.FunSuite:
 
     val user1: User = cd.findUser("Walo") match {
       case Left(_) =>
-        assert(false, s"DB call should return user.")
+        throw new Exception("Db call should return user, but returned Error")
         User(UUID.randomUUID(), "")
       case Right(user: User) => user
     }
@@ -368,6 +367,36 @@ class DatabaseTests extends munit.FunSuite:
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
   // searching user's chats
 
   /**
@@ -406,12 +435,6 @@ class DatabaseTests extends munit.FunSuite:
 
 
     //
-
-
-
-
-
-
   }
 
   /**
@@ -427,6 +450,32 @@ class DatabaseTests extends munit.FunSuite:
   test(" Searching user by login when DB is down.") {
 
   }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -575,7 +624,7 @@ class DatabaseTests extends munit.FunSuite:
   /**
    * Testing update user's password when DB is unavailable
    */
-  test("Testing update user's password when user is absent in DB") {
+  test("Testing update user's password when DB is down") {
 
     val nullUser = User(UUID.randomUUID(), "NullLogin")
 
@@ -721,32 +770,161 @@ class DatabaseTests extends munit.FunSuite:
   // updates of chat name in DB
 
   /**
-   * TODO Testing of updating of chat name
+   * Testing of updating of chat name
    */
   test("Testing of updating of chat name") {
 
+    // first we take two users
+
+    val user1: User = cd.findUser("Walo") match {
+      case Left(_) =>
+        throw new Exception(s"Db call should return user")
+        User(UUID.randomUUID(), "")
+      case Right(user: User) => user
+    }
+
+    val user2: User = cd.findUser("Spejson") match {
+      case Left(_) =>
+        throw new Exception(s"Db call should return user")
+        User(UUID.randomUUID(), "")
+      case Right(user: User) => user
+    }
+
+    val chatName: ChatName = "Walo-Spejson"
+
+
+    // then we create chat
+
+    val chat: Chat = cd.createChat(List(user1, user2), chatName) match {
+      case Right(chat: Chat) =>
+        if chat.chatName != chatName then
+          throw new Exception(s"Chat name from DB: ${chat.chatName} does not match inserted to DB: $chatName")
+        chat
+      case Left(queryErrors: QueryErrors) =>
+        throw new Exception(s"Method should return Chat object.")
+        Chat("null", "NullChat name")
+    }
+
+    // finally we try to rename it.
+
+    val newChatName: ChatName = "Ole ole ale bieda w oczy kole"
+
+    cd.updateChatName(chat, newChatName) match {
+      case Right(chatName) =>
+        assert(chatName == newChatName, s"Chat name does not match.")
+      case Left(_) =>
+        assert(false, s"Method should return new chat name.")
+    }
   }
 
 
 
-
-
   /**
-   * TODO Testing of updating of chat name when chat_id does not exist in DB
+   *  Testing of updating of chat name when chat does not exist in DB
    */
-  test("Testing of updating of chat name when chat_id does not exist in DB") {
+  test("Testing of updating of chat name when chat does not exist in DB") {
 
+    val newChatName: ChatName = "Ole ole ale bieda w oczy kole"
+    val fakeChat = Chat("ChatId", "Old chat name")
+
+    cd.updateChatName(fakeChat, newChatName) match {
+      case Right(_) =>
+        assert(false, s"Chat name does not match.")
+      case Left(queryErrors: QueryErrors) =>
+        assert(queryErrors.listOfErrors.nonEmpty
+          && queryErrors.listOfErrors.length == 1
+          && queryErrors.listOfErrors.head.description == QueryErrorMessage.ChatDoesNotExist(fakeChat.chatName),
+          s"Method should return ${QueryErrorMessage.ChatDoesNotExist(fakeChat.chatName)}.")
+    }
   }
 
 
   /**
-   * TODO Testing of updating of chat name when DB is down
+   * Testing of updating of chat name when DB is down
    */
   test("Testing of updating of chat name when DB is down") {
 
+    // first we take two users
+
+    val user1: User = cd.findUser("Walo") match {
+      case Left(_) =>
+        throw new Exception(s"Db call should return user")
+        User(UUID.randomUUID(), "")
+      case Right(user: User) => user
+    }
+
+    val user2: User = cd.findUser("Spejson") match {
+      case Left(_) =>
+        throw new Exception(s"Db call should return user")
+        User(UUID.randomUUID(), "")
+      case Right(user: User) => user
+    }
+
+    val chatName: ChatName = "Walo-Spejson"
+
+    // then we create chat
+    val chat: Chat = cd.createChat(List(user1, user2), chatName) match {
+      case Right(chat: Chat) =>
+        if chat.chatName != chatName then
+          throw new Exception(s"Chat name from DB: ${chat.chatName} does not match inserted to DB: $chatName")
+        chat
+      case Left(queryErrors: QueryErrors) =>
+        throw new Exception(s"Method should return Chat object.")
+        Chat("null", "NullChat name")
+    }
+
+    // new name
+    val newChatName: ChatName = "Ole ole ale bieda w oczy kole"
+
+    // switch of db
+    switchOffDbManually()
+
+    // finally we try to rename it.
+    cd.updateChatName(chat, newChatName) match {
+      case Right(_) =>
+        assert(false, s"Method should return QueryErrors object not ChatName.")
+      case Left(queryErrors: QueryErrors) =>
+        assert( queryErrors.listOfErrors.nonEmpty
+          && queryErrors.listOfErrors.length == 1
+          && queryErrors.listOfErrors.head.description == QueryErrorMessage.NoDbConnection,
+          s"Method should return ${QueryErrorMessage.NoDbConnection}.")
+    }
   }
 
-  // adding user to chat
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  // adding new users to chat
 
   /**
    * TODO Add user to existing chat
@@ -775,14 +953,150 @@ class DatabaseTests extends munit.FunSuite:
 
 
 
-  // DELETING
-
-  test("Testing deleting user by user object permanently") {
 
 
+
+
+
+
+
+
+
+
+  // DELETING from DB
+
+  test("Testing deleting user from db permanently") {
+    val nullUser = User(UUID.randomUUID(), "NullLogin")
+
+    val pass: Password = PasswordConverter.convert("oldPass") match {
+      case Left(value) =>
+        throw new Exception("Password conversion failed")
+        "Null password"
+      case Right(value) => value
+    }
+
+    // create user and save them in db
+    val wojtas = cd.createUser("Wojtas", pass) match {
+      case Left(_) =>
+        throw new Exception("Assertion error, should find user in db")
+        nullUser
+      case Right(dbUser) =>
+        if dbUser.login != "Wojtas" then
+          throw new Exception("Returned login is not matching.")
+        dbUser
+    }
+
+    // delete user
+    cd.deleteMyAccountPermanently(wojtas, pass) match {
+      case Right(user) =>
+        assert(user == wojtas, s"Returned user not match")
+      case Left(queryErrors: QueryErrors) =>
+        assert(false, s"Method should return User object")
+    }
+
+    // check if user is deleted
+    cd.findUser(wojtas) match {
+      case Right(_) =>
+        assert(false, s"User should not be found after deleting.")
+      case Left(queryErrors: QueryErrors) =>
+        assert( queryErrors.listOfErrors.nonEmpty
+          && queryErrors.listOfErrors.length == 1
+          && queryErrors.listOfErrors.head.description == QueryErrorMessage.UserNotFound(wojtas.login)
+          , s"Method should return ${QueryErrorMessage.UserNotFound(wojtas.login)}"
+        )
+    }
   }
 
 
+
+  test("Testing deleting user from db permanently but with wrong password") {
+    val nullUser = User(UUID.randomUUID(), "NullLogin")
+
+    val pass: Password = PasswordConverter.convert("oldPass") match {
+      case Left(value) =>
+        throw new Exception("Password conversion failed")
+        "Null password"
+      case Right(value) => value
+    }
+
+    // create user and save them in db
+    val wojtas = cd.createUser("Wojtas", pass) match {
+      case Left(_) =>
+        throw new Exception("Assertion error, should find user in db")
+        nullUser
+      case Right(dbUser) =>
+        if dbUser.login != "Wojtas" then
+          throw new Exception("Returned login is not matching.")
+        dbUser
+    }
+
+    // delete user
+    cd.deleteMyAccountPermanently(wojtas, "Wrong Password") match {
+      case Right(user) =>
+        assert(false, s"Method should returned ${QueryErrorMessage.IncorrectLoginOrPassword}")
+      case Left(queryErrors: QueryErrors) =>
+        assert(queryErrors.listOfErrors.nonEmpty
+          && queryErrors.listOfErrors.length == 1
+          && queryErrors.listOfErrors.head.description == QueryErrorMessage.IncorrectLoginOrPassword,
+          s"Method should return ${QueryErrorMessage.IncorrectLoginOrPassword}")
+    }
+
+    // check if user is deleted
+    cd.findUser(wojtas) match {
+      case Right(user) =>
+        if user != wojtas then throw new Exception(s"Method should find not deleted user.")
+      case Left(_) => throw new Exception("Method should return not deleted user.")
+    }
+  }
+
+
+
+  test("Testing deleting user from db permanently but user does not exists in db") {
+
+    // create non existing user
+    val nullUser = User(UUID.randomUUID(), "NullLogin")
+
+    // delete user
+    cd.deleteMyAccountPermanently(nullUser, "Wrong Password") match {
+      case Right(user) =>
+        assert(false, s"Method should returned ${QueryErrorMessage.IncorrectLoginOrPassword}")
+      case Left(queryErrors: QueryErrors) =>
+        assert(queryErrors.listOfErrors.nonEmpty
+          && queryErrors.listOfErrors.length == 1
+          && queryErrors.listOfErrors.head.description == QueryErrorMessage.IncorrectLoginOrPassword,
+          s"Method should return ${QueryErrorMessage.IncorrectLoginOrPassword}")
+    }
+  }
+
+
+
+  test("Testing deleting user from db permanently but db is down") {
+
+    // create non existing user
+    val nullUser = User(UUID.randomUUID(), "NullLogin")
+
+    // db down
+    switchOffDbManually()
+
+    // delete user
+    cd.deleteMyAccountPermanently(nullUser, "Wrong Password") match {
+      case Right(_) =>
+        assert(false, s"Method should returned ${QueryErrorMessage.NoDbConnection}")
+      case Left(queryErrors: QueryErrors) =>
+        assert(queryErrors.listOfErrors.nonEmpty
+          && queryErrors.listOfErrors.length == 1
+          && queryErrors.listOfErrors.head.description == QueryErrorMessage.NoDbConnection,
+          s"Method should return ${QueryErrorMessage.NoDbConnection}")
+    }
+  }
+
+
+  // Deleting user from chat
+  
+  
+  
+  
+  
 
 
 
