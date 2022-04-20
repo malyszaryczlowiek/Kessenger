@@ -19,11 +19,15 @@ trait DataBase:
   def findUser(user: User): Either[QueryErrors, User]
   def findUser(login: Login): Either[QueryErrors, User]
 
-  def updateUsersPassword(me: User, pass: Password): Either[QueryErrors,User]
+  def updateUsersPassword(user: User, oldPass: Password, newPass: Password): Either[QueryErrors,User]
   def updateMyLogin(me: User, newLogin: Login, pass: Password): Either[QueryErrors,User]
-  def updateChatName(chatId: ChatId, newName: ChatName): Either[QueryErrors,ChatName]
+  def updateChatName(chat: Chat, newName: ChatName): Either[QueryErrors,ChatName]
   def addNewUsersToChat(userIds: List[User], chat: Chat): Either[QueryErrors,Chat]
 
-  def deleteMyAccountPermanently(user: User): Either[QueryErrors,User]
+  def deleteMeFromChat(me: User, chat: Chat): Either[QueryErrors, Chat]
+  def deleteMyAccountPermanently(user: User, pass: Password): Either[QueryErrors,User]
+
+  @deprecated("This method will be replaced by deleteMeFromChat() method")
   def deleteUsersFromChat(chat: Chat, users: List[User]): Either[QueryErrors,List[User]] // if your role in chat is Admin
+  @deprecated("This method should not be implemented.")
   def deleteChat(chat: Chat): Either[QueryErrors,Chat] // if your role in chat is Admin

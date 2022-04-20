@@ -4,11 +4,6 @@ CREATE TABLE IF NOT EXISTS users (
   login varchar(255) UNIQUE,
   pass  varchar(255) NOT NULL,
   PRIMARY KEY (user_id, login)
-
---  user_id varchar(255) NOT NULL UNIQUE, -- uuidexit
---    login varchar(255) NOT NULL UNIQUE,
---    pass  varchar(255) NOT NULL,
---    PRIMARY KEY (user_id, login)
 );
 
 CREATE TABLE IF NOT EXISTS chats (
@@ -24,7 +19,7 @@ CREATE TABLE users_chats (
   PRIMARY KEY (chat_id, user_id)
 );
 
--- add to db to clients
+-- add two users to db only for some tests
 INSERT INTO users (login, pass) VALUES ( 'Walo', 'aaa');
 INSERT INTO users (login, pass) VALUES ( 'Spejson', 'bbb');
 

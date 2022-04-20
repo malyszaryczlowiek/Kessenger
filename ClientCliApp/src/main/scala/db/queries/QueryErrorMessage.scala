@@ -20,3 +20,4 @@ enum QueryErrorMessage(message: String):
   case TimeOutDBError                     extends QueryErrorMessage(s"Timeout Error.")
   case UserIsAMemberOfChat(login: Login)  extends QueryErrorMessage(s"User $login is a member of chat currently.")
   case UserHasNoChats                     extends QueryErrorMessage("User has no chats.")
+  case NotAllUsersRemovedFromChat         extends QueryErrorMessage("Not all selected Users removed from chat.")
