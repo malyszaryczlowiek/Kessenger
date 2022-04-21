@@ -350,7 +350,7 @@ class DatabaseTests extends munit.FunSuite:
 
     switchOffDbManually() // IMPORTANT we need lost connection to db
 
-    cd.createChat(List(user1, user2, user3, user1,user2), chatName) match {
+    cd.createChat(List(user1, user2, user3), chatName) match {
       case Right(chat: Chat) =>
         assert(false, s"""Assertion error, should return
                   |=> \"Connection to DB lost. Try again later.\"
@@ -361,127 +361,120 @@ class DatabaseTests extends munit.FunSuite:
           && queryErrors.listOfErrors.length == 1
           && queryErrors.listOfErrors.head.description == QueryErrorMessage.NoDbConnection,
         s"Non Empty: ${queryErrors.listOfErrors.nonEmpty}; Size = ${queryErrors.listOfErrors.length};" +
-          s" Head description: ${queryErrors.listOfErrors.tail.head.description}")
+          s" Head description: ${queryErrors.listOfErrors.head.description}")
     }
-  }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+  } // An I/O error occurred while sending to the backend.
 
 
 
   // searching user's chats
 
   /**
-   * TODO Searching user's chats by user's login when user exists in DB
-   *   ----> rewrite the test <-----
+   * Searching user's chats by user's login when user exists in DB
    */
   test("Searching user's chats by his/her login when user exists in DB") {
 
-    // inserting needed data to DB
+    val user1: User = cd.findUser("Walo") match {
+      case Left(_) =>
+        throw new Exception("Db call should return user, but returned Error")
+        User(UUID.randomUUID(), "")
+      case Right(user: User) => user
+    }
 
-//    val user1: User = cd.findUser("Walo") match {
-//      case Left(queryError: QueryError) =>
-//        assert(false, s"${queryError.description}")
-//        User(UUID.randomUUID(), "")
-//      case Right(user: User) => user
-//    }
-//
-//    val user2: User = cd.findUser("Spejson") match {
-//      case Left(queryError: QueryError) =>
-//        assert(false, s"${queryError.description}")
-//        User(UUID.randomUUID(), "")
-//      case Right(user: User) => user
-//    }
-//
-//    //val chatId: ChatId     = Domain.generateChatId(user1.userId, user2.userId)
-//    val chatName: ChatName = "Walo-Spejson"
-//
-//    val chat: Chat = cd.createChat(List(user1, user2), chatName) match {
-//      case Right(chat: Chat) => chat
-//      case Left(queryError: QueryError) =>
-//        assert(false, "Assertion error, Method should return Chat object")
-//        Chat("Null", "Null")
-//    }
-//
-//    val returnedChatId = chat.chatId
+    val user2: User = cd.findUser("Spejson") match {
+      case Left(_) =>
+        throw new Exception("Db call should return user, but returned Error")
+        User(UUID.randomUUID(), "")
+      case Right(user: User) => user
+    }
 
+    val chatName: ChatName = "Walo-Spejson"
 
-    //
+    val createdChat: Chat = cd.createChat(List(user1, user2), chatName) match {
+      case Right(chat: Chat) => chat
+      case Left(queryErrors: QueryErrors) =>
+        throw new Exception("Method should return chat object.")
+    }
+
+    cd.findUsersChats(user1) match {
+      case Right(seq: Seq[Chat]) =>
+        assert(seq.nonEmpty
+          && seq.length == 1
+          && seq.head == createdChat, "Should return only created chat.")
+      case Left(queryErrors: QueryErrors) => assert(false, "Method should return Seq[Chat] object," +
+        s" but returned ${queryErrors.listOfErrors.head.description}")
+    }
+
+    cd.findUsersChats(user2) match {
+      case Right(seq: Seq[Chat]) =>
+        assert(seq.nonEmpty
+          && seq.length == 1
+          && seq.head == createdChat, "Should return only created chat.")
+      case Left(_) => assert(false, "Method should return Seq[Chat] object")
+    }
   }
 
   /**
-   * TODO Searching user's chats by user's login when user is unavailable in DB
+   * Searching user's chats by user's login when user has no chats
    */
-  test("Searching user by login when user is unavailable in DB") {
+  test("Searching users chats when user has no chats.") {
 
+    val user1: User = cd.findUser("Walo") match {
+      case Left(_) =>
+        throw new Exception("Db call should return user, but returned Error")
+        User(UUID.randomUUID(), "")
+      case Right(user: User) => user
+    }
+
+    cd.findUsersChats(user1) match {
+      case Right(seq: Seq[Chat]) =>
+        assert(seq.isEmpty, "Should return only created chat.")
+      case Left(_) => assert(false, "Method should return empty sequence Seq[Chat]")
+    }
   }
 
   /**
-   * TODO Searching user's chats by user's login when DB is down
+   * Searching user's chats by user's login when user has no chats
    */
-  test(" Searching user by login when DB is down.") {
+  test("Searching users chats when user does not exists in db.") {
 
+    val user = User(UUID.randomUUID(), "")
+
+    cd.findUsersChats(user) match {
+      case Right(seq: Seq[Chat]) =>
+        assert(seq.isEmpty, "Should return only created chat.")
+      case Left(queryErrors: QueryErrors) =>
+        assert(queryErrors.listOfErrors.nonEmpty
+          && queryErrors.listOfErrors.length == 1
+          && queryErrors.listOfErrors.head.description == QueryErrorMessage.DataProcessingError,
+          s"Method should return${QueryErrorMessage.DataProcessingError}, " +
+            s"but returned: ${queryErrors.listOfErrors.head.description}")
+    }
   }
 
 
 
 
+  /**
+   * Searching users chats when DB is down.
+   */
+  test("Searching users chats when DB is down.") {
 
+    val user = User(UUID.randomUUID(), "")
 
+    switchOffDbManually()
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+    cd.findUsersChats(user) match {
+      case Right(_) =>
+        assert(false, s"Method should return ${QueryErrorMessage.NoDbConnection}.")
+      case Left(queryErrors: QueryErrors) =>
+        assert(queryErrors.listOfErrors.nonEmpty
+          && queryErrors.listOfErrors.length == 1
+          && queryErrors.listOfErrors.head.description == QueryErrorMessage.NoDbConnection,
+          s"Method should return${QueryErrorMessage.NoDbConnection}, " +
+            s"but returned: ${queryErrors.listOfErrors.head.description}")
+    }
+  }
 
 
 
@@ -802,7 +795,7 @@ class DatabaseTests extends munit.FunSuite:
         chat
       case Left(queryErrors: QueryErrors) =>
         throw new Exception(s"Method should return Chat object.")
-        Chat("null", "NullChat name")
+        Chat("null", "NullChat name", false)
     }
 
     // finally we try to rename it.
@@ -825,7 +818,7 @@ class DatabaseTests extends munit.FunSuite:
   test("Testing of updating of chat name when chat does not exist in DB") {
 
     val newChatName: ChatName = "Ole ole ale bieda w oczy kole"
-    val fakeChat = Chat("ChatId", "Old chat name")
+    val fakeChat = Chat("ChatId", "Old chat name", false)
 
     cd.updateChatName(fakeChat, newChatName) match {
       case Right(_) =>
@@ -870,7 +863,7 @@ class DatabaseTests extends munit.FunSuite:
         chat
       case Left(queryErrors: QueryErrors) =>
         throw new Exception(s"Method should return Chat object.")
-        Chat("null", "NullChat name")
+        Chat("null", "NullChat name", false)
     }
 
     // new name
@@ -895,76 +888,220 @@ class DatabaseTests extends munit.FunSuite:
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
   // adding new users to chat
 
   /**
-   * TODO Add user to existing chat
+   *  Add user to existing group chat
    */
-  test("Add user to existing chat") {
-    // TODO here implement
+  test("Add user to existing group chat") {
+    val user1: User = cd.findUser("Walo") match {
+      case Left(_) =>
+        throw new Exception(s"Db call should return user")
+        User(UUID.randomUUID(), "")
+      case Right(user: User) => user
+    }
+
+    val user2: User = cd.findUser("Spejson") match {
+      case Left(_) =>
+        throw new Exception(s"Db call should return user")
+        User(UUID.randomUUID(), "")
+      case Right(user: User) => user
+    }
+
+    val wojtas = cd.createUser("Wojtas", "pass") match {
+      case Left(_) =>
+        throw new Exception("Assertion error, should find user in db")
+        User(UUID.randomUUID(), "NullLogin")
+      case Right(dbUser) =>
+        if dbUser.login != "Wojtas" then
+          throw new Exception("Returned login is not matching.")
+        dbUser
+    }
+
+    val chatName: ChatName = "Walo-Spejson-wojtas"
+
+    // then we create chat
+    val chat: Chat = cd.createChat(List(user1, user2, wojtas), chatName) match {
+      case Right(chat: Chat) =>
+        if chat.chatName != chatName then
+          throw new Exception(s"Chat name from DB: ${chat.chatName} does not match inserted to DB: $chatName")
+        chat
+      case Left(queryErrors: QueryErrors) =>
+        throw new Exception(s"Method should return Chat object.")
+        Chat("null", "NullChat name", false)
+    }
+
+    val solaris = cd.createUser("solaris", "pass") match {
+      case Left(_) =>
+        throw new Exception("Assertion error, should find user in db")
+        User(UUID.randomUUID(), "NullLogin")
+      case Right(dbUser) =>
+        if dbUser.login != "solaris" then
+          throw new Exception("Returned login is not matching.")
+        dbUser
+    }
+
+    cd.addNewUsersToChat(List(solaris), chat) match {
+      case Right(c) =>
+        assert(c == chat, s"not matching chat")
+      case Left(_) =>
+        assert(false, s"method should return chat object")
+    }
   }
 
   /**
-   * TODO Try to add user to non existing chat
+   * Try to add user to non existing chat
    */
   test("Try to add user to non existing chat") {
 
+    val fakeChat = Chat("chat-id", "chat-name", true)
+
+    val solaris = cd.createUser("solaris", "pass") match {
+      case Left(_) =>
+        throw new Exception("Assertion error, should find user in db")
+        User(UUID.randomUUID(), "NullLogin")
+      case Right(dbUser) =>
+        if dbUser.login != "solaris" then
+          throw new Exception("Returned login is not matching.")
+        dbUser
+    }
+
+    cd.addNewUsersToChat(List(solaris), fakeChat) match {
+      case Right(_) =>
+        assert(false, s"Method should return ${QueryErrorMessage.DataProcessingError}")
+      case Left(queryErrors: QueryErrors) =>
+        println(queryErrors)
+        assert(queryErrors.listOfErrors.nonEmpty
+          && queryErrors.listOfErrors.length == 1
+          && queryErrors.listOfErrors.head.description == QueryErrorMessage.DataProcessingError
+          , s"Method should return ${QueryErrorMessage.DataProcessingError}")
+    }
   }
 
   /**
-   * TODO Try to add user to chat when db is down
+   * Try to add empty list of users
    */
-  test("Try to add user to chat when db is down") {
+  test("Try to add empty list of users") {
+    val user1: User = cd.findUser("Walo") match {
+      case Left(_) =>
+        throw new Exception(s"Db call should return user")
+        User(UUID.randomUUID(), "")
+      case Right(user: User) => user
+    }
 
+    val user2: User = cd.findUser("Spejson") match {
+      case Left(_) =>
+        throw new Exception(s"Db call should return user")
+        User(UUID.randomUUID(), "")
+      case Right(user: User) => user
+    }
+
+    val wojtas = cd.createUser("Wojtas", "pass") match {
+      case Left(_) =>
+        throw new Exception("Assertion error, should find user in db")
+        User(UUID.randomUUID(), "NullLogin")
+      case Right(dbUser) =>
+        if dbUser.login != "Wojtas" then
+          throw new Exception("Returned login is not matching.")
+        dbUser
+    }
+
+    val chatName: ChatName = "Walo-Spejson-wojtas"
+
+    // then we create chat
+    val chat: Chat = cd.createChat(List(user1, user2, wojtas), chatName) match {
+      case Right(chat: Chat) =>
+        if chat.chatName != chatName then
+          throw new Exception(s"Chat name from DB: ${chat.chatName} does not match inserted to DB: $chatName")
+        chat
+      case Left(queryErrors: QueryErrors) =>
+        throw new Exception(s"Method should return Chat object.")
+        Chat("null", "NullChat name", false)
+    }
+
+    cd.addNewUsersToChat(List.empty[User], chat) match {
+      case Right(_) =>
+        assert(false, s"Method should return ${QueryErrorMessage.NoUserSelected}")
+      case Left(queryErrors: QueryErrors) =>
+        assert(queryErrors.listOfErrors.nonEmpty
+          && queryErrors.listOfErrors.length == 1
+          && queryErrors.listOfErrors.head.description == QueryErrorMessage.NoUserSelected
+          , s"Method should return ${QueryErrorMessage.NoUserSelected}")
+    }
   }
 
 
 
+  /**
+   * Try to add user to chat when db is down
+   */
+  test("Try to add user to chat when db is down") {
+    val user1: User = cd.findUser("Walo") match {
+      case Left(_) =>
+        throw new Exception(s"Db call should return user")
+        User(UUID.randomUUID(), "")
+      case Right(user: User) => user
+    }
 
+    val user2: User = cd.findUser("Spejson") match {
+      case Left(_) =>
+        throw new Exception(s"Db call should return user")
+        User(UUID.randomUUID(), "")
+      case Right(user: User) => user
+    }
 
+    val wojtas = cd.createUser("Wojtas", "pass") match {
+      case Left(_) =>
+        throw new Exception("Assertion error, should find user in db")
+        User(UUID.randomUUID(), "NullLogin")
+      case Right(dbUser) =>
+        if dbUser.login != "Wojtas" then
+          throw new Exception("Returned login is not matching.")
+        dbUser
+    }
 
+    val chatName: ChatName = "Walo-Spejson-wojtas"
 
+    // then we create chat
+    val chat: Chat = cd.createChat(List(user1, user2, wojtas), chatName) match {
+      case Right(chat: Chat) =>
+        if chat.chatName != chatName then
+          throw new Exception(s"Chat name from DB: ${chat.chatName} does not match inserted to DB: $chatName")
+        chat
+      case Left(queryErrors: QueryErrors) =>
+        throw new Exception(s"Method should return Chat object.")
+        Chat("null", "NullChat name", false)
+    }
 
+    val solaris = cd.createUser("solaris", "pass") match {
+      case Left(_) =>
+        throw new Exception("Assertion error, should find user in db")
+        User(UUID.randomUUID(), "NullLogin")
+      case Right(dbUser) =>
+        if dbUser.login != "solaris" then
+          throw new Exception("Returned login is not matching.")
+        dbUser
+    }
 
+    switchOffDbManually()
 
-
-
-
-
+    cd.addNewUsersToChat(List(solaris), chat) match {
+      case Right(_) =>
+        assert(false, s"Method should return ${QueryErrorMessage.NoDbConnection}")
+      case Left(queryErrors: QueryErrors) =>
+        assert(queryErrors.listOfErrors.nonEmpty
+          && queryErrors.listOfErrors.length == 1
+          && queryErrors.listOfErrors.head.description == QueryErrorMessage.NoDbConnection
+          , s"Method should return ${QueryErrorMessage.NoDbConnection}")
+    }
+  }
 
 
 
   // DELETING from DB
-
+  /**
+   *
+   */
   test("Testing deleting user from db permanently") {
     val nullUser = User(UUID.randomUUID(), "NullLogin")
 
@@ -1008,7 +1145,9 @@ class DatabaseTests extends munit.FunSuite:
   }
 
 
-
+  /**
+   *
+   */
   test("Testing deleting user from db permanently but with wrong password") {
     val nullUser = User(UUID.randomUUID(), "NullLogin")
 
@@ -1050,7 +1189,9 @@ class DatabaseTests extends munit.FunSuite:
   }
 
 
-
+  /**
+   *
+   */
   test("Testing deleting user from db permanently but user does not exists in db") {
 
     // create non existing user
@@ -1069,7 +1210,9 @@ class DatabaseTests extends munit.FunSuite:
   }
 
 
-
+  /**
+   *
+   */
   test("Testing deleting user from db permanently but db is down") {
 
     // create non existing user
@@ -1092,15 +1235,186 @@ class DatabaseTests extends munit.FunSuite:
 
 
   // Deleting user from chat
-  
-  
-  
-  
-  
 
+  /**
+   *
+   */
+  test("Delete user from chat - Not possible if chat is not group (has two users)") {
 
+    val user1: User = cd.findUser("Walo") match {
+      case Left(_) =>
+        throw new Exception("Db call should return user, but returned Error")
+        User(UUID.randomUUID(), "")
+      case Right(user: User) => user
+    }
 
+    val user2: User = cd.findUser("Spejson") match {
+      case Left(_) =>
+        throw new Exception("Db call should return user, but returned Error")
+        User(UUID.randomUUID(), "")
+      case Right(user: User) => user
+    }
 
+    val chatName: ChatName = "Walo-Spejson"
+
+    val createdChat: Chat = cd.createChat(List(user1, user2), chatName) match {
+      case Right(chat: Chat) =>
+        chat
+        //assert(chat.chatName == chatName, s"Chat name from DB: ${chat.chatName} does not match inserted to DB: $chatName")
+      case Left(queryErrors: QueryErrors) =>
+        throw new Exception("method should return Chat object")
+    }
+
+    cd.deleteMeFromChat(user1, createdChat) match {
+      case Right(_) => assert(false, s"method should return ${QueryErrorMessage.UnsupportedOperation}")
+      case Left(queryErrors: QueryErrors) =>
+        assert( queryErrors.listOfErrors.nonEmpty
+        && queryErrors.listOfErrors.length == 1
+        && queryErrors.listOfErrors.head.description == QueryErrorMessage.UnsupportedOperation,
+          s"Method should return ${QueryErrorMessage.UnsupportedOperation}")
+    }
+  }
+
+  /**
+   *
+   */
+  test("Delete user from chat - Possible for group chats (users more than two)") {
+
+    val user1: User = cd.findUser("Walo") match {
+      case Left(_) =>
+        throw new Exception("Db call should return user, but returned Error")
+        User(UUID.randomUUID(), "")
+      case Right(user: User) => user
+    }
+
+    val user2: User = cd.findUser("Spejson") match {
+      case Left(_) =>
+        throw new Exception("Db call should return user, but returned Error")
+        User(UUID.randomUUID(), "")
+      case Right(user: User) => user
+    }
+
+    // create user and save them in db
+    val wojtas = cd.createUser("Wojtas", "ddd") match {
+      case Left(_) =>
+        throw new Exception("Assertion error, should find user in db")
+        User(UUID.randomUUID(), "")
+      case Right(dbUser) =>
+        if dbUser.login != "Wojtas" then
+          throw new Exception("Returned login is not matching.")
+        dbUser
+    }
+
+    val chatName: ChatName = "Walo-Spejson-wojtas"
+
+    val createdChat: Chat = cd.createChat(List(user1, user2, wojtas), chatName) match {
+      case Right(chat: Chat) => chat
+      case Left(queryErrors: QueryErrors) =>
+        throw new Exception(s"method should return Chat object, but returned ${queryErrors.listOfErrors.head.description}")
+    }
+
+    cd.deleteMeFromChat(user1, createdChat) match {
+      case Right(chat) =>
+        assert(chat == createdChat, s"method should return ${createdChat}")
+      case Left(_) => assert(false, s"Method should return ${createdChat}")
+    }
+  }
+
+  /**
+   *
+   */
+  test("Delete user from chat when db is down") {
+
+    val user1: User = cd.findUser("Walo") match {
+      case Left(_) =>
+        throw new Exception("Db call should return user, but returned Error")
+        User(UUID.randomUUID(), "")
+      case Right(user: User) => user
+    }
+
+    val user2: User = cd.findUser("Spejson") match {
+      case Left(_) =>
+        throw new Exception("Db call should return user, but returned Error")
+        User(UUID.randomUUID(), "")
+      case Right(user: User) => user
+    }
+
+    // create user and save them in db
+    val wojtas = cd.createUser("Wojtas", "ddd") match {
+      case Left(_) =>
+        throw new Exception("Assertion error, should find user in db")
+        User(UUID.randomUUID(), "")
+      case Right(dbUser) =>
+        if dbUser.login != "Wojtas" then
+          throw new Exception("Returned login is not matching.")
+        dbUser
+    }
+
+    val chatName: ChatName = "Walo-Spejson-wojtas"
+
+    val createdChat: Chat = cd.createChat(List(user1, user2, wojtas), chatName) match {
+      case Right(chat: Chat) => chat
+      case Left(queryErrors: QueryErrors) =>
+        throw new Exception(s"method should return Chat object, but returned ${queryErrors.listOfErrors.head.description}")
+    }
+
+    switchOffDbManually()
+
+    cd.deleteMeFromChat(user1, createdChat) match {
+      case Right(_) =>
+        assert(false, s"Method should return ${QueryErrorMessage.NoDbConnection}")
+      case Left(queryErrors: QueryErrors) =>
+        assert(queryErrors.listOfErrors.nonEmpty
+          && queryErrors.listOfErrors.length == 1
+          && queryErrors.listOfErrors.head.description == QueryErrorMessage.NoDbConnection,
+          s"Method should return ${QueryErrorMessage.NoDbConnection}")
+    }
+  }
+
+  /**
+   *
+   */
+  test("Delete user from no existing chat") {
+
+    val user1: User = cd.findUser("Walo") match {
+      case Left(_) =>
+        throw new Exception("Db call should return user, but returned Error")
+        User(UUID.randomUUID(), "")
+      case Right(user: User) => user
+    }
+
+    val user2: User = cd.findUser("Spejson") match {
+      case Left(_) =>
+        throw new Exception("Db call should return user, but returned Error")
+        User(UUID.randomUUID(), "")
+      case Right(user: User) => user
+    }
+
+    // create user and save them in db
+    val wojtas = cd.createUser("Wojtas", "ddd") match {
+      case Left(_) =>
+        throw new Exception("Assertion error, should find user in db")
+        User(UUID.randomUUID(), "")
+      case Right(dbUser) =>
+        if dbUser.login != "Wojtas" then
+          throw new Exception("Returned login is not matching.")
+        dbUser
+    }
+
+    val chatName: ChatName = "Walo-Spejson-wojtas"
+
+    val fakeChat = Chat("chat-id", "chat-name", false)
+
+    cd.deleteMeFromChat(user1, fakeChat) match {
+      case Right(_) =>
+        assert(false, s"Method should return ${QueryErrorMessage.DataProcessingError}")
+      case Left(queryErrors: QueryErrors) =>
+        assert(queryErrors.listOfErrors.nonEmpty
+          && queryErrors.listOfErrors.length == 1
+          && queryErrors.listOfErrors.head.description == QueryErrorMessage.DataProcessingError,
+          s"Method should return ${QueryErrorMessage.DataProcessingError}")
+    }
+  }
 
 
 

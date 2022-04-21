@@ -3,4 +3,4 @@ package messages
 
 import domain.Domain.{ChatId, ChatName}
 
-case class Chat(chatId: ChatId, chatName: ChatName)
+case class Chat(chatId: ChatId, chatName: ChatName, groupChat: Boolean)
