@@ -48,7 +48,6 @@ class DatabaseTests extends munit.FunSuite:
   /**
    * Before Each test we need to start up new DB, Wait for initialization
    * recreate connection to db.
-   * @param context
    */
   override def beforeEach(context: BeforeEach): Unit =
     switchOffDbEarlier = false
@@ -62,7 +61,6 @@ class DatabaseTests extends munit.FunSuite:
   /**
    * After Each test we close used connection, and if required
    * switch off and delete db container as well.
-   * @param context
    */
   override def afterEach(context: AfterEach): Unit =
     ExternalDB.closeConnection() match {
@@ -795,7 +793,7 @@ class DatabaseTests extends munit.FunSuite:
         chat
       case Left(queryErrors: QueryErrors) =>
         throw new Exception(s"Method should return Chat object.")
-        Chat("null", "NullChat name", false)
+        Chat("null", "NullChat name", false, 0)
     }
 
     // finally we try to rename it.
@@ -818,7 +816,7 @@ class DatabaseTests extends munit.FunSuite:
   test("Testing of updating of chat name when chat does not exist in DB") {
 
     val newChatName: ChatName = "Ole ole ale bieda w oczy kole"
-    val fakeChat = Chat("ChatId", "Old chat name", false)
+    val fakeChat = Chat("ChatId", "Old chat name", false, 0)
 
     cd.updateChatName(fakeChat, newChatName) match {
       case Right(_) =>
@@ -863,7 +861,7 @@ class DatabaseTests extends munit.FunSuite:
         chat
       case Left(queryErrors: QueryErrors) =>
         throw new Exception(s"Method should return Chat object.")
-        Chat("null", "NullChat name", false)
+        Chat("null", "NullChat name", false, 0)
     }
 
     // new name
@@ -928,7 +926,7 @@ class DatabaseTests extends munit.FunSuite:
         chat
       case Left(queryErrors: QueryErrors) =>
         throw new Exception(s"Method should return Chat object.")
-        Chat("null", "NullChat name", false)
+        Chat("null", "NullChat name", false, 0)
     }
 
     val solaris = cd.createUser("solaris", "pass") match {
@@ -954,7 +952,7 @@ class DatabaseTests extends munit.FunSuite:
    */
   test("Try to add user to non existing chat") {
 
-    val fakeChat = Chat("chat-id", "chat-name", true)
+    val fakeChat = Chat("chat-id", "chat-name", true, 0)
 
     val solaris = cd.createUser("solaris", "pass") match {
       case Left(_) =>
@@ -1016,7 +1014,7 @@ class DatabaseTests extends munit.FunSuite:
         chat
       case Left(queryErrors: QueryErrors) =>
         throw new Exception(s"Method should return Chat object.")
-        Chat("null", "NullChat name", false)
+        Chat("null", "NullChat name", false, 0)
     }
 
     cd.addNewUsersToChat(List.empty[User], chat) match {
@@ -1070,7 +1068,7 @@ class DatabaseTests extends munit.FunSuite:
         chat
       case Left(queryErrors: QueryErrors) =>
         throw new Exception(s"Method should return Chat object.")
-        Chat("null", "NullChat name", false)
+        Chat("null", "NullChat name", false, 0)
     }
 
     val solaris = cd.createUser("solaris", "pass") match {
@@ -1403,7 +1401,7 @@ class DatabaseTests extends munit.FunSuite:
 
     val chatName: ChatName = "Walo-Spejson-wojtas"
 
-    val fakeChat = Chat("chat-id", "chat-name", false)
+    val fakeChat = Chat("chat-id", "chat-name", false, 0)
 
     cd.deleteMeFromChat(user1, fakeChat) match {
       case Right(_) =>

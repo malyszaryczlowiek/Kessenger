@@ -19,23 +19,18 @@ class ChatManagerTests extends munit.FunSuite {
     val makeZookeeperStartScriptExecutable = s"chmod +x ${pathToScripts}/startZookeeper".!!
     println( makeZookeeperStartScriptExecutable )
 
-
     val makeZookeeperStopScriptExecutable = s"chmod +x ${pathToScripts}/stopZookeeper".!!
     println( makeZookeeperStopScriptExecutable )
-
 
     val makeKafkaStartScriptExecutable = s"chmod +x ${pathToScripts}/startKafka".!!
     println( makeKafkaStartScriptExecutable )
 
-
     val makeKafkaStopScriptExecutable = s"chmod +x ${pathToScripts}/stopKafka".!!
     println( makeKafkaStopScriptExecutable )
 
-
     val makeCreateTopicScriptExecutable = s"chmod +x ${pathToScripts}/createTopic".!!
     println( makeCreateTopicScriptExecutable )
-
-
+    
     val outputOfZookeeperStarting = s"./${pathToScripts}/startZookeeper".!!
     Thread.sleep(5_000) // wait for zookeeper initialization
     super.beforeAll()

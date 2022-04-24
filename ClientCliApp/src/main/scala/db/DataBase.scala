@@ -22,6 +22,7 @@ trait DataBase:
   def updateUsersPassword(user: User, oldPass: Password, newPass: Password): Either[QueryErrors,User]
   def updateMyLogin(me: User, newLogin: Login, pass: Password): Either[QueryErrors,User]
   def updateChatName(chat: Chat, newName: ChatName): Either[QueryErrors,ChatName]
+  def updateChatOffset(user: User, chat: Chat): Either[QueryErrors,Chat]
   def addNewUsersToChat(userIds: List[User], chat: Chat): Either[QueryErrors,Chat]
 
   def deleteMeFromChat(me: User, chat: Chat): Either[QueryErrors, Chat]

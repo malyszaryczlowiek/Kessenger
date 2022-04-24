@@ -2,8 +2,9 @@ package com.github.malyszaryczlowiek
 package messages
 
 import com.github.malyszaryczlowiek.domain.Domain.{ChatId, JoinId, WritingId}
+import com.github.malyszaryczlowiek.messages.kafkaConfiguration.KafkaConfigurator
 import org.apache.kafka.clients.admin.{Admin, AdminClientConfig, CreateTopicsResult, DeleteTopicsResult, NewTopic}
-import org.apache.kafka.clients.consumer.KafkaConsumer
+import org.apache.kafka.clients.consumer.{ConsumerConfig, KafkaConsumer}
 import org.apache.kafka.clients.producer.{KafkaProducer, ProducerConfig}
 import org.apache.kafka.common.KafkaFuture
 import org.apache.kafka.common.config.TopicConfig
@@ -15,8 +16,13 @@ import scala.jdk.javaapi.CollectionConverters
 
 protected object KessengerAdmin {
 
+  var configurator: KafkaConfigurator = _
+
+  def setConfigurator(con: KafkaConfigurator): Unit =
+    configurator = con
+
   val properties = new Properties
-  properties.put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG,"localhost:9093,localhost:9094")
+  properties.put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, "localhost:9093,localhost:9094")
   private val admin: Admin = Admin.create(properties)
 
 
@@ -77,20 +83,28 @@ protected object KessengerAdmin {
     properties.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, "org.apache.kafka.common.serialization.StringSerializer")
     new KafkaProducer[String, String](properties)
 
-  def createChatConsumer: KafkaConsumer[String, String] = ???
+  def createChatConsumer(groupId: String): KafkaConsumer[String, String] =
+    val props: Properties = new Properties();
+    props.setProperty(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG       , "localhost:9093,localhost:9094")
+    props.setProperty(ConsumerConfig.GROUP_ID_CONFIG                , groupId)
+    props.setProperty(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG      , "false")
+    // props.setProperty(ConsumerConfig.AUTO_COMMIT_INTERVAL_MS_CONFIG , "1000")
+    props.setProperty(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG  , "org.apache.kafka.common.serialization.StringDeserializer");
+    props.setProperty(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, "org.apache.kafka.common.serialization.StringDeserializer");
+    new KafkaConsumer[String, String](props)
 
 
-
-  def createWritingProducer(): KafkaProducer[String, String] =
-    val properties = new Properties
-    properties.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, "localhost:9093,localhost:9094")
-    properties.put(ProducerConfig.ACKS_CONFIG, "0")  // No replica must conferm - send and forget
-    properties.put(ProducerConfig.LINGER_MS_CONFIG, "0") // we do not wait to fill the buffer and send immediately
-    properties.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, "org.apache.kafka.common.serialization.StringSerializer")
-    properties.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, "org.apache.kafka.common.serialization.StringSerializer")
-    new KafkaProducer[String, String](properties)
-
-  def createWritingConsumer: KafkaConsumer[String, String] = ???
+//   TODO with UI implementation
+//  def createWritingProducer(): KafkaProducer[String, String] =
+//    val properties = new Properties
+//    properties.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, "localhost:9093,localhost:9094")
+//    properties.put(ProducerConfig.ACKS_CONFIG, "0")  // No replica must confirm - send and forget
+//    properties.put(ProducerConfig.LINGER_MS_CONFIG, "0") // we do not wait to fill the buffer and send immediately
+//    properties.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, "org.apache.kafka.common.serialization.StringSerializer")
+//    properties.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, "org.apache.kafka.common.serialization.StringSerializer")
+//    new KafkaProducer[String, String](properties)
+//
+//  def createWritingConsumer: KafkaConsumer[String, String] = ???
 
 
 
@@ -125,6 +139,58 @@ protected object KessengerAdmin {
     properties.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, "org.apache.kafka.common.serialization.StringSerializer")
     new KafkaProducer[String, String](properties)
 
-  def createJoiningConsumer: KafkaConsumer[String, String] = ???
+  def createJoiningConsumer(): KafkaConsumer[String, String] = ???
 
 }
+/*
+Uwagi odnośnie consumera:
+ 1. Consumera trzeba zamknąć po skożystaniu z niego bo w przeciwnym razie połączenie będzie cały czas aktywne
+ i będzie blokować dostęp.
+
+ 2. Consumer NIE JEST THREAD SAFE.
+
+  group.id określa do jakiej grupy należy consumer i co za tym idzie z jakich partycji będzie zczytywał.
+
+
+
+  consumer musi za każdym razem wczytywać info o offsetcie tak aby móc je od razu zapisać do bazy danych.
+  Dzięki temu przy następnym wczytaniu danych z kafki możemy dac info do konsumera od której pozycji
+  w offsecie powinien zczytywać (pull'ować - metada pull())
+
+  session.timeout.ms - czas  wms jaki consumer ma na wysyłanie heartbeat'u do servera. heartbeat jest wysyłany
+     podspodem i my nie mamy możliwości nim sterować.
+
+
+  max.poll.interval.ms - zapobiega livelock'owi - jest to maxymalny czas w ms po którym consumer jeśli nie wyśle
+   pull'a do serwera to zostanie uzanany za martwego i inny consumer z tej samej grupy przechwyci
+   partycje należące do martwego.
+
+
+*/
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

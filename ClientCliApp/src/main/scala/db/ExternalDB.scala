@@ -71,7 +71,7 @@ class ExternalDB extends DataBase:
         else
           groupChat = true
           chatId = Domain.generateChatId(UUID.randomUUID(), UUID.randomUUID()) // for more than two users we generate random chat_id
-        val chat = Chat(chatId, chatName, groupChat)
+        val chat = Chat(chatId, chatName, groupChat, 0L)
         insertChatAndAssignUsersToChat(users, chat) match {
           case Failure(ex) =>
             connection.rollback(beforeAnyInsertions) // we roll back any insertions
@@ -146,10 +146,12 @@ class ExternalDB extends DataBase:
       val affectionList: List[Future[Int]] = users.map(
         user =>
           Future {
+            //Using(connection.prepareStatement("INSERT INTO users_chats (chat_id, user_id, offset) VALUES (?, ?, ?)")) {
             Using(connection.prepareStatement("INSERT INTO users_chats (chat_id, user_id) VALUES (?, ?)")) {
               (statement: PreparedStatement) =>
                 statement.setString(1, chat.chatId)
                 statement.setObject(2, user.userId)
+                //statement.setLong(3, chat.offset)
                 statement.executeUpdate()
             } match {
               case Failure(exception) => throw exception
@@ -228,7 +230,7 @@ class ExternalDB extends DataBase:
    * @return
    */
   def findUsersChats(user: User): Either[QueryErrors,Seq[Chat]] =
-    val sql = "SELECT chats.chat_id, chats.chat_name, chats.group_chat FROM chats " +
+    val sql = "SELECT chats.chat_id, chats.chat_name, chats.group_chat, users_chats.users_offset FROM chats " +
       "INNER JOIN users_chats " +
       "ON chats.chat_id = users_chats.chat_id " +
       "WHERE users_chats.user_id = ?"
@@ -242,8 +244,8 @@ class ExternalDB extends DataBase:
               val chatId: ChatId = resultSet.getString("chat_id")
               val chatName: ChatName = resultSet.getString("chat_name")
               val groupChat: Boolean = resultSet.getBoolean("group_chat")
-              list += Chat(chatId, chatName, groupChat)
-              println(Chat(chatId, chatName, groupChat))
+              val offset: Long = resultSet.getLong("users_offset")
+              list += Chat(chatId, chatName, groupChat, offset)
             Right(list.toSeq)
         } match {
           case Failure(ex)     => throw ex
@@ -331,6 +333,25 @@ class ExternalDB extends DataBase:
     }
 
 
+  /**
+   * TODO write tests
+   * @param user
+   * @param chat
+   * @return
+   */
+  def updateChatOffset(user: User, chat: Chat): Either[QueryErrors,Chat] =
+    Using(connection.prepareStatement("UPDATE users_chats SET users_offset = ? WHERE chat_id = ? AND user_id = ? ")) {
+      (statement: PreparedStatement) =>
+        statement.setLong(1, chat.offset)
+        statement.setString(2, chat.chatId)
+        statement.setObject(3, user.userId)
+        statement.executeUpdate()
+    } match {
+      case Failure(ex) => handleExceptionMessage(ex)
+      case Success(value) =>
+        if value == 1 then Right(chat)
+        else Left(QueryErrors(List(QueryError(QueryErrorType.ERROR, QueryErrorMessage.IncorrectLoginOrPassword))))
+    }
 
   /**
    * no modify
