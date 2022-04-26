@@ -12,7 +12,7 @@ object MyAccount:
 
   private var me: User = _// User(UUID.randomUUID(), "")
 
-  private var myChats: List[Chat] = _
+  private var myChats: Map[Chat, List[User]] = _
   private var myUUID: UserID = _
   private var myLogin: Login = _
 

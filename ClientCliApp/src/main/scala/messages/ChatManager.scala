@@ -34,11 +34,12 @@ object ChatManager:
   private val joinProducer: KafkaProducer[String, String] = KessengerAdmin.createJoiningProducer()
   private val joinConsumer: KafkaConsumer[String, String] = KessengerAdmin.createJoiningConsumer()
 
-  
+
   // we will read from topic with name of chatId. Each chat topic
   // has only one partition (and three replicas)
   val myJoiningTopicPartition = new TopicPartition(Domain.generateJoinId(MyAccount.getMyObject.userId), 0)
   var joinOffset: Long = 0L // = MyAccount.getMyObject.joinOffset TODO implement in future
+  // joinOffset is read in from DB
 
   // we start reading from our joining topic
   joinConsumer.seek(myJoiningTopicPartition, joinOffset)
@@ -50,7 +51,15 @@ object ChatManager:
   var continueChecking = true
 
   /**
-   * This future handle if someone ask me to join a chat.
+   * This future runs all time during program execution.
+   *
+   * It handles if someone ask me to join a chat.
+   * If someone ask us to join chat w keep this in buffer,
+   * And can process in future time.
+   * If we do not process buffer and close program,
+   * data isn't lost, because offset isnt updated in db,
+   * so when we restarting app and
+   * we read in all requests (above offset) again.
    */
   private val future = Future {
     while (continueChecking) {

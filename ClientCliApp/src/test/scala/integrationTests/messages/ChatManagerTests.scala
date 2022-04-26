@@ -1,6 +1,13 @@
 package com.github.malyszaryczlowiek
 package integrationTests.messages
 
+import com.github.malyszaryczlowiek.domain.User
+import com.github.malyszaryczlowiek.messages.{Chat, ChatExecutor, KafkaErrors, KessengerAdmin}
+import com.github.malyszaryczlowiek.messages.kafkaConfiguration.KafkaTestConfigurator
+
+import java.util.UUID
+import scala.collection.immutable.{AbstractMap, SeqMap, SortedMap}
+import scala.util.{Failure, Success}
 import sys.process.*
 
 
@@ -30,9 +37,7 @@ class ChatManagerTests extends munit.FunSuite {
 
     val makeCreateTopicScriptExecutable = s"chmod +x ${pathToScripts}/createTopic".!!
     println( makeCreateTopicScriptExecutable )
-    
-    val outputOfZookeeperStarting = s"./${pathToScripts}/startZookeeper".!!
-    Thread.sleep(5_000) // wait for zookeeper initialization
+
     super.beforeAll()
 
   /**
@@ -40,9 +45,12 @@ class ChatManagerTests extends munit.FunSuite {
    * @param context
    */
   override def beforeEach(context: BeforeEach): Unit =
+    val outputOfZookeeperStarting = s"./${pathToScripts}/startZookeeper".!!
+    Thread.sleep(50) // wait for zookeeper initialization
     val outputOfKafkaStarting = s"./${pathToScripts}/startKafka".!!
     println(s"Created kafka-test-container container")
-    Thread.sleep(1_000)
+    Thread.sleep(50)
+    KessengerAdmin.startAdmin(new KafkaTestConfigurator)
     super.beforeEach(context)
 
 
@@ -51,37 +59,89 @@ class ChatManagerTests extends munit.FunSuite {
    * @param context
    */
   override def afterEach(context: AfterEach): Unit =
+    KessengerAdmin.closeAdmin()
     val outputOfKafkaStopping = s"./${pathToScripts}/stopKafka".!!
     val name = outputOfKafkaStopping.split('\n')
     println( s"Stopped ${name(0)} container\nDeleted ${name(1)} container" )
-    Thread.sleep(2_000)
+    Thread.sleep(50)
+    val outputOfZookeeperStopping = s"./${pathToScripts}/stopZookeeper".!!
+    val names = outputOfZookeeperStopping.split('\n')
+    println( s"Stopped ${names(0)} container\nDeleted ${names(1)} container\nDeleted \'${names(2)}\' docker testing network" )
     super.afterEach(context)
 
   /**
    * closing zookeeper and removing local docker testing network
    * after all tests.
    */
-  override def afterAll(): Unit =
-    val outputOfZookeeperStopping = s"./${pathToScripts}/stopZookeeper".!!
-    val names = outputOfZookeeperStopping.split('\n')
-    println( s"Stopped ${names(0)} container\nDeleted ${names(1)} container\nDeleted \'${names(2)}\' docker testing network" )
-    super.afterAll()
+  override def afterAll(): Unit = super.afterAll()
 
   private def createTopic(topicName: String): Unit =
     val createTopic = s"./${pathToScripts}/createTopic $topicName".!!
     println( createTopic )
 
 
-
-
-  test("Testing topic creation script") {
-    createTopic("foo")
-    assert(1 == 1, "failed one equality")
+  test("create topic") {
+    val fakeChat = Chat("fake-chat-id", "fake-chat-name", false, 0L)
+    KessengerAdmin.createNewChat(fakeChat) match {
+      case Left(kafkaErrors: KafkaErrors)  => assert(false,s"should not return any kafkaError")
+      case Right(value)                    => assert(value == fakeChat.chatId, s"$value")
+    }
   }
 
-  test("Testing with another topic") {
-    createTopic("bar")
-    assert(1 == 1, "failed one equality")
+
+  // org.apache.kafka.common.errors.TopicExistsException: Topic 'fake-chat-id' already exists.
+
+  test("create topic and remove them") {
+    val fakeChat = Chat("fake-chat-id", "fake-chat-name", false, 0L)
+    KessengerAdmin.createNewChat(fakeChat) match {
+    case Left(kafkaErrors: KafkaErrors)  => assert(false, s"should not throw any exception")
+    case Right(value)                    => assert(value == fakeChat.chatId, s"$value")
+    }
+
+    KessengerAdmin.removeChat(fakeChat) match {
+      case Left(value) => assert(false, "should not return kafka error")
+      case Right(value) => assert(value == fakeChat.chatId, "Not matching returned chat id")
+    }
   }
 
+  test("create topic and send message") {
+    val fakeChat = Chat("fake-chat-id", "fake-chat-name", false, 0L)
+
+    KessengerAdmin.createNewChat(fakeChat) match {
+      case Left(kafkaErrors: KafkaErrors)  => assert(false, s"should not throw any exception")
+      case Right(value)                    => assert(value == fakeChat.chatId, s"$value")
+    }
+
+    val sender = User(UUID.randomUUID(), "sender")
+    val reader = User(UUID.randomUUID(), "reader")
+
+    val ce = new ChatExecutor(sender, fakeChat, List(sender, reader)) // this no prints
+    val ce2 = new ChatExecutor(reader, fakeChat, List(sender, reader)) // this prints sent message
+
+    ce.sendMessage("Rikitiki narkotyki :D")
+    // ce.sendMessage("Second message. ")
+
+    Thread.sleep(1000)
+    ce.closeChat()
+    ce2.closeChat()
+
+    KessengerAdmin.removeChat(fakeChat) match {
+      case Left(_)      => assert(false, "should not return kafka error")
+      case Right(value) => assert(value == fakeChat.chatId, "Not matching returned chat id")
+    }
+  }
 }
+
+
+
+//
+//
+//  test("Testing topic creation script") {
+//    createTopic("foo")
+//    assert(1 == 1, "failed one equality")
+//  }
+//
+//  test("Testing with another topic") {
+//    createTopic("bar")
+//    assert(1 == 1, "failed one equality")
+//  }
