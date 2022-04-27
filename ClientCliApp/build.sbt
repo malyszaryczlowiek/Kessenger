@@ -18,7 +18,8 @@ lazy val root = (project in file("."))
       // https://mvnrepository.com/artifact/com.github.t3hnar/scala-bcrypt
       // https://github.com/t3hnar/scala-bcrypt
       "org.scalameta" %% "munit" % "0.7.29" % Test,
-      "org.scalameta" %% "munit-scalacheck" % "0.7.29" % Test
+      "org.scalameta" %% "munit-scalacheck" % "0.7.29" % Test,
+      "org.slf4j" % "slf4j-nop" % "1.7.36" % Test // to switch off logging
     )
   )
 

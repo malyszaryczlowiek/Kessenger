@@ -5,14 +5,124 @@ import scala.annotation.tailrec
 import scala.io.StdIn.{readChar, readInt, readLine}
 import com.github.malyszaryczlowiek.messages.ChatManager
 
+import java.io.Console
+import scala.util.{Failure, Success, Try}
+
 object ProgramExecutor :
 
-//  private var continueProgram = true
-//  private var continueSelectingChat = true
-//  private var selectChat = true
-//  private var searchUser = true
+  private var continueMainLoop = true
 
-  def runProgram(): Unit =
+  def runProgram(args: Array[String]): Unit =
+    var length = args.length
+    while (continueMainLoop) {
+      if length == 0 then
+        println("Select what to do:\n1) Sign in,\n2) Sign up,\n3) Exit.")
+        print("> ")
+        Try { readInt() } match {
+          case Failure(exception) => println("Please select (type) 1, 2 or 3.")
+          case Success(value) =>
+            if value == 1      then signIn()
+            else if value == 2 then createAccount()
+            else if value == 3 then continueMainLoop = false
+            else () // do nothing simply start loop again
+        }
+      else if length == 1 then
+        signInWithLogin(args.apply(0))
+      else
+        println(s"Warning!!! Too much program arguments: $length.")
+        length = 0
+    }
+
+
+  private def signIn(): Unit =
+    println("Type your login:")
+    print("> ")
+    signInWithLogin(readLine())
+
+
+  @tailrec
+  private def createAccount(): Unit =
+    println("Login must have 8 characters at leased and must contain only letters, numbers, dash '-', or underscore '_':")
+    print("> ")
+    val login = readLine()
+    val regex = "[\\w]{7,}".r
+    if login == "#exit"          then continueMainLoop = false
+    else if regex.matches(login) then setPassword()
+    else
+      println(s"Login is incorrect, try with another one, or type #exit.")
+      createAccount()
+
+
+  @tailrec
+  private def setPassword(): Unit =
+    val console: Console = System.console()
+    if console != null then
+      println("Set your Password:")
+      print("> ")
+      val pass1 = console.readPassword()      //("[%s]", "Password:")
+      if pass1 != null then
+        println("Please repeat the password:")
+        print("> ")
+        val pass2 = console.readPassword()    //("[%s]", "Password:")
+        pass1.foreach(print)
+        pass2.foreach(print)
+        if pass2 != null && pass1.toSeq == pass2.toSeq then
+          // probably must call gc() to remove pass1 and pass2
+          println("Passwords matched.")
+
+
+          // TODO tutaj kontynuować
+
+
+        else
+          println("Passwords do not match. Try Again.")
+          setPassword()
+      else
+        println("Password was empty. Try with non empty.")
+        setPassword()
+    else
+      println("Cannot read user input. Program termination.")
+      continueMainLoop = false
+
+      // java.util.Arrays.fill(passwd, ' ')
+
+
+
+  private def signInWithLogin(login: String): Unit = ???
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    //  private var continueProgram = true
+    //  private var continueSelectingChat = true
+    //  private var selectChat = true
+    //  private var searchUser = true
 //    try {
 //      val eDB: ExternalDB[Queryable] = new ExternalDB[PostgresStatement]()
 //    }
@@ -20,9 +130,6 @@ object ProgramExecutor :
 //
 //    }
 
-    println("Type your second name:")
-    print("> ")
-    val name = readLine()
 //    while (continueProgram)
 //      selectUser(name)
 //    closeAllChats()

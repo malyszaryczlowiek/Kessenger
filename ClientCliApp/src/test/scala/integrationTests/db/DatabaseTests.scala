@@ -4,8 +4,9 @@ package integrationTests.db
 import com.github.malyszaryczlowiek.db.queries.{QueryError, QueryErrorMessage, QueryErrors}
 import com.github.malyszaryczlowiek.db.*
 import com.github.malyszaryczlowiek.domain.Domain.{ChatId, ChatName, Login, Password}
-import com.github.malyszaryczlowiek.domain.{Domain, PasswordConverter, User}
+import com.github.malyszaryczlowiek.domain.{Domain, User}
 import com.github.malyszaryczlowiek.messages.Chat
+import com.github.malyszaryczlowiek.util.PasswordConverter
 
 import java.sql.Connection
 import java.util.UUID
