@@ -22,13 +22,18 @@ object MyAccount:
    * @param user
    */
   def initialize(user: User): Unit =
-    ExternalDB.findUsersChatsMap(user) match {
+    ExternalDB.findUsersChats(user) match {
       case Left(QueryErrors(l @ List(QueryError(queryErrorType, description)))) =>
-      case Right(myChats: Map[Chat, List[User]]) =>
-        // TODO implement
+        println("Undefined error. Cannot initialize user's chats.")
+        me = user
+        myChats = Map.empty[Chat, List[User]]
+      case Right(usersChats: Map[Chat, List[User]]) =>
+        println(s"users chats (${usersChats.size}) loaded. ")
+        myChats = usersChats
       case _ =>
-        println("Undefined error.")
-        // TODO implement
+        println("Undefined error. Cannot initialize user's chats.")
+        me = user
+        myChats = Map.empty[Chat, List[User]]
     }
 
   def initializeAfterCreation(user: User): Unit =

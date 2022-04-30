@@ -168,8 +168,10 @@ object ProgramExecutor :
 
 /*
 TODO list
-1) implement ExternalDB.findUsersChatsMap()
-2) implement MyAccount.initialize()
+1a) implement ExternalDB.findUsersChatsMap()
+1b) write tests for ExternalDB.findUsersChatsMap()
+1c) write tests for ExternalDB.findUser(login: Login, password: Password)
+2) DONE -- implement MyAccount.initialize()
 3) implement showChats()
 4) implement createChat()
 

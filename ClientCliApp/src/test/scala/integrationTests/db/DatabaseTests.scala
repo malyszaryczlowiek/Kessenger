@@ -367,11 +367,118 @@ class DatabaseTests extends munit.FunSuite:
 
 
   // searching user's chats
+//
+//  /**
+//   * Searching user's chats by user's login when user exists in DB
+//   */
+//  test("Searching user's chats by his/her login when user exists in DB") {
+//
+//    val user1: User = ExternalDB.findUser("Walo") match {
+//      case Left(_) =>
+//        throw new Exception("Db call should return user, but returned Error")
+//        User(UUID.randomUUID(), "")
+//      case Right(user: User) => user
+//    }
+//
+//    val user2: User = ExternalDB.findUser("Spejson") match {
+//      case Left(_) =>
+//        throw new Exception("Db call should return user, but returned Error")
+//        User(UUID.randomUUID(), "")
+//      case Right(user: User) => user
+//    }
+//
+//    val chatName: ChatName = "Walo-Spejson"
+//
+//    val createdChat: Chat = ExternalDB.createChat(List(user1, user2), chatName) match {
+//      case Right(chat: Chat) => chat
+//      case Left(queryErrors: QueryErrors) =>
+//        throw new Exception("Method should return chat object.")
+//    }
+//
+//    ExternalDB.findUsersChats(user1) match {
+//      case Right(seq: Seq[Chat]) =>
+//        assert(seq.nonEmpty
+//          && seq.length == 1
+//          && seq.head == createdChat, "Should return only created chat.")
+//      case Left(queryErrors: QueryErrors) => assert(false, "Method should return Seq[Chat] object," +
+//        s" but returned ${queryErrors.listOfErrors.head.description}")
+//    }
+//
+//    ExternalDB.findUsersChats(user2) match {
+//      case Right(seq: Seq[Chat]) =>
+//        assert(seq.nonEmpty
+//          && seq.length == 1
+//          && seq.head == createdChat, "Should return only created chat.")
+//      case Left(_) => assert(false, "Method should return Seq[Chat] object")
+//    }
+//  }
+//
+//  /**
+//   * Searching user's chats by user's login when user has no chats
+//   */
+//  test("Searching users chats when user has no chats.") {
+//
+//    val user1: User = ExternalDB.findUser("Walo") match {
+//      case Left(_) =>
+//        throw new Exception("Db call should return user, but returned Error")
+//        User(UUID.randomUUID(), "")
+//      case Right(user: User) => user
+//    }
+//
+//    ExternalDB.findUsersChats(user1) match {
+//      case Right(seq: Seq[Chat]) =>
+//        assert(seq.isEmpty, "Should return only created chat.")
+//      case Left(_) => assert(false, "Method should return empty sequence Seq[Chat]")
+//    }
+//  }
+//
+//  /**
+//   * Searching user's chats by user's login when user has no chats
+//   */
+//  test("Searching users chats when user does not exists in db.") {
+//
+//    val user = User(UUID.randomUUID(), "")
+//
+//    ExternalDB.findUsersChats(user) match {
+//      case Right(seq: Seq[Chat]) =>
+//        assert(seq.isEmpty, "Should return only created chat.")
+//      case Left(queryErrors: QueryErrors) =>
+//        assert(queryErrors.listOfErrors.nonEmpty
+//          && queryErrors.listOfErrors.length == 1
+//          && queryErrors.listOfErrors.head.description == QueryErrorMessage.DataProcessingError,
+//          s"Method should return${QueryErrorMessage.DataProcessingError}, " +
+//            s"but returned: ${queryErrors.listOfErrors.head.description}")
+//    }
+//  }
+//
+//
+//
+//
+//  /**
+//   * Searching users chats when DB is down.
+//   */
+//  test("Searching users chats when DB is down.") {
+//
+//    val user = User(UUID.randomUUID(), "")
+//
+//    switchOffDbManually()
+//
+//    ExternalDB.findUsersChats(user) match {
+//      case Right(_) =>
+//        assert(false, s"Method should return ${QueryErrorMessage.NoDbConnection}.")
+//      case Left(queryErrors: QueryErrors) =>
+//        assert(queryErrors.listOfErrors.nonEmpty
+//          && queryErrors.listOfErrors.length == 1
+//          && queryErrors.listOfErrors.head.description == QueryErrorMessage.NoDbConnection,
+//          s"Method should return${QueryErrorMessage.NoDbConnection}, " +
+//            s"but returned: ${queryErrors.listOfErrors.head.description}")
+//    }
+  //}
 
   /**
-   * Searching user's chats by user's login when user exists in DB
+   * Searching users chats
    */
-  test("Searching user's chats by his/her login when user exists in DB") {
+  test("Searching users chats Map ") {
 
     val user1: User = ExternalDB.findUser("Walo") match {
       case Left(_) =>
@@ -396,82 +503,24 @@ class DatabaseTests extends munit.FunSuite:
     }
 
     ExternalDB.findUsersChats(user1) match {
-      case Right(seq: Seq[Chat]) =>
-        assert(seq.nonEmpty
-          && seq.length == 1
-          && seq.head == createdChat, "Should return only created chat.")
-      case Left(queryErrors: QueryErrors) => assert(false, "Method should return Seq[Chat] object," +
+      case Right(map: Map[Chat, List[User]]) => // : Map[Chat, List[User]]
+        assert(map.nonEmpty
+          && map.size == 1
+          && ( map.head == (createdChat, List(user1, user2))
+          || map.head == (createdChat, List(user2, user1)) ), s"Should return only created chat. ${map.head}")
+      case Left(queryErrors: QueryErrors) =>
+        Thread.sleep(600_000)
+        assert(false, "Method should return Map[Chat, List[User]] object," +
         s" but returned ${queryErrors.listOfErrors.head.description}")
     }
 
+
+
     ExternalDB.findUsersChats(user2) match {
-      case Right(seq: Seq[Chat]) =>
-        assert(seq.nonEmpty
-          && seq.length == 1
-          && seq.head == createdChat, "Should return only created chat.")
+      case Right(map: Map[Chat, List[User]]) => // : Map[Chat, List[User]]
+        assert(map.nonEmpty
+          && map.size == 1, "Should return only created chat.")
       case Left(_) => assert(false, "Method should return Seq[Chat] object")
-    }
-  }
-
-  /**
-   * Searching user's chats by user's login when user has no chats
-   */
-  test("Searching users chats when user has no chats.") {
-
-    val user1: User = ExternalDB.findUser("Walo") match {
-      case Left(_) =>
-        throw new Exception("Db call should return user, but returned Error")
-        User(UUID.randomUUID(), "")
-      case Right(user: User) => user
-    }
-
-    ExternalDB.findUsersChats(user1) match {
-      case Right(seq: Seq[Chat]) =>
-        assert(seq.isEmpty, "Should return only created chat.")
-      case Left(_) => assert(false, "Method should return empty sequence Seq[Chat]")
-    }
-  }
-
-  /**
-   * Searching user's chats by user's login when user has no chats
-   */
-  test("Searching users chats when user does not exists in db.") {
-
-    val user = User(UUID.randomUUID(), "")
-
-    ExternalDB.findUsersChats(user) match {
-      case Right(seq: Seq[Chat]) =>
-        assert(seq.isEmpty, "Should return only created chat.")
-      case Left(queryErrors: QueryErrors) =>
-        assert(queryErrors.listOfErrors.nonEmpty
-          && queryErrors.listOfErrors.length == 1
-          && queryErrors.listOfErrors.head.description == QueryErrorMessage.DataProcessingError,
-          s"Method should return${QueryErrorMessage.DataProcessingError}, " +
-            s"but returned: ${queryErrors.listOfErrors.head.description}")
-    }
-  }
-
-
-
-
-  /**
-   * Searching users chats when DB is down.
-   */
-  test("Searching users chats when DB is down.") {
-
-    val user = User(UUID.randomUUID(), "")
-
-    switchOffDbManually()
-
-    ExternalDB.findUsersChats(user) match {
-      case Right(_) =>
-        assert(false, s"Method should return ${QueryErrorMessage.NoDbConnection}.")
-      case Left(queryErrors: QueryErrors) =>
-        assert(queryErrors.listOfErrors.nonEmpty
-          && queryErrors.listOfErrors.length == 1
-          && queryErrors.listOfErrors.head.description == QueryErrorMessage.NoDbConnection,
-          s"Method should return${QueryErrorMessage.NoDbConnection}, " +
-            s"but returned: ${queryErrors.listOfErrors.head.description}")
     }
   }
 

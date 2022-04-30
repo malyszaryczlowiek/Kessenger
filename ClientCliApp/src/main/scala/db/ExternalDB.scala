@@ -24,8 +24,6 @@ object ExternalDB:
   Class.forName("org.postgresql.Driver")
   private var connection: Connection = DriverManager.getConnection(dbUrl, dbProps)
 
-
-
   def closeConnection(): Try[Unit] = Try { connection.close() }
 
   protected def getConnection: Connection = connection
@@ -44,6 +42,47 @@ object ExternalDB:
       //connection.setAutoCommit(false)
   }
 
+
+  /**
+   * Todo write tests
+   * @param user
+   * @return
+   */
+  def findUsersChats(user: User): Either[QueryErrors, Map[Chat, List[User]]] =
+    val sql = "SELECT chats.chat_id, chats.chat_name, chats.group_chat, users_chats.users_offset, users.user_id, users.login FROM users_chats " + // users_chats.users_offset,
+      "INNER JOIN chats " +
+      "ON users_chats.chat_id = chats.chat_id " +
+      "INNER JOIN users_chats AS other_chats " +
+      "ON chats.chat_id = other_chats.chat_id " +
+      "INNER JOIN users " +
+      "ON other_chats.user_id = users.user_id " +
+      "WHERE users_chats.user_id = ?"
+    Using(connection.prepareStatement(sql)) {
+      (statement: PreparedStatement) =>
+        statement.setObject(1, user.userId)
+        val buffer: ListBuffer[(Chat, User)] = ListBuffer()
+        Using(statement.executeQuery()) {
+          (resultSet: ResultSet) =>
+            while (resultSet.next())
+              val chatId:   ChatId   = resultSet.getString("chat_id")
+              val chatName: ChatName = resultSet.getString("chat_name")
+              val groupChat: Boolean = resultSet.getBoolean("group_chat")
+              val offset:    Long    = resultSet.getLong("users_offset")
+              val userId:    UUID    = resultSet.getObject[UUID]("user_id", classOf[UUID])
+              val login:     Login   = resultSet.getString("login")
+              val chat:      Chat    = Chat(chatId, chatName, groupChat, offset)
+              val u:         User    = User(userId, login)
+              buffer += ((chat, u))
+            val grouped = buffer.toList.groupMap[Chat, User]((chat, user) => chat)((chat, user) => user)
+            Right(grouped)
+        } match {
+          case Failure(ex)     => throw ex
+          case Success(either) => either
+        }
+    } match {
+      case Failure(ex) => handleExceptionMessage[Map[Chat, List[User]]](ex)
+      case Success(either) => either
+    }
 
   /**
    * not modify
@@ -81,6 +120,7 @@ object ExternalDB:
    * @param chatName
    * @return
    */
+  
   def createChat(users: List[User], chatName: ChatName): Either[QueryErrors,Chat] =
     val listSize = users.length
     if listSize < 2 then
@@ -285,76 +325,37 @@ object ExternalDB:
    * @param user
    * @return
    */
-  def findUsersChats(user: User): Either[QueryErrors,Seq[Chat]] =
-    val sql = "SELECT chats.chat_id, chats.chat_name, chats.group_chat, users_chats.users_offset FROM chats " +
-      "INNER JOIN users_chats " +
-      "ON chats.chat_id = users_chats.chat_id " +
-      "WHERE users_chats.user_id = ?"
-    Using(connection.prepareStatement(sql)) {
-      (statement: PreparedStatement) =>
-        statement.setObject(1, user.userId)
-        val list: ListBuffer[Chat] = ListBuffer()
-        Using(statement.executeQuery()) {
-          (resultSet: ResultSet) =>
-            while (resultSet.next())
-              val chatId: ChatId = resultSet.getString("chat_id")
-              val chatName: ChatName = resultSet.getString("chat_name")
-              val groupChat: Boolean = resultSet.getBoolean("group_chat")
-              val offset: Long = resultSet.getLong("users_offset")
-              list += Chat(chatId, chatName, groupChat, offset)
-            Right(list.toSeq)
-        } match {
-          case Failure(ex)     => throw ex
-          case Success(either) => either
-        }
-    } match {
-      case Failure(ex) => handleExceptionMessage[Seq[Chat]](ex)
-      case Success(either) => either
-    }
-
-  /**
-   * Todo write tests
-   * @param user
-   * @return
-   */
-  def findUsersChatsMap(user: User): Either[QueryErrors, Map[Chat, List[User]]] =
-    val sql = "SELECT my_chats.chat_id, my_chats.chat_name, my_chats.group_chat, my_chats.users_offset, users.user_id, users.login FROM users " +
-      "INNER JOIN chats " +
-      "ON chats.chat_id = my_chats.chat_id " +
-      "INNER JOIN users_chats AS other_chats " +
-      "ON users.user_id = other_chats.user_id " +
-      "INNER JOIN users_chats AS my_chats " +
-      "ON others_chats.chat_id = my_chats.chat_id " +
-      "WHERE my_chats.user_id = ?"
-    Using(connection.prepareStatement(sql)) {
-      (statement: PreparedStatement) =>
-        statement.setObject(1, user.userId)
-        val buffer: ListBuffer[(Chat, User)] = ListBuffer()
-        Using(statement.executeQuery()) {
-          (resultSet: ResultSet) =>
-            while (resultSet.next())
-              val chatId:   ChatId   = resultSet.getString("chat_id")
-              val chatName: ChatName = resultSet.getString("chat_name")
-              val groupChat: Boolean = resultSet.getBoolean("group_chat")
-              val offset:    Long    = resultSet.getLong("users_offset")
-              val userId:    UUID    = resultSet.getObject[UUID]("user_id", classOf[UUID])
-              val login:     Login   = resultSet.getString("login")
-              val chat:      Chat    = Chat(chatId, chatName, groupChat, offset)
-              val u:         User    = User(userId, login)
-              buffer += ((chat, u))
-            val grouped = buffer.toList.groupMap[Chat, User]((chat, user) => chat)((chat, user) => user)
-            Right(grouped)
-        } match {
-          case Failure(ex)     => throw ex
-          case Success(either) => either
-        }
-    } match {
-      case Failure(ex) => handleExceptionMessage[Map[Chat, List[User]]](ex)
-      case Success(either) => either
-    }
+//  def findUsersChats(user: User): Either[QueryErrors,Seq[Chat]] =
+//    val sql = "SELECT chats.chat_id, chats.chat_name, chats.group_chat, users_chats.users_offset FROM chats " +
+//      "INNER JOIN users_chats " +
+//      "ON chats.chat_id = users_chats.chat_id " +
+//      "WHERE users_chats.user_id = ?"
+//    Using(connection.prepareStatement(sql)) {
+//      (statement: PreparedStatement) =>
+//        statement.setObject(1, user.userId)
+//        val list: ListBuffer[Chat] = ListBuffer()
+//        Using(statement.executeQuery()) {
+//          (resultSet: ResultSet) =>
+//            while (resultSet.next())
+//              val chatId: ChatId = resultSet.getString("chat_id")
+//              val chatName: ChatName = resultSet.getString("chat_name")
+//              val groupChat: Boolean = resultSet.getBoolean("group_chat")
+//              val offset: Long = resultSet.getLong("users_offset")
+//              list += Chat(chatId, chatName, groupChat, offset)
+//            Right(list.toSeq)
+//        } match {
+//          case Failure(ex)     => throw ex
+//          case Success(either) => either
+//        }
+//    } match {
+//      case Failure(ex) => handleExceptionMessage[Seq[Chat]](ex)
+//      case Success(either) => either
+//    }
 
 
-  /**
+
+
+/**
    * No modify
    * @param user
    * @param oldPass

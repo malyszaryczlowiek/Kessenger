@@ -38,7 +38,7 @@ object ChatManager:
   // we will read from topic with name of chatId. Each chat topic
   // has only one partition (and three replicas)
   val myJoiningTopicPartition = new TopicPartition(Domain.generateJoinId(MyAccount.getMyObject.userId), 0)
-  var joinOffset: Long = 0L // = MyAccount.getMyObject.joinOffset TODO implement in future
+  var joinOffset: Long = 0L // = MyAccount.getMyObject.joinOffset TODO implement in future ??
   // joinOffset is read in from DB
 
   // we start reading from our joining topic
