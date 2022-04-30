@@ -120,7 +120,7 @@ object ExternalDB:
    * @param chatName
    * @return
    */
-  
+
   def createChat(users: List[User], chatName: ChatName): Either[QueryErrors,Chat] =
     val listSize = users.length
     if listSize < 2 then
@@ -318,39 +318,6 @@ object ExternalDB:
       case Failure(ex) => handleExceptionMessage[User](ex)
       case Success(either) => either
     }
-
-
-  /**
-   * no modify
-   * @param user
-   * @return
-   */
-//  def findUsersChats(user: User): Either[QueryErrors,Seq[Chat]] =
-//    val sql = "SELECT chats.chat_id, chats.chat_name, chats.group_chat, users_chats.users_offset FROM chats " +
-//      "INNER JOIN users_chats " +
-//      "ON chats.chat_id = users_chats.chat_id " +
-//      "WHERE users_chats.user_id = ?"
-//    Using(connection.prepareStatement(sql)) {
-//      (statement: PreparedStatement) =>
-//        statement.setObject(1, user.userId)
-//        val list: ListBuffer[Chat] = ListBuffer()
-//        Using(statement.executeQuery()) {
-//          (resultSet: ResultSet) =>
-//            while (resultSet.next())
-//              val chatId: ChatId = resultSet.getString("chat_id")
-//              val chatName: ChatName = resultSet.getString("chat_name")
-//              val groupChat: Boolean = resultSet.getBoolean("group_chat")
-//              val offset: Long = resultSet.getLong("users_offset")
-//              list += Chat(chatId, chatName, groupChat, offset)
-//            Right(list.toSeq)
-//        } match {
-//          case Failure(ex)     => throw ex
-//          case Success(either) => either
-//        }
-//    } match {
-//      case Failure(ex) => handleExceptionMessage[Seq[Chat]](ex)
-//      case Success(either) => either
-//    }
 
 
 

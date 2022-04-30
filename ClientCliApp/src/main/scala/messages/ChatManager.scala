@@ -5,6 +5,7 @@ import com.github.malyszaryczlowiek.account.MyAccount
 import com.github.malyszaryczlowiek.db.ExternalDB
 import com.github.malyszaryczlowiek.domain.{Domain, User}
 import com.github.malyszaryczlowiek.domain.Domain.*
+
 import org.apache.kafka.clients.consumer.{ConsumerRecord, ConsumerRecords, KafkaConsumer}
 import org.apache.kafka.clients.producer.{Callback, KafkaProducer, ProducerRecord, RecordMetadata}
 import org.apache.kafka.common.TopicPartition
@@ -20,7 +21,7 @@ import concurrent.ExecutionContext.Implicits.global
 import scala.collection.mutable.ListBuffer
 
 
-class ChatManager
+
 
 /**
  * Jak MyAccount initialize wystartuje to należy tam uruchomić join producera i join consumera.
@@ -29,26 +30,40 @@ class ChatManager
  */
 object ChatManager:
 
-  val chatsToJoin: ListBuffer[(UserID, ChatId)] = ListBuffer()
-
   private val joinProducer: KafkaProducer[String, String] = KessengerAdmin.createJoiningProducer()
   private val joinConsumer: KafkaConsumer[String, String] = KessengerAdmin.createJoiningConsumer()
 
-
-  // we will read from topic with name of chatId. Each chat topic
-  // has only one partition (and three replicas)
-  val myJoiningTopicPartition = new TopicPartition(Domain.generateJoinId(MyAccount.getMyObject.userId), 0)
-  var joinOffset: Long = 0L // = MyAccount.getMyObject.joinOffset TODO implement in future ??
-  // joinOffset is read in from DB
-
-  // we start reading from our joining topic
-  joinConsumer.seek(myJoiningTopicPartition, joinOffset)
-
+  private val chatsToJoin: ListBuffer[(UserID, ChatId)] = ListBuffer.empty[(UserID, ChatId)]
 
   // in this example we dont care about
   // atomicity of this variable. if we want to stop
   // consumer loop simply change this value to false
   var continueChecking = true
+
+
+
+  // we will read from topic with name of chatId. Each chat topic
+  // has only one partition (and three replicas)
+  val myJoiningTopicPartition = new TopicPartition(Domain.generateJoinId(MyAccount.getMyObject.userId), 0)
+  var joinOffset: Long = 0L
+
+  // we start reading from our joining topic
+  joinConsumer.seek(myJoiningTopicPartition, joinOffset)
+
+
+
+  /**
+   * we ask to join chat
+   * @param user user to who we send invitation
+   * @param chat chat may be two users chat, or group chat
+   * @return
+   */
+  def askToJoinChat(user: User, chat: Chat): Any = ///???
+    val me: User = MyAccount.getMyObject
+    val joiningTopicName = Domain.generateJoinId(user.userId)
+    joinProducer.send(new ProducerRecord[String, String](joiningTopicName, me.userId.toString, chat.chatId))
+
+
 
   /**
    * This future runs all time during program execution.
@@ -74,17 +89,6 @@ object ChatManager:
       )
     }
   }
-
-  /**
-   * we ask to join chat
-   * @param user user to who we send invitation
-   * @param chat chat may be two users chat, or group chat
-   * @return
-   */
-  def askToJoinChat(user: User, chat: Chat): Any = ///???
-    val me: User = MyAccount.getMyObject
-    val joiningTopicName = Domain.generateJoinId(user.userId)
-    joinProducer.send(new ProducerRecord[String, String](joiningTopicName, me.userId.toString, chat.chatId))
 
 
   def closeChatManager(): Unit =

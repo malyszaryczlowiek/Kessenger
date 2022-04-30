@@ -13,7 +13,6 @@ import java.util.UUID
 object MyAccount:
 
   private var me: User = _// User(UUID.randomUUID(), "")
-
   private var myChats: Map[Chat, List[User]] = _
 
 
@@ -41,3 +40,6 @@ object MyAccount:
     myChats = Map.empty[Chat, List[User]]
 
   def getMyObject: User = me
+  
+  def getMyChats: Map[Chat, List[User]] = myChats 
+    

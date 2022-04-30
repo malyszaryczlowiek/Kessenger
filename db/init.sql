@@ -12,6 +12,7 @@ CREATE TABLE IF NOT EXISTS chats (
   chat_id varchar(255) REFERENCES chats(chat_id) PRIMARY KEY,
   chat_name varchar(255) NOT NULL,
   group_chat BOOLEAN NOT NULL
+  -- accepted BOOLEAN NOT NULL
 );
 
 

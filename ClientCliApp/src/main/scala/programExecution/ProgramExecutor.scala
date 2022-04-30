@@ -10,13 +10,14 @@ import com.github.malyszaryczlowiek.db.ExternalDB
 import com.github.malyszaryczlowiek.db.queries.{QueryError, QueryErrors}
 import com.github.malyszaryczlowiek.domain.Domain.{Login, Password}
 import com.github.malyszaryczlowiek.domain.User
-import com.github.malyszaryczlowiek.messages.ChatManager
+import com.github.malyszaryczlowiek.messages.{Chat, ChatManager}
 import com.github.malyszaryczlowiek.util.PasswordConverter
 
 
 object ProgramExecutor :
 
   private var continueMainLoop = true
+
 
   def runProgram(args: Array[String]): Unit =
     var length = args.length
@@ -38,6 +39,7 @@ object ProgramExecutor :
         println(s"Warning!!! Too much program arguments: $length.")
         length = 0
     }
+
 
 
   private def signIn(): Unit =
@@ -68,6 +70,7 @@ object ProgramExecutor :
       println("OOOps problem with Console. Cannot use it. Program Terminates.")
 
 
+
   private def checkCredentials(login: Login, password: Password): Unit =
     ExternalDB.findUser(login, password) match {
       case Left(QueryErrors(l @ List(QueryError(queryErrorType, description)))) =>
@@ -94,6 +97,7 @@ object ProgramExecutor :
     else
       println(s"Login is incorrect, try with another one, or type #exit.")
       createAccount()
+
 
 
   @tailrec
@@ -151,17 +155,63 @@ object ProgramExecutor :
       case Failure(exception) => println("Please select 1, 2 or 3.")
       case Success(value) =>
         if value == 1 then
-          showChats()  // TODO implement
+          showChats()
         else if value == 2 then
           createChat()  // TODO  implement
         else if value == 3 then
           continueMainLoop = false
         else
-        println("Wrong number, please select 1, 2 or 3.")
-        printMenu()
+          println("Wrong number, please select 1, 2 or 3.")
+          printMenu()
     }
 
-  private def showChats(): Unit = ???
+
+
+  @tailrec
+  private def showChats(): Unit =
+    println(s"Please select chat, or type #back to menu.")
+    println("Your chats:")
+
+
+
+    MyAccount.getMyChats.zipWithIndex  // TODO tutaj kontynuować
+    // TODO zrefaktoryzować to tak aby dało się
+
+
+
+
+
+    val chats = MyAccount.getMyChats.keys.toVector //foreach(mapEntry => println(s"${mapEntry._1.}"))
+    val chatSize = chats.size
+    if chats.isEmpty then
+      println(s"Ooopsss, you have not chats.")
+    else
+      chats.zipWithIndex.foreach(chatIndex => println(s"${chatIndex._2 + 1}) ${chatIndex._1.chatName}") )
+    print("> ")
+    val input: String = readLine()
+    if input == "#back" then
+      printMenu()
+    else
+      input.toIntOption match {
+        case Some(value) =>
+          if value < 1 || value > chatSize + 1 then
+            println(s"Please select number between 1 and $chatSize, or type #back if you want return to main menu.")
+            showChats()
+          else
+            workInChat(chats.apply(value - 1), chats.)
+        case None =>
+          println(s"Oppsss, your input does not match integer number or '#back'")
+          showChats()
+        }
+
+
+
+  /** this method must start kafka producer and consumer
+   *
+   */
+  private def workInChat(chat: Chat, users: List[User]): Unit = ???
+
+
   private def createChat(): Unit = ???
 
 
