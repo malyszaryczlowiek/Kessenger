@@ -18,6 +18,7 @@ trait DataBase:
   def findUsersChats(user: User): Either[QueryErrors,Seq[Chat]]
   def findUser(user: User): Either[QueryErrors, User]
   def findUser(login: Login): Either[QueryErrors, User]
+  def findUser(login: Login, password: Password): Either[QueryErrors, User]
 
   def updateUsersPassword(user: User, oldPass: Password, newPass: Password): Either[QueryErrors,User]
   def updateMyLogin(me: User, newLogin: Login, pass: Password): Either[QueryErrors,User]

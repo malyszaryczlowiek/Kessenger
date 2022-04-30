@@ -3,6 +3,8 @@ package account
 
 import messages.Chat
 
+import com.github.malyszaryczlowiek.db.ExternalDB
+import com.github.malyszaryczlowiek.db.queries.{QueryError, QueryErrors}
 import com.github.malyszaryczlowiek.domain.Domain.{Login, UserID}
 import com.github.malyszaryczlowiek.domain.User
 
@@ -13,11 +15,24 @@ object MyAccount:
   private var me: User = _// User(UUID.randomUUID(), "")
 
   private var myChats: Map[Chat, List[User]] = _
-  private var myUUID: UserID = _
-  private var myLogin: Login = _
 
 
-  def initialize(): Unit = ???
-  def openChat(i: Int): Unit = ???
+  /**
+   * TODO implement this method to download all data from DB
+   * @param user
+   */
+  def initialize(user: User): Unit =
+    ExternalDB.findUsersChatsMap(user) match {
+      case Left(QueryErrors(l @ List(QueryError(queryErrorType, description)))) =>
+      case Right(myChats: Map[Chat, List[User]]) =>
+        // TODO implement
+      case _ =>
+        println("Undefined error.")
+        // TODO implement
+    }
+
+  def initializeAfterCreation(user: User): Unit =
+    me = user
+    myChats = Map.empty[Chat, List[User]]
 
   def getMyObject: User = me

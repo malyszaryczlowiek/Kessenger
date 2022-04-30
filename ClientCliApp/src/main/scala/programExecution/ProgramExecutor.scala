@@ -1,12 +1,18 @@
 package com.github.malyszaryczlowiek
 package programExecution
 
-import scala.annotation.tailrec
-import scala.io.StdIn.{readChar, readInt, readLine}
-import com.github.malyszaryczlowiek.messages.ChatManager
-
 import java.io.Console
 import scala.util.{Failure, Success, Try}
+import scala.annotation.tailrec
+import scala.io.StdIn.{readChar, readInt, readLine}
+import com.github.malyszaryczlowiek.account.MyAccount
+import com.github.malyszaryczlowiek.db.ExternalDB
+import com.github.malyszaryczlowiek.db.queries.{QueryError, QueryErrors}
+import com.github.malyszaryczlowiek.domain.Domain.{Login, Password}
+import com.github.malyszaryczlowiek.domain.User
+import com.github.malyszaryczlowiek.messages.ChatManager
+import com.github.malyszaryczlowiek.util.PasswordConverter
+
 
 object ProgramExecutor :
 
@@ -19,7 +25,7 @@ object ProgramExecutor :
         println("Select what to do:\n1) Sign in,\n2) Sign up,\n3) Exit.")
         print("> ")
         Try { readInt() } match {
-          case Failure(exception) => println("Please select (type) 1, 2 or 3.")
+          case Failure(exception) => println("Please select 1, 2 or 3.")
           case Success(value) =>
             if value == 1      then signIn()
             else if value == 2 then createAccount()
@@ -35,26 +41,63 @@ object ProgramExecutor :
 
 
   private def signIn(): Unit =
-    println("Type your login:")
+    println("Type your login, or #exit:")
     print("> ")
     signInWithLogin(readLine())
 
 
   @tailrec
+  private def signInWithLogin(login: Login): Unit =
+    val console: Console = System.console()
+    if console != null then
+      println("Type your password:")
+      print("> ")
+      val pass = console.readPassword()      //("[%s]", "Password:")
+      if pass != null then
+        lazy val password = pass.mkString("")
+        PasswordConverter.convert(password) match {
+          case Left(_)   =>
+            println(s"Ooops some Error.")
+            signInWithLogin(login)
+          case Right(ep) => checkCredentials(login, ep)
+        }
+      else
+        println("Some error occurred, try again.")
+        signInWithLogin(login)
+    else
+      println("OOOps problem with Console. Cannot use it. Program Terminates.")
+
+
+  private def checkCredentials(login: Login, password: Password): Unit =
+    ExternalDB.findUser(login, password) match {
+      case Left(QueryErrors(l @ List(QueryError(queryErrorType, description)))) =>
+        println(s"${description}")
+        signIn()
+      case Right(user) => // user found
+        MyAccount.initialize(user)
+        printMenu()
+      case _           =>
+        println("Other problem.")
+        signIn()
+    }
+
+
+
+  @tailrec
   private def createAccount(): Unit =
-    println("Login must have 8 characters at leased and must contain only letters, numbers, dash '-', or underscore '_':")
+    println("Login must have 8 characters at leased and must contain only letters, numbers or underscore '_'. If you want exit type #exit:")
     print("> ")
     val login = readLine()
-    val regex = "[\\w]{7,}".r
+    val regex = "[\\w]{8,}".r
     if login == "#exit"          then continueMainLoop = false
-    else if regex.matches(login) then setPassword()
+    else if regex.matches(login) then setPassword(login)
     else
       println(s"Login is incorrect, try with another one, or type #exit.")
       createAccount()
 
 
   @tailrec
-  private def setPassword(): Unit =
+  private def setPassword(login: Login): Unit =
     val console: Console = System.console()
     if console != null then
       println("Set your Password:")
@@ -69,165 +112,71 @@ object ProgramExecutor :
         if pass2 != null && pass1.toSeq == pass2.toSeq then
           // probably must call gc() to remove pass1 and pass2
           println("Passwords matched.")
-
-
-          // TODO tutaj kontynuować
-
-
+          PasswordConverter.convert(pass2.mkString("")) match {
+            case Left(value) =>
+              println("Undefined error, try again")
+              setPassword(login)
+            case Right(value) =>
+              ExternalDB.createUser(login, value) match {
+                case Left(QueryErrors(l @ List(QueryError(queryErrorType, description)))) =>
+                case Right(user: User) =>
+                  MyAccount.initializeAfterCreation(user)
+                  printMenu()
+                case _ =>
+                  println("Undefined error.")
+                  setPassword(login)
+              }
+          }
         else
           println("Passwords do not match. Try Again.")
-          setPassword()
+          setPassword(login)
       else
         println("Password was empty. Try with non empty.")
-        setPassword()
+        setPassword(login)
     else
       println("Cannot read user input. Program termination.")
       continueMainLoop = false
 
-      // java.util.Arrays.fill(passwd, ' ')
+
+
+  @tailrec
+  private def printMenu(): Unit =
+    println(s"Menu:")
+    println(s"1) Show my chats.")
+    println(s"2) Create new chat")
+    println(s"3) Exit.")
+    Try {
+      readInt()
+    } match {
+      case Failure(exception) => println("Please select 1, 2 or 3.")
+      case Success(value) =>
+        if value == 1 then
+          showChats()  // TODO implement
+        else if value == 2 then
+          createChat()  // TODO  implement
+        else if value == 3 then
+          continueMainLoop = false
+        else
+        println("Wrong number, please select 1, 2 or 3.")
+        printMenu()
+    }
+
+  private def showChats(): Unit = ???
+  private def createChat(): Unit = ???
 
 
 
-  private def signInWithLogin(login: String): Unit = ???
+/*
+TODO list
+1) implement ExternalDB.findUsersChatsMap()
+2) implement MyAccount.initialize()
+3) implement showChats()
+4) implement createChat()
+
+*/
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-    //  private var continueProgram = true
-    //  private var continueSelectingChat = true
-    //  private var selectChat = true
-    //  private var searchUser = true
-//    try {
-//      val eDB: ExternalDB[Queryable] = new ExternalDB[PostgresStatement]()
-//    }
-//    finally {
-//
-//    }
-
-//    while (continueProgram)
-//      selectUser(name)
-//    closeAllChats()
-
-  /**
-   * In this method we select user to chat with.
-   * @param name
-   */
-//  @tailrec
-//  private def selectUser(name: String): Unit =
-//    InMemoryDB.searchUser(name) match
-//      case Some(me) =>
-//        println(s"$name chats list:")
-//        val chats: Vector[(Int, ChatId, ChatName)] = InMemoryDB.getUsersChats(me)  // TODO recursive calling to db highly inappropriate
-//        selectChat(me, chats)
-//      case None =>
-//        println(s"Incorrect name: \"$name\". There is no such user in the system.")
-//        println(s"Would you like to continue or exit program? Type any key to continue or \"#exit\" to end program. ")
-//        print("> ")
-//        if readLine == "#exit" then
-//          continueProgram = false
-//        else
-//          println("Select your name again:")
-//          print("> ")
-//          val name = readLine()
-//          selectUser(name)
-//
-//
-//  private def selectChat(me: User, chats:  Vector[(Int, ChatId, ChatName)]): Unit =
-//    val size = chats.length
-//    while (selectChat) {
-//      chats.foreach((index, chatId, chatName) => println(s"$index) $chatName"))
-//      println("select chat, or type 0 to create new one, or #exit if you want leave app:")
-//      print("> ")
-//      try {
-//        val input: String = readLine()
-//        if input == "#exit" then
-//          selectChat = false
-//          continueProgram = false
-//        else
-//          val number = input.toInt
-//          if number > 0 && number < size then
-//            val chatId: ChatId = chats(number-1)._2
-//            println("Opening chat...")
-//            continueChat(me, chatId)
-//          else if number == 0 then
-//            while (searchUser)
-//              searchUser(me)
-//          else
-//            println(s"Incorrect number: $number. Try number between 0 and $size (exclusive), or exit to leave app.")
-//      }
-//      catch
-//        case e: java.lang.NumberFormatException => println(s"Incorrect format. Try number between 0 and $size (exclusive), or exit to leave app.")
-//    }
-//
-//
-//  private def searchUser(me: User): Unit =
-//    println("Type user to connect with:")
-//    print("> ")
-//    val user: String = readLine()
-//    InMemoryDB.searchUser(user) match {
-//      case Some(interlocutor) =>
-//        println(s"Type message to send, or '#exit' to leave chat.")
-//        print("> ")
-//        val message = readLine()
-//        ChatManager.askToJoinChat(me.userId, interlocutor.userId, message)
-//        val chatId: ChatId = Domain.generateChatId(me.userId, interlocutor.userId)
-//        continueChat(me, chatId)
-//      case None =>
-//        println(
-//          s"""There is no such user: \"$user\", would you like search again? -> type 'yes',
-//             |Stop searching and go back to select chat? -> type 'chats',
-//             |Do you want leave program? -> type any other sequence.""".stripMargin)
-//        print("> ")
-//        val whatToDo = readLine()
-//        if whatToDo  == "yes" then ()
-//        else if whatToDo == "chats" then
-//          searchUser = false
-//        else
-//          searchUser = false
-//          selectChat = false
-//          continueProgram = false
-//    }
-//
-//
-//
-//  @tailrec
-//  private def continueChat(me: User, chatId: ChatId): Unit =
-//    val yourMessage = readLine()
-//    if yourMessage == "#exit" then ()
-//    else if yourMessage.isEmpty then continueChat(me, chatId)
-//    else
-//      ChatManager.sendMessage(me.userId, chatId, yourMessage)
-//      continueChat(me, chatId)
-//
-//  private def closeAllChats(): Unit =
-//    ChatManager.closeAll()
-//    println("All chats closed!")
 
 
 

@@ -27,7 +27,7 @@ import sys.process.*
  */
 class DatabaseTests extends munit.FunSuite:
 
-  private var cd: ExternalDB = _
+  // private var cd: ExternalDB = _
 
   /**
    * we must give some time to initialize container, because
@@ -57,7 +57,7 @@ class DatabaseTests extends munit.FunSuite:
     println(outputOfDockerStarting)
     println("Database prepared...")
     ExternalDB.recreateConnection()
-    cd = new ExternalDB()
+    // cd = new ExternalDB()
 
   /**
    * After Each test we close used connection, and if required
@@ -89,7 +89,7 @@ class DatabaseTests extends munit.FunSuite:
    * Searching user by login when user exists in DB
    */
   test("Searching user by login when user exists in DB") {
-    cd.findUser("Spejson") match {
+    ExternalDB.findUser("Spejson") match {
       case Left(_) =>
         assert(false, s"""Assertion error, should find user in db""".stripMargin)
       case Right(dbUser) => assert(dbUser.login == "Spejson", "Not the same login")
@@ -100,7 +100,7 @@ class DatabaseTests extends munit.FunSuite:
    * Searching user by login when user is unavailable in DB
    */
   test("Searching user by login when user is unavailable in DB") {
-    cd.findUser("NonExistingLogin") match {
+    ExternalDB.findUser("NonExistingLogin") match {
       case Left(queryErrors: QueryErrors) =>
         assert(queryErrors.listOfErrors.nonEmpty
           && queryErrors.listOfErrors.size == 1
@@ -123,7 +123,7 @@ class DatabaseTests extends munit.FunSuite:
 
     switchOffDbManually()
 
-    cd.findUser("NonExistingLogin") match {
+    ExternalDB.findUser("NonExistingLogin") match {
       case Left(queryErrors: QueryErrors) =>
         assert( queryErrors.listOfErrors.nonEmpty
           && queryErrors.listOfErrors.length == 1
@@ -152,9 +152,9 @@ class DatabaseTests extends munit.FunSuite:
       case Left(value) =>
         throw new Exception("Password converter failed")
       case Right(pass) =>
-        cd.createUser(login, pass)  match {
+        ExternalDB.createUser(login, pass)  match {
           case Left(queryErrors: QueryErrors) =>
-            assert(false,s"user should be added normally.")
+            assert(false, s"user should be added normally.")
           case Right(dbUser: User) =>
             assert(dbUser.login == login, s"Returned user's login does not match inserted. Returned: ${dbUser.login}")
         }
@@ -170,7 +170,7 @@ class DatabaseTests extends munit.FunSuite:
       case Left(value) =>
         throw new Exception("Password converter failed")
       case Right(pass) =>
-        cd.createUser(name, pass) match {
+        ExternalDB.createUser(name, pass) match {
           case Left(queryErrors: QueryErrors) =>
             assert( queryErrors.listOfErrors.nonEmpty
               && queryErrors.listOfErrors.length == 1
@@ -195,7 +195,7 @@ class DatabaseTests extends munit.FunSuite:
       case Left(value) =>
         throw new Exception("Password converter failed")
       case Right(pass) =>
-        cd.createUser(name, pass) match {
+        ExternalDB.createUser(name, pass) match {
           case Left(queryErrors: QueryErrors) =>
             // Server Error: FATAL: terminating connection due to administrator command
             assert( queryErrors.listOfErrors.nonEmpty
@@ -228,14 +228,14 @@ class DatabaseTests extends munit.FunSuite:
    */
   test("Impossible chat creation for single user.") {
 
-    val user: User = cd.findUser("Walo") match {
+    val user: User = ExternalDB.findUser("Walo") match {
       case Left(_) =>
         throw new Exception("Db call should return user, but returned Error")
         User(UUID.randomUUID(), "")
       case Right(user: User) => user
     }
 
-    cd.createChat(List(user), "Some chat name") match {
+    ExternalDB.createChat(List(user), "Some chat name") match {
       case Left(queryErrors: QueryErrors) =>
         assert( queryErrors.listOfErrors.nonEmpty
           && queryErrors.listOfErrors.length == 1
@@ -254,14 +254,14 @@ class DatabaseTests extends munit.FunSuite:
    */
   test("chat creation when both users are taken from DB") {
 
-    val user1: User = cd.findUser("Walo") match {
+    val user1: User = ExternalDB.findUser("Walo") match {
       case Left(_) =>
         throw new Exception("Db call should return user, but returned Error")
         User(UUID.randomUUID(), "")
       case Right(user: User) => user
     }
 
-    val user2: User = cd.findUser("Spejson") match {
+    val user2: User = ExternalDB.findUser("Spejson") match {
       case Left(_) =>
         throw new Exception("Db call should return user, but returned Error")
         User(UUID.randomUUID(), "")
@@ -270,7 +270,7 @@ class DatabaseTests extends munit.FunSuite:
 
     val chatName: ChatName = "Walo-Spejson"
 
-    cd.createChat(List(user1, user2), chatName) match {
+    ExternalDB.createChat(List(user1, user2), chatName) match {
       case Right(chat: Chat) =>
         assert(chat.chatName == chatName, s"Chat name from DB: ${chat.chatName} does not match inserted to DB: $chatName")
       case Left(queryErrors: QueryErrors) =>
@@ -285,7 +285,7 @@ class DatabaseTests extends munit.FunSuite:
    */
   test("Testing chat creation using two users which one of them not exists in DB ") {
 
-    val user1: User = cd.findUser("Walo") match {
+    val user1: User = ExternalDB.findUser("Walo") match {
       case Left(_) =>
         throw new Exception("Db call should return user, but returned Error")
         User(UUID.randomUUID(), "")
@@ -294,7 +294,7 @@ class DatabaseTests extends munit.FunSuite:
 
     val user2 = User(UUID.randomUUID(), "NonExistingInDb")
 
-    cd.createChat(List(user2, user1), "Any chat name") match {
+    ExternalDB.createChat(List(user2, user1), "Any chat name") match {
       case Left(queryErrors: QueryErrors)  =>
         assert( queryErrors.listOfErrors.nonEmpty
           && queryErrors.listOfErrors.length == 1
@@ -313,7 +313,7 @@ class DatabaseTests extends munit.FunSuite:
    */
   test("Testing chat creation using three users which two of them not exists in DB ") {
 
-    val user1: User = cd.findUser("Walo") match {
+    val user1: User = ExternalDB.findUser("Walo") match {
       case Left(_) =>
         throw new Exception("Db call should return user, but returned Error")
         User(UUID.randomUUID(), "")
@@ -323,7 +323,7 @@ class DatabaseTests extends munit.FunSuite:
     val user2 = User(UUID.randomUUID(), "NonExistingInDb")
     val user3 = User(UUID.randomUUID(), "NonExistingInDb2")
 
-    cd.createChat(List(user1, user2, user3), "Any chat name") match {
+    ExternalDB.createChat(List(user1, user2, user3), "Any chat name") match {
       case Left(queryErrors: QueryErrors)  =>
         assert( queryErrors.listOfErrors.nonEmpty
           && queryErrors.listOfErrors.length == 2
@@ -349,7 +349,7 @@ class DatabaseTests extends munit.FunSuite:
 
     switchOffDbManually() // IMPORTANT we need lost connection to db
 
-    cd.createChat(List(user1, user2, user3), chatName) match {
+    ExternalDB.createChat(List(user1, user2, user3), chatName) match {
       case Right(chat: Chat) =>
         assert(false, s"""Assertion error, should return
                   |=> \"Connection to DB lost. Try again later.\"
@@ -373,14 +373,14 @@ class DatabaseTests extends munit.FunSuite:
    */
   test("Searching user's chats by his/her login when user exists in DB") {
 
-    val user1: User = cd.findUser("Walo") match {
+    val user1: User = ExternalDB.findUser("Walo") match {
       case Left(_) =>
         throw new Exception("Db call should return user, but returned Error")
         User(UUID.randomUUID(), "")
       case Right(user: User) => user
     }
 
-    val user2: User = cd.findUser("Spejson") match {
+    val user2: User = ExternalDB.findUser("Spejson") match {
       case Left(_) =>
         throw new Exception("Db call should return user, but returned Error")
         User(UUID.randomUUID(), "")
@@ -389,13 +389,13 @@ class DatabaseTests extends munit.FunSuite:
 
     val chatName: ChatName = "Walo-Spejson"
 
-    val createdChat: Chat = cd.createChat(List(user1, user2), chatName) match {
+    val createdChat: Chat = ExternalDB.createChat(List(user1, user2), chatName) match {
       case Right(chat: Chat) => chat
       case Left(queryErrors: QueryErrors) =>
         throw new Exception("Method should return chat object.")
     }
 
-    cd.findUsersChats(user1) match {
+    ExternalDB.findUsersChats(user1) match {
       case Right(seq: Seq[Chat]) =>
         assert(seq.nonEmpty
           && seq.length == 1
@@ -404,7 +404,7 @@ class DatabaseTests extends munit.FunSuite:
         s" but returned ${queryErrors.listOfErrors.head.description}")
     }
 
-    cd.findUsersChats(user2) match {
+    ExternalDB.findUsersChats(user2) match {
       case Right(seq: Seq[Chat]) =>
         assert(seq.nonEmpty
           && seq.length == 1
@@ -418,14 +418,14 @@ class DatabaseTests extends munit.FunSuite:
    */
   test("Searching users chats when user has no chats.") {
 
-    val user1: User = cd.findUser("Walo") match {
+    val user1: User = ExternalDB.findUser("Walo") match {
       case Left(_) =>
         throw new Exception("Db call should return user, but returned Error")
         User(UUID.randomUUID(), "")
       case Right(user: User) => user
     }
 
-    cd.findUsersChats(user1) match {
+    ExternalDB.findUsersChats(user1) match {
       case Right(seq: Seq[Chat]) =>
         assert(seq.isEmpty, "Should return only created chat.")
       case Left(_) => assert(false, "Method should return empty sequence Seq[Chat]")
@@ -439,7 +439,7 @@ class DatabaseTests extends munit.FunSuite:
 
     val user = User(UUID.randomUUID(), "")
 
-    cd.findUsersChats(user) match {
+    ExternalDB.findUsersChats(user) match {
       case Right(seq: Seq[Chat]) =>
         assert(seq.isEmpty, "Should return only created chat.")
       case Left(queryErrors: QueryErrors) =>
@@ -463,7 +463,7 @@ class DatabaseTests extends munit.FunSuite:
 
     switchOffDbManually()
 
-    cd.findUsersChats(user) match {
+    ExternalDB.findUsersChats(user) match {
       case Right(_) =>
         assert(false, s"Method should return ${QueryErrorMessage.NoDbConnection}.")
       case Left(queryErrors: QueryErrors) =>
@@ -494,7 +494,7 @@ class DatabaseTests extends munit.FunSuite:
       case Right(value) => value
     }
 
-    val wojtas = cd.createUser("Wojtas", oldPass) match {
+    val wojtas = ExternalDB.createUser("Wojtas", oldPass) match {
       case Left(_) =>
         throw new Exception("User should be found in Db and user object should be returned. ")
         nullUser
@@ -511,7 +511,7 @@ class DatabaseTests extends munit.FunSuite:
     }
 
 
-    cd.updateUsersPassword(wojtas, oldPass, newPass) match {
+    ExternalDB.updateUsersPassword(wojtas, oldPass, newPass) match {
       case Right(user) =>
         assert(user.login == "Wojtas", "not matching login")
       case Left(_) => assert( false, "should change password correctly")
@@ -534,7 +534,7 @@ class DatabaseTests extends munit.FunSuite:
       case Right(value) => value
     }
 
-    val wojtas = cd.createUser("Wojtas", oldPass) match {
+    val wojtas = ExternalDB.createUser("Wojtas", oldPass) match {
       case Left(_) =>
         throw new Exception("Method should return user Object.")
         nullUser
@@ -559,7 +559,7 @@ class DatabaseTests extends munit.FunSuite:
     }
 
 
-    cd.updateUsersPassword(wojtas, incorrectOldPass, newPass) match {
+    ExternalDB.updateUsersPassword(wojtas, incorrectOldPass, newPass) match {
       case Right(user) =>
         assert(false, "Method should return QueryErrors object")
       case Left(queryErrors: QueryErrors) =>
@@ -601,7 +601,7 @@ class DatabaseTests extends munit.FunSuite:
     }
 
 
-    cd.updateUsersPassword(nullUser, incorrectOldPass, newPass) match {
+    ExternalDB.updateUsersPassword(nullUser, incorrectOldPass, newPass) match {
       case Right(user) =>
         assert(false, "Method should return QueryErrors object")
       case Left(queryErrors: QueryErrors) =>
@@ -644,7 +644,7 @@ class DatabaseTests extends munit.FunSuite:
 
     switchOffDbManually()
 
-    cd.updateUsersPassword(nullUser, incorrectOldPass, newPass) match {
+    ExternalDB.updateUsersPassword(nullUser, incorrectOldPass, newPass) match {
       case Right(user) =>
         assert(false, "Method should return QueryErrors object")
       case Left(queryErrors: QueryErrors) =>
@@ -670,7 +670,7 @@ class DatabaseTests extends munit.FunSuite:
       case Right(value) => value
     }
 
-    val wojtas = cd.createUser("Wojtas", oldPass) match {
+    val wojtas = ExternalDB.createUser("Wojtas", oldPass) match {
       case Left(_) =>
         throw new Exception("Assertion error, should find user in db")
         nullUser
@@ -682,7 +682,7 @@ class DatabaseTests extends munit.FunSuite:
 
     val newLogin: Login = "Wojtasso"
 
-    cd.updateMyLogin(wojtas, newLogin, oldPass) match {
+    ExternalDB.updateMyLogin(wojtas, newLogin, oldPass) match {
       case Right(user) => assert(user.login == "Wojtasso", "not matching login")
       case Left(_)     => assert( false, "should change password correctly")
     }
@@ -700,7 +700,7 @@ class DatabaseTests extends munit.FunSuite:
       case Right(value) => value
     }
 
-    val wojtas = cd.createUser("Wojtas", oldPass) match {
+    val wojtas = ExternalDB.createUser("Wojtas", oldPass) match {
       case Left(_) =>
         throw new Exception("Assertion error, should find user in db")
         nullUser
@@ -712,7 +712,7 @@ class DatabaseTests extends munit.FunSuite:
 
     val newLogin: Login = "Spejson" //  this login is currently taken.
 
-    cd.updateMyLogin(wojtas, newLogin, oldPass) match {
+    ExternalDB.updateMyLogin(wojtas, newLogin, oldPass) match {
       case Right(_) => assert(false, s"Method should return QueryErrors object with message: ${QueryErrorMessage.LoginTaken}")
       case Left(queryErrors: QueryErrors) =>
         assert( queryErrors.listOfErrors.nonEmpty
@@ -734,7 +734,7 @@ class DatabaseTests extends munit.FunSuite:
       case Right(value) => value
     }
 
-    val wojtas = cd.createUser("Wojtas", oldPass) match {
+    val wojtas = ExternalDB.createUser("Wojtas", oldPass) match {
       case Left(_) =>
         throw new Exception("Assertion error, should find user in db")
         nullUser
@@ -748,7 +748,7 @@ class DatabaseTests extends munit.FunSuite:
 
     switchOffDbManually()
 
-    cd.updateMyLogin(wojtas, newLogin, oldPass) match {
+    ExternalDB.updateMyLogin(wojtas, newLogin, oldPass) match {
       case Right(_) => assert(false, s"Method should return QueryErrors object with message: ${QueryErrorMessage.NoDbConnection}")
       case Left(queryErrors: QueryErrors) =>
         assert( queryErrors.listOfErrors.nonEmpty
@@ -768,14 +768,14 @@ class DatabaseTests extends munit.FunSuite:
 
     // first we take two users
 
-    val user1: User = cd.findUser("Walo") match {
+    val user1: User = ExternalDB.findUser("Walo") match {
       case Left(_) =>
         throw new Exception(s"Db call should return user")
         User(UUID.randomUUID(), "")
       case Right(user: User) => user
     }
 
-    val user2: User = cd.findUser("Spejson") match {
+    val user2: User = ExternalDB.findUser("Spejson") match {
       case Left(_) =>
         throw new Exception(s"Db call should return user")
         User(UUID.randomUUID(), "")
@@ -787,7 +787,7 @@ class DatabaseTests extends munit.FunSuite:
 
     // then we create chat
 
-    val chat: Chat = cd.createChat(List(user1, user2), chatName) match {
+    val chat: Chat = ExternalDB.createChat(List(user1, user2), chatName) match {
       case Right(chat: Chat) =>
         if chat.chatName != chatName then
           throw new Exception(s"Chat name from DB: ${chat.chatName} does not match inserted to DB: $chatName")
@@ -801,7 +801,7 @@ class DatabaseTests extends munit.FunSuite:
 
     val newChatName: ChatName = "Ole ole ale bieda w oczy kole"
 
-    cd.updateChatName(chat, newChatName) match {
+    ExternalDB.updateChatName(chat, newChatName) match {
       case Right(chatName) =>
         assert(chatName == newChatName, s"Chat name does not match.")
       case Left(_) =>
@@ -819,7 +819,7 @@ class DatabaseTests extends munit.FunSuite:
     val newChatName: ChatName = "Ole ole ale bieda w oczy kole"
     val fakeChat = Chat("ChatId", "Old chat name", false, 0)
 
-    cd.updateChatName(fakeChat, newChatName) match {
+    ExternalDB.updateChatName(fakeChat, newChatName) match {
       case Right(_) =>
         assert(false, s"Chat name does not match.")
       case Left(queryErrors: QueryErrors) =>
@@ -838,14 +838,14 @@ class DatabaseTests extends munit.FunSuite:
 
     // first we take two users
 
-    val user1: User = cd.findUser("Walo") match {
+    val user1: User = ExternalDB.findUser("Walo") match {
       case Left(_) =>
         throw new Exception(s"Db call should return user")
         User(UUID.randomUUID(), "")
       case Right(user: User) => user
     }
 
-    val user2: User = cd.findUser("Spejson") match {
+    val user2: User = ExternalDB.findUser("Spejson") match {
       case Left(_) =>
         throw new Exception(s"Db call should return user")
         User(UUID.randomUUID(), "")
@@ -855,7 +855,7 @@ class DatabaseTests extends munit.FunSuite:
     val chatName: ChatName = "Walo-Spejson"
 
     // then we create chat
-    val chat: Chat = cd.createChat(List(user1, user2), chatName) match {
+    val chat: Chat = ExternalDB.createChat(List(user1, user2), chatName) match {
       case Right(chat: Chat) =>
         if chat.chatName != chatName then
           throw new Exception(s"Chat name from DB: ${chat.chatName} does not match inserted to DB: $chatName")
@@ -872,7 +872,7 @@ class DatabaseTests extends munit.FunSuite:
     switchOffDbManually()
 
     // finally we try to rename it.
-    cd.updateChatName(chat, newChatName) match {
+    ExternalDB.updateChatName(chat, newChatName) match {
       case Right(_) =>
         assert(false, s"Method should return QueryErrors object not ChatName.")
       case Left(queryErrors: QueryErrors) =>
@@ -893,21 +893,21 @@ class DatabaseTests extends munit.FunSuite:
    *  Add user to existing group chat
    */
   test("Add user to existing group chat") {
-    val user1: User = cd.findUser("Walo") match {
+    val user1: User = ExternalDB.findUser("Walo") match {
       case Left(_) =>
         throw new Exception(s"Db call should return user")
         User(UUID.randomUUID(), "")
       case Right(user: User) => user
     }
 
-    val user2: User = cd.findUser("Spejson") match {
+    val user2: User = ExternalDB.findUser("Spejson") match {
       case Left(_) =>
         throw new Exception(s"Db call should return user")
         User(UUID.randomUUID(), "")
       case Right(user: User) => user
     }
 
-    val wojtas = cd.createUser("Wojtas", "pass") match {
+    val wojtas = ExternalDB.createUser("Wojtas", "pass") match {
       case Left(_) =>
         throw new Exception("Assertion error, should find user in db")
         User(UUID.randomUUID(), "NullLogin")
@@ -920,7 +920,7 @@ class DatabaseTests extends munit.FunSuite:
     val chatName: ChatName = "Walo-Spejson-wojtas"
 
     // then we create chat
-    val chat: Chat = cd.createChat(List(user1, user2, wojtas), chatName) match {
+    val chat: Chat = ExternalDB.createChat(List(user1, user2, wojtas), chatName) match {
       case Right(chat: Chat) =>
         if chat.chatName != chatName then
           throw new Exception(s"Chat name from DB: ${chat.chatName} does not match inserted to DB: $chatName")
@@ -930,7 +930,7 @@ class DatabaseTests extends munit.FunSuite:
         Chat("null", "NullChat name", false, 0)
     }
 
-    val solaris = cd.createUser("solaris", "pass") match {
+    val solaris = ExternalDB.createUser("solaris", "pass") match {
       case Left(_) =>
         throw new Exception("Assertion error, should find user in db")
         User(UUID.randomUUID(), "NullLogin")
@@ -940,7 +940,7 @@ class DatabaseTests extends munit.FunSuite:
         dbUser
     }
 
-    cd.addNewUsersToChat(List(solaris), chat) match {
+    ExternalDB.addNewUsersToChat(List(solaris), chat) match {
       case Right(c) =>
         assert(c == chat, s"not matching chat")
       case Left(_) =>
@@ -955,7 +955,7 @@ class DatabaseTests extends munit.FunSuite:
 
     val fakeChat = Chat("chat-id", "chat-name", true, 0)
 
-    val solaris = cd.createUser("solaris", "pass") match {
+    val solaris = ExternalDB.createUser("solaris", "pass") match {
       case Left(_) =>
         throw new Exception("Assertion error, should find user in db")
         User(UUID.randomUUID(), "NullLogin")
@@ -965,7 +965,7 @@ class DatabaseTests extends munit.FunSuite:
         dbUser
     }
 
-    cd.addNewUsersToChat(List(solaris), fakeChat) match {
+    ExternalDB.addNewUsersToChat(List(solaris), fakeChat) match {
       case Right(_) =>
         assert(false, s"Method should return ${QueryErrorMessage.DataProcessingError}")
       case Left(queryErrors: QueryErrors) =>
@@ -981,21 +981,21 @@ class DatabaseTests extends munit.FunSuite:
    * Try to add empty list of users
    */
   test("Try to add empty list of users") {
-    val user1: User = cd.findUser("Walo") match {
+    val user1: User = ExternalDB.findUser("Walo") match {
       case Left(_) =>
         throw new Exception(s"Db call should return user")
         User(UUID.randomUUID(), "")
       case Right(user: User) => user
     }
 
-    val user2: User = cd.findUser("Spejson") match {
+    val user2: User = ExternalDB.findUser("Spejson") match {
       case Left(_) =>
         throw new Exception(s"Db call should return user")
         User(UUID.randomUUID(), "")
       case Right(user: User) => user
     }
 
-    val wojtas = cd.createUser("Wojtas", "pass") match {
+    val wojtas = ExternalDB.createUser("Wojtas", "pass") match {
       case Left(_) =>
         throw new Exception("Assertion error, should find user in db")
         User(UUID.randomUUID(), "NullLogin")
@@ -1008,7 +1008,7 @@ class DatabaseTests extends munit.FunSuite:
     val chatName: ChatName = "Walo-Spejson-wojtas"
 
     // then we create chat
-    val chat: Chat = cd.createChat(List(user1, user2, wojtas), chatName) match {
+    val chat: Chat = ExternalDB.createChat(List(user1, user2, wojtas), chatName) match {
       case Right(chat: Chat) =>
         if chat.chatName != chatName then
           throw new Exception(s"Chat name from DB: ${chat.chatName} does not match inserted to DB: $chatName")
@@ -1018,7 +1018,7 @@ class DatabaseTests extends munit.FunSuite:
         Chat("null", "NullChat name", false, 0)
     }
 
-    cd.addNewUsersToChat(List.empty[User], chat) match {
+    ExternalDB.addNewUsersToChat(List.empty[User], chat) match {
       case Right(_) =>
         assert(false, s"Method should return ${QueryErrorMessage.NoUserSelected}")
       case Left(queryErrors: QueryErrors) =>
@@ -1035,21 +1035,21 @@ class DatabaseTests extends munit.FunSuite:
    * Try to add user to chat when db is down
    */
   test("Try to add user to chat when db is down") {
-    val user1: User = cd.findUser("Walo") match {
+    val user1: User = ExternalDB.findUser("Walo") match {
       case Left(_) =>
         throw new Exception(s"Db call should return user")
         User(UUID.randomUUID(), "")
       case Right(user: User) => user
     }
 
-    val user2: User = cd.findUser("Spejson") match {
+    val user2: User = ExternalDB.findUser("Spejson") match {
       case Left(_) =>
         throw new Exception(s"Db call should return user")
         User(UUID.randomUUID(), "")
       case Right(user: User) => user
     }
 
-    val wojtas = cd.createUser("Wojtas", "pass") match {
+    val wojtas = ExternalDB.createUser("Wojtas", "pass") match {
       case Left(_) =>
         throw new Exception("Assertion error, should find user in db")
         User(UUID.randomUUID(), "NullLogin")
@@ -1062,7 +1062,7 @@ class DatabaseTests extends munit.FunSuite:
     val chatName: ChatName = "Walo-Spejson-wojtas"
 
     // then we create chat
-    val chat: Chat = cd.createChat(List(user1, user2, wojtas), chatName) match {
+    val chat: Chat = ExternalDB.createChat(List(user1, user2, wojtas), chatName) match {
       case Right(chat: Chat) =>
         if chat.chatName != chatName then
           throw new Exception(s"Chat name from DB: ${chat.chatName} does not match inserted to DB: $chatName")
@@ -1072,7 +1072,7 @@ class DatabaseTests extends munit.FunSuite:
         Chat("null", "NullChat name", false, 0)
     }
 
-    val solaris = cd.createUser("solaris", "pass") match {
+    val solaris = ExternalDB.createUser("solaris", "pass") match {
       case Left(_) =>
         throw new Exception("Assertion error, should find user in db")
         User(UUID.randomUUID(), "NullLogin")
@@ -1084,7 +1084,7 @@ class DatabaseTests extends munit.FunSuite:
 
     switchOffDbManually()
 
-    cd.addNewUsersToChat(List(solaris), chat) match {
+    ExternalDB.addNewUsersToChat(List(solaris), chat) match {
       case Right(_) =>
         assert(false, s"Method should return ${QueryErrorMessage.NoDbConnection}")
       case Left(queryErrors: QueryErrors) =>
@@ -1112,7 +1112,7 @@ class DatabaseTests extends munit.FunSuite:
     }
 
     // create user and save them in db
-    val wojtas = cd.createUser("Wojtas", pass) match {
+    val wojtas = ExternalDB.createUser("Wojtas", pass) match {
       case Left(_) =>
         throw new Exception("Assertion error, should find user in db")
         nullUser
@@ -1123,7 +1123,7 @@ class DatabaseTests extends munit.FunSuite:
     }
 
     // delete user
-    cd.deleteMyAccountPermanently(wojtas, pass) match {
+    ExternalDB.deleteMyAccountPermanently(wojtas, pass) match {
       case Right(user) =>
         assert(user == wojtas, s"Returned user not match")
       case Left(queryErrors: QueryErrors) =>
@@ -1131,7 +1131,7 @@ class DatabaseTests extends munit.FunSuite:
     }
 
     // check if user is deleted
-    cd.findUser(wojtas) match {
+    ExternalDB.findUser(wojtas) match {
       case Right(_) =>
         assert(false, s"User should not be found after deleting.")
       case Left(queryErrors: QueryErrors) =>
@@ -1158,7 +1158,7 @@ class DatabaseTests extends munit.FunSuite:
     }
 
     // create user and save them in db
-    val wojtas = cd.createUser("Wojtas", pass) match {
+    val wojtas = ExternalDB.createUser("Wojtas", pass) match {
       case Left(_) =>
         throw new Exception("Assertion error, should find user in db")
         nullUser
@@ -1169,7 +1169,7 @@ class DatabaseTests extends munit.FunSuite:
     }
 
     // delete user
-    cd.deleteMyAccountPermanently(wojtas, "Wrong Password") match {
+    ExternalDB.deleteMyAccountPermanently(wojtas, "Wrong Password") match {
       case Right(user) =>
         assert(false, s"Method should returned ${QueryErrorMessage.IncorrectLoginOrPassword}")
       case Left(queryErrors: QueryErrors) =>
@@ -1180,7 +1180,7 @@ class DatabaseTests extends munit.FunSuite:
     }
 
     // check if user is deleted
-    cd.findUser(wojtas) match {
+    ExternalDB.findUser(wojtas) match {
       case Right(user) =>
         if user != wojtas then throw new Exception(s"Method should find not deleted user.")
       case Left(_) => throw new Exception("Method should return not deleted user.")
@@ -1197,7 +1197,7 @@ class DatabaseTests extends munit.FunSuite:
     val nullUser = User(UUID.randomUUID(), "NullLogin")
 
     // delete user
-    cd.deleteMyAccountPermanently(nullUser, "Wrong Password") match {
+    ExternalDB.deleteMyAccountPermanently(nullUser, "Wrong Password") match {
       case Right(user) =>
         assert(false, s"Method should returned ${QueryErrorMessage.IncorrectLoginOrPassword}")
       case Left(queryErrors: QueryErrors) =>
@@ -1221,7 +1221,7 @@ class DatabaseTests extends munit.FunSuite:
     switchOffDbManually()
 
     // delete user
-    cd.deleteMyAccountPermanently(nullUser, "Wrong Password") match {
+    ExternalDB.deleteMyAccountPermanently(nullUser, "Wrong Password") match {
       case Right(_) =>
         assert(false, s"Method should returned ${QueryErrorMessage.NoDbConnection}")
       case Left(queryErrors: QueryErrors) =>
@@ -1240,14 +1240,14 @@ class DatabaseTests extends munit.FunSuite:
    */
   test("Delete user from chat - Not possible if chat is not group (has two users)") {
 
-    val user1: User = cd.findUser("Walo") match {
+    val user1: User = ExternalDB.findUser("Walo") match {
       case Left(_) =>
         throw new Exception("Db call should return user, but returned Error")
         User(UUID.randomUUID(), "")
       case Right(user: User) => user
     }
 
-    val user2: User = cd.findUser("Spejson") match {
+    val user2: User = ExternalDB.findUser("Spejson") match {
       case Left(_) =>
         throw new Exception("Db call should return user, but returned Error")
         User(UUID.randomUUID(), "")
@@ -1256,7 +1256,7 @@ class DatabaseTests extends munit.FunSuite:
 
     val chatName: ChatName = "Walo-Spejson"
 
-    val createdChat: Chat = cd.createChat(List(user1, user2), chatName) match {
+    val createdChat: Chat = ExternalDB.createChat(List(user1, user2), chatName) match {
       case Right(chat: Chat) =>
         chat
         //assert(chat.chatName == chatName, s"Chat name from DB: ${chat.chatName} does not match inserted to DB: $chatName")
@@ -1264,7 +1264,7 @@ class DatabaseTests extends munit.FunSuite:
         throw new Exception("method should return Chat object")
     }
 
-    cd.deleteMeFromChat(user1, createdChat) match {
+    ExternalDB.deleteMeFromChat(user1, createdChat) match {
       case Right(_) => assert(false, s"method should return ${QueryErrorMessage.UnsupportedOperation}")
       case Left(queryErrors: QueryErrors) =>
         assert( queryErrors.listOfErrors.nonEmpty
@@ -1279,14 +1279,14 @@ class DatabaseTests extends munit.FunSuite:
    */
   test("Delete user from chat - Possible for group chats (users more than two)") {
 
-    val user1: User = cd.findUser("Walo") match {
+    val user1: User = ExternalDB.findUser("Walo") match {
       case Left(_) =>
         throw new Exception("Db call should return user, but returned Error")
         User(UUID.randomUUID(), "")
       case Right(user: User) => user
     }
 
-    val user2: User = cd.findUser("Spejson") match {
+    val user2: User = ExternalDB.findUser("Spejson") match {
       case Left(_) =>
         throw new Exception("Db call should return user, but returned Error")
         User(UUID.randomUUID(), "")
@@ -1294,7 +1294,7 @@ class DatabaseTests extends munit.FunSuite:
     }
 
     // create user and save them in db
-    val wojtas = cd.createUser("Wojtas", "ddd") match {
+    val wojtas = ExternalDB.createUser("Wojtas", "ddd") match {
       case Left(_) =>
         throw new Exception("Assertion error, should find user in db")
         User(UUID.randomUUID(), "")
@@ -1306,13 +1306,13 @@ class DatabaseTests extends munit.FunSuite:
 
     val chatName: ChatName = "Walo-Spejson-wojtas"
 
-    val createdChat: Chat = cd.createChat(List(user1, user2, wojtas), chatName) match {
+    val createdChat: Chat = ExternalDB.createChat(List(user1, user2, wojtas), chatName) match {
       case Right(chat: Chat) => chat
       case Left(queryErrors: QueryErrors) =>
         throw new Exception(s"method should return Chat object, but returned ${queryErrors.listOfErrors.head.description}")
     }
 
-    cd.deleteMeFromChat(user1, createdChat) match {
+    ExternalDB.deleteMeFromChat(user1, createdChat) match {
       case Right(chat) =>
         assert(chat == createdChat, s"method should return ${createdChat}")
       case Left(_) => assert(false, s"Method should return ${createdChat}")
@@ -1324,14 +1324,14 @@ class DatabaseTests extends munit.FunSuite:
    */
   test("Delete user from chat when db is down") {
 
-    val user1: User = cd.findUser("Walo") match {
+    val user1: User = ExternalDB.findUser("Walo") match {
       case Left(_) =>
         throw new Exception("Db call should return user, but returned Error")
         User(UUID.randomUUID(), "")
       case Right(user: User) => user
     }
 
-    val user2: User = cd.findUser("Spejson") match {
+    val user2: User = ExternalDB.findUser("Spejson") match {
       case Left(_) =>
         throw new Exception("Db call should return user, but returned Error")
         User(UUID.randomUUID(), "")
@@ -1339,7 +1339,7 @@ class DatabaseTests extends munit.FunSuite:
     }
 
     // create user and save them in db
-    val wojtas = cd.createUser("Wojtas", "ddd") match {
+    val wojtas = ExternalDB.createUser("Wojtas", "ddd") match {
       case Left(_) =>
         throw new Exception("Assertion error, should find user in db")
         User(UUID.randomUUID(), "")
@@ -1351,7 +1351,7 @@ class DatabaseTests extends munit.FunSuite:
 
     val chatName: ChatName = "Walo-Spejson-wojtas"
 
-    val createdChat: Chat = cd.createChat(List(user1, user2, wojtas), chatName) match {
+    val createdChat: Chat = ExternalDB.createChat(List(user1, user2, wojtas), chatName) match {
       case Right(chat: Chat) => chat
       case Left(queryErrors: QueryErrors) =>
         throw new Exception(s"method should return Chat object, but returned ${queryErrors.listOfErrors.head.description}")
@@ -1359,7 +1359,7 @@ class DatabaseTests extends munit.FunSuite:
 
     switchOffDbManually()
 
-    cd.deleteMeFromChat(user1, createdChat) match {
+    ExternalDB.deleteMeFromChat(user1, createdChat) match {
       case Right(_) =>
         assert(false, s"Method should return ${QueryErrorMessage.NoDbConnection}")
       case Left(queryErrors: QueryErrors) =>
@@ -1375,14 +1375,14 @@ class DatabaseTests extends munit.FunSuite:
    */
   test("Delete user from no existing chat") {
 
-    val user1: User = cd.findUser("Walo") match {
+    val user1: User = ExternalDB.findUser("Walo") match {
       case Left(_) =>
         throw new Exception("Db call should return user, but returned Error")
         User(UUID.randomUUID(), "")
       case Right(user: User) => user
     }
 
-    val user2: User = cd.findUser("Spejson") match {
+    val user2: User = ExternalDB.findUser("Spejson") match {
       case Left(_) =>
         throw new Exception("Db call should return user, but returned Error")
         User(UUID.randomUUID(), "")
@@ -1390,7 +1390,7 @@ class DatabaseTests extends munit.FunSuite:
     }
 
     // create user and save them in db
-    val wojtas = cd.createUser("Wojtas", "ddd") match {
+    val wojtas = ExternalDB.createUser("Wojtas", "ddd") match {
       case Left(_) =>
         throw new Exception("Assertion error, should find user in db")
         User(UUID.randomUUID(), "")
@@ -1404,7 +1404,7 @@ class DatabaseTests extends munit.FunSuite:
 
     val fakeChat = Chat("chat-id", "chat-name", false, 0)
 
-    cd.deleteMeFromChat(user1, fakeChat) match {
+    ExternalDB.deleteMeFromChat(user1, fakeChat) match {
       case Right(_) =>
         assert(false, s"Method should return ${QueryErrorMessage.DataProcessingError}")
       case Left(queryErrors: QueryErrors) =>

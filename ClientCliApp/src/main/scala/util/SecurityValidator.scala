@@ -5,6 +5,7 @@ package util
  * Due to Security reasons, any data which must be directly stored in DB,
  * can contain only numbers, letters and dash "-". ANy other char must be rejected.
  */
+@deprecated("Previously used to validate password input.")
 object SecurityValidator {
 
   val regex = "[0-9a-zA-Z-]+".r

@@ -14,9 +14,36 @@ import scala.concurrent.{Await, Future, duration}
 import scala.util.{Failure, Success, Try, Using}
 import concurrent.ExecutionContext.Implicits.global
 
-class ExternalDB extends DataBase:
 
-  var connection: Connection = ExternalDB.getConnection
+object ExternalDB:
+
+  private val dbUrl = "jdbc:postgresql://localhost:5438/kessenger_schema"
+  private val dbProps = new Properties
+  dbProps.setProperty("user","admin")
+  dbProps.setProperty("password","passw")
+  Class.forName("org.postgresql.Driver")
+  private var connection: Connection = DriverManager.getConnection(dbUrl, dbProps)
+
+
+
+  def closeConnection(): Try[Unit] = Try { connection.close() }
+
+  protected def getConnection: Connection = connection
+
+  /**
+   * If we lost connection, we need to try to recreate it.
+   * @return
+   */
+  def recreateConnection(): Try[Unit] = Try {
+    if connection.isClosed then
+      connection = DriverManager.getConnection(dbUrl, dbProps)
+      //connection.setAutoCommit(false)
+    else
+      closeConnection()
+      connection = DriverManager.getConnection(dbUrl, dbProps)
+      //connection.setAutoCommit(false)
+  }
+
 
   /**
    * not modify
@@ -96,8 +123,8 @@ class ExternalDB extends DataBase:
       case Left(queryErrors: QueryErrors) => true
       case Right(value) => false
     }.foreach {
-        case Left(queryErrors) => listBuffer.addOne(queryErrors)
-        case Right(value) => () // do nothing because Right objects were filtered out earlier.
+      case Left(queryErrors) => listBuffer.addOne(queryErrors)
+      case Right(value) => () // do nothing because Right objects were filtered out earlier.
     }
     val filtered: List[QueryError] = listBuffer.toList
       .flatMap[QueryError](_.listOfErrors)
@@ -166,6 +193,35 @@ class ExternalDB extends DataBase:
         Right(chat)
       else
         throw new Exception("Not all Users added to chat.")
+    }
+
+
+  /**
+   * TODO write tests
+   * @param login
+   * @param password
+   * @return
+   */
+  def findUser(login: Login, password: Password): Either[QueryErrors, User] =
+    Using ( connection.prepareStatement( "SELECT user_id, login FROM users WHERE login=? AND pass=?" ) ) {
+      (statement: PreparedStatement) =>
+        statement.setString(1, login)
+        statement.setString(2, password)
+        Using (statement.executeQuery()) {
+          (resultSet: ResultSet) =>
+            if resultSet.next() then
+              val userId: UserID = resultSet.getObject[UUID]("user_id", classOf[UUID])
+              val login: Login   = resultSet.getString("login")
+              Right(User(userId, login))
+            else
+              Left(QueryErrors(List(QueryError(QueryErrorType.ERROR, QueryErrorMessage.UserNotFound(login)))))
+        } match {
+          case Failure(ex) => throw ex
+          case Success(either) => either
+        }
+    } match {
+      case Failure(ex) => handleExceptionMessage[User](ex)
+      case Success(either) => either
     }
 
 
@@ -253,6 +309,47 @@ class ExternalDB extends DataBase:
         }
     } match {
       case Failure(ex) => handleExceptionMessage[Seq[Chat]](ex)
+      case Success(either) => either
+    }
+
+  /**
+   * Todo write tests
+   * @param user
+   * @return
+   */
+  def findUsersChatsMap(user: User): Either[QueryErrors, Map[Chat, List[User]]] =
+    val sql = "SELECT my_chats.chat_id, my_chats.chat_name, my_chats.group_chat, my_chats.users_offset, users.user_id, users.login FROM users " +
+      "INNER JOIN chats " +
+      "ON chats.chat_id = my_chats.chat_id " +
+      "INNER JOIN users_chats AS other_chats " +
+      "ON users.user_id = other_chats.user_id " +
+      "INNER JOIN users_chats AS my_chats " +
+      "ON others_chats.chat_id = my_chats.chat_id " +
+      "WHERE my_chats.user_id = ?"
+    Using(connection.prepareStatement(sql)) {
+      (statement: PreparedStatement) =>
+        statement.setObject(1, user.userId)
+        val buffer: ListBuffer[(Chat, User)] = ListBuffer()
+        Using(statement.executeQuery()) {
+          (resultSet: ResultSet) =>
+            while (resultSet.next())
+              val chatId:   ChatId   = resultSet.getString("chat_id")
+              val chatName: ChatName = resultSet.getString("chat_name")
+              val groupChat: Boolean = resultSet.getBoolean("group_chat")
+              val offset:    Long    = resultSet.getLong("users_offset")
+              val userId:    UUID    = resultSet.getObject[UUID]("user_id", classOf[UUID])
+              val login:     Login   = resultSet.getString("login")
+              val chat:      Chat    = Chat(chatId, chatName, groupChat, offset)
+              val u:         User    = User(userId, login)
+              buffer += ((chat, u))
+            val grouped = buffer.toList.groupMap[Chat, User]((chat, user) => chat)((chat, user) => user)
+            Right(grouped)
+        } match {
+          case Failure(ex)     => throw ex
+          case Success(either) => either
+        }
+    } match {
+      case Failure(ex) => handleExceptionMessage[Map[Chat, List[User]]](ex)
       case Success(either) => either
     }
 
@@ -488,32 +585,4 @@ class ExternalDB extends DataBase:
       Left(QueryErrors(List(QueryError( QueryErrorType.FATAL_ERROR, QueryErrorMessage.DataProcessingError))))
     else
       Left(QueryErrors(List(QueryError(QueryErrorType.FATAL_ERROR, QueryErrorMessage.UndefinedError(ex.getMessage)))))
-
-
-object ExternalDB:
-
-  private val dbUrl = "jdbc:postgresql://localhost:5438/kessenger_schema"
-  private val dbProps = new Properties
-  dbProps.setProperty("user","admin")
-  dbProps.setProperty("password","passw")
-  Class.forName("org.postgresql.Driver")
-  private var connection: Connection = DriverManager.getConnection(dbUrl, dbProps)
-
-  def closeConnection(): Try[Unit] = Try { connection.close() }
-
-  protected def getConnection: Connection = connection
-
-  /**
-   * If we lost connection, we need to try to recreate it.
-   * @return
-   */
-  def recreateConnection(): Try[Unit] = Try {
-    if connection.isClosed then
-      connection = DriverManager.getConnection(dbUrl, dbProps)
-      //connection.setAutoCommit(false)
-    else
-      closeConnection()
-      connection = DriverManager.getConnection(dbUrl, dbProps)
-      //connection.setAutoCommit(false)
-  }
 
