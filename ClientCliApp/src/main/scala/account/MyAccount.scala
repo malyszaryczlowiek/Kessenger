@@ -17,14 +17,8 @@ import collection.parallel.CollectionConverters.IterableIsParallelizable
 
 object MyAccount:
 
-
-  // TODO zmień tę mapę na concurrent mapę tak aby brała ona wszystkie czaty zaakceptowane i niezaakceptowane
-  // patrz ChatExecutor i tego jak tam się używa ParMap
-
-  //private val myChats: mutable.SortedMap[Chat, ChatExecutor] = mutable.SortedMap.empty[Chat, ChatExecutor]
   private val myChats: ParTrieMap[Chat, ChatExecutor] = ParTrieMap.empty[Chat, ChatExecutor]
   private var me: User = _
-
 
   /**
    *
@@ -62,11 +56,8 @@ object MyAccount:
   def shutDownMyAccount(): Seq[Chat] =
     myChats.values.par.map(_.closeChat()).seq.toSeq  // parallel version of closing
 
-  def addChat(chat: Chat): Unit =
-    ExternalDB.findChatUsers(chat) match {
-      case Left(errors: QueryErrors)  => errors.listOfErrors.foreach(error => println(error.description))
-      case Right(users) => myChats.addOne((chat, new ChatExecutor(me, chat, users)))
-    }
+  def addChat(chat: Chat, users: List[User]): Unit =
+    myChats.addOne((chat, new ChatExecutor(me, chat, users)))
 
 
   def removeChat(chat: Chat): Option[ChatExecutor] =

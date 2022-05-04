@@ -89,6 +89,37 @@ object ExternalDB:
 
 
   /**
+   * TODO to implement
+   * @param chat
+   * @return
+   */
+  def findChatAndUsers(chatId: ChatId): Either[QueryErrors,(Chat, List[User])] =
+    val sql = "SELECT users.user_id, users.login FROM users_chats " + // users_chats.users_offset,
+      "INNER JOIN users " +
+      "ON users_chats.user_id = users.user_id " +
+      "WHERE users_chats.chat_id = ?"
+    Using(connection.prepareStatement(sql)) {
+      (statement: PreparedStatement) =>
+        statement.setString(1, chatId)
+        val buffer: ListBuffer[User] = ListBuffer()
+        Using(statement.executeQuery()) {
+          (resultSet: ResultSet) =>
+            while (resultSet.next())
+              val userId:    UUID      = resultSet.getObject[UUID]("user_id", classOf[UUID])
+              val login:     Login     = resultSet.getString("login")
+              val u:         User      = User(userId, login)
+              buffer += u
+            Right(buffer.toList)
+        } match {
+          case Failure(ex)     => throw ex
+          case Success(either) => either
+        }
+    } match {
+      case Failure(ex) => handleExceptionMessage[List[User]](ex)
+      case Success(either) => either
+    }
+
+  /**
    * TODO write tests
    * @param chat
    * @return

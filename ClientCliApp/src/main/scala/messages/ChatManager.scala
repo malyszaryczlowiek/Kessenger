@@ -85,6 +85,15 @@ object ChatManager:
           val chatId = r.value()
           chatsToJoin.addOne((userID,chatId))
           joinOffset = r.offset()
+
+          /*
+          TODO
+            tutaj musimy pobrać informacje o czacie i jego uczestnikach
+            a następnie dodać do MyAccount.addChat()
+            Zaimplementować ExternalDB.findChatAndUsers(chatId: ChatId)
+
+          */
+
         }
       )
     }
@@ -103,7 +112,7 @@ object ChatManager:
    * TODO implement
    * @return
    */
-  def numberOfInvitations: Int = 0
+  // def numberOfInvitations: Int = 0
 
 
 

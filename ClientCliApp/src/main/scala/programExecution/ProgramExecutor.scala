@@ -147,7 +147,6 @@ object ProgramExecutor :
 
   @tailrec
   private def printMenu(): Unit =
-    val invitations = ChatManager.numberOfInvitations
     println(s"Menu:")
     println(s"1) Show my chats.")
     println(s"2) Create new chat")
