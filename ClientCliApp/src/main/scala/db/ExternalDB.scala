@@ -5,8 +5,10 @@ import com.github.malyszaryczlowiek.db.queries.*
 import com.github.malyszaryczlowiek.domain.Domain.{ChatId, ChatName, Login, Password, UserID, generateChatId}
 import com.github.malyszaryczlowiek.domain.{Domain, User}
 import com.github.malyszaryczlowiek.messages.Chat
+import com.github.malyszaryczlowiek.util.TimeConverter
 
-import java.sql.{Connection, DriverManager, PreparedStatement, ResultSet, SQLType, Savepoint, Statement}
+import java.sql.{Connection, DriverManager, PreparedStatement, ResultSet, SQLType, Savepoint, Statement, Timestamp}
+import java.time.LocalDateTime
 import java.util.{Properties, UUID}
 import scala.collection.mutable.ListBuffer
 import scala.concurrent.duration.Duration
@@ -44,12 +46,12 @@ object ExternalDB:
 
 
   /**
-   * Todo write tests
+   * write tests
    * @param user
    * @return
    */
   def findUsersChats(user: User): Either[QueryErrors, Map[Chat, List[User]]] =
-    val sql = "SELECT chats.chat_id, chats.chat_name, chats.group_chat, users_chats.users_offset, users.user_id, users.login FROM users_chats " + // users_chats.users_offset,
+    val sql = "SELECT chats.chat_id, chats.chat_name, chats.group_chat, users_chats.users_offset, users_chats.message_time, users.user_id, users.login FROM users_chats " + // users_chats.users_offset,
       "INNER JOIN chats " +
       "ON users_chats.chat_id = chats.chat_id " +
       "INNER JOIN users_chats AS other_chats " +
@@ -64,14 +66,15 @@ object ExternalDB:
         Using(statement.executeQuery()) {
           (resultSet: ResultSet) =>
             while (resultSet.next())
-              val chatId:   ChatId   = resultSet.getString("chat_id")
-              val chatName: ChatName = resultSet.getString("chat_name")
-              val groupChat: Boolean = resultSet.getBoolean("group_chat")
-              val offset:    Long    = resultSet.getLong("users_offset")
-              val userId:    UUID    = resultSet.getObject[UUID]("user_id", classOf[UUID])
-              val login:     Login   = resultSet.getString("login")
-              val chat:      Chat    = Chat(chatId, chatName, groupChat, offset)
-              val u:         User    = User(userId, login)
+              val chatId:    ChatId   = resultSet.getString("chat_id")
+              val chatName:  ChatName = resultSet.getString("chat_name")
+              val groupChat: Boolean  = resultSet.getBoolean("group_chat")
+              val offset:    Long     = resultSet.getLong("users_offset")
+              val time:      Long     = resultSet.getLong("message_time")
+              val userId:    UUID     = resultSet.getObject[UUID]("user_id", classOf[UUID])
+              val login:     Login    = resultSet.getString("login")
+              val chat:      Chat     = Chat(chatId, chatName, groupChat, offset, TimeConverter.fromMilliSecondsToLocal(time))
+              val u:         User     = User(userId, login)
               buffer += ((chat, u))
             val grouped = buffer.toList.groupMap[Chat, User]((chat, user) => chat)((chat, user) => user)
             Right(grouped)
@@ -81,6 +84,38 @@ object ExternalDB:
         }
     } match {
       case Failure(ex) => handleExceptionMessage[Map[Chat, List[User]]](ex)
+      case Success(either) => either
+    }
+
+
+  /**
+   * TODO write tests
+   * @param chat
+   * @return
+   */
+  def findChatUsers(chat: Chat): Either[QueryErrors, List[User]] =
+    val sql = "SELECT users.user_id, users.login FROM users_chats " + // users_chats.users_offset,
+      "INNER JOIN users " +
+      "ON users_chats.user_id = users.user_id " +
+      "WHERE users_chats.chat_id = ?"
+    Using(connection.prepareStatement(sql)) {
+      (statement: PreparedStatement) =>
+        statement.setString(1, chat.chatId)
+        val buffer: ListBuffer[User] = ListBuffer()
+        Using(statement.executeQuery()) {
+          (resultSet: ResultSet) =>
+            while (resultSet.next())
+              val userId:    UUID      = resultSet.getObject[UUID]("user_id", classOf[UUID])
+              val login:     Login     = resultSet.getString("login")
+              val u:         User      = User(userId, login)
+              buffer += u
+            Right(buffer.toList)
+        } match {
+          case Failure(ex)     => throw ex
+          case Success(either) => either
+        }
+    } match {
+      case Failure(ex) => handleExceptionMessage[List[User]](ex)
       case Success(either) => either
     }
 
@@ -120,7 +155,6 @@ object ExternalDB:
    * @param chatName
    * @return
    */
-
   def createChat(users: List[User], chatName: ChatName): Either[QueryErrors,Chat] =
     val listSize = users.length
     if listSize < 2 then
@@ -138,7 +172,8 @@ object ExternalDB:
         else
           groupChat = true
           chatId = Domain.generateChatId(UUID.randomUUID(), UUID.randomUUID()) // for more than two users we generate random chat_id
-        val chat = Chat(chatId, chatName, groupChat, 0L)
+        val time = TimeConverter.fromMilliSecondsToLocal( System.currentTimeMillis() )
+        val chat = Chat(chatId, chatName, groupChat, 0L, time)
         insertChatAndAssignUsersToChat(users, chat) match {
           case Failure(ex) =>
             connection.rollback(beforeAnyInsertions) // we roll back any insertions
@@ -149,7 +184,7 @@ object ExternalDB:
 
 
   /**
-   * Method concurrentlyu checks if all users exists in db.
+   * Method concurrently checks if all users exists in db.
    * If so returned list od QueryErrors is empty.
    * @param users
    * @return
@@ -214,11 +249,11 @@ object ExternalDB:
         user =>
           Future {
             //Using(connection.prepareStatement("INSERT INTO users_chats (chat_id, user_id, offset) VALUES (?, ?, ?)")) {
-            Using(connection.prepareStatement("INSERT INTO users_chats (chat_id, user_id) VALUES (?, ?)")) {
+            Using(connection.prepareStatement("INSERT INTO users_chats (chat_id, user_id, message_time) VALUES (?, ?, ?)")) {
               (statement: PreparedStatement) =>
                 statement.setString(1, chat.chatId)
                 statement.setObject(2, user.userId)
-                //statement.setLong(3, chat.offset)
+                statement.setLong(3, TimeConverter.fromLocalToEpochTime(chat.timeOfLastMessage))
                 statement.executeUpdate()
             } match {
               case Failure(exception) => throw exception
@@ -404,12 +439,13 @@ object ExternalDB:
    * @param chat
    * @return
    */
-  def updateChatOffset(user: User, chat: Chat): Either[QueryErrors,Chat] =
-    Using(connection.prepareStatement("UPDATE users_chats SET users_offset = ? WHERE chat_id = ? AND user_id = ? ")) {
+  def updateChatOffsetAndMessageTime(user: User, chat: Chat): Either[QueryErrors,Chat] =
+    Using(connection.prepareStatement("UPDATE users_chats SET users_offset = ?, message_time = ? WHERE chat_id = ? AND user_id = ? ")) {
       (statement: PreparedStatement) =>
         statement.setLong(1, chat.offset)
-        statement.setString(2, chat.chatId)
-        statement.setObject(3, user.userId)
+        statement.setLong(2, TimeConverter.fromLocalToEpochTime(chat.timeOfLastMessage))
+        statement.setString(3, chat.chatId)
+        statement.setObject(4, user.userId)
         statement.executeUpdate()
     } match {
       case Failure(ex) => handleExceptionMessage(ex)

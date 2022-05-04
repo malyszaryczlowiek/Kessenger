@@ -21,6 +21,7 @@ CREATE TABLE users_chats (
   chat_id varchar(255) REFERENCES chats(chat_id) ON DELETE CASCADE,
   user_id uuid REFERENCES users(user_id) ON DELETE CASCADE,
   users_offset BIGINT DEFAULT 0 NOT NULL, --ON DELETE CASCADE,
+  message_time BIGINT DEFAULT 0 NOT NULL,
   PRIMARY KEY (chat_id, user_id)
 );
 

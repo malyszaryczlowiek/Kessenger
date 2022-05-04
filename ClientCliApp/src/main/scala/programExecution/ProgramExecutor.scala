@@ -10,8 +10,10 @@ import com.github.malyszaryczlowiek.db.ExternalDB
 import com.github.malyszaryczlowiek.db.queries.{QueryError, QueryErrors}
 import com.github.malyszaryczlowiek.domain.Domain.{Login, Password}
 import com.github.malyszaryczlowiek.domain.User
-import com.github.malyszaryczlowiek.messages.{Chat, ChatManager}
+import com.github.malyszaryczlowiek.messages.{Chat, ChatExecutor, ChatManager}
 import com.github.malyszaryczlowiek.util.PasswordConverter
+
+import scala.collection.immutable
 
 
 object ProgramExecutor :
@@ -106,11 +108,11 @@ object ProgramExecutor :
     if console != null then
       println("Set your Password:")
       print("> ")
-      val pass1 = console.readPassword()      //("[%s]", "Password:")
+      val pass1 = console.readPassword()
       if pass1 != null then
         println("Please repeat the password:")
         print("> ")
-        val pass2 = console.readPassword()    //("[%s]", "Password:")
+        val pass2 = console.readPassword()
         pass1.foreach(print)
         pass2.foreach(print)
         if pass2 != null && pass1.toSeq == pass2.toSeq then
@@ -145,23 +147,29 @@ object ProgramExecutor :
 
   @tailrec
   private def printMenu(): Unit =
+    val invitations = ChatManager.numberOfInvitations
     println(s"Menu:")
     println(s"1) Show my chats.")
     println(s"2) Create new chat")
-    println(s"3) Exit.")
+    println(s"3) Settings.")
+    println(s"4) Exit.")
+    print("> ")
     Try {
       readInt()
     } match {
-      case Failure(exception) => println("Please select 1, 2 or 3.")
+      case Failure(exception) => println("Please select 1, 2, 3 or 4.")
       case Success(value) =>
         if value == 1 then
           showChats()
+          printMenu()
         else if value == 2 then
           createChat()  // TODO  implement
         else if value == 3 then
+          showSettings() // TODO  implement
+        else if value == 4 then
           continueMainLoop = false
         else
-          println("Wrong number, please select 1, 2 or 3.")
+          println("Wrong number, please select 1, 2, 3 or 4.")
           printMenu()
     }
 
@@ -171,64 +179,98 @@ object ProgramExecutor :
   private def showChats(): Unit =
     println(s"Please select chat, or type #back to menu.")
     println("Your chats:")
-
-
-
-    MyAccount.getMyChats.zipWithIndex  // TODO tutaj kontynuować
-    // TODO zrefaktoryzować to tak aby dało się
-
-
-
-
-
-    val chats = MyAccount.getMyChats.keys.toVector //foreach(mapEntry => println(s"${mapEntry._1.}"))
+    val chats: immutable.SortedMap[Chat, ChatExecutor] = MyAccount.getMyChats
     val chatSize = chats.size
-    if chats.isEmpty then
-      println(s"Ooopsss, you have not chats.")
+    if chats.isEmpty then println(s"Ooopsss, you have not chats.")  // and we return to menu
     else
-      chats.zipWithIndex.foreach(chatIndex => println(s"${chatIndex._2 + 1}) ${chatIndex._1.chatName}") )
-    print("> ")
-    val input: String = readLine()
-    if input == "#back" then
-      printMenu()
-    else
-      input.toIntOption match {
-        case Some(value) =>
-          if value < 1 || value > chatSize + 1 then
-            println(s"Please select number between 1 and $chatSize, or type #back if you want return to main menu.")
-            showChats()
+      val sorted = chats.toSeq.sortBy(chatAndExecutor => chatAndExecutor._2.getLastMessageTime).reverse
+      val indexed = sorted.zipWithIndex
+      indexed.foreach(
+        chatIndex => {
+          // if offset is different than 0 means that user read from chat so accept them
+          if chatIndex._1._1.offset == 0L then
+            println(s"${chatIndex._2 + 1}) ${chatIndex._1._1.chatName} (NOT ACCEPTED)")
           else
-            workInChat(chats.apply(value - 1), chats.)
-        case None =>
-          println(s"Oppsss, your input does not match integer number or '#back'")
-          showChats()
-        }
+            println(s"${chatIndex._2 + 1}) ${chatIndex._1._1.chatName}")
+        })
+      print("> ")
+      val input: String = readLine()
+      if input == "#back" then () // do nothing simply return to printMenu() method
+      else
+        input.toIntOption match {
+          case Some(value) =>
+            if value < 1 || value > chatSize + 1 then
+              println(s"Please select number between 1 and $chatSize,\n" +
+                s"or type #back if you want return to main menu.")
+              showChats()
+            else
+              val chatAndChatExecutor = indexed.toVector.apply(value-1)._1
+              workInChat(chatAndChatExecutor._1, chatAndChatExecutor._2)
+              showChats()
+          case None =>
+            println(s"Oppsss, your input does not match integer number or '#back'," +
+              s"or #escape_chat if you do not want participate")
+            showChats()
+          }
 
 
 
-  /** this method must start kafka producer and consumer
+  /**
+   * this method must start kafka producer and consumer
+   */
+  private def workInChat(chat: Chat, executor: ChatExecutor): Unit =
+    if chat.groupChat then
+      println(s"you are in ${chat.chatName}, type '#back' to return to chat list\n " +
+        s"or #escape_chat if you do not want participate longer.")
+    else
+      println(s"you are in ${chat.chatName}, type '#back' to return to chat list")
+    executor.printUnreadMessages()
+    print("> ")
+    Try {
+      var line = readLine()
+      while (line != "#back") {
+        if chat.groupChat && line == "#escape_chat" then
+          escapeChat(executor)
+          line = "#back"
+        else
+          executor.sendMessage(line)
+          print("> ")
+          line = readLine()
+      }
+      executor.stopPrintingMessages()
+    } match {
+      case Failure(exception) => println(s"Unexpected Error in chat.")
+      case Success(value)     => () // do nothing simply return to chat list
+    }
+
+
+
+
+  /**
+   * In this method we sent notification to other users,
+   * who should participate the chat.
    *
    */
-  private def workInChat(chat: Chat, users: List[User]): Unit = ???
-
-
   private def createChat(): Unit = ???
 
 
+  
+  
+  private def escapeChat(executor: ChatExecutor): Unit =
+    val me = executor.getUser
+    ExternalDB.deleteMeFromChat( me, executor.getChat) match {
+      case Left(queryErrors: QueryErrors) =>
+        queryErrors.listOfErrors.foreach(qe => println(qe.description))
+        println(s"Try again later.")
+      case Right(chat: Chat)                    =>
+        println(s"You escaped chat ${chat.chatName}.")
+        executor.sendMessage(s"## ${me.login} Stopped participating in chat. ##")
+        executor.closeChat()
+        MyAccount.removeChat(chat) match {
+          case Some(_) => println(s"Chat ${chat.chatName} removed from list.")
+          case None    => println(s"Undefined Error, Cannot remove chat from list.")
+        }
+    }
 
-/*
-TODO list
-1a) implement ExternalDB.findUsersChatsMap()
-1b) write tests for ExternalDB.findUsersChatsMap()
-1c) write tests for ExternalDB.findUser(login: Login, password: Password)
-2) DONE -- implement MyAccount.initialize()
-3) implement showChats()
-4) implement createChat()
 
-*/
-
-
-
-
-
-
+  private def showSettings(): Unit = ???

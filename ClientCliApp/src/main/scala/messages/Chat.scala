@@ -3,4 +3,6 @@ package messages
 
 import domain.Domain.{ChatId, ChatName}
 
-case class Chat(chatId: ChatId, chatName: ChatName, groupChat: Boolean, offset: Long)
+import java.time.LocalDateTime
+
+case class Chat(chatId: ChatId, chatName: ChatName, groupChat: Boolean, offset: Long, timeOfLastMessage: LocalDateTime)

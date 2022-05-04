@@ -28,7 +28,7 @@ import scala.collection.mutable.ListBuffer
  * Tylko w taki sposób, że oba muszą włączać się tylko gdy wejdziemy w specjalne miejsce
  * aby sprawdzić czy są jakieś prośby o czaty, jeśli tak to
  */
-object ChatManager:
+object ChatManager: 
 
   private val joinProducer: KafkaProducer[String, String] = KessengerAdmin.createJoiningProducer()
   private val joinConsumer: KafkaConsumer[String, String] = KessengerAdmin.createJoiningConsumer()
@@ -99,7 +99,11 @@ object ChatManager:
       println(s"join consumer closed.")
     })
 
-
+  /**
+   * TODO implement
+   * @return
+   */
+  def numberOfInvitations: Int = 0
 
 
 

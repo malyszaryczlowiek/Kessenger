@@ -1,45 +1,73 @@
 package com.github.malyszaryczlowiek
 package account
 
-import messages.Chat
-
 import com.github.malyszaryczlowiek.db.ExternalDB
 import com.github.malyszaryczlowiek.db.queries.{QueryError, QueryErrors}
 import com.github.malyszaryczlowiek.domain.Domain.{Login, UserID}
 import com.github.malyszaryczlowiek.domain.User
+import messages.{Chat, ChatExecutor}
+import messages.ChatGivens.given
 
 import java.util.UUID
+import scala.collection.immutable.SortedMap
+import scala.collection.immutable
+import scala.collection.mutable.{ArrayBuffer, ListBuffer}
+import scala.collection.parallel.mutable.ParTrieMap
+import collection.parallel.CollectionConverters.IterableIsParallelizable
 
 object MyAccount:
 
-  private var me: User = _// User(UUID.randomUUID(), "")
-  private var myChats: Map[Chat, List[User]] = _
+
+  // TODO zmień tę mapę na concurrent mapę tak aby brała ona wszystkie czaty zaakceptowane i niezaakceptowane
+  // patrz ChatExecutor i tego jak tam się używa ParMap
+
+  //private val myChats: mutable.SortedMap[Chat, ChatExecutor] = mutable.SortedMap.empty[Chat, ChatExecutor]
+  private val myChats: ParTrieMap[Chat, ChatExecutor] = ParTrieMap.empty[Chat, ChatExecutor]
+  private var me: User = _
 
 
   /**
-   * TODO implement this method to download all data from DB
+   *
    * @param user
    */
   def initialize(user: User): Unit =
     ExternalDB.findUsersChats(user) match {
       case Left(QueryErrors(l @ List(QueryError(queryErrorType, description)))) =>
-        println("Undefined error. Cannot initialize user's chats.")
+        println(s"Query Error ($description). Cannot initialize user's chats.")
         me = user
-        myChats = Map.empty[Chat, List[User]]
       case Right(usersChats: Map[Chat, List[User]]) =>
         println(s"users chats (${usersChats.size}) loaded. ")
-        myChats = usersChats
+        val intermediate = usersChats.map(chatList => (chatList._1, new ChatExecutor(me, chatList._1, chatList._2)))
+        myChats.addAll(intermediate)
       case _ =>
         println("Undefined error. Cannot initialize user's chats.")
         me = user
-        myChats = Map.empty[Chat, List[User]]
     }
 
-  def initializeAfterCreation(user: User): Unit =
-    me = user
-    myChats = Map.empty[Chat, List[User]]
-
+  /**
+   * this method comparing to initialize() avoids,
+   * sending request to DB.
+   * @param user
+   */
+  def initializeAfterCreation(user: User): Unit = me = user
   def getMyObject: User = me
-  
-  def getMyChats: Map[Chat, List[User]] = myChats 
-    
+  def getMyChats: immutable.SortedMap[Chat, ChatExecutor] = myChats.to(immutable.SortedMap)
+
+
+  /**
+   *
+   * @return returns Sequence of updated chats,
+   *         which must be saved to DB subsequently.
+   */
+  def shutDownMyAccount(): Seq[Chat] =
+    myChats.values.par.map(_.closeChat()).seq.toSeq  // parallel version of closing
+
+  def addChat(chat: Chat): Unit =
+    ExternalDB.findChatUsers(chat) match {
+      case Left(errors: QueryErrors)  => errors.listOfErrors.foreach(error => println(error.description))
+      case Right(users) => myChats.addOne((chat, new ChatExecutor(me, chat, users)))
+    }
+
+
+  def removeChat(chat: Chat): Option[ChatExecutor] =
+    myChats.remove(chat)

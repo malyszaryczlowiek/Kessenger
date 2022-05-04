@@ -5,6 +5,7 @@ import com.github.malyszaryczlowiek.domain.User
 import com.github.malyszaryczlowiek.messages.{Chat, ChatExecutor, KafkaErrors, KessengerAdmin}
 import com.github.malyszaryczlowiek.messages.kafkaConfiguration.KafkaTestConfigurator
 
+import java.time.LocalDateTime
 import java.util.UUID
 import scala.collection.immutable.{AbstractMap, SeqMap, SortedMap}
 import scala.util.{Failure, Success}
@@ -81,7 +82,7 @@ class ChatManagerTests extends munit.FunSuite {
 
 
   test("create topic") {
-    val fakeChat = Chat("fake-chat-id", "fake-chat-name", false, 0L)
+    val fakeChat = Chat("fake-chat-id", "fake-chat-name", false, 0L, LocalDateTime.now())
     KessengerAdmin.createNewChat(fakeChat) match {
       case Left(kafkaErrors: KafkaErrors)  => assert(false,s"should not return any kafkaError")
       case Right(value)                    => assert(value == fakeChat.chatId, s"$value")
@@ -92,7 +93,7 @@ class ChatManagerTests extends munit.FunSuite {
   // org.apache.kafka.common.errors.TopicExistsException: Topic 'fake-chat-id' already exists.
 
   test("create topic and remove them") {
-    val fakeChat = Chat("fake-chat-id", "fake-chat-name", false, 0L)
+    val fakeChat = Chat("fake-chat-id", "fake-chat-name", false, 0L, LocalDateTime.now())
     KessengerAdmin.createNewChat(fakeChat) match {
     case Left(kafkaErrors: KafkaErrors)  => assert(false, s"should not throw any exception")
     case Right(value)                    => assert(value == fakeChat.chatId, s"$value")
@@ -105,7 +106,7 @@ class ChatManagerTests extends munit.FunSuite {
   }
 
   test("create topic and send message") {
-    val fakeChat = Chat("fake-chat-id", "fake-chat-name", false, 0L)
+    val fakeChat = Chat("fake-chat-id", "fake-chat-name", false, 0, LocalDateTime.now())
 
     KessengerAdmin.createNewChat(fakeChat) match {
       case Left(kafkaErrors: KafkaErrors)  => assert(false, s"should not throw any exception")

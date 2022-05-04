@@ -21,9 +21,6 @@ import scala.jdk.javaapi.CollectionConverters
  * Note:
  * Future implementation will use custom serdes.
  */
-//protectedę object KessengerAdmin {
-//class KessengerAdmin(val)
-
 object KessengerAdmin {
 
   private var admin: Admin = _
@@ -198,7 +195,7 @@ object KessengerAdmin {
 
 
 
-//   TODO further implementation used in UI version of program
+//    further implementation used in UI version of program
 
 //      val whoWriteConfig: java.util.Map[String, String] =
 //        CollectionConverters.asJava(
@@ -221,7 +218,7 @@ object KessengerAdmin {
 //    CollectionConverters.asScala[String, KafkaFuture[Void]](deleteTopicResult.topicNameValues()).toMap
 
 
-//   TODO with UI implementation
+//    with UI implementation
 //  def createWritingProducer(): KafkaProducer[String, String] =
 //    val properties = new Properties
 //    properties.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, "localhost:9093,localhost:9094")

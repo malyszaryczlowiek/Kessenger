@@ -8,18 +8,19 @@ lazy val root = (project in file("."))
     assembly / assemblyJarName := s"${name.value}-${version.value}.jar",
     libraryDependencies ++= Seq(
       ("org.apache.kafka" %% "kafka" % "3.1.0").cross(CrossVersion.for3Use2_13),
-      // ("org.apache.kafka" %% "kafka-streams-scala" % "3.1.0").cross(CrossVersion.for3Use2_13)
       "org.apache.kafka" % "kafka-clients" % "3.1.0",
+      // ("org.apache.kafka" %% "kafka-streams-scala" % "3.1.0").cross(CrossVersion.for3Use2_13)
+      ("org.scala-lang.modules" %% "scala-parallel-collections" % "1.0.4") .cross(CrossVersion.for3Use2_13),
+      ("com.github.t3hnar" %% "scala-bcrypt" % "4.3.0").cross(CrossVersion.for3Use2_13), // https://github.com/t3hnar/scala-bcrypt
+      "org.postgresql" % "postgresql" % "42.3.3" ,
+      "org.scalameta" %% "munit" % "0.7.29" % Test,
+      "org.scalameta" %% "munit-scalacheck" % "0.7.29" % Test,
+      "org.slf4j" % "slf4j-nop" % "1.7.36" % Test ,// to switch off logging
+
+      // used in future impelementation
       "io.circe" %% "circe-core" % "0.14.1",
       "io.circe" %% "circe-generic" % "0.14.1",
       "io.circe" %% "circe-parser" % "0.14.1",
-      "org.postgresql" % "postgresql" % "42.3.3" ,
-      ("com.github.t3hnar" %% "scala-bcrypt" % "4.3.0").cross(CrossVersion.for3Use2_13),// for bcrypt
-      // https://mvnrepository.com/artifact/com.github.t3hnar/scala-bcrypt
-      // https://github.com/t3hnar/scala-bcrypt
-      "org.scalameta" %% "munit" % "0.7.29" % Test,
-      "org.scalameta" %% "munit-scalacheck" % "0.7.29" % Test,
-      "org.slf4j" % "slf4j-nop" % "1.7.36" % Test // to switch off logging
     )
   )
 
