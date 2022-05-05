@@ -36,6 +36,7 @@ class DatabaseTests extends munit.FunSuite:
   val pathToScripts = "./src/test/scala/integrationTests/db"
   var switchOffDbEarlier = false
   var fooTime: LocalDateTime = _
+  val salt = "$2a$10$8K1p/a0dL1LXMIgoEDFrwO"
 
   /**
    * Before all integration tests we must set database
@@ -149,11 +150,12 @@ class DatabaseTests extends munit.FunSuite:
 
     val login = "Wojtas"
 
-    PasswordConverter.convert("simplePassword") match {
+
+    PasswordConverter.convert("simplePassword", salt) match {
       case Left(value) =>
         throw new Exception("Password converter failed")
       case Right(pass) =>
-        ExternalDB.createUser(login, pass)  match {
+        ExternalDB.createUser(login, pass, salt)  match {
           case Left(queryErrors: QueryErrors) =>
             assert(false, s"user should be added normally.")
           case Right(dbUser: User) =>
@@ -167,11 +169,12 @@ class DatabaseTests extends munit.FunSuite:
    */
   test("Testing user insertion with login present in DB"){
     val name = "Walo"
-    PasswordConverter.convert("simplePassword") match {
+
+    PasswordConverter.convert("simplePassword", salt ) match {
       case Left(value) =>
         throw new Exception("Password converter failed")
       case Right(pass) =>
-        ExternalDB.createUser(name, pass) match {
+        ExternalDB.createUser(name, pass, salt) match {
           case Left(queryErrors: QueryErrors) =>
             assert( queryErrors.listOfErrors.nonEmpty
               && queryErrors.listOfErrors.length == 1
@@ -192,11 +195,12 @@ class DatabaseTests extends munit.FunSuite:
     switchOffDbManually() // here we switch off docker container
 
     val name = "Walo"
-    PasswordConverter.convert("simplePassword") match {
+
+    PasswordConverter.convert("simplePassword", salt )  match {
       case Left(value) =>
         throw new Exception("Password converter failed")
       case Right(pass) =>
-        ExternalDB.createUser(name, pass) match {
+        ExternalDB.createUser(name, pass, salt) match {
           case Left(queryErrors: QueryErrors) =>
             // Server Error: FATAL: terminating connection due to administrator command
             assert( queryErrors.listOfErrors.nonEmpty
@@ -501,14 +505,15 @@ class DatabaseTests extends munit.FunSuite:
 
     val nullUser = User(UUID.randomUUID(), "NullLogin")
 
-    val oldPass: Password = PasswordConverter.convert("oldPass") match {
+
+    val oldPass: Password = PasswordConverter.convert("oldPass", salt) match {
       case Left(value) =>
         throw new Exception("Password conversion failed")
         "Null password"
       case Right(value) => value
     }
 
-    val wojtas = ExternalDB.createUser("Wojtas", oldPass) match {
+    val wojtas = ExternalDB.createUser("Wojtas", oldPass, salt) match {
       case Left(_) =>
         throw new Exception("User should be found in Db and user object should be returned. ")
         nullUser
@@ -517,7 +522,7 @@ class DatabaseTests extends munit.FunSuite:
         dbUser
     }
 
-    val newPass: Password = PasswordConverter.convert("newPass") match {
+    val newPass: Password = PasswordConverter.convert("newPass", salt) match {
       case Left(value) =>
         throw new Exception("Password conversion failed")
         "Null password"
@@ -541,14 +546,14 @@ class DatabaseTests extends munit.FunSuite:
 
     val nullUser = User(UUID.randomUUID(), "NullLogin")
 
-    val oldPass: Password = PasswordConverter.convert("oldPass") match {
+    val oldPass: Password = PasswordConverter.convert("oldPass", salt) match {
       case Left(value) =>
         throw new Exception("Password conversion failed")
         "Null password"
       case Right(value) => value
     }
 
-    val wojtas = ExternalDB.createUser("Wojtas", oldPass) match {
+    val wojtas = ExternalDB.createUser("Wojtas", oldPass, salt) match {
       case Left(_) =>
         throw new Exception("Method should return user Object.")
         nullUser
@@ -558,14 +563,14 @@ class DatabaseTests extends munit.FunSuite:
         dbUser
     }
 
-    val incorrectOldPass: Password = PasswordConverter.convert("incorrectOldPass") match {
+    val incorrectOldPass: Password = PasswordConverter.convert("incorrectOldPass", salt) match {
       case Left(value) =>
         throw new Exception("Password conversion failed")
         "Null password"
       case Right(value) => value
     }
 
-    val newPass: Password = PasswordConverter.convert("newPass") match {
+    val newPass: Password = PasswordConverter.convert("newPass", salt) match {
       case Left(value) =>
         throw new Exception("Password conversion failed")
         "Null password"
@@ -592,7 +597,8 @@ class DatabaseTests extends munit.FunSuite:
 
     val nullUser = User(UUID.randomUUID(), "NullLogin")
 
-    val oldPass: Password = PasswordConverter.convert("oldPass") match {
+
+    val oldPass: Password = PasswordConverter.convert("oldPass", salt) match {
       case Left(value) =>
         throw new Exception("Password conversion failed")
         "Null password"
@@ -600,14 +606,14 @@ class DatabaseTests extends munit.FunSuite:
     }
 
 
-    val incorrectOldPass: Password = PasswordConverter.convert("incorrectOldPass") match {
+    val incorrectOldPass: Password = PasswordConverter.convert("incorrectOldPass", salt) match {
       case Left(value) =>
         throw new Exception("Password conversion failed")
         "Null password"
       case Right(value) => value
     }
 
-    val newPass: Password = PasswordConverter.convert("newPass") match {
+    val newPass: Password = PasswordConverter.convert("newPass", salt) match {
       case Left(value) =>
         throw new Exception("Password conversion failed")
         "Null password"
@@ -634,7 +640,8 @@ class DatabaseTests extends munit.FunSuite:
 
     val nullUser = User(UUID.randomUUID(), "NullLogin")
 
-    val oldPass: Password = PasswordConverter.convert("oldPass") match {
+
+    val oldPass: Password = PasswordConverter.convert("oldPass", salt) match {
       case Left(value) =>
         throw new Exception("Password conversion failed")
         "Null password"
@@ -642,14 +649,14 @@ class DatabaseTests extends munit.FunSuite:
     }
 
 
-    val incorrectOldPass: Password = PasswordConverter.convert("incorrectOldPass") match {
+    val incorrectOldPass: Password = PasswordConverter.convert("incorrectOldPass", salt) match {
       case Left(value) =>
         throw new Exception("Password conversion failed")
         "Null password"
       case Right(value) => value
     }
 
-    val newPass: Password = PasswordConverter.convert("newPass") match {
+    val newPass: Password = PasswordConverter.convert("newPass",salt) match {
       case Left(value) =>
         throw new Exception("Password conversion failed")
         "Null password"
@@ -677,14 +684,15 @@ class DatabaseTests extends munit.FunSuite:
 
     val nullUser = User(UUID.randomUUID(), "NullLogin")
 
-    val oldPass: Password = PasswordConverter.convert("oldPass") match {
+
+    val oldPass: Password = PasswordConverter.convert("oldPass", salt) match {
       case Left(value) =>
         throw new Exception("Password conversion failed")
         "Null password"
       case Right(value) => value
     }
 
-    val wojtas = ExternalDB.createUser("Wojtas", oldPass) match {
+    val wojtas = ExternalDB.createUser("Wojtas", oldPass, salt) match {
       case Left(_) =>
         throw new Exception("Assertion error, should find user in db")
         nullUser
@@ -707,14 +715,15 @@ class DatabaseTests extends munit.FunSuite:
 
     val nullUser = User(UUID.randomUUID(), "NullLogin")
 
-    val oldPass: Password = PasswordConverter.convert("oldPass") match {
+
+    val oldPass: Password = PasswordConverter.convert("oldPass", salt) match {
       case Left(value) =>
         throw new Exception("Password conversion failed")
         "Null password"
       case Right(value) => value
     }
 
-    val wojtas = ExternalDB.createUser("Wojtas", oldPass) match {
+    val wojtas = ExternalDB.createUser("Wojtas", oldPass, salt) match {
       case Left(_) =>
         throw new Exception("Assertion error, should find user in db")
         nullUser
@@ -741,14 +750,15 @@ class DatabaseTests extends munit.FunSuite:
 
     val nullUser = User(UUID.randomUUID(), "NullLogin")
 
-    val oldPass: Password = PasswordConverter.convert("oldPass") match {
+
+    val oldPass: Password = PasswordConverter.convert("oldPass", salt) match {
       case Left(value) =>
         throw new Exception("Password conversion failed")
         "Null password"
       case Right(value) => value
     }
 
-    val wojtas = ExternalDB.createUser("Wojtas", oldPass) match {
+    val wojtas = ExternalDB.createUser("Wojtas", oldPass, salt) match {
       case Left(_) =>
         throw new Exception("Assertion error, should find user in db")
         nullUser
@@ -921,7 +931,9 @@ class DatabaseTests extends munit.FunSuite:
       case Right(user: User) => user
     }
 
-    val wojtas = ExternalDB.createUser("Wojtas", "pass") match {
+
+
+    val wojtas = ExternalDB.createUser("Wojtas", "pass", salt) match {
       case Left(_) =>
         throw new Exception("Assertion error, should find user in db")
         User(UUID.randomUUID(), "NullLogin")
@@ -944,7 +956,7 @@ class DatabaseTests extends munit.FunSuite:
         Chat("null", "NullChat name", false, 0, fooTime)
     }
 
-    val solaris = ExternalDB.createUser("solaris", "pass") match {
+    val solaris = ExternalDB.createUser("solaris", "pass", salt) match {
       case Left(_) =>
         throw new Exception("Assertion error, should find user in db")
         User(UUID.randomUUID(), "NullLogin")
@@ -969,7 +981,8 @@ class DatabaseTests extends munit.FunSuite:
 
     val fakeChat = Chat("chat-id", "chat-name", true, 0, fooTime)
 
-    val solaris = ExternalDB.createUser("solaris", "pass") match {
+
+    val solaris = ExternalDB.createUser("solaris", "pass", salt) match {
       case Left(_) =>
         throw new Exception("Assertion error, should find user in db")
         User(UUID.randomUUID(), "NullLogin")
@@ -1009,7 +1022,7 @@ class DatabaseTests extends munit.FunSuite:
       case Right(user: User) => user
     }
 
-    val wojtas = ExternalDB.createUser("Wojtas", "pass") match {
+    val wojtas = ExternalDB.createUser("Wojtas", "pass", salt) match {
       case Left(_) =>
         throw new Exception("Assertion error, should find user in db")
         User(UUID.randomUUID(), "NullLogin")
@@ -1063,7 +1076,7 @@ class DatabaseTests extends munit.FunSuite:
       case Right(user: User) => user
     }
 
-    val wojtas = ExternalDB.createUser("Wojtas", "pass") match {
+    val wojtas = ExternalDB.createUser("Wojtas", "pass", salt) match {
       case Left(_) =>
         throw new Exception("Assertion error, should find user in db")
         User(UUID.randomUUID(), "NullLogin")
@@ -1086,7 +1099,7 @@ class DatabaseTests extends munit.FunSuite:
         Chat("null", "NullChat name", false, 0, fooTime)
     }
 
-    val solaris = ExternalDB.createUser("solaris", "pass") match {
+    val solaris = ExternalDB.createUser("solaris", "pass", salt) match {
       case Left(_) =>
         throw new Exception("Assertion error, should find user in db")
         User(UUID.randomUUID(), "NullLogin")
@@ -1118,7 +1131,7 @@ class DatabaseTests extends munit.FunSuite:
   test("Testing deleting user from db permanently") {
     val nullUser = User(UUID.randomUUID(), "NullLogin")
 
-    val pass: Password = PasswordConverter.convert("oldPass") match {
+    val pass: Password = PasswordConverter.convert("oldPass", salt) match {
       case Left(value) =>
         throw new Exception("Password conversion failed")
         "Null password"
@@ -1126,7 +1139,7 @@ class DatabaseTests extends munit.FunSuite:
     }
 
     // create user and save them in db
-    val wojtas = ExternalDB.createUser("Wojtas", pass) match {
+    val wojtas = ExternalDB.createUser("Wojtas", pass, salt) match {
       case Left(_) =>
         throw new Exception("Assertion error, should find user in db")
         nullUser
@@ -1164,7 +1177,7 @@ class DatabaseTests extends munit.FunSuite:
   test("Testing deleting user from db permanently but with wrong password") {
     val nullUser = User(UUID.randomUUID(), "NullLogin")
 
-    val pass: Password = PasswordConverter.convert("oldPass") match {
+    val pass: Password = PasswordConverter.convert("oldPass", salt) match {
       case Left(value) =>
         throw new Exception("Password conversion failed")
         "Null password"
@@ -1172,7 +1185,7 @@ class DatabaseTests extends munit.FunSuite:
     }
 
     // create user and save them in db
-    val wojtas = ExternalDB.createUser("Wojtas", pass) match {
+    val wojtas = ExternalDB.createUser("Wojtas", pass, salt) match {
       case Left(_) =>
         throw new Exception("Assertion error, should find user in db")
         nullUser
@@ -1308,7 +1321,7 @@ class DatabaseTests extends munit.FunSuite:
     }
 
     // create user and save them in db
-    val wojtas = ExternalDB.createUser("Wojtas", "ddd") match {
+    val wojtas = ExternalDB.createUser("Wojtas", "ddd", salt) match {
       case Left(_) =>
         throw new Exception("Assertion error, should find user in db")
         User(UUID.randomUUID(), "")
@@ -1353,7 +1366,7 @@ class DatabaseTests extends munit.FunSuite:
     }
 
     // create user and save them in db
-    val wojtas = ExternalDB.createUser("Wojtas", "ddd") match {
+    val wojtas = ExternalDB.createUser("Wojtas", "ddd", salt) match {
       case Left(_) =>
         throw new Exception("Assertion error, should find user in db")
         User(UUID.randomUUID(), "")
@@ -1403,8 +1416,9 @@ class DatabaseTests extends munit.FunSuite:
       case Right(user: User) => user
     }
 
+
     // create user and save them in db
-    val wojtas = ExternalDB.createUser("Wojtas", "ddd") match {
+    val wojtas = ExternalDB.createUser("Wojtas", "ddd", salt) match {
       case Left(_) =>
         throw new Exception("Assertion error, should find user in db")
         User(UUID.randomUUID(), "")

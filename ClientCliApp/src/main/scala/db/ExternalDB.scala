@@ -89,33 +89,48 @@ object ExternalDB:
 
 
   /**
-   * TODO to implement
+   * TODO write test
    * @param chat
    * @return
    */
-  def findChatAndUsers(chatId: ChatId): Either[QueryErrors,(Chat, List[User])] =
-    val sql = "SELECT users.user_id, users.login FROM users_chats " + // users_chats.users_offset,
+  def findChatAndUsers(me: User, chatId: ChatId): Either[QueryErrors,(Chat, List[User])] =
+    val sql = "SELECT chats.chat_id, chats.chat_name, " +
+      "users_chats.group_chat, users_chats.users_offset, users_chats.message_time, " +
+      "users.user_id, users.login FROM users_chats " +
       "INNER JOIN users " +
       "ON users_chats.user_id = users.user_id " +
+      "INNER JOIN chats " +
+      "ON users_chats.chat_id = chats.chat_id" +
       "WHERE users_chats.chat_id = ?"
     Using(connection.prepareStatement(sql)) {
       (statement: PreparedStatement) =>
         statement.setString(1, chatId)
-        val buffer: ListBuffer[User] = ListBuffer()
+        val buffer: ListBuffer[(Chat, User)] = ListBuffer()
         Using(statement.executeQuery()) {
           (resultSet: ResultSet) =>
             while (resultSet.next())
-              val userId:    UUID      = resultSet.getObject[UUID]("user_id", classOf[UUID])
-              val login:     Login     = resultSet.getString("login")
-              val u:         User      = User(userId, login)
-              buffer += u
-            Right(buffer.toList)
+              val chatID:   ChatId   = resultSet.getString("chat_id")
+              val chatName: ChatName = resultSet.getString("chat_name")
+              val grouped:  Boolean  = resultSet.getBoolean("group_chat")
+              val offset:      Long  = resultSet.getLong("users_offset")
+              val messageTime: Long  = resultSet.getLong("message_time")
+              val lt: LocalDateTime  = TimeConverter.fromMilliSecondsToLocal(messageTime)
+              val chat:        Chat  = Chat(chatID, chatName, grouped, offset, lt)
+              val userId:      UUID  = resultSet.getObject[UUID]("user_id", classOf[UUID])
+              val login:       Login = resultSet.getString("login")
+              val u:           User  = User(userId, login)
+              buffer += ((chat,u))
+            val list = buffer.toList
+            list.find(chatAndUser => chatAndUser._2 == me) match {
+              case Some(chatAndUser) => Right((chatAndUser._1,list.map(_._2)))
+              case None => Left(QueryErrors(List(QueryError(QueryErrorType.ERROR, QueryErrorMessage.DataProcessingError))))
+            }
         } match {
           case Failure(ex)     => throw ex
           case Success(either) => either
         }
     } match {
-      case Failure(ex) => handleExceptionMessage[List[User]](ex)
+      case Failure(ex) => handleExceptionMessage[(Chat, List[User])](ex)
       case Success(either) => either
     }
 
@@ -156,11 +171,12 @@ object ExternalDB:
    * @param pass
    * @return
    */
-  def createUser(login: Login, pass: Password): Either[QueryErrors,User] =
-    Using(connection.prepareStatement("INSERT INTO users (login, pass)  VALUES (?, ?)")) {
+  def createUser(login: Login, pass: Password, s: String): Either[QueryErrors,User] =
+    Using(connection.prepareStatement("INSERT INTO users (login, salt, pass)  VALUES (?, ?, ?)")) {
       (statement: PreparedStatement) => // , Statement.RETURN_GENERATED_KEYS
         statement.setString(1, login)
         statement.setString(2, pass)
+        statement.setString( 3, s)
         val affectedRows: Int  = statement.executeUpdate()
         if affectedRows == 1 then
           findUser(login) // for prove that user is created and for retrieval of usersID
@@ -308,17 +324,20 @@ object ExternalDB:
    * @param password
    * @return
    */
-  def findUser(login: Login, password: Password): Either[QueryErrors, User] =
-    Using ( connection.prepareStatement( "SELECT user_id, login FROM users WHERE login=? AND pass=?" ) ) {
+  def findUser(login: Login, password: Password, salt: String): Either[QueryErrors, User] =
+    val sql = "SELECT user_id, login, joining_offset FROM users WHERE login = ? AND pass = ? AND salt = ? "
+    Using ( connection.prepareStatement( sql ) ) {
       (statement: PreparedStatement) =>
         statement.setString(1, login)
         statement.setString(2, password)
+        statement.setString(3, salt)
         Using (statement.executeQuery()) {
           (resultSet: ResultSet) =>
             if resultSet.next() then
               val userId: UserID = resultSet.getObject[UUID]("user_id", classOf[UUID])
               val login: Login   = resultSet.getString("login")
-              Right(User(userId, login))
+              val offset: Long   = resultSet.getLong("joining_offset")
+              Right(User(userId, login, None, offset))
             else
               Left(QueryErrors(List(QueryError(QueryErrorType.ERROR, QueryErrorMessage.UserNotFound(login)))))
         } match {
@@ -386,17 +405,44 @@ object ExternalDB:
     }
 
 
+  /**
+   * TODO write tests
+   * @param login
+   * @return
+   */
+  def findUsersSalt(login: Login): Either[QueryErrors, String] =
+    Using ( connection.prepareStatement( "SELECT salt FROM users WHERE login = ?" ) ) {
+      (statement: PreparedStatement) =>
+        statement.setString(1, login)
+        Using(statement.executeQuery()) {
+          (resultSet: ResultSet) =>
+            if resultSet.next() then
+              val salt: String = resultSet.getString("salt")
+              Right(salt)
+            else
+              Left(QueryErrors(List(QueryError(QueryErrorType.ERROR, QueryErrorMessage.UserNotFound(login)))))
+        } match {
+          case Failure(ex) => throw ex
+          case Success(either) => either
+        }
+    } match {
+      case Failure(ex) => handleExceptionMessage[String](ex)
+      case Success(either) => either
+    }
 
 
-/**
-   * No modify
+
+
+  /**
+   * TODO correct tests
    * @param user
    * @param oldPass
    * @param newPass
    * @return
    */
-  def updateUsersPassword(user: User, oldPass: Password, newPass: Password): Either[QueryErrors,User] =
-    Using(connection.prepareStatement("UPDATE users SET pass = ? WHERE user_id = ? AND login = ? AND pass = ?")) {
+  def updateUsersPassword(user: User, oldPass: Password, newPass: Password): Either[QueryErrors, User] =
+    val sql = "UPDATE users SET pass = ? WHERE user_id = ? AND login = ? AND pass = ?"
+    Using(connection.prepareStatement(sql)) {
       (statement: PreparedStatement) =>
         statement.setString(1, newPass)
         statement.setObject(2, user.userId)
@@ -448,7 +494,8 @@ object ExternalDB:
    * @return
    */
   def updateChatName(chat: Chat, newName: ChatName): Either[QueryErrors,ChatName] =
-    Using(connection.prepareStatement("UPDATE chats SET chat_name = ? WHERE chat_id = ? AND chat_name = ? AND group_chat = ?")) {
+    val sql = "UPDATE chats SET chat_name = ? WHERE chat_id = ? AND chat_name = ? AND group_chat = ?"
+    Using(connection.prepareStatement(sql)) {
       (statement: PreparedStatement) =>
         statement.setString(1, newName)
         statement.setString(2, chat.chatId)
@@ -471,7 +518,8 @@ object ExternalDB:
    * @return
    */
   def updateChatOffsetAndMessageTime(user: User, chat: Chat): Either[QueryErrors,Chat] =
-    Using(connection.prepareStatement("UPDATE users_chats SET users_offset = ?, message_time = ? WHERE chat_id = ? AND user_id = ? ")) {
+    val sql = "UPDATE users_chats SET users_offset = ?, message_time = ? WHERE chat_id = ? AND user_id = ? "
+    Using(connection.prepareStatement(sql)) {
       (statement: PreparedStatement) =>
         statement.setLong(1, chat.offset)
         statement.setLong(2, TimeConverter.fromLocalToEpochTime(chat.timeOfLastMessage))

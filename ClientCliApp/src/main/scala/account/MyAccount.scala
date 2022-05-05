@@ -10,7 +10,7 @@ import messages.ChatGivens.given
 
 import java.util.UUID
 import scala.collection.immutable.SortedMap
-import scala.collection.immutable
+import scala.collection.{immutable, mutable}
 import scala.collection.mutable.{ArrayBuffer, ListBuffer}
 import scala.collection.parallel.mutable.ParTrieMap
 import collection.parallel.CollectionConverters.IterableIsParallelizable

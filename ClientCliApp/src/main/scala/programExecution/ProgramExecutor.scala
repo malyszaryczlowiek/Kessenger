@@ -4,6 +4,7 @@ package programExecution
 import java.io.Console
 import scala.util.{Failure, Success, Try}
 import scala.annotation.tailrec
+import scala.collection.immutable
 import scala.io.StdIn.{readChar, readInt, readLine}
 import com.github.malyszaryczlowiek.account.MyAccount
 import com.github.malyszaryczlowiek.db.ExternalDB
@@ -13,34 +14,31 @@ import com.github.malyszaryczlowiek.domain.User
 import com.github.malyszaryczlowiek.messages.{Chat, ChatExecutor, ChatManager}
 import com.github.malyszaryczlowiek.util.PasswordConverter
 
-import scala.collection.immutable
 
 
 object ProgramExecutor :
 
-  private var continueMainLoop = true
-
-
+  @tailrec
   def runProgram(args: Array[String]): Unit =
-    var length = args.length
-    while (continueMainLoop) {
-      if length == 0 then
-        println("Select what to do:\n1) Sign in,\n2) Sign up,\n3) Exit.")
-        print("> ")
-        Try { readInt() } match {
-          case Failure(exception) => println("Please select 1, 2 or 3.")
-          case Success(value) =>
-            if value == 1      then signIn()
-            else if value == 2 then createAccount()
-            else if value == 3 then continueMainLoop = false
-            else () // do nothing simply start loop again
-        }
-      else if length == 1 then
-        signInWithLogin(args.apply(0))
-      else
-        println(s"Warning!!! Too much program arguments: $length.")
-        length = 0
-    }
+    val length = args.length
+    if length == 0 then
+      println("Select what to do:\n1) Sign in,\n2) Sign up,\n3) Exit.")
+      print("> ")
+      Try { readInt() } match {
+        case Failure(exception) =>
+          println("Please select 1, 2 or 3.")
+          runProgram(args)
+        case Success(value) =>
+          if value == 1      then signIn()
+          else if value == 2 then createAccount()
+          else if value == 3 then () // exit method and program
+          else runProgram(args)
+      }
+    else if length == 1 then
+      signInWithLogin(args.apply(0))
+    else
+      println(s"Error!!! Too much program arguments: $length.")
+      println("Program exit.")
 
 
 
@@ -56,14 +54,18 @@ object ProgramExecutor :
     if console != null then
       println("Type your password:")
       print("> ")
-      val pass = console.readPassword()      //("[%s]", "Password:")
+      val pass = console.readPassword() 
       if pass != null then
-        lazy val password = pass.mkString("")
-        PasswordConverter.convert(password) match {
-          case Left(_)   =>
-            println(s"Ooops some Error.")
-            signInWithLogin(login)
-          case Right(ep) => checkCredentials(login, ep)
+        ExternalDB.findUsersSalt(login) match {
+          case Right(salt) =>
+            lazy val password = pass.mkString("")
+            PasswordConverter.convert(password, salt) match {
+              case Left(_)   =>
+                println(s"Ooops some Error.")
+                signInWithLogin(login)
+              case Right(ep) => checkCredentials(login, ep, salt)
+            }
+          case Left(_) => //TODO handle QueryErrors
         }
       else
         println("Some error occurred, try again.")
@@ -73,8 +75,8 @@ object ProgramExecutor :
 
 
 
-  private def checkCredentials(login: Login, password: Password): Unit =
-    ExternalDB.findUser(login, password) match {
+  private def checkCredentials(login: Login, password: Password, salt: String): Unit =
+    ExternalDB.findUser(login, password, salt) match {
       case Left(QueryErrors(l @ List(QueryError(queryErrorType, description)))) =>
         println(s"${description}")
         signIn()
@@ -94,8 +96,8 @@ object ProgramExecutor :
     print("> ")
     val login = readLine()
     val regex = "[\\w]{8,}".r
-    if login == "#exit"          then continueMainLoop = false
-    else if regex.matches(login) then setPassword(login)
+    if login == "#exit"          then ()
+    else if regex.matches(login) then setPassword(login, "")
     else
       println(s"Login is incorrect, try with another one, or type #exit.")
       createAccount()
@@ -103,7 +105,7 @@ object ProgramExecutor :
 
 
   @tailrec
-  private def setPassword(login: Login): Unit =
+  private def setPassword(login: Login, s: String): Unit =
     val console: Console = System.console()
     if console != null then
       println("Set your Password:")
@@ -113,35 +115,36 @@ object ProgramExecutor :
         println("Please repeat the password:")
         print("> ")
         val pass2 = console.readPassword()
-        pass1.foreach(print)
-        pass2.foreach(print)
+//        pass1.foreach(print)
+//        pass2.foreach(print)
         if pass2 != null && pass1.toSeq == pass2.toSeq then
           // probably must call gc() to remove pass1 and pass2
           println("Passwords matched.")
-          PasswordConverter.convert(pass2.mkString("")) match {
+          val salt = PasswordConverter.generateSalt
+          PasswordConverter.convert(pass2.mkString(""), salt) match {
             case Left(value) =>
               println("Undefined error, try again")
-              setPassword(login)
-            case Right(value) =>
-              ExternalDB.createUser(login, value) match {
+              setPassword(login, s)
+            case Right(p) =>
+              ExternalDB.createUser(login, p, salt) match {
                 case Left(QueryErrors(l @ List(QueryError(queryErrorType, description)))) =>
                 case Right(user: User) =>
                   MyAccount.initializeAfterCreation(user)
                   printMenu()
                 case _ =>
                   println("Undefined error.")
-                  setPassword(login)
+                  setPassword(login, s)
               }
           }
         else
           println("Passwords do not match. Try Again.")
-          setPassword(login)
+          setPassword(login, s)
       else
         println("Password was empty. Try with non empty.")
-        setPassword(login)
+        setPassword(login, s)
     else
       println("Cannot read user input. Program termination.")
-      continueMainLoop = false
+
 
 
 
@@ -165,8 +168,8 @@ object ProgramExecutor :
           createChat()  // TODO  implement
         else if value == 3 then
           showSettings() // TODO  implement
-        else if value == 4 then
-          continueMainLoop = false
+        else if value == 4 then ()
+//          continueMainLoop = false
         else
           println("Wrong number, please select 1, 2, 3 or 4.")
           printMenu()
@@ -272,4 +275,11 @@ object ProgramExecutor :
     }
 
 
+  /**
+   * In this method we can change our password
+   * and login (if is not taken).
+   */
   private def showSettings(): Unit = ???
+
+
+  private def shutDownAllConnections(): Unit = ???

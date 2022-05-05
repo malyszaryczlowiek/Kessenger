@@ -2,7 +2,9 @@
 CREATE TABLE IF NOT EXISTS users (
   user_id uuid DEFAULT gen_random_uuid () UNIQUE,
   login varchar(255) UNIQUE,
-  pass  varchar(255) NOT NULL,
+  salt varchar(255) NOT NULL,
+  pass varchar(255) NOT NULL,
+  joining_offset BIGINT DEFAULT 0 NOT NULL,
   PRIMARY KEY (user_id, login)
 );
 
@@ -26,8 +28,8 @@ CREATE TABLE users_chats (
 );
 
 -- add two users to db only for some tests
-INSERT INTO users (login, pass) VALUES ( 'Walo', 'aaa');
-INSERT INTO users (login, pass) VALUES ( 'Spejson', 'bbb');
+INSERT INTO users (login, salt, pass) VALUES ( 'Walo'   , '$2a$10$8K1p/a0dL1LXMIgoEDFrwO', '$2a$10$8K1p/a0dL1LXMIgoEDFrwO2L7cYK91Q7Ui9I4HeoAHUf46pq8IdFK'); -- aaa
+INSERT INTO users (login, salt, pass) VALUES ( 'Spejson', '$2a$10$8K1p/a0dL1LXMIgoEDFrwO', '$2a$10$8K1p/a0dL1LXMIgoEDFrwOra5VEq4VeXudMZmp9DH9OnhYQ6iDV1e'); -- bbb
 
 
 
