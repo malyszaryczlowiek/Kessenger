@@ -533,7 +533,8 @@ class DatabaseTests extends munit.FunSuite:
     ExternalDB.updateUsersPassword(wojtas, oldPass, newPass) match {
       case Right(user) =>
         assert(user.login == "Wojtas", "not matching login")
-      case Left(_) => assert( false, "should change password correctly")
+      case Left(queryErrors: QueryErrors) => assert( false, s"should change password correctly, but returned" +
+        s"${queryErrors}")
     }
   }
 

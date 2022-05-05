@@ -175,8 +175,8 @@ object ExternalDB:
     Using(connection.prepareStatement("INSERT INTO users (login, salt, pass)  VALUES (?, ?, ?)")) {
       (statement: PreparedStatement) => // , Statement.RETURN_GENERATED_KEYS
         statement.setString(1, login)
-        statement.setString(2, pass)
-        statement.setString( 3, s)
+        statement.setString(2, s)
+        statement.setString( 3, pass)
         val affectedRows: Int  = statement.executeUpdate()
         if affectedRows == 1 then
           findUser(login) // for prove that user is created and for retrieval of usersID
@@ -452,6 +452,7 @@ object ExternalDB:
     } match {
       case Failure(ex) => handleExceptionMessage(ex)
       case Success(value) =>
+        // println(s"value; $value")
         if value == 1 then Right(user)
         else Left(QueryErrors(List(QueryError(QueryErrorType.ERROR, QueryErrorMessage.IncorrectLoginOrPassword))))
     }
