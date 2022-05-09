@@ -518,21 +518,46 @@ object ExternalDB:
    * @param chat
    * @return
    */
-  def updateChatOffsetAndMessageTime(user: User, chat: Chat): Either[QueryErrors,Chat] =
+  def updateChatOffsetAndMessageTime(user: User, chats: Seq[Chat]): Either[QueryErrors,Int] =
     val sql = "UPDATE users_chats SET users_offset = ?, message_time = ? WHERE chat_id = ? AND user_id = ? "
-    Using(connection.prepareStatement(sql)) {
-      (statement: PreparedStatement) =>
-        statement.setLong(1, chat.offset)
-        statement.setLong(2, TimeConverter.fromLocalToEpochTime(chat.timeOfLastMessage))
-        statement.setString(3, chat.chatId)
-        statement.setObject(4, user.userId)
-        statement.executeUpdate()
-    } match {
-      case Failure(ex) => handleExceptionMessage(ex)
-      case Success(value) =>
-        if value == 1 then Right(chat)
-        else Left(QueryErrors(List(QueryError(QueryErrorType.ERROR, QueryErrorMessage.IncorrectLoginOrPassword))))
-    }
+    if chats.isEmpty then
+      Left(QueryErrors(List(QueryError(QueryErrorType.WARNING,QueryErrorMessage.UserHasNoChats))))
+    else
+      var stateBeforeInsertion: Savepoint = null
+      Try {
+        connection.setAutoCommit(false)
+        stateBeforeInsertion = connection.setSavepoint()
+        val futureList = chats.map[Future[Int]](
+          chat =>
+            Future { // each insertion executed in separate thread
+              Using(connection.prepareStatement(sql)) {
+                (statement: PreparedStatement) =>
+                  statement.setLong(1, chat.offset)
+                  statement.setLong(2, TimeConverter.fromLocalToEpochTime(chat.timeOfLastMessage))
+                  statement.setString(3, chat.chatId)
+                  statement.setObject(4, user.userId)
+                  statement.executeUpdate()
+              } match {
+                case Failure(ex) => throw ex
+                case Success(value) => value
+              }
+            }
+        )
+        val zippedFuture = futureList.reduceLeft((f1, f2) => f1.zipWith(f2)(_+_))
+        val affected = Await.result(zippedFuture, Duration.create(5L, duration.SECONDS))
+        if affected == chats.length then
+          connection.commit()
+          Right(affected)
+        else
+          throw new Exception("Data processing error.")
+      } match {
+        case Failure(ex) =>
+          if stateBeforeInsertion != null then connection.rollback(stateBeforeInsertion) // This connection has been closed
+          handleExceptionMessage[Int](ex)  // returns DataProcessing Error
+        case Success(either) => either
+      }
+
+
 
   /**
    * no modify

@@ -31,8 +31,8 @@ object MyAccount:
         me = user
       case Right(usersChats: Map[Chat, List[User]]) =>
         println(s"users chats (${usersChats.size}) loaded. ")
-        val intermediate = usersChats.map(chatList => (chatList._1, new ChatExecutor(me, chatList._1, chatList._2)))
-        myChats.addAll(intermediate)
+        val transform = usersChats.map( (chatList: (Chat, List[User])) => (chatList._1, new ChatExecutor(me, chatList._1, chatList._2)))
+        myChats.addAll(transform)
       case _ =>
         println("Undefined error. Cannot initialize user's chats.")
         me = user
@@ -53,12 +53,22 @@ object MyAccount:
    * @return returns Sequence of updated chats,
    *         which must be saved to DB subsequently.
    */
-  def shutDownMyAccount(): Seq[Chat] =
-    myChats.values.par.map(_.closeChat()).seq.toSeq  // parallel version of closing
+  def logOut(): Unit =
+    val chatsToSave = myChats.values.par.map(_.closeChat()).seq.toSeq       // close all Kafka connections
+    ExternalDB.updateChatOffsetAndMessageTime(me, chatsToSave) match {
+      case Left(queryErrors: QueryErrors) =>
+        println(s"${queryErrors.listOfErrors.head.description}")
+      case Right(value) =>
+        println(s"Updated $value chats to DB.")
+    }
+    myChats.empty                               // make chat map empty
+    me = User(UUID.randomUUID(), "NULL_LOGIN")  // reassign user to null one
+
+
 
   def addChat(chat: Chat, users: List[User]): Unit =
     myChats.addOne((chat, new ChatExecutor(me, chat, users)))
 
 
-  def removeChat(chat: Chat): Option[ChatExecutor] =
-    myChats.remove(chat)
+
+  def removeChat(chat: Chat): Option[ChatExecutor] = myChats.remove(chat)

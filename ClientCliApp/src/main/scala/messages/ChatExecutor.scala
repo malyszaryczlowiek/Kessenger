@@ -25,7 +25,7 @@ class ChatExecutor(me: User, chat: Chat, chatUsers: List[User]):
 
   private val continueReading: AtomicBoolean = new AtomicBoolean(true)
   private val newOffset:       AtomicLong    = new AtomicLong(chat.offset)
-  private val epochTime:       AtomicLong    = new AtomicLong( TimeConverter.fromLocalToEpochTime(chat.timeOfLastMessage) )
+  private val lastMessageTime: AtomicLong    = new AtomicLong( TimeConverter.fromLocalToEpochTime(chat.timeOfLastMessage) )
   private val printMessage:    AtomicBoolean = new AtomicBoolean(false)
 
   // we will read from topic with name of chatId. Each chat topic
@@ -55,26 +55,18 @@ class ChatExecutor(me: User, chat: Chat, chatUsers: List[User]):
             case None       => "Deleted User"
           // https://docs.oracle.com/javase/tutorial/datetime/iso/timezones.html
           val time = TimeConverter.fromMilliSecondsToLocal(r.timestamp())
-          epochTime.set(r.timestamp())
+          lastMessageTime.set(r.timestamp())
           if printMessage.get() then printMessage(login, time, r.value(), r.offset())
           else showNotification(login, time, r.value(), r.offset())
-        })
+        }
+      )
     }
   }
 
 
-  def stopPrintingMessages():  Unit = printMessage.set(false)
+  def stopPrintingMessages(): Unit = printMessage.set(false)
 
 
-  private def printMessage(login: Login, time: LocalDateTime, message: String, offset: Long): Unit =
-    if login == me.login then ()
-    else println(s"$login $time >> $message")
-    newOffset.set(offset)
-
-
-
-  // private def reloadChatUsers(): List[User] = ???
-  //  ExternalDB.
 
   /**
    * Note:
@@ -84,7 +76,9 @@ class ChatExecutor(me: User, chat: Chat, chatUsers: List[User]):
    */
   private def showNotification(login: Login, time: LocalDateTime, message: String, offset: Long): Unit =
     if login == me.login then ()
-    else unreadMessages.addOne((offset,(login, time, message)))
+    else
+      println(s"One new message from $login in ${chat.chatName}.") // print notification
+      unreadMessages.addOne((offset,(login, time, message)))
 
 
   /**
@@ -99,10 +93,14 @@ class ChatExecutor(me: User, chat: Chat, chatUsers: List[User]):
    * and so unreadMessages is not modified in this time.
    */
   def printUnreadMessages(): Unit =
+    printMessage.set(true)
     val map: immutable.SortedMap[Long,(Login, LocalDateTime, String)] = unreadMessages.seq.to(immutable.SortedMap) // conversion to SortedMap
     unreadMessages.clear() // clear off ParSequence
-    map.foreach( (k,v) => printMessage(v._1, v._2, v._3, k) )
-    printMessage.set(true)
+    map.foreach( (k,v) => {
+      newOffset.set(k)
+      println(s"${v._1} ${v._2} >> ${v._3}")
+    } )
+
 
 
   def showLastNMessages(n: Long): Unit =
@@ -127,7 +125,24 @@ class ChatExecutor(me: User, chat: Chat, chatUsers: List[User]):
 
 
 
-  def getLastMessageTime: LocalDateTime = TimeConverter.fromMilliSecondsToLocal( epochTime.get() )
+  private def printMessage(login: Login, time: LocalDateTime, message: String, offset: Long): Unit =
+    if unreadMessages.isEmpty then
+      if login == me.login then ()
+      else println(s"$login $time >> $message")
+      newOffset.set(offset)
+    else
+      val map: immutable.SortedMap[Long,(Login, LocalDateTime, String)] = unreadMessages.seq.to(immutable.SortedMap) // conversion to SortedMap
+      unreadMessages.clear() // clear off ParSequence
+      map.foreach( (k,v) => {
+        newOffset.set(k)
+        println(s"${v._1} ${v._2} >> ${v._3}")
+      } )
+      println(s"$login $time >> $message") // and finally print last message.
+      newOffset.set(offset)
+
+
+
+  def getLastMessageTime: LocalDateTime = TimeConverter.fromMilliSecondsToLocal( lastMessageTime.get() )
 
   
   def getUser: User = me
@@ -148,7 +163,7 @@ class ChatExecutor(me: User, chat: Chat, chatUsers: List[User]):
       chatConsumer.close()
       println(s"Chat ${chat.chatName} closed.")
     })
-    Chat(chat.chatId, chat.chatName, chat.groupChat, newOffset.get(), TimeConverter.fromMilliSecondsToLocal(epochTime.get()))
+    Chat(chat.chatId, chat.chatName, chat.groupChat, newOffset.get(), TimeConverter.fromMilliSecondsToLocal(lastMessageTime.get()))
 
 
 
@@ -160,15 +175,3 @@ class ChatExecutor(me: User, chat: Chat, chatUsers: List[User]):
 
 
 
-
-//private val callBack: Callback = (metadata: RecordMetadata, exception: Exception) => {
-//  Option(exception) match {
-//    case Some(ex) =>
-//      // prints for debugging perpouces
-//      println(s"Exception during message sent to chat: ${ex.getMessage}")
-//    case None =>
-//      println("Callback> message send.")
-//      newOffset = metadata.offset()
-//    //print(s"Message sent correctly: Topic: ${metadata.topic()}, Timestamp: ${metadata.timestamp()}, OffSet: ${metadata.offset()}, partition: ${metadata.partition()}\n> ")
-//  }
-//}
