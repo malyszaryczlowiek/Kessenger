@@ -1,14 +1,9 @@
 package com.github.malyszaryczlowiek
 package util
 
-/**
- * Due to Security reasons, any data which must be directly stored in DB,
- * can contain only numbers, letters and dash "-". ANy other char must be rejected.
- */
-// @deprecated("Previously used to validate password input.")
-object ChatNameValidator {
 
-  // private val regex = "[a-zA-Z-]+".r
+object ChatNameValidator {
+  
   /**
    * Char in name may contain only char characters
    * and whitespaces.

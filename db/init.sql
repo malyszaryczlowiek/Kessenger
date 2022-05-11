@@ -4,7 +4,7 @@ CREATE TABLE IF NOT EXISTS users (
   login varchar(255) UNIQUE,
   salt varchar(255) NOT NULL,
   pass varchar(255) NOT NULL,
-  joining_offset BIGINT DEFAULT 0 NOT NULL,
+  joining_offset BIGINT DEFAULT -1 NOT NULL, -- if user has set to -1 this means that he has not running joining topic in kafka broker
   PRIMARY KEY (user_id, login)
 );
 

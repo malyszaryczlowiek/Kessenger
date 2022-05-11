@@ -254,11 +254,13 @@ object ProgramExecutor :
           println(s"${queryErrors.listOfErrors.head.description}")
           Option.empty[Chat]
         case Right(chat) =>
+          ChatManager.askToJoinChat(users, chat)
 
           // TODO send invitations to other
           // TODO send first message with information of chat creation
-
           None
+
+
       }
     else
       println(s"Chat name '$name' is invalid.\nMay contain only letters, numbers, whitespaces and underscores.")
@@ -334,7 +336,7 @@ object ProgramExecutor :
               setPassword(login, s)
             case Right(p) =>
               ExternalDB.createUser(login, p, salt) match {
-                case Left(QueryErrors(l @ List(QueryError(queryErrorType, description)))) =>
+                case Left(QueryErrors(l @ List(QueryError(queryErrorType, description)))) =>  // TODO implement what to do with this error
                 case Right(user: User) =>
                   MyAccount.initializeAfterCreation(user)
                   printMenu()

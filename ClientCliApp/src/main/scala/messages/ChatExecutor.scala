@@ -31,7 +31,7 @@ class ChatExecutor(me: User, chat: Chat, chatUsers: List[User]):
   // we will read from topic with name of chatId. Each chat topic
   // has only one partition (and three replicas)
   private val topicPartition: TopicPartition                = new TopicPartition(chat.chatId, 0)
-  private val chatProducer:   KafkaProducer[String, String] = KessengerAdmin.createChatProducer()
+  private val chatProducer:   KafkaProducer[String, String] = KessengerAdmin.createChatProducer
   private val chatConsumer:   KafkaConsumer[String, String] = KessengerAdmin.createChatConsumer(me.userId.toString)
 
   private val unreadMessages: ParTrieMap[Long,(Login, LocalDateTime, String)] = ParTrieMap.empty[Long, (Login, LocalDateTime, String)]

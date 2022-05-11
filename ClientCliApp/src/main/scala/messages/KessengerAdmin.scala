@@ -1,8 +1,10 @@
 package com.github.malyszaryczlowiek
 package messages
 
-import com.github.malyszaryczlowiek.domain.Domain.{ChatId, JoinId, WritingId}
+import com.github.malyszaryczlowiek.domain.Domain.{ChatId, JoinId, UserID, WritingId}
+import com.github.malyszaryczlowiek.domain.{Domain, User}
 import com.github.malyszaryczlowiek.messages.kafkaConfiguration.KafkaConfigurator
+import com.github.malyszaryczlowiek.messages.kafkaErrorsUtil.{KafkaError, KafkaErrorMessage, KafkaErrorType, KafkaErrors, KafkaErrorsHandler}
 import org.apache.kafka.clients.admin.{Admin, AdminClientConfig, CreateTopicsResult, DeleteTopicsResult, NewTopic}
 import org.apache.kafka.clients.consumer.{ConsumerConfig, KafkaConsumer}
 import org.apache.kafka.clients.producer.{KafkaProducer, ProducerConfig}
@@ -23,8 +25,11 @@ import scala.jdk.javaapi.CollectionConverters
  */
 object KessengerAdmin {
 
+  // private var me: User = _
   private var admin: Admin = _
   private var configurator: KafkaConfigurator = _
+  // private val chatProducer = createChatProducer
+
 
   def startAdmin(conf: KafkaConfigurator): Try[Any] =
     Try {
@@ -35,13 +40,12 @@ object KessengerAdmin {
     }
 
 
-  def closeAdmin(): Unit =
-    admin.close()
+  def closeAdmin(): Unit = admin.close()
 
 
   // topic creation
 
-  def createNewChat(chat: Chat): Either[KafkaErrors, ChatId] = // , writingId: WritingId
+  def createNewChat(chat: Chat): Either[KafkaError, ChatId] = // , writingId: WritingId
     Try {
       val partitionsNum = configurator.TOPIC_PARTITIONS_NUMBER
       val replicationFactor: Short = configurator.TOPIC_REPLICATION_FACTOR
@@ -60,7 +64,7 @@ object KessengerAdmin {
       talkFuture.get(5L, TimeUnit.SECONDS)
       Right(chat.chatId)
     } match {
-      case Failure(ex)    => handleKafkaExceptions(ex)
+      case Failure(ex)    => KafkaErrorsHandler.handle[ChatId](ex)
       case Success(right) => right
     }
 
@@ -70,7 +74,7 @@ object KessengerAdmin {
    * @param writingId
    * @return
    */
-  def removeChat(chat: Chat): Either[KafkaErrors, ChatId] =
+  def removeChat(chat: Chat): Either[KafkaError, ChatId] =
     Try {
       val deleteTopicResult: DeleteTopicsResult = admin.deleteTopics(java.util.List.of(chat.chatId))
       val topicMap = CollectionConverters.asScala[String, KafkaFuture[Void]](deleteTopicResult.topicNameValues()).toMap
@@ -80,16 +84,13 @@ object KessengerAdmin {
           .get(2L, TimeUnit.SECONDS) // we give two seconds to complete removing chat // may throw  InterruptedException ExecutionException TimeoutException
         Right( topicMap.keys.head )
       else
-        Left( KafkaErrors(List(KafkaError(""))) )
+        Left( KafkaError(KafkaErrorType.FatalError, KafkaErrorMessage.UndefinedError) )
     } match {
-      case Success(either: Either[KafkaErrors, ChatId]) => either
-      case Failure(ex)                                  => handleKafkaExceptions(ex)
+      case Success(either) => either
+      case Failure(ex)     => KafkaErrorsHandler.handle[ChatId](ex)
     }
 
-
-
-
-  def createChatProducer(): KafkaProducer[String, String] =
+  def createChatProducer: KafkaProducer[String, String] =
     val properties = new Properties
     properties.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, configurator.SERVERS)
     properties.put(ProducerConfig.ACKS_CONFIG, "all")  // (1) this configuration specifies the minimum number of replicas that must acknowledge a write for the write to be considered successful
@@ -108,8 +109,8 @@ object KessengerAdmin {
    *
    * Note:
    * groupId of topic is unique to avoid belonging different users to the same consumer group.
-   * Otherwise only one consumer can read from topic (because topic must have only one partition
-   * [and three replicas].
+   * Otherwise only one consumer (in group) can read from topic (because topic must have only one partition
+   * [and three replicas]).
    *
    * Autocomit is set to false because we keep offest in db in users_chat table in users_offset
    * column.
@@ -140,8 +141,9 @@ object KessengerAdmin {
    * @param joinId
    * @return
    */
-  def createJoiningTopic(joinId: JoinId): Try[Any] =
+  def createJoiningTopic(userID: UserID): Either[KafkaError, Unit] =
     Try {
+      val joinId: JoinId = Domain.generateJoinId(userID)
       val partitionsNum = 1
       val replicationFactor: Short = 3
       val talkConfig: java.util.Map[String, String] = CollectionConverters.asJava(
@@ -151,17 +153,23 @@ object KessengerAdmin {
         )
       )
       val joinTopic = new NewTopic(joinId, partitionsNum, replicationFactor).configs(talkConfig)
-      val result: CreateTopicsResult = admin.createTopics( java.util.List.of( joinTopic ) )
+      val result: CreateTopicsResult = admin.createTopics(java.util.List.of(joinTopic))
       val joinFuture: KafkaFuture[Void] = result.values().get(joinId)
       joinFuture.get()
+    } match {
+      case Failure(ex) => KafkaErrorsHandler.handle[Unit](ex)
+      case Success(_)  =>
+        val unit: Unit = ()
+        Right(unit)
     }
 
 
-  def createJoiningProducer(): KafkaProducer[String, String] = //???
+  def createJoiningProducer(userId: UserID): KafkaProducer[String, String] = //???
     val properties = new Properties
     properties.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, configurator.SERVERS)
     properties.put(ProducerConfig.ACKS_CONFIG, "all")  // all replicas must confirm
-    properties.put(ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG, "true") // we do not need duplicates in partitions
+    properties.put(ProducerConfig.TRANSACTIONAL_ID_CONFIG, userId.toString)  // idempotence is activated automatically
+    // properties.put(ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG, "true") // we do not need duplicates in partitions
     properties.put(ProducerConfig.LINGER_MS_CONFIG, "0") // we do not wait to fill the buffer and send immediately
     properties.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, "org.apache.kafka.common.serialization.StringSerializer")
     properties.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, "org.apache.kafka.common.serialization.StringSerializer")
@@ -182,10 +190,6 @@ object KessengerAdmin {
     props.setProperty(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG  , "org.apache.kafka.common.serialization.StringDeserializer");
     props.setProperty(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, "org.apache.kafka.common.serialization.StringDeserializer");
     new KafkaConsumer[String, String](props)
-
-
-  protected def handleKafkaExceptions(ex: Throwable): Left[KafkaErrors, ChatId] = ???
-
 
 }
 
