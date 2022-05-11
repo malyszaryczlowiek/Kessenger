@@ -40,6 +40,8 @@ object MyAccount:
   def initialize(user: User): Either[(Option[QueryErrors], Option[KafkaError]), User] =
     me = user
 
+
+    // ###################################################
     sprawdzić czy offset jest -1
     jeśli tak to spróbowac utowrzyć joina
       -- jeśli się uda to
@@ -52,6 +54,8 @@ object MyAccount:
 
 
        i wszysstko poprawić w ProgramExecutor.
+
+       // ###################################################
 
 
     ExternalDB.findUsersChats(user) match {
