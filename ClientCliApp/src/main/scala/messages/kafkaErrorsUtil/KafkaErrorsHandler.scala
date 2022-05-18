@@ -7,9 +7,10 @@ import org.apache.kafka.common.errors.*
 object KafkaErrorsHandler :
 
   def handle[A](ex: Throwable): Either[KafkaError, A] =
-    val internalError = Left(KafkaError(KafkaErrorType.FatalError, KafkaErrorMessage.InternalError))
-    val serverError   = Left(KafkaError(KafkaErrorType.FatalError, KafkaErrorMessage.ServerError))
-    val undefinedErr  = Left(KafkaError(KafkaErrorType.FatalError, KafkaErrorMessage.UndefinedError))
+    val internalError   = Left(KafkaError(KafkaErrorType.FatalError, KafkaErrorMessage.InternalError))
+    val chatExistsError = Left(KafkaError(KafkaErrorType.Warning, KafkaErrorMessage.ChatExistsError))
+    val serverError     = Left(KafkaError(KafkaErrorType.FatalError, KafkaErrorMessage.ServerError))
+    val undefinedErr    = Left(KafkaError(KafkaErrorType.FatalError, KafkaErrorMessage.UndefinedError))
     try { throw ex }
     catch {
       case e: InvalidOffsetException       => internalError
@@ -21,6 +22,7 @@ object KafkaErrorsHandler :
       case e: IllegalStateException        => internalError
       case e: ArithmeticException          => internalError
       case e: InvalidTopicException        => internalError
+      case e: TopicExistsException         => chatExistsError
       case e: UnsupportedVersionException  => serverError
       case e: KafkaException               => undefinedErr
       case e: Throwable                    => undefinedErr

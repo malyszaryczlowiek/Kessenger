@@ -33,14 +33,7 @@ object MyAccount:
     i żeby spróbować uruchomić ponownie aplikację za jakiś czas.
   */
 
-  /**
-   *
-   * @param user
-   */
-  def initialize(user: User): Either[(Option[QueryErrors], Option[KafkaError]), User] =
-    me = user
-
-
+  /*
     // ###################################################
     sprawdzić czy offset jest -1
     jeśli tak to spróbowac utowrzyć joina
@@ -52,43 +45,48 @@ object MyAccount:
 
        podobnie zrobić  w initializeAfterCreation
 
-
        i wszysstko poprawić w ProgramExecutor.
 
        // ###################################################
+  */
 
-
-    ExternalDB.findUsersChats(user) match {
-      case Left(dbError: QueryErrors) =>
-        //println(s"Cannot initialize user's chats. Query Error (${dbError.listOfErrors.head.description}). ")
-        Try { ChatManager.startChatManager() } match {
-          case Success(_)  => Left((Some(dbError), None))
-          case Failure(ex) =>
-            KafkaErrorsHandler.handle(ex) match {
-              case Left(kafkaError: KafkaError) => Left((Some(dbError), Some(kafkaError)))
-            }
-        }
-      case Right(usersChats: Map[Chat, List[User]]) =>
-        // println(s"Users chats (${usersChats.size}) loaded. ")
-        val transform = usersChats.map( (chatList: (Chat, List[User])) => (chatList._1, new ChatExecutor(me, chatList._1, chatList._2)))
-        myChats.addAll(transform)
-        Try { ChatManager.startChatManager() } match {
+  /**
+   *
+   * @param user
+   */
+  def initialize(user: User): Either[(Option[QueryErrors], Option[KafkaError]), ChatManager] =
+    me = user
+    if user.joiningOffset == -1 then
+      // TODO implement here creation of ChatManager
+    else
+      ExternalDB.findUsersChats(user) match {
+        case Left(dbError: QueryErrors) =>
+          //println(s"Cannot initialize user's chats. Query Error (${dbError.listOfErrors.head.description}). ")
+          Try {
+            // TODO implement here creation of ChatManager
+          } match {
+            case Success(_)  => Left((Some(dbError), None))
+            case Failure(ex) =>
+              KafkaErrorsHandler.handle(ex) match {
+                case Left(kafkaError: KafkaError) => Left((Some(dbError), Some(kafkaError)))
+                case Right(_)                     => Left((None, None)) // This never will be reached
+              }
+          }
+        case Right(usersChats: Map[Chat, List[User]]) =>
+          // println(s"Users chats (${usersChats.size}) loaded. ")
+          val transform = usersChats.map( (chatList: (Chat, List[User])) => (chatList._1, new ChatExecutor(me, chatList._1, chatList._2)))
+          myChats.addAll(transform)
+          Try {
+            // TODO implement here creation of ChatManager
+          } match {
           case Success(_)  => Right(user)
           case Failure(ex) =>
-            KafkaErrorsHandler.handle(ex) match {
-              case Left(kafkaError: KafkaError) => Left((None, Some(kafkaError)))
-            }
-        }
-      case _ =>
-        val undefined = QueryErrors(List(QueryError(QueryErrorType.ERROR, QueryErrorMessage.UndefinedError())))
-        Try { ChatManager.startChatManager() } match {
-          case Success(_)  => Left((Some(undefined), None))
-          case Failure(ex) =>
-            KafkaErrorsHandler.handle(ex) match {
-              case Left(kafkaError: KafkaError) => Left((Some(undefined), Some(kafkaError)))
-            }
-        }
-    }
+              KafkaErrorsHandler.handle(ex) match {
+                case Left(kafkaError: KafkaError) => Left((None, Some(kafkaError)))
+                case Right(_)                     => Left((None, None))   // This never will be reached
+              }
+          }
+      }
 
 
 
@@ -97,19 +95,19 @@ object MyAccount:
    * sending request to DB.
    * @param user
    */
-  def initializeAfterCreation(user: User): Either[KafkaError, Unit] =
+  def initializeAfterCreation(user: User): Either[KafkaError, User] =
     me = user
-    KessengerAdmin.createJoiningTopic(user.userId) match {
-      case l @ Left(kafkaError) => l // in this case we cannot create our joining topic so we need to retry later
-      case Right(_) =>
-        ChatManager.startChatManager()
+    if user.joiningOffset == -1 then
+    // TODO implement here creation of ChatManager
+    else
+      Right(me)
 
-        // TODO ERROR naprawić
-        ERROR
+  // TODO wziąć to w try i utworzyć egzemplarz klasy, jak nie wywali błędu to zwrócić
+  // go jako Right, ale najpierw updejtować offset.
+  // jak wywali błąd to zwrócić ten błąd
 
 
-    }
-
+  def updateUser(user: User): Unit = me = user
 
 
   def getMyObject: User = me

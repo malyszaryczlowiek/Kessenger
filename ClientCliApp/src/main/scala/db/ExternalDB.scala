@@ -179,7 +179,7 @@ object ExternalDB:
         statement.setString( 3, pass)
         val affectedRows: Int  = statement.executeUpdate()
         if affectedRows == 1 then
-          findUser(login) // for prove that user is created and for retrieval of usersID
+          findUser(login) // for prove that user is created and for retrieval of usersID, and joining offset
         else
           Left(QueryErrors(List(QueryError(QueryErrorType.FATAL_ERROR, QueryErrorMessage.UndefinedError()))))
     } match {
@@ -405,6 +405,7 @@ object ExternalDB:
     }
 
 
+
   /**
    * TODO write tests
    * @param login
@@ -431,7 +432,26 @@ object ExternalDB:
     }
 
 
-
+  /**
+   * TODO write tests
+   * @param user
+   * @param offset
+   * @return
+   */
+  def updateJoiningOffset(user: User, offset: Long): Either[QueryErrors, User] =
+    val sql = "UPDATE users SET joining_offset = ? WHERE user_id = ? AND login = ? "
+    Using(connection.prepareStatement(sql)) {
+      (statement: PreparedStatement) =>
+        statement.setLong(1, offset)
+        statement.setObject(2, user.userId)
+        statement.setString(3, user.login)
+        statement.executeUpdate()
+    } match {
+      case Failure(ex) => handleExceptionMessage(ex)
+      case Success(value) =>
+        if value == 1 then Right(user.copy(joiningOffset = offset))
+        else Left(QueryErrors(List(QueryError(QueryErrorType.ERROR, QueryErrorMessage.DataProcessingError))))
+    }
 
   /**
    * TODO correct tests

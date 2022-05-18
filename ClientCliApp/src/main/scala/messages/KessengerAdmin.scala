@@ -153,7 +153,7 @@ object KessengerAdmin {
         )
       )
       val joinTopic = new NewTopic(joinId, partitionsNum, replicationFactor).configs(talkConfig)
-      val result: CreateTopicsResult = admin.createTopics(java.util.List.of(joinTopic))
+      val result: CreateTopicsResult    = admin.createTopics(java.util.List.of(joinTopic))
       val joinFuture: KafkaFuture[Void] = result.values().get(joinId)
       joinFuture.get()
     } match {
