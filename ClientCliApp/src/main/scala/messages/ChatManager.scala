@@ -23,7 +23,9 @@ import concurrent.ExecutionContext.Implicits.global
 
 
 /**
- * TODO rewrite this to class it is easier to test
+ *
+ * @param me
+ * @param topicCreated
  */
 class ChatManager(var me: User, var topicCreated: Boolean = false):
 
@@ -55,24 +57,17 @@ class ChatManager(var me: User, var topicCreated: Boolean = false):
 
 
   /**
-   * 
+   * In this method
+   * We set our joining consumer to read from our
+   * joining topic starting from our last read offset.
+   * that even if we find in topic invitation to chat,
+   * which is currently written in in DB, This invitation
+   * will not show up twice (See future value below).
+   * Note
+   * This call may throw exception. We do not handle it because
    */
   private def startListener(): Unit =
-    /*
-        We set our joining consumer to read from our
-        joining topic starting from our last read offset.
-        Not that even if we find in topic invitation to chat,
-        which is currently written in in DB, This invitation
-        will not show up twice (See future value below).
-        Note
-         This call may throw exception. We do not handle it because
-       */
     joinConsumer.seek(new TopicPartition(Domain.generateJoinId(me.userId), 0), joinOffset)
-
-
-    /*
-      Start Future in which we listen invitations to chats.
-    */
     optionListener = Some(
       Future {
         while (continueChecking.get()) {
@@ -106,7 +101,7 @@ class ChatManager(var me: User, var topicCreated: Boolean = false):
 
 
   /**
-   * 
+   *
    * @return
    */
   private def tryStartAndHandleError(): Option[KafkaError] =
@@ -114,24 +109,21 @@ class ChatManager(var me: User, var topicCreated: Boolean = false):
       case Failure(ex) =>
         KafkaErrorsHandler.handle(ex) match {
           case Left(kafkaError) => Some (kafkaError)
-          case Right(_)         => None // this will never be called 
+          case Right(_)         => None // this will never be called
         }
       case Success(_) => None
     }
 
 
   /**
-   * 
+   *
    * @return
    */
-  def startListening(): Option[KafkaError] = 
+  def startListening(): Option[KafkaError] =
     if topicCreated then tryStartAndHandleError()
     else
-      /*
-        Here we try to create topic
-      */
       KessengerAdmin.createJoiningTopic(me.userId) match {
-        case Left(kafkaError) => Some(kafkaError) 
+        case Left(kafkaError) => Some(kafkaError)
         case Right(_) => // joining topic created without errors
           me = me.copy(joiningOffset = 0L) // we need to change joining offset because in db is set to -1
           MyAccount.updateUser(me)
@@ -156,15 +148,17 @@ class ChatManager(var me: User, var topicCreated: Boolean = false):
         sendInvitations(users, chat)
       else
         joinProducer.initTransactions()
-      sendInvitations(users, chat)
+        sendInvitations(users, chat)
         transactionInitialized = true
     } match {
-      case Failure(ex) => KafkaErrorsHandler.handle[Chat](ex)
+      case Failure(ex) =>
+        restartProducer()
+        KafkaErrorsHandler.handle[Chat](ex)
       case Success(_)  => Right(chat)
     }
 
   /**
-   * 
+   *
    * @param users
    * @param chat
    */
@@ -186,41 +180,22 @@ class ChatManager(var me: User, var topicCreated: Boolean = false):
    * and creating another producer object.
    */
   private def restartProducer(): Unit =
-    optionJoinProducer match {
-      case Some( producer ) =>
-        producer.abortTransaction()
-        producer.close()
-      case None => ()
-    }
-    recreateProducer()
-
-
-  private def recreateProducer(): Unit =
-    optionJoinProducer = Some( KessengerAdmin.createJoiningProducer(me.userId) )
+    joinProducer.abortTransaction()
+    joinProducer.close()
+    joinProducer = KessengerAdmin.createJoiningProducer(me.userId)
 
 
 
-
-
-
-
+  /**
+   *
+   */
   def closeChatManager(): Unit =
-    optionJoinProducer match {
-      case Some( producer ) => producer.close()
-      case None => ()
-    }
+    joinProducer.close()
     continueChecking.set(false)
-    if future != null then
-
-      future.onComplete(tryy => {
-        tryy match {
-          case Failure(ex) => ()
-          case Success(value) => ???
-        }
-
-        optionJoinConsumer.get.close()
+    if optionListener.isDefined then
+      optionListener.get.onComplete(tryy =>
         println(s"join consumer closed.")
-      })
+      )
 
 
 
