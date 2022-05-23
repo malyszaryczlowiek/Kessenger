@@ -96,14 +96,7 @@ object ProgramExecutor :
         signIn()
       case Right(user) => // user found
         MyAccount.initialize(user) match {
-
           // todo tutaj zmienić tak aby obsługiwał wszystkie przypadki
-
-
-
-
-
-
 
           case Left(errorsTuple) =>
             errorsTuple match {
@@ -284,6 +277,7 @@ object ProgramExecutor :
       }
 
 
+
   @tailrec
   private def selectChatName(users: List[User]): Option[Chat] =
     println(s"Please select name for chat or type #end to escape chat creation.")
@@ -291,18 +285,24 @@ object ProgramExecutor :
     val name = readLine()
     if name == "#end" then Option.empty[Chat]
     else if ChatNameValidator.isValid(name) then
-      ExternalDB.createChat(users, name) match {
-        case Left(queryErrors: QueryErrors) =>
-          println(s"${queryErrors.listOfErrors.head.description}")
+      manager match {
+        case Some(chatManager: ChatManager) =>
+          ExternalDB.createChat(users, name) match {
+            case Left(queryErrors: QueryErrors) =>
+              println(s"${queryErrors.listOfErrors.head.description}")
+              Option.empty[Chat]
+            case Right(chat) =>
+              chatManager.askToJoinChat(users, chat) match {
+                case Left(kafkaError: KafkaError) =>
+                  // if some gone wrong
+                  println(s"Error, cannot create chat. ${kafkaError.description}")
+                  Option.empty[Chat]
+                case Right(createdChat) => Some(createdChat)
+              }
+          }
+        case None =>
+          println(s"Some error, please try to log in again for a while.")
           Option.empty[Chat]
-        case Right(chat) =>
-          ChatManager.askToJoinChat(users, chat)  // TODO zmień na klasę chat managera
-
-          // TODO send invitations to other
-          // TODO send first message with information of chat creation
-          None
-
-
       }
     else
       println(s"Chat name '$name' is invalid.\nMay contain only letters, numbers, whitespaces and underscores.")
@@ -369,11 +369,11 @@ object ProgramExecutor :
         print("> ")
         val pass2 = console.readPassword()
         if pass2 != null && pass1.toSeq == pass2.toSeq then
-          // probably must call gc() to remove pass1 and pass2
+          // probably must call gc() to remove pass1 and pass2 from heap
           println("Passwords matched.")
           val salt = PasswordConverter.generateSalt
           PasswordConverter.convert(pass2.mkString(""), salt) match {
-            case Left(value) =>
+            case Left(_) =>
               println("Undefined error, try again")
               setPassword(login, s)
             case Right(p) =>
@@ -383,27 +383,17 @@ object ProgramExecutor :
                   println(s"You are moved back to User Creator.")
                   createAccount()
                 case Right(user: User) =>
-                  MyAccount.initializeAfterCreation(user) match {   // TODo tutaj zmienić pattern matching
-
-
-
-
-
-
-                    case Left(kafkaError) =>
-                      println(s"System Error: ${kafkaError.description}.")
-                      println(s"You cannot get invitations to chat from other users.")
-                      println(s"Try to log in in a few minutes.")
-                      printMenu()
-                    case Right(user) =>
-                      ExternalDB.updateJoiningOffset(user, 0L) match {
-                        case Right(offset)                  => printMenu() // offset updated in db
-                        case Left(queryErrors: QueryErrors) =>
-                          println(s"Error: ${queryErrors.listOfErrors.head.description}")
-
-
-
+                  MyAccount.initializeAfterCreation(user) match {
+                    case Left((dbError, kafkaError)) =>
+                      (dbError, kafkaError) match {
+                        case (Some(db), None)      => println(s"${db.listOfErrors.head.description}")
+                        case (None, Some(kaf))     => println(s"${kaf.description}")
+                        case (Some(db), Some(kaf)) =>
+                          println(s"${db.listOfErrors.head.description}")
+                          println(s"${kaf.description}")
+                        case _                     => println(s"Undefined Error") // not reachable
                       }
+                    case Right(chatManager: ChatManager) => manager = Some(chatManager) // and we return to menu
                   }
                 case _ =>
                   println("Undefined error.")
