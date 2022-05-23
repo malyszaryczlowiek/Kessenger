@@ -22,6 +22,9 @@ import com.github.malyszaryczlowiek.util.{ChatNameValidator, PasswordConverter}
 
 object ProgramExecutor :
 
+  private var manager: Option[ChatManager] = None
+
+
   @tailrec
   def runProgram(args: Array[String]): Unit =
     val length = args.length
@@ -92,31 +95,41 @@ object ProgramExecutor :
         println(s"$description")
         signIn()
       case Right(user) => // user found
-        KessengerAdmin.startAdmin(new KafkaProductionConfigurator)
         MyAccount.initialize(user) match {
+
+          // todo tutaj zmienić tak aby obsługiwał wszystkie przypadki
+
+
+
+
+
+
+
           case Left(errorsTuple) =>
             errorsTuple match {
               case (Some(dbError), None)     =>
                 println(s"${dbError.listOfErrors.head.description}")
                 printMenu()
               case (None, Some(kafkaError))  =>
-                kafkaError match {
-                  case KafkaError(KafkaErrorType.Error, KafkaErrorMessage.ChatExistsError) => // here we handle problem when joining topic exists but we cannot update joining offset in db
-                    ExternalDB.updateJoiningOffset(user, 0L) match {
-                      case Right(user) =>
-                        MyAccount.updateUser(user)
-                        println(s"Users data updated. ")
-                        printMenu()
-                      case Left(dbError: QueryErrors) =>
-                        println(s"${dbError.listOfErrors.head.description}")
-                        printMenu()
-                    }
-                  case _ =>
-                    println(s"${kafkaError.description}")
-                    printMenu()
-                }
-              case (Some(dbEr), Some(kafEr)) =>
 
+                // TODO
+//                kafkaError match {
+//                  case KafkaError(_, KafkaErrorMessage.ChatExistsError) => // here we handle problem when joining topic exists but we cannot update joining offset in db
+//                    ExternalDB.updateJoiningOffset(user, 0L) match {
+//                      case Right(user) =>
+//                        MyAccount.updateUser(user)
+//                        println(s"Users data updated. ")
+//                        printMenu()
+//                      case Left(dbError: QueryErrors) =>
+//                        println(s"${dbError.listOfErrors.head.description}")
+//                        printMenu()
+//                    }
+//                  case _ =>
+//                    println(s"${kafkaError.description}")
+//                    printMenu()
+//                }
+              case (Some(dbEr), Some(kafEr)) =>
+                // TODO implement
               case (None, None)              => () // Not reachable
             }
           case Right(_) => printMenu()
@@ -283,7 +296,7 @@ object ProgramExecutor :
           println(s"${queryErrors.listOfErrors.head.description}")
           Option.empty[Chat]
         case Right(chat) =>
-          ChatManager.askToJoinChat(users, chat)
+          ChatManager.askToJoinChat(users, chat)  // TODO zmień na klasę chat managera
 
           // TODO send invitations to other
           // TODO send first message with information of chat creation
@@ -365,13 +378,18 @@ object ProgramExecutor :
               setPassword(login, s)
             case Right(p) =>
               ExternalDB.createUser(login, p, salt) match {
-                case Left(QueryErrors(l @ List(QueryError(queryErrorType, description)))) =>
+                case Left(QueryErrors(List(QueryError(queryErrorType, description)))) =>
                   println(s"Error: $description")
                   println(s"You are moved back to User Creator.")
                   createAccount()
                 case Right(user: User) =>
-                  KessengerAdmin.startAdmin(new KafkaProductionConfigurator)
-                  MyAccount.initializeAfterCreation(user) match {
+                  MyAccount.initializeAfterCreation(user) match {   // TODo tutaj zmienić pattern matching
+
+
+
+
+
+
                     case Left(kafkaError) =>
                       println(s"System Error: ${kafkaError.description}.")
                       println(s"You cannot get invitations to chat from other users.")
@@ -384,8 +402,7 @@ object ProgramExecutor :
                           println(s"Error: ${queryErrors.listOfErrors.head.description}")
 
 
-                          // TODO co zrobić gdy joining topic zostanie utworzony
-                          //   ale nie zostanie to zaktualizowane w DB
+
                       }
                   }
                 case _ =>

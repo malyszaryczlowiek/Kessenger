@@ -56,6 +56,41 @@ class ChatManager(var me: User, var topicCreated: Boolean = false):
   private var optionListener: Option[Future[Unit]] = None
 
 
+
+
+
+  /**
+   *
+   * @return
+   */
+  def startListening(): Option[KafkaError] =
+    if topicCreated then tryStartAndHandleError()
+    else
+      KessengerAdmin.createJoiningTopic(me.userId) match {
+        case Left(kafkaError) => Some(kafkaError)
+        case Right(_) => // joining topic created without errors
+          me = me.copy(joiningOffset = 0L) // we need to change joining offset because in db is set to -1
+          MyAccount.updateUser(me)
+          joinOffset = 0L
+          tryStartAndHandleError()
+      }
+
+
+
+  /**
+   *
+   * @return
+   */
+  private def tryStartAndHandleError(): Option[KafkaError] =
+    Try { startListener() } match {
+      case Failure(ex) =>
+        KafkaErrorsHandler.handle(ex) match {
+          case Left(kafkaError) => Some (kafkaError)
+          case Right(_)         => None // this will never be called
+        }
+      case Success(_) => None
+    }
+
   /**
    * In this method
    * We set our joining consumer to read from our
@@ -68,6 +103,16 @@ class ChatManager(var me: User, var topicCreated: Boolean = false):
    */
   private def startListener(): Unit =
     joinConsumer.seek(new TopicPartition(Domain.generateJoinId(me.userId), 0), joinOffset)
+    // this may throw IllegalArgumentException if joining topic exists but in db we do not have updated offset
+    // and inserted value of joinOffset (taken from db) is -1.
+    if optionListener.isDefined then continueChecking.set(false)
+      // not matter if optionListener returned error or ended normally, we simply reassign it
+    assignOptionListener()
+
+
+
+
+  private def assignOptionListener(): Unit =
     optionListener = Some(
       Future {
         while (continueChecking.get()) {
@@ -86,7 +131,7 @@ class ChatManager(var me: User, var topicCreated: Boolean = false):
                     case None =>
                       users.find(_.userId == userID) match {
                         case Some(user) => println(s"You got invitation from ${user.login} to chat ${chat.chatName} ")
-                        case None => println(s"Warning!?! Inviting user not found???")
+                        case None       => println(s"Warning!?! Inviting user not found???")
                       }
                       MyAccount.addChat(chat, users)
                   }
@@ -99,36 +144,6 @@ class ChatManager(var me: User, var topicCreated: Boolean = false):
       }
     )
 
-
-  /**
-   *
-   * @return
-   */
-  private def tryStartAndHandleError(): Option[KafkaError] =
-    Try { startListener() } match {
-      case Failure(ex) =>
-        KafkaErrorsHandler.handle(ex) match {
-          case Left(kafkaError) => Some (kafkaError)
-          case Right(_)         => None // this will never be called
-        }
-      case Success(_) => None
-    }
-
-
-  /**
-   *
-   * @return
-   */
-  def startListening(): Option[KafkaError] =
-    if topicCreated then tryStartAndHandleError()
-    else
-      KessengerAdmin.createJoiningTopic(me.userId) match {
-        case Left(kafkaError) => Some(kafkaError)
-        case Right(_) => // joining topic created without errors
-          me = me.copy(joiningOffset = 0L) // we need to change joining offset because in db is set to -1
-          MyAccount.updateUser(me)
-          tryStartAndHandleError()
-      }
 
 
   /**
@@ -156,6 +171,8 @@ class ChatManager(var me: User, var topicCreated: Boolean = false):
         KafkaErrorsHandler.handle[Chat](ex)
       case Success(_)  => Right(chat)
     }
+
+
 
   /**
    *
@@ -189,15 +206,26 @@ class ChatManager(var me: User, var topicCreated: Boolean = false):
   /**
    *
    */
-  def closeChatManager(): Unit =
-    joinProducer.close()
-    continueChecking.set(false)
-    if optionListener.isDefined then
-      optionListener.get.onComplete(tryy =>
-        println(s"join consumer closed.")
-      )
+  def closeChatManager(): Option[KafkaError] =
+    Try {
+      joinProducer.close()
+      continueChecking.set(false)
+      if optionListener.isDefined then
+        optionListener.get.onComplete(tryy =>
+          println(s"join consumer closed.")
+        )
+    } match {
+      case Failure(ex) =>
+        KafkaErrorsHandler.handle(ex) match {
+          case Left(kafkaError: KafkaError) => Option(kafkaError)
+          case Right(value)                 => None // this never will be called
+        }
+      case Success(_) => None
+    }
 
 
+
+  def updateOffset(offset: Long): Unit = joinOffset = offset
 
 
 

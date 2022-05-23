@@ -25,19 +25,16 @@ import scala.jdk.javaapi.CollectionConverters
  */
 object KessengerAdmin {
 
-  // private var me: User = _
   private var admin: Admin = _
   private var configurator: KafkaConfigurator = _
-  // private val chatProducer = createChatProducer
 
 
-  def startAdmin(conf: KafkaConfigurator): Try[Any] =
-    Try {
-      configurator = conf
-      val properties = new Properties
-      properties.put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, configurator.SERVERS)
-      admin = Admin.create(properties)
-    }
+  def startAdmin(conf: KafkaConfigurator): Unit =
+    configurator = conf
+    val properties = new Properties
+    properties.put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, configurator.SERVERS)
+    admin = Admin.create(properties)
+
 
 
   def closeAdmin(): Unit = admin.close()
