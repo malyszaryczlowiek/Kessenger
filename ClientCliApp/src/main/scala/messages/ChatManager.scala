@@ -84,7 +84,7 @@ class ChatManager(var me: User, var topicCreated: Boolean = false):
   private def tryStartAndHandleError(): Option[KafkaError] =
     Try { startListener() } match {
       case Failure(ex) =>
-        KafkaErrorsHandler.handle(ex) match {
+        KafkaErrorsHandler.handleThrowable(ex) match {
           case Left(kafkaError) => Some (kafkaError)
           case Right(_)         => None // this will never be called
         }
@@ -168,7 +168,7 @@ class ChatManager(var me: User, var topicCreated: Boolean = false):
     } match {
       case Failure(ex) =>
         restartProducer()
-        KafkaErrorsHandler.handle[Chat](ex)
+        KafkaErrorsHandler.handleThrowable[Chat](ex)
       case Success(_)  => Right(chat)
     }
 
@@ -216,7 +216,7 @@ class ChatManager(var me: User, var topicCreated: Boolean = false):
         )
     } match {
       case Failure(ex) =>
-        KafkaErrorsHandler.handle(ex) match {
+        KafkaErrorsHandler.handleThrowable(ex) match {
           case Left(kafkaError: KafkaError) => Option(kafkaError)
           case Right(value)                 => None // this never will be called
         }

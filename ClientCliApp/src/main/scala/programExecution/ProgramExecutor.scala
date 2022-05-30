@@ -96,36 +96,23 @@ object ProgramExecutor :
         signIn()
       case Right(user) => // user found
         MyAccount.initialize(user) match {
-          // todo tutaj zmienić tak aby obsługiwał wszystkie przypadki
-
           case Left(errorsTuple) =>
             errorsTuple match {
               case (Some(dbError), None)     =>
                 println(s"${dbError.listOfErrors.head.description}")
                 printMenu()
               case (None, Some(kafkaError))  =>
-
-                // TODO
-//                kafkaError match {
-//                  case KafkaError(_, KafkaErrorMessage.ChatExistsError) => // here we handle problem when joining topic exists but we cannot update joining offset in db
-//                    ExternalDB.updateJoiningOffset(user, 0L) match {
-//                      case Right(user) =>
-//                        MyAccount.updateUser(user)
-//                        println(s"Users data updated. ")
-//                        printMenu()
-//                      case Left(dbError: QueryErrors) =>
-//                        println(s"${dbError.listOfErrors.head.description}")
-//                        printMenu()
-//                    }
-//                  case _ =>
-//                    println(s"${kafkaError.description}")
-//                    printMenu()
-//                }
+                println(s"${kafkaError.description}")
+                printMenu()
               case (Some(dbEr), Some(kafEr)) =>
-                // TODO implement
-              case (None, None)              => () // Not reachable
+                println(s"${dbEr.listOfErrors.head.description}")
+                println(s"${kafEr.description}")
+              case (None, None)              =>
+                printMenu() // Not reachable
             }
-          case Right(_) => printMenu()
+          case Right(chatManager: ChatManager) =>
+            manager = Some(chatManager)
+            printMenu()
         }
       case _ =>  // not reachable
         println("Other problem.")
@@ -333,7 +320,8 @@ object ProgramExecutor :
    * In this method we can change our password
    * and login (if is not taken).
    */
-  private def showSettings(): Unit = ???
+  private def showSettings(): Unit =
+    println(s"This functionality will be implemented in further versions.")
 
 
   /*

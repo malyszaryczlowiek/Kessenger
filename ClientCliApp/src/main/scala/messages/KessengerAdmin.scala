@@ -10,7 +10,7 @@ import org.apache.kafka.clients.consumer.{ConsumerConfig, KafkaConsumer}
 import org.apache.kafka.clients.producer.{KafkaProducer, ProducerConfig}
 import org.apache.kafka.common.KafkaFuture
 import org.apache.kafka.common.config.TopicConfig
-
+import java.time.Duration
 import java.util.concurrent.TimeUnit
 import java.util.{Collections, Properties, UUID}
 import scala.util.{Failure, Success, Try}
@@ -36,15 +36,22 @@ object KessengerAdmin {
     admin = Admin.create(properties)
 
 
-
-  def closeAdmin(): Unit = admin.close()
+  /**
+   * note we handle TimeoutException but not return it.
+   * For user it does not matter if we close this correctly.
+   */
+  def closeAdmin(): Unit =
+    Try { admin.close(Duration.ofMillis(5000)) } match {
+      case Failure(_) => {}
+      case Success(_) => {}
+    }
 
 
   // topic creation
 
   def createNewChat(chat: Chat): Either[KafkaError, ChatId] = // , writingId: WritingId
     Try {
-      val partitionsNum = configurator.TOPIC_PARTITIONS_NUMBER
+      val partitionsNum: Int       = configurator.TOPIC_PARTITIONS_NUMBER
       val replicationFactor: Short = configurator.TOPIC_REPLICATION_FACTOR
       val chatConfig: java.util.Map[String, String] = CollectionConverters.asJava(
         Map(
@@ -61,7 +68,7 @@ object KessengerAdmin {
       talkFuture.get(5L, TimeUnit.SECONDS)
       Right(chat.chatId)
     } match {
-      case Failure(ex)    => KafkaErrorsHandler.handle[ChatId](ex)
+      case Failure(ex)    => KafkaErrorsHandler.handleThrowable[ChatId](ex)
       case Success(right) => right
     }
 
@@ -71,6 +78,7 @@ object KessengerAdmin {
    * @param writingId
    * @return
    */
+  @deprecated
   def removeChat(chat: Chat): Either[KafkaError, ChatId] =
     Try {
       val deleteTopicResult: DeleteTopicsResult = admin.deleteTopics(java.util.List.of(chat.chatId))
@@ -78,13 +86,14 @@ object KessengerAdmin {
       if topicMap.nonEmpty && topicMap.size == 1 then
         val optionKafkaFuture = topicMap.get(chat.chatId)
         optionKafkaFuture.get // may throw NoSuchElementException
-          .get(2L, TimeUnit.SECONDS) // we give two seconds to complete removing chat // may throw  InterruptedException ExecutionException TimeoutException
+          .get(5L, TimeUnit.SECONDS) // we give five seconds to complete removing chat
+          // may throw  InterruptedException ExecutionException TimeoutException
         Right( topicMap.keys.head )
       else
         Left( KafkaError(KafkaErrorType.FatalError, KafkaErrorMessage.UndefinedError) )
     } match {
       case Success(either) => either
-      case Failure(ex)     => KafkaErrorsHandler.handle[ChatId](ex)
+      case Failure(ex)     => KafkaErrorsHandler.handleWithErrorMessage[ChatId](ex)
     }
 
   def createChatProducer: KafkaProducer[String, String] =
@@ -135,29 +144,31 @@ object KessengerAdmin {
   /**
    * Each user must have unique topic to ask him to join any chat.
    *
+   *
    * @param joinId
    * @return
    */
   def createJoiningTopic(userID: UserID): Either[KafkaError, Unit] =
     Try {
       val joinId: JoinId = Domain.generateJoinId(userID)
-      val partitionsNum = 1
-      val replicationFactor: Short = 3
+      val partitionsNum: Int       = configurator.TOPIC_PARTITIONS_NUMBER
+      val replicationFactor: Short = configurator.TOPIC_REPLICATION_FACTOR
       val talkConfig: java.util.Map[String, String] = CollectionConverters.asJava(
         Map(
           TopicConfig.CLEANUP_POLICY_CONFIG -> TopicConfig.CLEANUP_POLICY_DELETE,
-          TopicConfig.RETENTION_MS_CONFIG -> "-1" // keep all logs forever
+          TopicConfig.RETENTION_MS_CONFIG   -> "-1" // keep all logs forever
         )
       )
       val joinTopic = new NewTopic(joinId, partitionsNum, replicationFactor).configs(talkConfig)
       val result: CreateTopicsResult    = admin.createTopics(java.util.List.of(joinTopic))
       val joinFuture: KafkaFuture[Void] = result.values().get(joinId)
-      joinFuture.get()
+
+      // this may block max 10s, it is important when kafka broker is down.
+      // normally (when we call get()) it takes ~30s
+      joinFuture.get(5_000, TimeUnit.MILLISECONDS)
     } match {
-      case Failure(ex) => KafkaErrorsHandler.handle[Unit](ex)
-      case Success(_)  =>
-        val unit: Unit = ()
-        Right(unit)
+      case Failure(ex) => KafkaErrorsHandler.handleWithErrorMessage[Unit](ex)
+      case Success(_)  => Right({}) //val unit: Unit = ()
     }
 
 

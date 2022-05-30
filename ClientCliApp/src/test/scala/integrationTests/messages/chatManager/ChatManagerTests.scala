@@ -1,15 +1,16 @@
 package com.github.malyszaryczlowiek
-package integrationTests.messages
+package integrationTests.messages.chatManager
 
 import com.github.malyszaryczlowiek.domain.User
-import com.github.malyszaryczlowiek.messages.{Chat, ChatExecutor, KessengerAdmin}
 import com.github.malyszaryczlowiek.messages.kafkaConfiguration.KafkaTestConfigurator
+import com.github.malyszaryczlowiek.messages.{Chat, ChatExecutor, ChatManager, KessengerAdmin}
+import com.github.malyszaryczlowiek.messages.kafkaErrorsUtil.KafkaError
 
 import java.time.LocalDateTime
 import java.util.UUID
 import scala.collection.immutable.{AbstractMap, SeqMap, SortedMap}
+import scala.sys.process.*
 import scala.util.{Failure, Success}
-import sys.process.*
 
 
 /**
@@ -21,7 +22,10 @@ import sys.process.*
 class ChatManagerTests extends munit.FunSuite {
 
   val pathToScripts = "./src/test/scala/integrationTests/messages"
-  val waitingTimeMS = 5000
+  //val waitingTimeMS = 5000
+  private var user: User = _
+
+
 
   override def beforeAll(): Unit =
     val makeZookeeperStartScriptExecutable = s"chmod +x ${pathToScripts}/startZookeeper".!!
@@ -38,6 +42,8 @@ class ChatManagerTests extends munit.FunSuite {
 
     val makeCreateTopicScriptExecutable = s"chmod +x ${pathToScripts}/createTopic".!!
     println( makeCreateTopicScriptExecutable )
+
+    user = User(UUID.randomUUID(), "Login")
 
     super.beforeAll()
 
@@ -77,14 +83,55 @@ class ChatManagerTests extends munit.FunSuite {
   override def afterAll(): Unit = super.afterAll()
 
   private def createTopic(topicName: String): Unit =
-    val createTopic = s"./${pathToScripts}/createTopic $topicName".!!
+    val createTopic = s"./$pathToScripts/createTopic $topicName".!!
     println( createTopic )
+
+
+  /**
+   * Start ChatManager when
+   * 1. joining topic not exists
+   * 2. topic created is set to false
+   * 3. users offset is set to -1
+   *
+   * and we set proper value
+   */
+  test("Joining topic not exists.") {
+
+    //KessengerAdmin.startAdmin(new KafkaTestConfigurator)
+
+    // val manager = new ChatManager(user.copy(joiningOffset = -1L))
+    val manager = new ChatManager(user)
+
+    manager.startListening() match {
+      case Some(error: KafkaError) => assert(false,
+        s"Should return None object but returned ${error.description}")
+      case None => assert(true)
+    }
+
+
+  }
+
+
+
+
+
+
+  /**
+   * Start ChatManager when joining topic exists and we
+   * set proper value
+   */
+  test("Joining topic .") {
+
+  }
+
+
+
 
 
 //  test("create topic") {
 //    val fakeChat = Chat("fake-chat-id", "fake-chat-name", false, 0L, LocalDateTime.now())
 //    KessengerAdmin.createNewChat(fakeChat) match {
-//      case Left(kafkaErrors: KafkaErrors)  => assert(false,s"should not return any kafkaError")
+//      case Left(kafkaErrors: KafkaError)  => assert(false,s"should not return any kafkaError")
 //      case Right(value)                    => assert(value == fakeChat.chatId, s"$value")
 //    }
 //  }
