@@ -1,12 +1,12 @@
 package com.github.malyszaryczlowiek
 package integrationTests.messages.kessengerAdmin
 
-import com.github.malyszaryczlowiek.domain.Domain.{Login, UserID}
-import com.github.malyszaryczlowiek.domain.Domain
-import com.github.malyszaryczlowiek.domain.User
-import com.github.malyszaryczlowiek.messages.kafkaConfiguration.KafkaTestConfigurator
-import com.github.malyszaryczlowiek.messages.{Chat, ChatExecutor, ChatManager, KessengerAdmin}
-import com.github.malyszaryczlowiek.messages.kafkaErrorsUtil.{KafkaError, KafkaErrorMessage}
+import domain.Domain.{Login, UserID}
+import domain.Domain
+import domain.User
+import messages.{Chat, ChatExecutor, ChatManager, KessengerAdmin}
+import messages.kafkaErrorsUtil.{KafkaError, KafkaErrorMessage}
+import integrationTests.messages.KafkaIntegrationTestsTrait
 
 import java.time.LocalDateTime
 import scala.sys.process.*
@@ -14,87 +14,7 @@ import scala.util.{Failure, Success}
 import java.util.UUID
 
 
-class KessengerAdminTests extends munit.FunSuite :
-
-
-  val pathToScripts = "./src/test/scala/integrationTests/scripts"
-  //val waitingTimeMS = 5000
-  private var user: User = _
-  private var isKafkaBrokerRunning = true
-
-
-
-
-  override def beforeAll(): Unit =
-    super.beforeAll()
-
-    val makeZookeeperStartScriptExecutable = s"chmod +x ${pathToScripts}/startZookeeper".!!
-    println( makeZookeeperStartScriptExecutable )
-
-    val makeZookeeperStopScriptExecutable = s"chmod +x ${pathToScripts}/stopZookeeper".!!
-    println( makeZookeeperStopScriptExecutable )
-
-    val makeKafkaStartScriptExecutable = s"chmod +x ${pathToScripts}/startKafka".!!
-    println( makeKafkaStartScriptExecutable )
-
-    val makeKafkaStopScriptExecutable = s"chmod +x ${pathToScripts}/stopKafka".!!
-    println( makeKafkaStopScriptExecutable )
-
-    val makeCreateTopicScriptExecutable = s"chmod +x ${pathToScripts}/createTopic".!!
-    println( makeCreateTopicScriptExecutable )
-
-    user = User(UUID.randomUUID(), "Login")
-
-
-
-  /**
-   * Before each test we start fresh kafka broker
-   * @param context
-   */
-  override def beforeEach(context: BeforeEach): Unit =
-    super.beforeEach(context)
-    isKafkaBrokerRunning = true
-    val outputOfZookeeperStarting = s"./${pathToScripts}/startZookeeper".!!
-    Thread.sleep(50) // wait for zookeeper initialization
-    val outputOfKafkaStarting = s"./${pathToScripts}/startKafka".!!
-    println(s"Created kafka-test-container container")
-    Thread.sleep(50)
-    KessengerAdmin.startAdmin(new KafkaTestConfigurator)
-
-
-
-  /**
-   * Closing kafka broker after each test.
-   * @param context
-   */
-  override def afterEach(context: AfterEach): Unit =
-    KessengerAdmin.closeAdmin()
-    if isKafkaBrokerRunning then
-      switchOffKafkaBroker()
-//    val outputOfKafkaStopping = s"./${pathToScripts}/stopKafka".!!
-//    val name = outputOfKafkaStopping.split('\n')
-//    println( s"Stopped ${name(0)} container\nDeleted ${name(1)} container" )
-    Thread.sleep(50)
-    val outputOfZookeeperStopping = s"./${pathToScripts}/stopZookeeper".!!
-    val names = outputOfZookeeperStopping.split('\n')
-    println( s"Stopped ${names(0)} container\nDeleted ${names(1)} container\nDeleted \'${names(2)}\' docker testing network" )
-    super.afterEach(context)
-
-  /**
-   * closing zookeeper and removing local docker testing network
-   * after all tests.
-   */
-  override def afterAll(): Unit = super.afterAll()
-
-
-  private def switchOffKafkaBroker(): Unit =
-    val outputOfKafkaStopping = s"./${pathToScripts}/stopKafka".!!
-    val name = outputOfKafkaStopping.split('\n')
-    println( s"Stopped ${name(0)} container\nDeleted ${name(1)} container" )
-    isKafkaBrokerRunning = false
-
-
-
+class KessengerAdminTests extends KafkaIntegrationTestsTrait:
 
 
   /*

@@ -1,16 +1,14 @@
 package com.github.malyszaryczlowiek
 package unitTests.messages.kafkaErrorsUtil
 
-//import com.github.malyszaryczlowiek.messages.kafkaErrorsUtil.KafkaErrorsHandler
-import com.github.malyszaryczlowiek.messages.kafkaErrorsUtil.*//{KafkaErrorsHandler,KafkaError, KafkaErrorMessage, KafkaErrorType}
-//import org.apache.kafka.common.errors.TopicExistsException
+import messages.kafkaErrorsUtil.*
 import org.apache.kafka.common.errors.*
 
 
 
 class KafkaErrorHandlerTests extends munit.FunSuite:
 
-  test("KafkaErrorsHandler.handleThrowable() method correctly handle General Throwable error type") {
+  test("KafkaErrorsHandler.handleThrowable() (deprecated) method correctly handle General Throwable error type") {
 
     val error: Throwable = new TopicExistsException("Topic name")
 

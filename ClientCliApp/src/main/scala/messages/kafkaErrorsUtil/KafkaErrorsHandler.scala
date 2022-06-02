@@ -44,7 +44,7 @@ object KafkaErrorsHandler :
 
 
   @deprecated(message = "Marked as deprecated due to not proper work. " +
-    "Should use KafkaErrorsHandler.handleWithErrorMessage[A](ex: Throwable)")
+    "Should use KafkaErrorsHandler.handleWithErrorMessage[A](ex: Throwable) instead.")
   def handleWithErrorType[A, E <: Throwable](ex: E): Either[KafkaError, A] =
     try { throw ex }
     catch {
@@ -66,7 +66,7 @@ object KafkaErrorsHandler :
 
 
   @deprecated(message = "Marked as deprecated due to not proper work. " +
-    "Should use KafkaErrorsHandler.handleWithErrorMessage[A](ex: Throwable)")
+    "Should use KafkaErrorsHandler.handleWithErrorMessage[A](ex: Throwable) instead.")
   def handleThrowable[A](ex: Throwable): Either[KafkaError, A] =
     try { throw ex }
     catch {

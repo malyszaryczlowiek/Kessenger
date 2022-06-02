@@ -21,7 +21,7 @@ import scala.util.{Failure, Success}
  */
 class ChatManagerTests extends munit.FunSuite {
 
-  val pathToScripts = "./src/test/scala/integrationTests/messages"
+  val pathToScripts = "./src/test/scala/integrationTests/scripts"
   //val waitingTimeMS = 5000
   private var user: User = _
 
