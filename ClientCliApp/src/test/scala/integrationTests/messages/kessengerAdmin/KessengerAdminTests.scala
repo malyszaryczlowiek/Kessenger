@@ -6,8 +6,9 @@ import com.github.malyszaryczlowiek.domain.Domain
 import com.github.malyszaryczlowiek.domain.User
 import com.github.malyszaryczlowiek.messages.kafkaConfiguration.KafkaTestConfigurator
 import com.github.malyszaryczlowiek.messages.{Chat, ChatExecutor, ChatManager, KessengerAdmin}
-import com.github.malyszaryczlowiek.messages.kafkaErrorsUtil.{KafkaError, KafkaErrorMessage, KafkaErrorType}
+import com.github.malyszaryczlowiek.messages.kafkaErrorsUtil.{KafkaError, KafkaErrorMessage}
 
+import java.time.LocalDateTime
 import scala.sys.process.*
 import scala.util.{Failure, Success}
 import java.util.UUID
@@ -16,7 +17,7 @@ import java.util.UUID
 class KessengerAdminTests extends munit.FunSuite :
 
 
-  val pathToScripts = "./src/test/scala/integrationTests/messages"
+  val pathToScripts = "./src/test/scala/integrationTests/scripts"
   //val waitingTimeMS = 5000
   private var user: User = _
   private var isKafkaBrokerRunning = true
@@ -163,9 +164,63 @@ class KessengerAdminTests extends munit.FunSuite :
 
 
   /*
-  Testing chat creation
+  Testing chat topic creation
   */
 
+  test("Creating chat topic should return ") {
+
+    val chatId = Domain.generateChatId(UUID.randomUUID(), UUID.randomUUID())
+    val chat : Chat = Chat(chatId, "Chat name", false, 0L, LocalDateTime.now())
+
+    KessengerAdmin.createNewChat(chat) match {
+      case Left(KafkaError(_, description: KafkaErrorMessage))
+        => assert(false, s"should return right with chat: $chat")
+      case Right(returnedChat)
+        => assert(returnedChat == chat, s"chats do not match.")
+    }
+  }
+
+
+
+  test("If chat already exists, should return KafkaErrorMessage.ServerError"){
+
+    val chatId = Domain.generateChatId(UUID.randomUUID(), UUID.randomUUID())
+    val chat : Chat = Chat(chatId, "Chat name", false, 0L, LocalDateTime.now())
+
+    KessengerAdmin.createNewChat(chat) match {
+      case Left(KafkaError(_, description: KafkaErrorMessage))
+        => throw new IllegalStateException("Should return Right")
+      case Right(returnedChat)
+        => assert(returnedChat == chat, s"chats do not match.")
+    }
+
+    KessengerAdmin.createNewChat(chat) match {
+      case Left(KafkaError(_, description: KafkaErrorMessage))
+        => assert(description == KafkaErrorMessage.ServerError, s"should return KafkaErrorMessage.ServerError.")
+      case Right(returnedChat)
+        => assert(false, s"Should return KafkaErrorMessage.ServerError.")
+    }
+
+  }
+
+
+  test("If kafka broker is down, should return KafkaErrorMessage.ServerError"){
+
+    val chatId = Domain.generateChatId(UUID.randomUUID(), UUID.randomUUID())
+    val chat : Chat = Chat(chatId, "Chat name", false, 0L, LocalDateTime.now())
+
+    // turn off kafka broker
+    switchOffKafkaBroker()
+
+
+    KessengerAdmin.createNewChat(chat) match {
+      case Left(KafkaError(_, description: KafkaErrorMessage))
+      => assert(description == KafkaErrorMessage.ServerError, s"should return KafkaErrorMessage.ServerError.")
+      case Right(returnedChat)
+      => assert(false, s"Should return KafkaErrorMessage.ServerError.")
+    }
+
+  }
 
 
 

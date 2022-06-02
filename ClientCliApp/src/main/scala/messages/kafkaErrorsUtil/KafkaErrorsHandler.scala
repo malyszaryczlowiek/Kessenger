@@ -8,29 +8,10 @@ import java.lang
 
 object KafkaErrorsHandler :
 
-  val internalError   = Left(KafkaError(KafkaErrorType.FatalError, KafkaErrorMessage.InternalError))
-  val chatExistsError = Left(KafkaError(KafkaErrorType.Warning,    KafkaErrorMessage.ChatExistsError))
-  val serverError     = Left(KafkaError(KafkaErrorType.FatalError, KafkaErrorMessage.ServerError))
-  val undefinedErr    = Left(KafkaError(KafkaErrorType.FatalError, KafkaErrorMessage.UndefinedError))
-
-
-  def handleThrowable[A](ex: Throwable): Either[KafkaError, A] =
-    try { throw ex }
-    catch {
-      case e: InvalidOffsetException       => internalError
-      case e: WakeupException              => internalError
-      case e: InterruptException           => internalError
-      case e: AuthenticationException      => internalError
-      case e: AuthorizationException       => internalError
-      case e: IllegalArgumentException     => internalError
-      case e: IllegalStateException        => internalError
-      case e: ArithmeticException          => internalError
-      case e: InvalidTopicException        => internalError
-      case e: TopicExistsException         => serverError
-      case e: UnsupportedVersionException  => serverError
-      case e: KafkaException               => undefinedErr
-      case e: Throwable                    => undefinedErr
-    }
+  val internalError   = Left(KafkaError(KafkaErrorStatus.FatalError, KafkaErrorMessage.InternalError))
+  val chatExistsError = Left(KafkaError(KafkaErrorStatus.Warning,    KafkaErrorMessage.ChatExistsError))
+  val serverError     = Left(KafkaError(KafkaErrorStatus.FatalError, KafkaErrorMessage.ServerError))
+  val undefinedErr    = Left(KafkaError(KafkaErrorStatus.FatalError, KafkaErrorMessage.UndefinedError))
 
 
 
@@ -51,7 +32,7 @@ object KafkaErrorsHandler :
 
       val isServerError =
         message.contains("TopicExistsException") ||
-        message.contains("UnsupportedVersionException") || // TimeoutException
+        message.contains("UnsupportedVersionException") ||
         message.contains("TimeoutException")
 
       if      isInternal    then internalError
@@ -62,8 +43,31 @@ object KafkaErrorsHandler :
 
 
 
-
+  @deprecated(message = "Marked as deprecated due to not proper work. " +
+    "Should use KafkaErrorsHandler.handleWithErrorMessage[A](ex: Throwable)")
   def handleWithErrorType[A, E <: Throwable](ex: E): Either[KafkaError, A] =
+    try { throw ex }
+    catch {
+      case e: InvalidOffsetException       => internalError
+      case e: WakeupException              => internalError
+      case e: InterruptException           => internalError
+      case e: AuthenticationException      => internalError
+      case e: AuthorizationException       => internalError
+      case e: IllegalArgumentException     => internalError
+      case e: IllegalStateException        => internalError
+      case e: ArithmeticException          => internalError
+      case e: InvalidTopicException        => internalError
+      case e: TopicExistsException         => serverError
+      case e: UnsupportedVersionException  => serverError
+      case e: KafkaException               => undefinedErr
+      case e: Throwable                    => undefinedErr
+    }
+
+
+
+  @deprecated(message = "Marked as deprecated due to not proper work. " +
+    "Should use KafkaErrorsHandler.handleWithErrorMessage[A](ex: Throwable)")
+  def handleThrowable[A](ex: Throwable): Either[KafkaError, A] =
     try { throw ex }
     catch {
       case e: InvalidOffsetException       => internalError

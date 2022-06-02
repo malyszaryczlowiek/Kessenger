@@ -4,7 +4,7 @@ package messages
 import com.github.malyszaryczlowiek.domain.Domain.{ChatId, JoinId, UserID, WritingId}
 import com.github.malyszaryczlowiek.domain.{Domain, User}
 import com.github.malyszaryczlowiek.messages.kafkaConfiguration.KafkaConfigurator
-import com.github.malyszaryczlowiek.messages.kafkaErrorsUtil.{KafkaError, KafkaErrorMessage, KafkaErrorType, KafkaErrors, KafkaErrorsHandler}
+import com.github.malyszaryczlowiek.messages.kafkaErrorsUtil.{KafkaError, KafkaErrorMessage, KafkaErrorStatus, KafkaErrors, KafkaErrorsHandler}
 import org.apache.kafka.clients.admin.{Admin, AdminClientConfig, CreateTopicsResult, DeleteTopicsResult, NewTopic}
 import org.apache.kafka.clients.consumer.{ConsumerConfig, KafkaConsumer}
 import org.apache.kafka.clients.producer.{KafkaProducer, ProducerConfig}
@@ -49,7 +49,7 @@ object KessengerAdmin {
 
   // topic creation
 
-  def createNewChat(chat: Chat): Either[KafkaError, ChatId] = // , writingId: WritingId
+  def createNewChat(chat: Chat): Either[KafkaError, Chat] = // , writingId: WritingId
     Try {
       val partitionsNum: Int       = configurator.TOPIC_PARTITIONS_NUMBER
       val replicationFactor: Short = configurator.TOPIC_REPLICATION_FACTOR
@@ -66,10 +66,10 @@ object KessengerAdmin {
       )
       val talkFuture: KafkaFuture[Void] = result.values().get(chat.chatId)
       talkFuture.get(5L, TimeUnit.SECONDS)
-      Right(chat.chatId)
+      Right(chat)
     } match {
-      case Failure(ex)    => KafkaErrorsHandler.handleThrowable[ChatId](ex)
-      case Success(right) => right
+      case Failure(ex)        => KafkaErrorsHandler.handleWithErrorMessage[Chat](ex)
+      case Success(rightChat) => rightChat
     }
 
   /**
@@ -90,7 +90,7 @@ object KessengerAdmin {
           // may throw  InterruptedException ExecutionException TimeoutException
         Right( topicMap.keys.head )
       else
-        Left( KafkaError(KafkaErrorType.FatalError, KafkaErrorMessage.UndefinedError) )
+        Left( KafkaError(KafkaErrorStatus.FatalError, KafkaErrorMessage.UndefinedError) )
     } match {
       case Success(either) => either
       case Failure(ex)     => KafkaErrorsHandler.handleWithErrorMessage[ChatId](ex)

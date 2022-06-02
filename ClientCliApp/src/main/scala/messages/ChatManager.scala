@@ -5,7 +5,7 @@ import com.github.malyszaryczlowiek.account.MyAccount
 import com.github.malyszaryczlowiek.db.ExternalDB
 import com.github.malyszaryczlowiek.domain.{Domain, User}
 import com.github.malyszaryczlowiek.domain.Domain.*
-import com.github.malyszaryczlowiek.messages.kafkaErrorsUtil.{KafkaError, KafkaErrorMessage, KafkaErrorType, KafkaErrorsHandler}
+import com.github.malyszaryczlowiek.messages.kafkaErrorsUtil.{KafkaError, KafkaErrorMessage, KafkaErrorStatus, KafkaErrorsHandler}
 import org.apache.kafka.clients.consumer.{ConsumerRecord, ConsumerRecords, KafkaConsumer}
 import org.apache.kafka.clients.producer.{Callback, KafkaProducer, ProducerRecord, RecordMetadata}
 import org.apache.kafka.common.TopicPartition
@@ -84,13 +84,15 @@ class ChatManager(var me: User, var topicCreated: Boolean = false):
   private def tryStartAndHandleError(): Option[KafkaError] =
     Try { startListener() } match {
       case Failure(ex) =>
-        KafkaErrorsHandler.handleThrowable(ex) match {
+        KafkaErrorsHandler.handleWithErrorMessage(ex) match {
           case Left(kafkaError) => Some (kafkaError)
           case Right(_)         => None // this will never be called
         }
       case Success(_) => None
     }
 
+  
+  
   /**
    * In this method
    * We set our joining consumer to read from our
@@ -168,7 +170,7 @@ class ChatManager(var me: User, var topicCreated: Boolean = false):
     } match {
       case Failure(ex) =>
         restartProducer()
-        KafkaErrorsHandler.handleThrowable[Chat](ex)
+        KafkaErrorsHandler.handleWithErrorMessage[Chat](ex)
       case Success(_)  => Right(chat)
     }
 
@@ -216,7 +218,7 @@ class ChatManager(var me: User, var topicCreated: Boolean = false):
         )
     } match {
       case Failure(ex) =>
-        KafkaErrorsHandler.handleThrowable(ex) match {
+        KafkaErrorsHandler.handleWithErrorMessage(ex) match {
           case Left(kafkaError: KafkaError) => Option(kafkaError)
           case Right(value)                 => None // this never will be called
         }

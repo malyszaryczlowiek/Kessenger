@@ -33,7 +33,7 @@ class DatabaseTests extends munit.FunSuite:
    * docker container is started as demon and starting script returns immediately
    */
   val waitingTimeMS = 3000
-  val pathToScripts = "./src/test/scala/integrationTests/db"
+  val pathToScripts = "./src/test/scala/integrationTests/scripts"
   var switchOffDbEarlier = false
   var fooTime: LocalDateTime = _
   val salt = "$2a$10$8K1p/a0dL1LXMIgoEDFrwO"

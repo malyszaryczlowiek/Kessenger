@@ -13,7 +13,7 @@ import com.github.malyszaryczlowiek.db.queries.{QueryError, QueryErrors}
 import com.github.malyszaryczlowiek.domain.Domain.{Login, Password}
 import com.github.malyszaryczlowiek.domain.User
 import com.github.malyszaryczlowiek.messages.kafkaConfiguration.KafkaProductionConfigurator
-import com.github.malyszaryczlowiek.messages.kafkaErrorsUtil.{KafkaError, KafkaErrorMessage, KafkaErrorType}
+import com.github.malyszaryczlowiek.messages.kafkaErrorsUtil.{KafkaError, KafkaErrorMessage, KafkaErrorStatus}
 import com.github.malyszaryczlowiek.messages.{Chat, ChatExecutor, ChatManager, KessengerAdmin}
 import com.github.malyszaryczlowiek.util.{ChatNameValidator, PasswordConverter}
 

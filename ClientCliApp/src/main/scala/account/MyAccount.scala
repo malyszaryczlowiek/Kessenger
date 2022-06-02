@@ -9,7 +9,7 @@ import messages.{Chat, ChatExecutor, ChatManager, KessengerAdmin}
 import messages.ChatGivens.given
 
 import com.github.malyszaryczlowiek.messages.kafkaConfiguration.KafkaProductionConfigurator
-import com.github.malyszaryczlowiek.messages.kafkaErrorsUtil.{KafkaError, KafkaErrorMessage, KafkaErrorType, KafkaErrorsHandler}
+import com.github.malyszaryczlowiek.messages.kafkaErrorsUtil.{KafkaError, KafkaErrorMessage, KafkaErrorStatus, KafkaErrorsHandler}
 
 import java.util.UUID
 import scala.collection.immutable.SortedMap
@@ -75,7 +75,7 @@ object MyAccount:
             ExternalDB.updateJoiningOffset(me, 0L) match {
               case Right(user) =>
                 me = user
-                println(s"Users data updated. ")
+                println(s"User's data updated. ")
                 chatManager.updateOffset(me.joiningOffset)
                 tryToStartChatManager(chatManager) // if offset is updated we try to restart listener in chatManager
               case Left(dbError: QueryErrors) =>
