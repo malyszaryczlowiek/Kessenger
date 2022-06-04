@@ -85,14 +85,16 @@ class ChatManager(var me: User, var topicCreated: Boolean = false):
     Try { startListener() } match {
       case Failure(ex) =>
         KafkaErrorsHandler.handleWithErrorMessage(ex) match {
-          case Left(kafkaError) => Some (kafkaError)
+          case Left(kafkaError) =>
+            println(s"ERROR error jest tutaj.")
+            Some (kafkaError)
           case Right(_)         => None // this will never be called
         }
       case Success(_) => None
     }
 
-  
-  
+
+
   /**
    * In this method
    * We set our joining consumer to read from our
@@ -104,7 +106,9 @@ class ChatManager(var me: User, var topicCreated: Boolean = false):
    * This call may throw exception. We do not handle it because
    */
   private def startListener(): Unit =
-    joinConsumer.seek(new TopicPartition(Domain.generateJoinId(me.userId), 0), joinOffset)
+    val topic = new TopicPartition(Domain.generateJoinId(me.userId), 0)
+    joinConsumer.assign(java.util.List.of(topic))
+    joinConsumer.seek(topic, joinOffset)
     // this may throw IllegalArgumentException if joining topic exists but in db we do not have updated offset
     // and inserted value of joinOffset (taken from db) is -1.
     if optionListener.isDefined then continueChecking.set(false)

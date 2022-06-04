@@ -302,10 +302,10 @@ object ProgramExecutor :
   private def escapeChat(executor: ChatExecutor): Unit =
     val me = executor.getUser
     ExternalDB.deleteMeFromChat( me, executor.getChat) match {
-      case Left(queryErrors: QueryErrors) =>
-        queryErrors.listOfErrors.foreach(qe => println(qe.description))
+      case Left(qErrors: QueryErrors) =>
+        qErrors.listOfErrors.foreach(qe => println(qe.description))
         println(s"Try again later.")
-      case Right(chat: Chat)                    =>
+      case Right(chat: Chat)          =>
         executor.sendMessage(s"## ${me.login} Stopped participating in chat. ##")
         executor.closeChat()
         println(s"You escaped chat ${chat.chatName}.")

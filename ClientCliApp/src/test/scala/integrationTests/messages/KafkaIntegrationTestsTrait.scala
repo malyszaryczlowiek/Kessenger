@@ -12,7 +12,6 @@ import scala.sys.process.*
 
 trait KafkaIntegrationTestsTrait extends munit.FunSuite, IntegrationTestsTrait:
 
-  private var user: User = _
   private var isKafkaBrokerRunning = true
 
   override def beforeAll(): Unit =
@@ -36,7 +35,6 @@ trait KafkaIntegrationTestsTrait extends munit.FunSuite, IntegrationTestsTrait:
     val makeCreateTopicScriptExecutable = s"chmod +x ${pathToScripts}/createTopic".!!
     println( makeCreateTopicScriptExecutable )
 
-    user = User(UUID.randomUUID(), "Login")
 
   /**
    * Before each test we start fresh kafka broker

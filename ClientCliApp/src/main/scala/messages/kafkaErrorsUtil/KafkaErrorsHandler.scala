@@ -18,7 +18,7 @@ object KafkaErrorsHandler :
   def handleWithErrorMessage[A](ex: Throwable): Either[KafkaError, A] =
     val message = ex.getMessage  // in some exceptions this may be null
     if message != null then
-      // println(s"$message") // sometimes used in integration tests
+      println(s"ERROR:${ex.getClass}, message: $message") // sometimes used in integration tests
       val isInternal: Boolean =
         message.contains("InvalidOffsetException")   ||
         message.contains("WakeupException")          ||

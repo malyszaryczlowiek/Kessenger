@@ -31,7 +31,7 @@ object MyAccount:
    * @param user
    */
   def initialize(user: User): Either[(Option[QueryErrors], Option[KafkaError]), ChatManager] =
-    KessengerAdmin.startAdmin(new KafkaProductionConfigurator)
+    // KessengerAdmin.startAdmin(new KafkaProductionConfigurator) // TODO move starting KessengerAdmin to program main loop
     me = user
     if user.joiningOffset == -1 then
       val chatManager = new ChatManager(me, false)
