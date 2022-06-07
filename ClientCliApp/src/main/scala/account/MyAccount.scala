@@ -1,22 +1,21 @@
 package com.github.malyszaryczlowiek
 package account
 
-import com.github.malyszaryczlowiek.db.ExternalDB
-import com.github.malyszaryczlowiek.db.queries.{QueryError, QueryErrorMessage, QueryErrorType, QueryErrors}
-import com.github.malyszaryczlowiek.domain.Domain.{Login, UserID}
-import com.github.malyszaryczlowiek.domain.User
+import db.ExternalDB
+import db.queries.{QueryError, QueryErrorMessage, QueryErrorType, QueryErrors}
+import domain.Domain.{Login, UserID}
+import domain.User
 import messages.{Chat, ChatExecutor, ChatManager, KessengerAdmin}
 import messages.ChatGivens.given
-
-import com.github.malyszaryczlowiek.messages.kafkaConfiguration.KafkaProductionConfigurator
-import com.github.malyszaryczlowiek.messages.kafkaErrorsUtil.{KafkaError, KafkaErrorMessage, KafkaErrorStatus, KafkaErrorsHandler}
+import messages.kafkaConfiguration.KafkaProductionConfigurator
+import messages.kafkaErrorsUtil.{KafkaError, KafkaErrorMessage, KafkaErrorStatus, KafkaErrorsHandler}
 
 import java.util.UUID
 import scala.collection.immutable.SortedMap
 import scala.collection.{immutable, mutable}
 import scala.collection.mutable.{ArrayBuffer, ListBuffer}
 import scala.collection.parallel.mutable.ParTrieMap
-import collection.parallel.CollectionConverters.IterableIsParallelizable
+//import collection.parallel.CollectionConverters.IterableIsParallelizable
 import scala.annotation.tailrec
 import scala.util.{Failure, Success, Try}
 
@@ -31,7 +30,6 @@ object MyAccount:
    * @param user
    */
   def initialize(user: User): Either[(Option[QueryErrors], Option[KafkaError]), ChatManager] =
-    // KessengerAdmin.startAdmin(new KafkaProductionConfigurator) // TODO move starting KessengerAdmin to program main loop
     me = user
     if user.joiningOffset == -1 then
       val chatManager = new ChatManager(me, false)
@@ -45,7 +43,7 @@ object MyAccount:
               (chatList._1, new ChatExecutor(me, chatList._1, chatList._2))
           )
           myChats.addAll(transform)
-          val chatManager = new ChatManager(me, false)
+          val chatManager = new ChatManager(me, true)
           chatManager.startListening() match {
             case ke @ Some(_) => Left((None, ke))
             case None         => Right(chatManager)
@@ -71,31 +69,33 @@ object MyAccount:
     chatManager.startListening() match {
       case ske @ Some(kafkaError: KafkaError) =>
         kafkaError match {
-          case ke @ KafkaError(_, KafkaErrorMessage.ChatExistsError) => // here we handle problem when joining topic exists but we cannot update joining offset in db
+          case ke @ KafkaError(_, KafkaErrorMessage.ChatExistsError) => // here we handle problem when joining topic exists but we could not update joining offset in db earlier
             ExternalDB.updateJoiningOffset(me, 0L) match {
               case Right(user) =>
                 me = user
                 println(s"User's data updated. ")
-                chatManager.updateOffset(me.joiningOffset)
+                println(s"offset ${me.joiningOffset}")
+                chatManager.updateOffset( me.joiningOffset )
+                chatManager.setTopicCreated( true )
                 tryToStartChatManager(chatManager) // if offset is updated we try to restart listener in chatManager
               case Left(dbError: QueryErrors) =>
-                println(s"${dbError.listOfErrors.head.description}")
+                println(s"Cannot update user's joining offset: ${dbError.listOfErrors.head.description}")
                 Left(Some(dbError), Some(ke))
             }
           case _ => Left(None, ske) // in case of other kafka error, we simply return it
         }
-      case None => Right(chatManager) // chat manager created without any internal errors
-      }
+      case None =>
+        // if chat manager started normally we try to update user's joining offset in DB
+        //updateOffset(chatManager, None)
+        Right(chatManager) // chat manager created without any internal errors
+    }
 
 
 
-  // TODO wziąć to w try i utworzyć egzemplarz klasy, jak nie wywali błędu to zwrócić
-  // go jako Right, ale najpierw updejtować offset.
-  // jak wywali błąd to zwrócić ten błąd
 
 
-  def updateUser(user: User): Unit = me = user
-
+  def updateUser(user: User): Unit =
+    me = user
 
   def getMyObject: User = me
   def getMyChats: immutable.SortedMap[Chat, ChatExecutor] = myChats.to(immutable.SortedMap)

@@ -95,6 +95,8 @@ object ProgramExecutor :
         println(s"$description")
         signIn()
       case Right(user) => // user found
+        // from test purposes, better is to move starting KafkaAdmin out of MyAccount object
+        KessengerAdmin.startAdmin(new KafkaProductionConfigurator)
         MyAccount.initialize(user) match {
           case Left(errorsTuple) =>
             errorsTuple match {
@@ -371,6 +373,8 @@ object ProgramExecutor :
                   println(s"You are moved back to User Creator.")
                   createAccount()
                 case Right(user: User) =>
+                  // from test purposes, better is to move starting KafkaAdmin out of MyAccount object
+                  KessengerAdmin.startAdmin(new KafkaProductionConfigurator)
                   MyAccount.initializeAfterCreation(user) match {
                     case Left((dbError, kafkaError)) =>
                       (dbError, kafkaError) match {
