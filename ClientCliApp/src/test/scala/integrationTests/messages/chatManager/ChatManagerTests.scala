@@ -15,6 +15,7 @@ import java.util.UUID
 import scala.collection.immutable.{AbstractMap, SeqMap, SortedMap}
 import scala.sys.process.*
 import scala.util.{Failure, Success}
+
 import integrationTests.messages.KafkaIntegrationTestsTrait
 import integrationTests.db.DbIntegrationTestsTrait
 
@@ -40,6 +41,8 @@ class ChatManagerTests extends KafkaIntegrationTestsTrait, DbIntegrationTestsTra
 
   var user1: User = _
   var cm: ChatManager = _
+  var ma: MyAccount = _
+
 
 
   override def beforeEach(context: ChatManagerTests.this.BeforeEach): Unit =
@@ -51,6 +54,7 @@ class ChatManagerTests extends KafkaIntegrationTestsTrait, DbIntegrationTestsTra
       case Left(_)     => throw new Exception("should return user")
       case Right(walo) => user1 = walo
     }
+    ma = new MyAccount
 
 
 
@@ -67,7 +71,7 @@ class ChatManagerTests extends KafkaIntegrationTestsTrait, DbIntegrationTestsTra
    */
   test("Initializing user after creation shout return ChatManager correctly.") {
 
-    cm = MyAccount.initializeAfterCreation(user1) match {
+    cm = ma.initializeAfterCreation(user1) match {
       case Left((dbErrors: Option[QueryErrors], kafkaError: Option[KafkaError])) =>
         println(s"DBError: ${dbErrors},\nKafka Error: $kafkaError")
         throw new Exception("Should return Right object")
@@ -80,7 +84,7 @@ class ChatManagerTests extends KafkaIntegrationTestsTrait, DbIntegrationTestsTra
 
   test("after user initialization, Sending invitations to existing user via chat manager does not return any error.") {
 
-    cm = MyAccount.initializeAfterCreation(user1) match {
+    cm = ma.initializeAfterCreation(user1) match {
       case Left((dbErrors: Option[QueryErrors], kafkaError: Option[KafkaError])) =>
         println(s"DBError: ${dbErrors},\nKafka Error: $kafkaError")
         throw new Exception("Should return Right object")
@@ -116,7 +120,7 @@ class ChatManagerTests extends KafkaIntegrationTestsTrait, DbIntegrationTestsTra
    */
   test("Updating joining offset from not valid in DB when joiningTopic already exists.") {
 
-    cm = MyAccount.initialize(user1) match {
+    cm = ma.initialize(user1) match {
       case Left((dbErrors: Option[QueryErrors], kafkaError: Option[KafkaError])) =>
         println(s"DBError: ${dbErrors},\nKafka Error: $kafkaError")
         throw new Exception("Should return Right object")

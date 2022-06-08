@@ -30,7 +30,7 @@ import concurrent.ExecutionContext.Implicits.global
  * @param me
  * @param topicCreated
  */
-class ChatManager(var me: User, private var topicCreated: Boolean = false):
+class ChatManager(var me: User, private var topicCreated: Boolean = false, val myAccount: MyAccount):
 
   private var joinProducer: KafkaProducer[String, String] = KessengerAdmin.createJoiningProducer(me.userId)
 
@@ -79,7 +79,7 @@ class ChatManager(var me: User, private var topicCreated: Boolean = false):
             case Left(dbError: QueryErrors) =>
               println(s"Cannot update user's data to DB. ") // joining offset: ${dbError.listOfErrors.head.description}
           }
-          MyAccount.updateUser(me)
+          myAccount.updateUser(me)
           tryStartAndHandleError()
       }
 
@@ -116,7 +116,7 @@ class ChatManager(var me: User, private var topicCreated: Boolean = false):
   private def startListener(): Unit =
     if optionListener.isDefined then
       continueChecking.set(false) //
-      Await.result(optionListener.get, Duration.create(5L, SECONDS))
+      Await.result(optionListener.get, Duration.create(5L, SECONDS)) // todo handle possible timeOut exception
 
     optionListener = Some(
       Future {
@@ -139,14 +139,14 @@ class ChatManager(var me: User, private var topicCreated: Boolean = false):
               ExternalDB.findChatAndUsers(me, chatId) match {
                 case Right((chat: Chat, users: List[User])) =>
                   // if chat exists in our chat list, we do not need to add them again.
-                  MyAccount.getMyChats.find(chatAndExecutor => chatAndExecutor._1.chatId == chat.chatId) match {
+                  myAccount.getMyChats.find(chatAndExecutor => chatAndExecutor._1.chatId == chat.chatId) match {
                     case Some(_) => () // do nothing, we must not add this chat to list of chats
                     case None =>
                       users.find(_.userId == userID) match {
                         case Some(user) => println(s"You got invitation from ${user.login} to chat ${chat.chatName} ")
                         case None       => println(s"Warning!?! Inviting user not found???")
                       }
-                      MyAccount.addChat(chat, users)
+                      myAccount.addChat(chat, users)
                   }
                 case Left(_) => () // if errors, do nothing, because I am added in users_chats
                 // so in next logging chat will show up.

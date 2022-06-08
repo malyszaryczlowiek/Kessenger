@@ -4,6 +4,7 @@ package messages
 import com.github.malyszaryczlowiek.domain.Domain.{ChatName, Login, UserID}
 import com.github.malyszaryczlowiek.domain.User
 import com.github.malyszaryczlowiek.util.TimeConverter
+
 import org.apache.kafka.clients.consumer.{ConsumerRecord, ConsumerRecords, KafkaConsumer}
 import org.apache.kafka.clients.producer.{Callback, KafkaProducer, ProducerRecord, RecordMetadata}
 import org.apache.kafka.common.TopicPartition
@@ -11,12 +12,12 @@ import org.apache.kafka.common.TopicPartition
 import java.time.{Duration, Instant, LocalDateTime, ZoneId, ZoneOffset, ZonedDateTime}
 import java.util.UUID
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicLong}
-import concurrent.ExecutionContext.Implicits.global
+
 import scala.collection.parallel.mutable.ParTrieMap
 import scala.concurrent.Future
-// import scala.reflect.internal.util.Collections
-import collection.parallel.CollectionConverters.MutableMapIsParallelizable
 import scala.collection.immutable
+import collection.parallel.CollectionConverters.MutableMapIsParallelizable
+import concurrent.ExecutionContext.Implicits.global
 
 
 
@@ -32,12 +33,8 @@ class ChatExecutor(me: User, chat: Chat, chatUsers: List[User]):
   // has only one partition (and three replicas)
   private val topicPartition: TopicPartition                = new TopicPartition(chat.chatId, 0)
   private val chatProducer:   KafkaProducer[String, String] = KessengerAdmin.createChatProducer
-  private val chatConsumer:   KafkaConsumer[String, String] = KessengerAdmin.createChatConsumer(me.userId.toString)
 
   private val unreadMessages: ParTrieMap[Long,(Login, LocalDateTime, String)] = ParTrieMap.empty[Long, (Login, LocalDateTime, String)]
-
-  chatConsumer.assign(java.util.List.of(topicPartition))
-  chatConsumer.seek(topicPartition, chat.offset) // we start reading from topic from last read message (offset)
 
 
   def sendMessage(message: String): Unit =
@@ -45,6 +42,9 @@ class ChatExecutor(me: User, chat: Chat, chatUsers: List[User]):
 
 
   private val chatReader = Future {
+    val chatConsumer:   KafkaConsumer[String, String] = KessengerAdmin.createChatConsumer(me.userId.toString)
+    chatConsumer.assign(java.util.List.of(topicPartition))
+    chatConsumer.seek(topicPartition, chat.offset) // we start reading from topic from last read message (offset)
     while (continueReading.get()) {
       val records: ConsumerRecords[String, String] = chatConsumer.poll(Duration.ofMillis(250))
       records.forEach(
@@ -94,7 +94,7 @@ class ChatExecutor(me: User, chat: Chat, chatUsers: List[User]):
    */
   def printUnreadMessages(): Unit =
     printMessage.set(true)
-    val map: immutable.SortedMap[Long,(Login, LocalDateTime, String)] = unreadMessages.seq.to(immutable.SortedMap) // conversion to SortedMap
+    val map: immutable.SortedMap[Long, (Login, LocalDateTime, String)] = unreadMessages.seq.to(immutable.SortedMap) // conversion to SortedMap
     unreadMessages.clear() // clear off ParSequence
     map.foreach( (k,v) => {
       newOffset.set(k)
@@ -159,10 +159,8 @@ class ChatExecutor(me: User, chat: Chat, chatUsers: List[User]):
   def closeChat(): Chat =
     chatProducer.close()
     continueReading.set(false)
-    chatReader.onComplete(t => {
-      chatConsumer.close()
-      println(s"Chat ${chat.chatName} closed.")
-    })
+    chatReader.onComplete(t => println(s"Chat ${chat.chatName} closed."))
+
     Chat(chat.chatId, chat.chatName, chat.groupChat, newOffset.get(), TimeConverter.fromMilliSecondsToLocal(lastMessageTime.get()))
 
 

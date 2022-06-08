@@ -19,7 +19,11 @@ import scala.collection.parallel.mutable.ParTrieMap
 import scala.annotation.tailrec
 import scala.util.{Failure, Success, Try}
 
-object MyAccount:
+
+class MyAccount:
+
+
+//object MyAccount:
 
   private val myChats: ParTrieMap[Chat, ChatExecutor] = ParTrieMap.empty[Chat, ChatExecutor]
   private var me: User = _
