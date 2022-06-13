@@ -23,7 +23,7 @@ import com.github.malyszaryczlowiek.util.{ChatNameValidator, PasswordConverter}
 object ProgramExecutor :
 
   private var manager: Option[ChatManager] = None
-  private var myAccount: Option[MyAccount] = None
+  //private var myAccount: Option[MyAccount] = None
 
 
   @tailrec

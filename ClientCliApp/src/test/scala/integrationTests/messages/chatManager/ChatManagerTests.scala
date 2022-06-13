@@ -41,7 +41,7 @@ class ChatManagerTests extends KafkaIntegrationTestsTrait, DbIntegrationTestsTra
 
   var user1: User = _
   var cm: ChatManager = _
-  var ma: MyAccount = _
+
 
 
 
@@ -54,7 +54,7 @@ class ChatManagerTests extends KafkaIntegrationTestsTrait, DbIntegrationTestsTra
       case Left(_)     => throw new Exception("should return user")
       case Right(walo) => user1 = walo
     }
-    ma = new MyAccount
+
 
 
 
@@ -71,7 +71,7 @@ class ChatManagerTests extends KafkaIntegrationTestsTrait, DbIntegrationTestsTra
    */
   test("Initializing user after creation shout return ChatManager correctly.") {
 
-    cm = ma.initializeAfterCreation(user1) match {
+    cm = MyAccount.initializeAfterCreation(user1) match {
       case Left((dbErrors: Option[QueryErrors], kafkaError: Option[KafkaError])) =>
         println(s"DBError: ${dbErrors},\nKafka Error: $kafkaError")
         throw new Exception("Should return Right object")
@@ -84,7 +84,7 @@ class ChatManagerTests extends KafkaIntegrationTestsTrait, DbIntegrationTestsTra
 
   test("after user initialization, Sending invitations to existing user via chat manager does not return any error.") {
 
-    cm = ma.initializeAfterCreation(user1) match {
+    cm = MyAccount.initializeAfterCreation(user1) match {
       case Left((dbErrors: Option[QueryErrors], kafkaError: Option[KafkaError])) =>
         println(s"DBError: ${dbErrors},\nKafka Error: $kafkaError")
         throw new Exception("Should return Right object")
@@ -120,7 +120,7 @@ class ChatManagerTests extends KafkaIntegrationTestsTrait, DbIntegrationTestsTra
    */
   test("Updating joining offset from not valid in DB when joiningTopic already exists.") {
 
-    cm = ma.initialize(user1) match {
+    cm = MyAccount.initialize(user1) match {
       case Left((dbErrors: Option[QueryErrors], kafkaError: Option[KafkaError])) =>
         println(s"DBError: ${dbErrors},\nKafka Error: $kafkaError")
         throw new Exception("Should return Right object")

@@ -56,7 +56,7 @@ class ChatExecutorTests extends KafkaIntegrationTestsTrait, DbIntegrationTestsTr
 
     // we create chat with that user
 
-    cm.
+
 
     //
 

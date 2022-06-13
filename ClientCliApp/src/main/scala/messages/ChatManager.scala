@@ -7,7 +7,6 @@ import com.github.malyszaryczlowiek.db.queries.QueryErrors
 import com.github.malyszaryczlowiek.domain.{Domain, User}
 import com.github.malyszaryczlowiek.domain.Domain.*
 import com.github.malyszaryczlowiek.messages.kafkaErrorsUtil.{KafkaError, KafkaErrorMessage, KafkaErrorStatus, KafkaErrorsHandler}
-
 import org.apache.kafka.clients.consumer.{ConsumerRecord, ConsumerRecords, KafkaConsumer}
 import org.apache.kafka.clients.producer.{Callback, KafkaProducer, ProducerRecord, RecordMetadata}
 import org.apache.kafka.common.TopicPartition
@@ -15,14 +14,14 @@ import org.apache.kafka.common.TopicPartition
 import java.util.UUID
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
-
 import scala.annotation.tailrec
 import scala.collection.mutable.ListBuffer
-import scala.concurrent.{Await, Future}
+import scala.concurrent.{Await, Future, Promise}
 import scala.concurrent.duration.{Duration, SECONDS}
 import scala.io.StdIn.readLine
 import scala.util.{Failure, Success, Try}
 import concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.impl.Promise
 
 
 /**
@@ -30,29 +29,32 @@ import concurrent.ExecutionContext.Implicits.global
  * @param me
  * @param topicCreated
  */
-class ChatManager(var me: User, private var topicCreated: Boolean = false, val myAccount: MyAccount):
+class ChatManager(var me: User, private var topicCreated: Boolean = false):
 
   private var joinProducer: KafkaProducer[String, String] = KessengerAdmin.createJoiningProducer(me.userId)
 
   private val chatsToJoin:  ListBuffer[(UserID, ChatId)]  = ListBuffer.empty[(UserID, ChatId)]
 
   private var transactionInitialized: Boolean = false
-  val continueChecking: AtomicBoolean = new AtomicBoolean(true)
+  private val continueChecking: AtomicBoolean = new AtomicBoolean(true)
 
 
   // we will read from topic with name of chatId. Each chat topic
   // has only one partition (and three replicas)
-  var joinOffset: Long = me.joiningOffset
+  private var joinOffset: Long = me.joiningOffset
+
+  private val errorLock: AnyRef = new AnyRef
+  private var error: Option[KafkaError] = None
 
 
   /**
    * This future runs all time during program execution.
    *
    * It handles if someone ask me to join a chat.
-   * If someone ask us to join chat w keep this in buffer,
+   * If someone ask me to join chat I keep this in buffer,
    * And can process in future time.
    * If we do not process buffer and close program,
-   * data isn't lost, because offset isnt updated in db,
+   * data isn't lost, because offset isn't updated in db,
    * so when we restarting app and
    * we read in all requests (above offset) again.
    */
@@ -60,28 +62,103 @@ class ChatManager(var me: User, private var topicCreated: Boolean = false, val m
 
 
 
+  private def assignListener(): Option[Future[Unit]] =
+    val future: Future[Unit ] = Future {
+      val joinConsumer: KafkaConsumer[String, String] = KessengerAdmin.createJoiningConsumer()
+      val topic = new TopicPartition(Domain.generateJoinId(me.userId), 0)
+      joinConsumer.assign(java.util.List.of(topic))
+      joinConsumer.seek(topic, joinOffset)
+      // this may throw IllegalArgumentException if joining topic exists but in db we do not have updated offset
+      // and inserted value of joinOffset (taken from db) is -1.
+      while ( continueChecking.get() ) {
+        val records: ConsumerRecords[String, String] = joinConsumer.poll(java.time.Duration.ofMillis(1000))
+        records.forEach(
+          (r: ConsumerRecord[String, String]) => {
+            val userID = UUID.fromString(r.key())
+            val chatId = r.value()
+            chatsToJoin.addOne((userID, chatId))
+            ExternalDB.findChatAndUsers(me, chatId) match {
+              case Right((chat: Chat, users: List[User])) =>
+                MyAccount.getMyChats.find(chatAndExecutor => chatAndExecutor._1.chatId == chat.chatId) match {
+                  // if chat already exists in my chat list, do nothing, we must not add this chat to list of my chats
+                  case Some(_) => ()
+                  case None =>
+                    users.find(_.userId == userID) match {
+                      case Some(user) => println(s"You got invitation from ${user.login} to chat ${chat.chatName}. ")
+                      case None       => println(s"Warning!?! Inviting user not found???")
+                    }
+                    MyAccount.addChat(chat, users)
+                    updateUsersOffset( r.offset() )
+                }
+              case Left(_) => () // if errors, do nothing, because I am added in users_chats
+              // so in next logging chat will show up.
+            }
+          }
+        )
+      }
+      joinConsumer.close()
+    }
+    future.onComplete(
+      (tryy: Try[Unit]) => {
+        tryy match {
+          case Failure(ex) =>
+            // if we get error in listener and we should listen further,
+            // we should restart it.
+            if continueChecking.get() then
+              errorLock.synchronized( {
+                KafkaErrorsHandler.handleWithErrorMessage[Unit](ex) match {
+                  case Left(kError: KafkaError) => error = Some(kError)
+                  case Right(_)                 => error = None // this will never be called
+                }
+              } )
+              // we try to restart
+              optionListener = assignListener()
+            // if we should not listen further we reassign to None
+            else
+              error = None
+              optionListener = None
+          // if we closed this future successfully, we simply reassign to None
+          case Success(_) =>
+            error = None
+            optionListener = None
+        }
+      }
+    )
+    Some(future)
+
+
+
   /**
    *
    * @return
    */
-  def startListening(): Option[KafkaError] =
-    if topicCreated then tryStartAndHandleError()
+  private def startChatManager(): Unit =
+    if topicCreated then
+      optionListener = assignListener()
     else
       KessengerAdmin.createJoiningTopic(me.userId) match {
-        case Left(kafkaError) => Some(kafkaError)
+        case Left(kafkaError) =>
+          error = Some(kafkaError)
         case Right(_) => // joining topic created without errors
           topicCreated = true
-          joinOffset = 0L
-          me = me.copy(joiningOffset = joinOffset) // we need to change joining offset because in db is set to -1
-          ExternalDB.updateJoiningOffset(me, joinOffset) match {
-            case Right(user) =>
-              println(s"User's data updated. ")
-            case Left(dbError: QueryErrors) =>
-              println(s"Cannot update user's data to DB. ") // joining offset: ${dbError.listOfErrors.head.description}
-          }
-          myAccount.updateUser(me)
-          tryStartAndHandleError()
+          updateUsersOffset(0L)
+          optionListener = assignListener()
       }
+
+  // here we start ChatManager
+  startChatManager()
+
+
+
+  private def updateUsersOffset(offset: Long): Unit =
+    joinOffset = offset
+    me = me.copy(joiningOffset = joinOffset) // we need to change joining offset because in db is set to -1
+    MyAccount.updateUser(me)
+    ExternalDB.updateJoiningOffset(me, offset) match {
+      case Right(user) => //println(s"User's data updated. ")
+      case Left(dbError: QueryErrors) => //  println(s"Cannot update user's data to DB. ") // joining offset: ${dbError.listOfErrors.head.description}
+    }
+
 
 
 
@@ -89,17 +166,17 @@ class ChatManager(var me: User, private var topicCreated: Boolean = false, val m
    *
    * @return
    */
-  private def tryStartAndHandleError(): Option[KafkaError] =
-    Try { startListener() } match {
-      case Failure(ex) =>
-        KafkaErrorsHandler.handleWithErrorMessage(ex) match {
-          case Left(kafkaError) =>
-            println(s"ERROR error is in ChatManager.tryStartAndHandleError().") // TODO delete it
-            Some (kafkaError)
-          case Right(_)         => None // this will never be called
-        }
-      case Success(_) => None
-    }
+//  private def tryStartAndHandleError(): Option[KafkaError] =
+//    Try { startListener() } match {
+//      case Failure(ex) =>
+//        KafkaErrorsHandler.handleWithErrorMessage(ex) match {
+//          case Left(kafkaError) =>
+//            println(s"ERROR error is in ChatManager.tryStartAndHandleError().") //  delete it
+//            Some (kafkaError)
+//          case Right(_)         => None // this will never be called
+//        }
+//      case Success(_) => None
+//    }
 
 
 
@@ -113,50 +190,64 @@ class ChatManager(var me: User, private var topicCreated: Boolean = false, val m
    * Note
    * This call may throw exception. We do not handle it because
    */
-  private def startListener(): Unit =
-    if optionListener.isDefined then
-      continueChecking.set(false) //
-      Await.result(optionListener.get, Duration.create(5L, SECONDS)) // todo handle possible timeOut exception
+//  private def startListener(): Unit =
+//    if optionListener.isDefined then
+//      continueChecking.set(false) //
+//      Await.result(optionListener.get, Duration.create(5L, SECONDS)) //  handle possible timeOut exception
+//
+//
+//    continueChecking.set(true)
+//
+//    lazy val future = Future {
+//      val joinConsumer: KafkaConsumer[String, String] = KessengerAdmin.createJoiningConsumer()
+//      val topic = new TopicPartition(Domain.generateJoinId(me.userId), 0)
+//      joinConsumer.assign(java.util.List.of(topic))
+//      joinConsumer.seek(topic, joinOffset)
+//      // this may throw IllegalArgumentException if joining topic exists but in db we do not have updated offset
+//      // and inserted value of joinOffset (taken from db) is -1.
+//
+//      // not matter if optionListener returned error or ended normally, we simply reassign it
+//      while (continueChecking.get()) {
+//        val records: ConsumerRecords[String, String] = joinConsumer.poll(java.time.Duration.ofMillis(1000))
+//        records.forEach(
+//          (r: ConsumerRecord[String, String]) => {
+//            val userID = UUID.fromString(r.key())
+//            val chatId = r.value()
+//            chatsToJoin.addOne((userID, chatId))
+//            ExternalDB.findChatAndUsers(me, chatId) match {
+//              case Right((chat: Chat, users: List[User])) =>
+//                MyAccount.getMyChats.find(chatAndExecutor => chatAndExecutor._1.chatId == chat.chatId) match {
+//                  case Some(_) => () // if chat already exists in my chat list, do nothing, we must not add this chat to list of my chats
+//                  case None =>
+//                    users.find(_.userId == userID) match {
+//                      case Some(user) => println(s"You got invitation from ${user.login} to chat ${chat.chatName}. ")
+//                      case None       => println(s"Warning!?! Inviting user not found???")
+//                    }
+//                    MyAccount.addChat(chat, users)
+//                    updateUsersOffset( r.offset() )
+//                }
+//              case Left(_) => () // if errors, do nothing, because I am added in users_chats
+//              // so in next logging chat will show up.
+//            }
+//          }
+//        )
+//      }
+//      joinConsumer.close()
+//    }
+//
+//    // if error occured, try to restart (reassign) future
+//    future.onComplete()
+//    optionListener = Some( future )
 
-    optionListener = Some(
-      Future {
-        val joinConsumer: KafkaConsumer[String, String] = KessengerAdmin.createJoiningConsumer()
-        val topic = new TopicPartition(Domain.generateJoinId(me.userId), 0)
-        joinConsumer.assign(java.util.List.of(topic))
-        joinConsumer.seek(topic, joinOffset)
-        // this may throw IllegalArgumentException if joining topic exists but in db we do not have updated offset
-        // and inserted value of joinOffset (taken from db) is -1.
 
-        // not matter if optionListener returned error or ended normally, we simply reassign it
-        while (continueChecking.get()) {
-          val records: ConsumerRecords[String, String] = joinConsumer.poll(java.time.Duration.ofMillis(1000))
-          records.forEach(
-            (r: ConsumerRecord[String, String]) => {
-              val userID = UUID.fromString(r.key())
-              val chatId = r.value()
-              chatsToJoin.addOne((userID, chatId))
-              joinOffset = r.offset()
-              ExternalDB.findChatAndUsers(me, chatId) match {
-                case Right((chat: Chat, users: List[User])) =>
-                  // if chat exists in our chat list, we do not need to add them again.
-                  myAccount.getMyChats.find(chatAndExecutor => chatAndExecutor._1.chatId == chat.chatId) match {
-                    case Some(_) => () // do nothing, we must not add this chat to list of chats
-                    case None =>
-                      users.find(_.userId == userID) match {
-                        case Some(user) => println(s"You got invitation from ${user.login} to chat ${chat.chatName} ")
-                        case None       => println(s"Warning!?! Inviting user not found???")
-                      }
-                      myAccount.addChat(chat, users)
-                  }
-                case Left(_) => () // if errors, do nothing, because I am added in users_chats
-                // so in next logging chat will show up.
-              }
-            }
-          )
-        }
-        joinConsumer.close()
-      }
-    )
+  def getError(): Option[KafkaError] =
+    errorLock.synchronized( {
+      val toReturn = error
+      error = None
+      toReturn
+    } )
+
+
 
 
 
@@ -199,6 +290,7 @@ class ChatManager(var me: User, private var topicCreated: Boolean = false, val m
         joinProducer.send(new ProducerRecord[String, String](joiningTopicName, me.userId.toString, chat.chatId))
     })
     joinProducer.commitTransaction()
+    MyAccount.addChat(chat, users)
 
 
 
@@ -225,13 +317,13 @@ class ChatManager(var me: User, private var topicCreated: Boolean = false, val m
       continueChecking.set(false)
       if optionListener.isDefined then
         optionListener.get.onComplete(tryy =>
-          println(s"join consumer closed.")
+          println(s"join consumer closed.") // TODO delete, used in integration tests
         )
     } match {
       case Failure(ex) =>
         KafkaErrorsHandler.handleWithErrorMessage(ex) match {
-          case Left(kafkaError: KafkaError) => Option(kafkaError)
-          case Right(value)                 => None // this never will be called
+          case Left(kError: KafkaError) => Option(kError)
+          case Right(value)             => None // this will never be called
         }
       case Success(_) => None
     }

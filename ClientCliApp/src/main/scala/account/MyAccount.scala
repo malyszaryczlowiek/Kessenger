@@ -20,10 +20,7 @@ import scala.annotation.tailrec
 import scala.util.{Failure, Success, Try}
 
 
-class MyAccount:
-
-
-//object MyAccount:
+object MyAccount:
 
   private val myChats: ParTrieMap[Chat, ChatExecutor] = ParTrieMap.empty[Chat, ChatExecutor]
   private var me: User = _
@@ -105,6 +102,14 @@ class MyAccount:
   def getMyChats: immutable.SortedMap[Chat, ChatExecutor] = myChats.to(immutable.SortedMap)
 
 
+  def addChat(chat: Chat, users: List[User]): Unit =
+    myChats.addOne((chat, new ChatExecutor(me, chat, users)))
+
+
+
+  def removeChat(chat: Chat): Option[ChatExecutor] = myChats.remove(chat)
+
+
   /**
    *
    * @return returns Sequence of updated chats,
@@ -120,12 +125,3 @@ class MyAccount:
     }
     myChats.empty                               // make chat map empty
     me = User(UUID.randomUUID(), "NULL_LOGIN")  // reassign user to null one
-
-
-
-  def addChat(chat: Chat, users: List[User]): Unit =
-    myChats.addOne((chat, new ChatExecutor(me, chat, users)))
-
-
-
-  def removeChat(chat: Chat): Option[ChatExecutor] = myChats.remove(chat)
