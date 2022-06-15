@@ -45,8 +45,11 @@ object MyAccount:
           )
           myChats.addAll(transform)
           val chatManager = new ChatManager(me, true)
-          chatManager.startListening() match {
-            case ke @ Some(_) => Left((None, ke))
+          chatManager.getError() match {
+            case ke @ Some(_) =>
+              // if something goes wrong we should close chat manager
+              chatManager.closeChatManager()
+              Left((None, ke))
             case None         => Right(chatManager)
           }
       }
@@ -67,23 +70,28 @@ object MyAccount:
 
   @tailrec
   private def tryToStartChatManager(chatManager: ChatManager): Either[(Option[QueryErrors], Option[KafkaError]), ChatManager] =
-    chatManager.startListening() match {
+    chatManager.getError() match {
       case ske @ Some(kafkaError: KafkaError) =>
         kafkaError match {
           case ke @ KafkaError(_, KafkaErrorMessage.ChatExistsError) => // here we handle problem when joining topic exists but we could not update joining offset in db earlier
             ExternalDB.updateJoiningOffset(me, 0L) match {
               case Right(user) =>
                 me = user
-                println(s"User's data updated. ")
-                println(s"offset ${me.joiningOffset}")
+                println(s"User's data updated. ")      // todo delete after tests
+                println(s"offset ${me.joiningOffset}") // todo delete after tests
                 chatManager.updateOffset( me.joiningOffset )
                 chatManager.setTopicCreated( true )
                 tryToStartChatManager(chatManager) // if offset is updated we try to restart listener in chatManager
               case Left(dbError: QueryErrors) =>
+                // this error isn't problem because we automatically handle it
+                // when running up next time
                 println(s"Cannot update user's joining offset: ${dbError.listOfErrors.head.description}")
                 Left(Some(dbError), Some(ke))
             }
-          case _ => Left(None, ske) // in case of other kafka error, we simply return it
+          case _ =>
+            // in case of other kafka error, we simply return it
+            chatManager.closeChatManager()
+            Left(None, ske)
         }
       case None =>
         // if chat manager started normally we try to update user's joining offset in DB

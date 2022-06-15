@@ -44,7 +44,6 @@ class ChatManagerTests extends KafkaIntegrationTestsTrait, DbIntegrationTestsTra
 
 
 
-
   override def beforeEach(context: ChatManagerTests.this.BeforeEach): Unit =
     super.beforeEach(context)
     KessengerAdmin.startAdmin(new KafkaTestConfigurator())
@@ -57,12 +56,15 @@ class ChatManagerTests extends KafkaIntegrationTestsTrait, DbIntegrationTestsTra
 
 
 
-
-
   override def afterEach(context: ChatManagerTests.this.AfterEach): Unit =
     if cm != null then cm.closeChatManager()
     KessengerAdmin.closeAdmin()
     super.afterEach(context)
+
+
+
+
+
 
 
   /**
