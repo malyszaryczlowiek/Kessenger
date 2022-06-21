@@ -31,6 +31,7 @@ import concurrent.ExecutionContext.Implicits.global
  */
 class ChatManager(var me: User, private var topicCreated: Boolean = false):
 
+  // producer is thread safe, so we can keep single object of producer.
   private var joinProducer: KafkaProducer[String, String] = KessengerAdmin.createJoiningProducer(me.userId)
   private val chatsToJoin:  ListBuffer[(UserID, ChatId)]  = ListBuffer.empty[(UserID, ChatId)]
 
@@ -67,7 +68,8 @@ class ChatManager(var me: User, private var topicCreated: Boolean = false):
       val topic = new TopicPartition(Domain.generateJoinId(me.userId), 0)
       joinConsumer.assign(java.util.List.of(topic))
       joinConsumer.seek(topic, joinOffset)
-      // this may throw IllegalArgumentException if joining topic exists but in db we do not have updated offset
+      // this may throw IllegalArgumentException if joining topic exists,
+      // but in db we do not have updated offset
       // and inserted value of joinOffset (taken from db) is -1.
       while ( continueChecking.get() ) {
         val records: ConsumerRecords[String, String] = joinConsumer.poll(java.time.Duration.ofMillis(1000))
@@ -112,18 +114,27 @@ class ChatManager(var me: User, private var topicCreated: Boolean = false):
               } )
               // we try to restart
               optionListener = assignListener()
-            // if we should not listen further we reassign to None
             else
+              // if we should not listen further we reassign to None
               error = None
               optionListener = None
-          // if we closed this future successfully, we simply reassign to None
           case Success(_) =>
+            // if we closed this future successfully, we simply reassign to None
             error = None
             optionListener = None
         }
       }
     )
     Some(future)
+
+
+  /**
+   * restart option listener, only when is not running.
+   * If is running, it means that everything is ok.
+   */
+//  def restartListener(): Unit =
+//    if optionListener.get.isCompleted then startChatManager()
+
 
 
 
@@ -187,6 +198,8 @@ class ChatManager(var me: User, private var topicCreated: Boolean = false):
       if transactionInitialized then
         sendInvitations(users, chat)
       else
+        // before each transaction join producer must be
+        // initialized exactly one time.
         joinProducer.initTransactions()
         sendInvitations(users, chat)
         transactionInitialized = true
@@ -200,18 +213,37 @@ class ChatManager(var me: User, private var topicCreated: Boolean = false):
 
 
   /**
+   * In this method w send joining to chat information to
+   * users, but we must do it in different thread, because of
+   * blocking nature of send() method in case of sending
+   * to non existing topic.
+   *
+   * I set auto.create.topics.enable to false, to not create
+   * automatically topics when they not exists, due to this option
+   * send() method hangs.
+   *
+   * But, even if here we cannot send invitations to some set of users,
+   * (because of for example  not created joining topic), is not a problem,
+   * because of users have information about new chat in DB.
+   * So when they log in again, they will get information from DB obout new chat.
+   *
    *
    * @param users
    * @param chat
    */
   private def sendInvitations(users: List[User], chat: Chat): Unit =
-    joinProducer.beginTransaction()
-    users.foreach(u => {
-      if u.userId != me.userId then
-        val joiningTopicName = Domain.generateJoinId(u.userId)
-        joinProducer.send(new ProducerRecord[String, String](joiningTopicName, me.userId.toString, chat.chatId))
-    })
-    joinProducer.commitTransaction()
+    // we start future and forget it.
+    Future {
+      joinProducer.beginTransaction()
+      users.foreach(u => {
+        if u.userId != me.userId then
+          val joiningTopicName = Domain.generateJoinId(u.userId)
+          joinProducer.send(new ProducerRecord[String, String](joiningTopicName, me.userId.toString, chat.chatId))
+          // val recordMetadata = result.get(10_000L, TimeUnit.MILLISECONDS)  //get() // call to wait
+          // println(s"Result is.... $recordMetadata, offset: ${recordMetadata.offset()}")
+      })
+      joinProducer.commitTransaction()
+    }
     MyAccount.addChat(chat, users)
 
 
@@ -226,6 +258,7 @@ class ChatManager(var me: User, private var topicCreated: Boolean = false):
   private def restartProducer(): Unit =
     joinProducer.abortTransaction()
     joinProducer.close()
+    transactionInitialized = false
     joinProducer = KessengerAdmin.createJoiningProducer(me.userId)
 
 

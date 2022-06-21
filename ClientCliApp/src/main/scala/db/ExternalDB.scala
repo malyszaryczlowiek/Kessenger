@@ -538,7 +538,7 @@ object ExternalDB:
    * @param chat
    * @return
    */
-  def updateChatOffsetAndMessageTime(user: User, chats: Seq[Chat]): Either[QueryErrors,Int] =
+  def updateChatOffsetAndMessageTime(user: User, chats: Seq[Chat]): Either[QueryErrors, Int] =
     val sql = "UPDATE users_chats SET users_offset = ?, message_time = ? WHERE chat_id = ? AND user_id = ? "
     if chats.isEmpty then
       Left(QueryErrors(List(QueryError(QueryErrorType.WARNING,QueryErrorMessage.UserHasNoChats))))
@@ -558,11 +558,12 @@ object ExternalDB:
                   statement.setObject(4, user.userId)
                   statement.executeUpdate()
               } match {
-                case Failure(ex) => throw ex
+                case Failure(ex)    => throw ex
                 case Success(value) => value
               }
             }
         )
+        // we zip all futures to get one with sum of affected chats
         val zippedFuture = futureList.reduceLeft((f1, f2) => f1.zipWith(f2)(_+_))
         val affected = Await.result(zippedFuture, Duration.create(5L, duration.SECONDS))
         if affected == chats.length then

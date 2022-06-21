@@ -37,7 +37,8 @@ object MyAccount:
       tryToStartChatManager(chatManager)
     else
       ExternalDB.findUsersChats(user) match {
-        case Left(dbError: QueryErrors) => Left(Some(dbError), None)
+        case Left(dbError: QueryErrors)               => 
+          Left(Some(dbError), None)
         case Right(usersChats: Map[Chat, List[User]]) =>
           val transform = usersChats.map(
             (chatList: (Chat, List[User])) =>
@@ -77,8 +78,8 @@ object MyAccount:
             ExternalDB.updateJoiningOffset(me, 0L) match {
               case Right(user) =>
                 me = user
-                println(s"User's data updated. ")      // todo delete after tests
-                println(s"offset ${me.joiningOffset}") // todo delete after tests
+                //println(s"User's data updated. ")      //  delete after tests
+                //println(s"offset ${me.joiningOffset}") //  delete after tests
                 chatManager.updateOffset( me.joiningOffset )
                 chatManager.setTopicCreated( true )
                 tryToStartChatManager(chatManager) // if offset is updated we try to restart listener in chatManager

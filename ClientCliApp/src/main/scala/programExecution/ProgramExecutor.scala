@@ -220,10 +220,21 @@ object ProgramExecutor :
           print("> ")
           line = readLine()
       }
-      executor.stopPrintingMessages()
+      executor.stopPrintMessages()
+      executor
     } match {
-      case Failure(exception) => println(s"Unexpected Error in chat.")
-      case Success(value)     => () // do nothing simply return to chat list
+      case Failure(exception)    =>
+        println(s"Unexpected Error in chat.")
+      case Success(chatExecutor: ChatExecutor) =>
+        val chat = chatExecutor.getChat
+        val me = MyAccount.getMyObject
+        // we save offset to db
+        ExternalDB.updateChatOffsetAndMessageTime(me, Seq(chat)) match {
+          case Left(qe: QueryErrors) =>
+            println(s"Cannot update chat information: ${qe.listOfErrors.head.description} ")
+          case Right(saved: Int)     =>
+            println(s"Chat information updated.")
+        }
     }
 
 

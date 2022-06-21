@@ -15,13 +15,14 @@ import java.util.UUID
 import scala.collection.immutable.{AbstractMap, SeqMap, SortedMap}
 import scala.sys.process.*
 import scala.util.{Failure, Success}
-
 import integrationTests.messages.KafkaIntegrationTestsTrait
 import integrationTests.db.DbIntegrationTestsTrait
 
 import org.apache.kafka.clients.consumer.{ConsumerRecord, ConsumerRecords, KafkaConsumer}
+import org.apache.kafka.clients.producer.ProducerRecord
 import org.apache.kafka.common.TopicPartition
 
+import java.util.concurrent.TimeUnit
 import scala.concurrent.{Await, Future}
 import concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.{Duration, MILLISECONDS, SECONDS}
@@ -66,12 +67,36 @@ class ChatManagerTests extends KafkaIntegrationTestsTrait, DbIntegrationTestsTra
 
 
 
+  /*******************************************
+  TESTS
+  *******************************************/
+
+
+  /*   Testy do napisania
+
+  1. po utworzeniu usera w db ,MyAccount.initializeAfterCreation
+   powinien zwrócić chat managera jeśli Joining topic NIE ISTNIEJEj
+
+  2. po Zalogownaiu usera w db ,MyAccount.initialize
+   powinien zwrócić chat managera jeśli Joining topic ISTNIEJE
+
+  3. po Zalogownaiu usera w db ,MyAccount.initialize
+   powinien zwrócić chat managera jeśli Joining topic NIE ISTNIEJE
+
+
+
+
+
+
+  */
+
+
 
   /**
    * This test is empty because all to test is done in beforeEach()
    * and in afterEach()
    */
-  test("Initializing user after creation shout return ChatManager correctly.") {
+  test("Initializing user after creation should return ChatManager correctly.") {
 
     cm = MyAccount.initializeAfterCreation(user1) match {
       case Left((dbErrors: Option[QueryErrors], kafkaError: Option[KafkaError])) =>
@@ -83,7 +108,9 @@ class ChatManagerTests extends KafkaIntegrationTestsTrait, DbIntegrationTestsTra
   }
 
 
-
+  /**
+   *
+   */
   test("after user initialization, Sending invitations to existing user via chat manager does not return any error.") {
 
     cm = MyAccount.initializeAfterCreation(user1) match {
@@ -115,12 +142,12 @@ class ChatManagerTests extends KafkaIntegrationTestsTrait, DbIntegrationTestsTra
 
 
   /**
-   * In this test i test if Users data are updated in DB correctly,
+   * Users data are updated in DB correctly,
    * when joining topic exists but joiningOffset in db is incorrect  (-1L),
    * (not updated, from some reasons in DB)
    *
    */
-  test("Updating joining offset from not valid in DB when joiningTopic already exists.") {
+  test("Updating joining offset from not valid in DB  when joiningTopic already exists.") {
 
     cm = MyAccount.initialize(user1) match {
       case Left((dbErrors: Option[QueryErrors], kafkaError: Option[KafkaError])) =>
@@ -143,7 +170,11 @@ class ChatManagerTests extends KafkaIntegrationTestsTrait, DbIntegrationTestsTra
   }
 
 
-  test("Sending invitations to existing user via chat manager does not return any error.") {
+  /**
+   * Sending invitations to existing user via chat manager
+   * does not return any error.
+   */
+  test("Sending invitations to existing user via chat manager  does not return any error.") {
 
     cm = MyAccount.initialize(user1) match {
       case Left((dbErrors: Option[QueryErrors], kafkaError: Option[KafkaError])) =>
@@ -200,6 +231,106 @@ class ChatManagerTests extends KafkaIntegrationTestsTrait, DbIntegrationTestsTra
     )
     joinConsumer2.close()
 
+  }
+
+
+
+
+  /**
+   * Sending invitations to existing user via chat manager
+   * does not return any error.
+   *
+   * It is not possible to validate user existence via sending
+   * to non existing joining topic.
+   *
+   */
+  test("Sending invitations to NOT existing user via chat manager does not return any error.") {
+
+    cm = MyAccount.initialize(user1) match {
+      case Left((dbErrors: Option[QueryErrors], kafkaError: Option[KafkaError])) =>
+        println(s"DBError: ${dbErrors},\nKafka Error: $kafkaError")
+        throw new Exception("Should return Right object")
+      case Right(cm: ChatManager) => cm
+    }
+
+    val uuid = UUID.randomUUID()
+    println(s"uuid: $uuid")
+    val notExistingUser: User = User(uuid, "FooUser" )
+
+    val id = Domain.generateChatId(user1.userId, notExistingUser.userId)
+    val anyChat = Chat(id, "Chat name", false, 0L, LocalDateTime.now())
+
+    cm.askToJoinChat(List(notExistingUser), anyChat) match {
+      case Left(ke: KafkaError) =>
+        println(s"$ke")
+        assert(false, s"should return Right object.")
+      case Right(chat: Chat)    =>
+        assert(chat == anyChat, s"should return $anyChat object.")
+    }
+
+    // checking weather we do not get invitation from myself.
+
+//    val joinConsumer: KafkaConsumer[String, String] = KessengerAdmin.createJoiningConsumer()
+//    val topic = new TopicPartition(Domain.generateJoinId(user1.userId), 0)
+//    joinConsumer.assign(java.util.List.of(topic))
+//    joinConsumer.seek(topic, 0L)
+//    val records: ConsumerRecords[String, String] = joinConsumer.poll(java.time.Duration.ofMillis(1000))
+//    if records.count() != 0 then
+//      assert(false, "Bad record size in sender topic." )
+//    joinConsumer.close()
+//
+//    // checking if user2 got invitation
+//
+//    val joinConsumer2: KafkaConsumer[String, String] = KessengerAdmin.createJoiningConsumer()
+//    val topic2 = new TopicPartition(Domain.generateJoinId(user2.userId), 0)
+//    joinConsumer2.assign(java.util.List.of(topic2))
+//    joinConsumer2.seek(topic2, 0L)
+//    val records2: ConsumerRecords[String, String] = joinConsumer2.poll(java.time.Duration.ofMillis(1000))
+//    if records2.count() != 1 then
+//      throw new IllegalStateException("Bad record size.")
+//    records2.forEach(
+//      (r: ConsumerRecord[String, String]) => {
+//        val whoSent = UUID.fromString(r.key())
+//        val chatId = r.value()
+//        assert( whoSent.equals(user1.userId), s"Users id not match")
+//        assert( chatId == id , s"Chat id not match")
+//      }
+//    )
+//    joinConsumer2.close()
+
+  }
+
+
+  /**
+   * Note this SUPER IMPORTANT case...
+   *
+   * If I do not set broker configuration option
+   * auto.create.topics.enable to false,
+   * topic is created automatically but with
+   * different (default) configurations.
+   *
+   * After this option is added, test fails,
+   * but with different unexpected exception.
+   * I expected TopicNotFound but after sending record,
+   * when topic does not exists, producer hangs for one minute :O
+   *
+   */
+  test("Sending record to non existing topic, do not throw any Exception") {
+
+    val uuid = UUID.randomUUID()
+    println(s"uuid: $uuid")
+    val notExistingUser: User = User(uuid, "FooUser" )
+
+
+    val producer = KessengerAdmin.createJoiningProducer(uuid)
+
+    producer.initTransactions()
+    producer.beginTransaction()
+    val future = producer.send(new ProducerRecord[String, String]("NON_EXISTING_TOPIC", "KEY", "VALUE") )
+
+    producer.commitTransaction()
+
+    producer.close()
   }
 
 

@@ -54,11 +54,7 @@ class ChatExecutorTests extends KafkaIntegrationTestsTrait, DbIntegrationTestsTr
       case Right(cm: ChatManager) => cm
     }
 
-    // we create chat with that user
 
-
-
-    //
 
 
 
