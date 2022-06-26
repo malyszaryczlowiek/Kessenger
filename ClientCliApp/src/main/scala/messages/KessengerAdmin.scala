@@ -36,6 +36,8 @@ object KessengerAdmin {
     admin = Admin.create(properties)
 
 
+
+
   /**
    * note we handle TimeoutException but not return it.
    * For user it does not matter if we close this correctly.
@@ -47,8 +49,10 @@ object KessengerAdmin {
     }
 
 
-  // topic creation
 
+  /**
+   * topic creation
+   */
   def createNewChat(chat: Chat): Either[KafkaError, Chat] = // , writingId: WritingId
     Try {
       val partitionsNum: Int       = configurator.TOPIC_PARTITIONS_NUMBER
@@ -56,7 +60,7 @@ object KessengerAdmin {
       val chatConfig: java.util.Map[String, String] = CollectionConverters.asJava(
         Map(
           TopicConfig.CLEANUP_POLICY_CONFIG -> TopicConfig.CLEANUP_POLICY_DELETE,
-          TopicConfig.RETENTION_MS_CONFIG -> "-1" // keep all logs forever
+          TopicConfig.RETENTION_MS_CONFIG   -> "-1" // keep all logs forever
         )
       )
       val result: CreateTopicsResult = admin.createTopics(
@@ -72,13 +76,16 @@ object KessengerAdmin {
       case Success(rightChat) => rightChat
     }
 
+
+
+
   /**
    * Method removes topics of selected chat
    * @param chatId
    * @param writingId
    * @return
    */
-  @deprecated
+  @deprecated("this method won't be used in future versions.")
   def removeChat(chat: Chat): Either[KafkaError, ChatId] =
     Try {
       val deleteTopicResult: DeleteTopicsResult = admin.deleteTopics(java.util.List.of(chat.chatId))
@@ -95,6 +102,9 @@ object KessengerAdmin {
       case Success(either) => either
       case Failure(ex)     => KafkaErrorsHandler.handleWithErrorMessage[ChatId](ex)
     }
+
+
+
 
   def createChatProducer: KafkaProducer[String, String] =
     val properties = new Properties
@@ -137,8 +147,6 @@ object KessengerAdmin {
 
 
 
-
-
   // Joining
 
   /**
@@ -172,6 +180,13 @@ object KessengerAdmin {
     }
 
 
+
+
+  /**
+   *
+   * @param userId
+   * @return
+   */
   def createJoiningProducer(userId: UserID): KafkaProducer[String, String] = //???
     val properties = new Properties
     properties.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, configurator.SERVERS)
@@ -182,6 +197,8 @@ object KessengerAdmin {
     properties.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, "org.apache.kafka.common.serialization.StringSerializer")
     properties.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, "org.apache.kafka.common.serialization.StringSerializer")
     new KafkaProducer[String, String](properties)
+
+
 
 
   /**

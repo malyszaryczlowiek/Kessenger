@@ -23,6 +23,35 @@ class ProgramExecutionTests extends munit.FunSuite:
     assert(array.mkString("") == "dde")
   }
 
+  test("is empty string really empty") {
+    assert("".isEmpty)
+  }
+
+  test("Equality test") {
+    val e = "e"
+    assert("e".equals(e))
+  }
+
+
+  // todo wstawic to do Program Executor'a
+  test("Does login regex match example incorrect logins.") {
+    val loginRegex = "[\\p{Punct}a-z0-9]+|([0-9]+)".r
+
+    // these logins should NOT be valid
+    assert(   loginRegex.matches("#")     )
+    assert(   loginRegex.matches("#exi")  )
+    assert(   loginRegex.matches("e$xi")  )
+    assert(   loginRegex.matches("&99")   )
+    assert(   loginRegex.matches("499")   )
+
+    // these logins should be valid
+    assert( ! loginRegex.matches("Walo")  )
+    assert( ! loginRegex.matches("ę")     )
+    assert( ! loginRegex.matches("ę99")   )
+
+
+  }
+
 //  test("testing inserting string to string") {
 //    val chat = Chat("", "Foo chat name", false, 0L, LocalDateTime.now())
 //    val forGrouped = " or #escape_chat"

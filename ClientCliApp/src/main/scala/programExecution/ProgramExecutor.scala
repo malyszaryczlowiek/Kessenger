@@ -9,7 +9,7 @@ import scala.collection.mutable.ListBuffer
 import scala.io.StdIn.{readChar, readInt, readLine}
 import com.github.malyszaryczlowiek.account.MyAccount
 import com.github.malyszaryczlowiek.db.ExternalDB
-import com.github.malyszaryczlowiek.db.queries.{QueryError, QueryErrors}
+import com.github.malyszaryczlowiek.db.queries.{QueryError, QueryErrorMessage, QueryErrors}
 import com.github.malyszaryczlowiek.domain.Domain.{Login, Password}
 import com.github.malyszaryczlowiek.domain.User
 import com.github.malyszaryczlowiek.messages.kafkaConfiguration.KafkaProductionConfigurator
@@ -37,8 +37,12 @@ object ProgramExecutor :
           println("Please select 1, 2 or 3.")
           runProgram(args)
         case Success(value) =>
-          if      value == 1 then signIn()
-          else if value == 2 then createAccount()
+          if   value == 1    then
+            signIn()
+            runProgram(Array.empty)
+          else if value == 2 then
+            createAccount()
+            runProgram(Array.empty)
           else if value == 3 then () // exit method and program
           else
             println("Please select 1, 2 or 3.")
@@ -63,37 +67,50 @@ object ProgramExecutor :
     var login: Login = ""
     if log.isEmpty then login = readLine()
     else login = log
-    val console: Console = System.console()
-    if console != null then
-      println("Type your password:")
-      print("> ")
-      lazy val pass = console.readPassword()
-      if pass != null then
-        ExternalDB.findUsersSalt(login) match {
-          case Right(salt) =>
-            lazy val password = pass.mkString("")
-            PasswordConverter.convert(password, salt) match {
-              case Left(_)   =>
-                println(s"Ooops some Error.")
-                signInWithLogin(login)
-              case Right(ep) => checkCredentials(login, ep, salt)
-            }
-          case Left(queryErrors: QueryErrors) =>
-            val mes = queryErrors.listOfErrors.head.description
-            println(mes)
-        }
-      else
-        println("Some error occurred, try again.")
-        signInWithLogin(login)
+    // validate if login does not match #something
+    val loginRegex =  "[\\p{Punct}a-z0-9]+|([0-9]+)".r
+    //if so we need to repeat question.
+    if "".equals(login) then
+      println(s"Login cannot be empty.")
+      signInWithLogin("")
+    else if "#exit".equals(login) then
+      {} // back to main menu program
+    else if loginRegex.matches(login) then
+      println("Login cannot contain punctuation characters: !#%&'()*+,-./:;<=>?@[\\]^_`{|}~.\"$")
+      signInWithLogin("")
     else
-      println("OOOps problem with Console. Cannot use it. Program Terminates.")
+      val console: Console = System.console()
+      if console != null then
+        println("Type your password:")
+        print("> ")
+        lazy val pass = console.readPassword()
+        if pass != null then
+          ExternalDB.findUsersSalt(login) match {
+            case Right(salt) =>
+              lazy val password = pass.mkString("")
+              PasswordConverter.convert(password, salt) match {
+                case Left(_)   =>
+                  println(s"Ooops some Error.")
+                  signInWithLogin("")
+                case Right(ep) =>
+                  checkCredentials(login, ep, salt)
+              }
+            case Left(queryErrors: QueryErrors) =>
+              queryErrors.listOfErrors.foreach(error => println(s"${error.description}"))
+              signInWithLogin("")
+          }
+        else
+          println("Some error occurred, try again.")
+          signInWithLogin("")
+      else
+        println("OOOps problem with Console. Cannot use it.")
 
 
 
   private def checkCredentials(login: Login, password: Password, salt: String): Unit =
     ExternalDB.findUser(login, password, salt) match {
-      case Left(QueryErrors(l @ List(QueryError(queryErrorType, description)))) =>
-        println(s"$description")
+      case Left(queryErrors: QueryErrors) =>
+        queryErrors.listOfErrors.foreach(error => println(s"${error.description}"))
         signIn()
       case Right(user) => // user found
         // from test purposes, better is to move starting KafkaAdmin out of MyAccount object
@@ -117,9 +134,6 @@ object ProgramExecutor :
             manager = Some(chatManager)
             printMenu()
         }
-      case _ =>  // not reachable
-        println("Other problem.")
-        signIn()
     }
 
 
@@ -144,7 +158,7 @@ object ProgramExecutor :
           showChats()
           printMenu()
         else if value == 2 then
-          createChat()  // TODO  implement
+          createChat()
           printMenu()
         else if value == 3 then
           showSettings() // TODO  implement
@@ -290,7 +304,7 @@ object ProgramExecutor :
         case Some(chatManager: ChatManager) =>
           ExternalDB.createChat(users, name) match {
             case Left(queryErrors: QueryErrors) =>
-              println(s"${queryErrors.listOfErrors.head.description}")
+              queryErrors.listOfErrors.foreach(error => println(s"${error.description}"))
               Option.empty[Chat]
             case Right(chat) =>
               chatManager.askToJoinChat(users, chat) match {
@@ -302,7 +316,7 @@ object ProgramExecutor :
               }
           }
         case None =>
-          println(s"Some error, please try to log in again for a while.")
+          println(s"Some error, please try to log in again in a while.")
           Option.empty[Chat]
       }
     else
@@ -351,7 +365,7 @@ object ProgramExecutor :
     print("> ")
     val login = readLine()
     val regex = "[\\w]{8,}".r
-    if login == "#exit"          then ()
+    if login == "#exit"          then () // back to main menu
     else if regex.matches(login) then setPassword(login, "")
     else
       println(s"Login is incorrect, try with another one, or type #exit.")

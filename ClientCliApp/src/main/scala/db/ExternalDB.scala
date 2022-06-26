@@ -232,7 +232,7 @@ object ExternalDB:
 
   /**
    * Method concurrently checks if all users exists in db.
-   * If so returned list od QueryErrors is empty.
+   * If so returned list of QueryErrors is empty.
    * @param users
    * @return
    */
@@ -276,6 +276,8 @@ object ExternalDB:
         statement.executeUpdate()
     }
 
+
+
   /**
    *
    *
@@ -295,7 +297,6 @@ object ExternalDB:
       val affectionList: List[Future[Int]] = users.map(
         user =>
           Future {
-            //Using(connection.prepareStatement("INSERT INTO users_chats (chat_id, user_id, offset) VALUES (?, ?, ?)")) {
             Using(connection.prepareStatement("INSERT INTO users_chats (chat_id, user_id, message_time) VALUES (?, ?, ?)")) {
               (statement: PreparedStatement) =>
                 statement.setString(1, chat.chatId)
@@ -339,7 +340,7 @@ object ExternalDB:
               val offset: Long   = resultSet.getLong("joining_offset")
               Right(User(userId, login, None, offset))
             else
-              Left(QueryErrors(List(QueryError(QueryErrorType.ERROR, QueryErrorMessage.UserNotFound(login)))))
+              Left(QueryErrors(List(QueryError(QueryErrorType.ERROR, QueryErrorMessage.IncorrectLoginOrPassword))))
         } match {
           case Failure(ex) => throw ex
           case Success(either) => either
@@ -374,7 +375,7 @@ object ExternalDB:
           case Success(either) => either
         }
     } match {
-      case Failure(ex) => handleExceptionMessage[User](ex)
+      case Failure(ex)     => handleExceptionMessage[User](ex)
       case Success(either) => either
     }
 
@@ -400,7 +401,7 @@ object ExternalDB:
         case Success(either) => either
       }
     } match {
-      case Failure(ex) => handleExceptionMessage[User](ex)
+      case Failure(ex)     => handleExceptionMessage[User](ex)
       case Success(either) => either
     }
 
@@ -427,7 +428,7 @@ object ExternalDB:
           case Success(either) => either
         }
     } match {
-      case Failure(ex) => handleExceptionMessage[String](ex)
+      case Failure(ex)     => handleExceptionMessage[String](ex)
       case Success(either) => either
     }
 
@@ -543,10 +544,10 @@ object ExternalDB:
     if chats.isEmpty then
       Left(QueryErrors(List(QueryError(QueryErrorType.WARNING,QueryErrorMessage.UserHasNoChats))))
     else
-      var stateBeforeInsertion: Savepoint = null
+      //var stateBeforeInsertion: Savepoint = null
       Try {
-        connection.setAutoCommit(false)
-        stateBeforeInsertion = connection.setSavepoint()
+//        connection.setAutoCommit(false)
+//        stateBeforeInsertion = connection.setSavepoint()
         val futureList = chats.map[Future[Int]](
           chat =>
             Future { // each insertion executed in separate thread
@@ -566,14 +567,15 @@ object ExternalDB:
         // we zip all futures to get one with sum of affected chats
         val zippedFuture = futureList.reduceLeft((f1, f2) => f1.zipWith(f2)(_+_))
         val affected = Await.result(zippedFuture, Duration.create(5L, duration.SECONDS))
-        if affected == chats.length then
-          connection.commit()
-          Right(affected)
-        else
-          throw new Exception("Data processing error.")
+        Right(affected)
+//        if affected == chats.length then
+//          connection.commit()
+//          Right(affected)
+//        else
+//          throw new Exception("Data processing error.")
       } match {
         case Failure(ex) =>
-          if stateBeforeInsertion != null then connection.rollback(stateBeforeInsertion) // This connection has been closed
+//          if stateBeforeInsertion != null then connection.rollback(stateBeforeInsertion) // This connection has been closed
           handleExceptionMessage[Int](ex)  // returns DataProcessing Error
         case Success(either) => either
       }
@@ -595,6 +597,7 @@ object ExternalDB:
         connection.setAutoCommit(false)
         stateBeforeInsertion = connection.setSavepoint()
         val filtered = filterUsersExistingInDb(users)
+        // println(s"SIZE: ${filtered.size}")
         if filtered.nonEmpty then
           Left(QueryErrors(filtered))
         else // if all users are present in db we can try add them to chat
@@ -608,7 +611,7 @@ object ExternalDB:
                     statement.setObject(2, user.userId)
                     statement.executeUpdate()
                 } match {
-                  case Failure(ex) => throw ex
+                  case Failure(ex)    => throw ex
                   case Success(value) => value
                 }
               }

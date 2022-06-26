@@ -11,12 +11,11 @@ import messages.kafkaConfiguration.KafkaProductionConfigurator
 import messages.kafkaErrorsUtil.{KafkaError, KafkaErrorMessage, KafkaErrorStatus, KafkaErrorsHandler}
 
 import java.util.UUID
+import scala.annotation.tailrec
 import scala.collection.immutable.SortedMap
 import scala.collection.{immutable, mutable}
 import scala.collection.mutable.{ArrayBuffer, ListBuffer}
 import scala.collection.parallel.mutable.ParTrieMap
-//import collection.parallel.CollectionConverters.IterableIsParallelizable
-import scala.annotation.tailrec
 import scala.util.{Failure, Success, Try}
 
 
@@ -37,7 +36,7 @@ object MyAccount:
       tryToStartChatManager(chatManager)
     else
       ExternalDB.findUsersChats(user) match {
-        case Left(dbError: QueryErrors)               => 
+        case Left(dbError: QueryErrors)               =>
           Left(Some(dbError), None)
         case Right(usersChats: Map[Chat, List[User]]) =>
           val transform = usersChats.map(
@@ -110,6 +109,8 @@ object MyAccount:
   def getMyObject: User = me
   def getMyChats: immutable.SortedMap[Chat, ChatExecutor] = myChats.to(immutable.SortedMap)
 
+  def getChatExecutor(chat: Chat): Option[ChatExecutor] = getMyChats.get(chat)
+
 
   def addChat(chat: Chat, users: List[User]): Unit =
     myChats.addOne((chat, new ChatExecutor(me, chat, users)))
@@ -125,12 +126,16 @@ object MyAccount:
    *         which must be saved to DB subsequently.
    */
   def logOut(): Unit =
-    val chatsToSave = myChats.values.par.map(_.closeChat()).seq.toSeq       // close all Kafka connections
-    ExternalDB.updateChatOffsetAndMessageTime(me, chatsToSave) match {
-      case Left(queryErrors: QueryErrors) =>
-        println(s"${queryErrors.listOfErrors.head.description}")
-      case Right(value) =>
-        println(s"Updated $value chats to DB.")
-    }
+    // we close all kafka connections
+    myChats.values.par.map(_.closeChat())
+//    val chatsToSave = myChats.values.par.map(_.closeChat()).seq.toSeq       // close all Kafka connections
+//    ExternalDB.updateChatOffsetAndMessageTime(me, chatsToSave) match {
+//      case Left(queryErrors: QueryErrors) =>
+//        println(s"LOGOUT DB ERROR.") // todo delete it
+//        println(s"${queryErrors.listOfErrors.head.description}")
+//      case Right(value) =>
+//        println(s"Updated $value chats to DB.")
+//    }
+    // and make my chats empty
     myChats.empty                               // make chat map empty
     me = User(UUID.randomUUID(), "NULL_LOGIN")  // reassign user to null one

@@ -1,9 +1,12 @@
 package com.github.malyszaryczlowiek
 package messages
 
-import com.github.malyszaryczlowiek.domain.Domain.{ChatName, Login, UserID}
-import com.github.malyszaryczlowiek.domain.User
-import com.github.malyszaryczlowiek.util.TimeConverter
+import db.ExternalDB
+import domain.Domain.{ChatName, Login, UserID}
+import domain.User
+import util.TimeConverter
+
+import com.github.malyszaryczlowiek.db.queries.QueryErrors
 import org.apache.kafka.clients.consumer.{ConsumerRecord, ConsumerRecords, KafkaConsumer}
 import org.apache.kafka.clients.producer.{Callback, KafkaProducer, ProducerRecord, RecordMetadata}
 import org.apache.kafka.common.TopicPartition
@@ -31,11 +34,13 @@ class ChatExecutor(me: User, chat: Chat, chatUsers: List[User]):
   // we will read from topic with name of chatId. Each chat topic
   // has only one partition (and three replicas)
   private val topicPartition: TopicPartition                = new TopicPartition(chat.chatId, 0)
-  private val chatProducer:   KafkaProducer[String, String] = KessengerAdmin.createChatProducer
+  private var chatProducer:   KafkaProducer[String, String] = KessengerAdmin.createChatProducer
 
   private val unreadMessages: ParTrieMap[Long,(Login, LocalDateTime, String)] = ParTrieMap.empty[Long, (Login, LocalDateTime, String)]
 
-
+  // TODO ********************************************************
+  // TODO sprawdzić tego sendera aby dział tak jak w chatManagerze.
+  // TODO ********************************************************
   def sendMessage(message: String): Unit =
     chatProducer.send(new ProducerRecord[String, String](chat.chatId, me.userId.toString, message)) // , callBack)
 
@@ -47,8 +52,9 @@ class ChatExecutor(me: User, chat: Chat, chatUsers: List[User]):
       val chatConsumer: KafkaConsumer[String, String] = KessengerAdmin.createChatConsumer(me.userId.toString)
       // assign specific topic to read from
       chatConsumer.assign(java.util.List.of(topicPartition))
-      // we manually set offset to read from
-      chatConsumer.seek(topicPartition, newOffset.get()) // we start reading from topic from last read message (offset)
+      // we manually set offset to read from and
+      // we start reading from topic from last read message (offset)
+      chatConsumer.seek(topicPartition, newOffset.get())
       while (continueReading.get()) {
         val records: ConsumerRecords[String, String] = chatConsumer.poll(Duration.ofMillis(250))
         records.forEach(
@@ -57,9 +63,6 @@ class ChatExecutor(me: User, chat: Chat, chatUsers: List[User]):
             val login = chatUsers.find(_.userId == senderUUID) match
               case Some(user) => user.login
               case None       => "Deleted User"
-            // https://docs.oracle.com/javase/tutorial/datetime/iso/timezones.html
-            // val time =
-            //lastMessageTime.set(r.timestamp())
             if printMessage.get() then
               printMessage(login, r.timestamp(), r.value(), r.offset())
             else
@@ -71,13 +74,12 @@ class ChatExecutor(me: User, chat: Chat, chatUsers: List[User]):
     }
     future.onComplete {
       case Failure(ex)    =>
-        // if some error occurred we restart chatReader
+        // if some error occurred we restart chatReader, every 3 seconds
         if continueReading.get() then
-          // try to restart every 3 seconds
           Thread.sleep(3000)
-          chatReader = Some( createChatReader() )
+          chatReader = Some( createChatReader() )  // TODO watch out of infinite loop when future ends so fast that  onComplete is not defined yet
       case Success(value) =>
-        println(s"Chat ${chat.chatName} closed.")
+        println(s"Chat \'${chat.chatName}\' closed.")
     }
     future
 
@@ -116,7 +118,7 @@ class ChatExecutor(me: User, chat: Chat, chatUsers: List[User]):
    * printMessage is set to true and
    * and printMessage() is starting execute in chatReader
    * instead of showNotification(),
-   * and so unreadMessages is not modified in this time.
+   * and so, unreadMessages is not modified in this time.
    */
   def printUnreadMessages(): Unit =
     printMessage.set(true)
@@ -166,7 +168,8 @@ class ChatExecutor(me: User, chat: Chat, chatUsers: List[User]):
       newOffset.set( offset )
       lastMessageTime.set( timeStamp )
     else
-      val map: immutable.SortedMap[Long,(Login, LocalDateTime, String)] = unreadMessages.seq.to(immutable.SortedMap) // conversion to SortedMap
+      val map: immutable.SortedMap[Long,(Login, LocalDateTime, String)] =
+        unreadMessages.seq.to(immutable.SortedMap) // conversion to SortedMap
       unreadMessages.clear() // clear off ParSequence
       map.foreach( (k,v) => {
         println(s"${v._1} ${v._2} >> ${v._3}")
@@ -176,12 +179,18 @@ class ChatExecutor(me: User, chat: Chat, chatUsers: List[User]):
       println(s"$login $localTime >> $message") // and finally print last message.
       newOffset.set( offset )
       lastMessageTime.set( timeStamp )
+    ExternalDB.updateChatOffsetAndMessageTime(me, Seq(getChat)) match {
+      case Left(queryErrors: QueryErrors) =>
+        println(s"LOGOUT DB ERROR.") // todo delete it
+        println(s"${queryErrors.listOfErrors.head.description}")
+      case Right(value) =>
+        println(s"Updated $value chats to DB.")
+    }
 
 
 
   def getLastMessageTime: LocalDateTime = TimeConverter.fromMilliSecondsToLocal( lastMessageTime.get() )
 
-  //def getLastReadMessageMilliSecondsTime: Long = lastReadMessageTime.get()
 
   def getChatOffset: Long = newOffset.get()
 
@@ -189,11 +198,11 @@ class ChatExecutor(me: User, chat: Chat, chatUsers: List[User]):
   def getUser: User = me
 
   /**
-   * 
+   *
    * @return Returns updated chat with last read message offset
    *         and Last Read message Local Time.
    */
-  def getChat: Chat = 
+  def getChat: Chat =
     Chat(chat.chatId, chat.chatName, chat.groupChat, newOffset.get(), TimeConverter.fromMilliSecondsToLocal(lastMessageTime.get()))
 
 
@@ -209,7 +218,9 @@ class ChatExecutor(me: User, chat: Chat, chatUsers: List[User]):
     continueReading.set(false)
     getChat
 
-
+  private def restartProducer(): Unit =
+    chatProducer.close()
+    chatProducer = KessengerAdmin.createChatProducer
 
 
 

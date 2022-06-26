@@ -128,14 +128,6 @@ class ChatManager(var me: User, private var topicCreated: Boolean = false):
     Some(future)
 
 
-  /**
-   * restart option listener, only when is not running.
-   * If is running, it means that everything is ok.
-   */
-//  def restartListener(): Unit =
-//    if optionListener.get.isCompleted then startChatManager()
-
-
 
 
   /**
@@ -238,7 +230,9 @@ class ChatManager(var me: User, private var topicCreated: Boolean = false):
       users.foreach(u => {
         if u.userId != me.userId then
           val joiningTopicName = Domain.generateJoinId(u.userId)
+          println(s"Start sending join message")
           joinProducer.send(new ProducerRecord[String, String](joiningTopicName, me.userId.toString, chat.chatId))
+          println(s"message sent ")
           // val recordMetadata = result.get(10_000L, TimeUnit.MILLISECONDS)  //get() // call to wait
           // println(s"Result is.... $recordMetadata, offset: ${recordMetadata.offset()}")
       })
@@ -291,7 +285,7 @@ class ChatManager(var me: User, private var topicCreated: Boolean = false):
 
   def updateOffset(offset: Long): Unit = joinOffset = offset
 
-  def setTopicCreated(boolean: Boolean) : Unit = topicCreated = boolean
+  def setTopicCreated(boolean: Boolean): Unit = topicCreated = boolean
 
 
 
@@ -299,85 +293,3 @@ class ChatManager(var me: User, private var topicCreated: Boolean = false):
 
 
 
-
-
-
-
-
-
-/**
- *
- * @return
- */
-//  private def tryStartAndHandleError(): Option[KafkaError] =
-//    Try { startListener() } match {
-//      case Failure(ex) =>
-//        KafkaErrorsHandler.handleWithErrorMessage(ex) match {
-//          case Left(kafkaError) =>
-//            println(s"ERROR error is in ChatManager.tryStartAndHandleError().") //  delete it
-//            Some (kafkaError)
-//          case Right(_)         => None // this will never be called
-//        }
-//      case Success(_) => None
-//    }
-
-
-
-/**
- * In this method
- * We set our joining consumer to read from our
- * joining topic starting from our last read offset.
- * that even if we find in topic invitation to chat,
- * which is currently written in in DB, This invitation
- * will not show up twice (See future value below).
- * Note
- * This call may throw exception. We do not handle it because
- */
-//  private def startListener(): Unit =
-//    if optionListener.isDefined then
-//      continueChecking.set(false) //
-//      Await.result(optionListener.get, Duration.create(5L, SECONDS)) //  handle possible timeOut exception
-//
-//
-//    continueChecking.set(true)
-//
-//    lazy val future = Future {
-//      val joinConsumer: KafkaConsumer[String, String] = KessengerAdmin.createJoiningConsumer()
-//      val topic = new TopicPartition(Domain.generateJoinId(me.userId), 0)
-//      joinConsumer.assign(java.util.List.of(topic))
-//      joinConsumer.seek(topic, joinOffset)
-//      // this may throw IllegalArgumentException if joining topic exists but in db we do not have updated offset
-//      // and inserted value of joinOffset (taken from db) is -1.
-//
-//      // not matter if optionListener returned error or ended normally, we simply reassign it
-//      while (continueChecking.get()) {
-//        val records: ConsumerRecords[String, String] = joinConsumer.poll(java.time.Duration.ofMillis(1000))
-//        records.forEach(
-//          (r: ConsumerRecord[String, String]) => {
-//            val userID = UUID.fromString(r.key())
-//            val chatId = r.value()
-//            chatsToJoin.addOne((userID, chatId))
-//            ExternalDB.findChatAndUsers(me, chatId) match {
-//              case Right((chat: Chat, users: List[User])) =>
-//                MyAccount.getMyChats.find(chatAndExecutor => chatAndExecutor._1.chatId == chat.chatId) match {
-//                  case Some(_) => () // if chat already exists in my chat list, do nothing, we must not add this chat to list of my chats
-//                  case None =>
-//                    users.find(_.userId == userID) match {
-//                      case Some(user) => println(s"You got invitation from ${user.login} to chat ${chat.chatName}. ")
-//                      case None       => println(s"Warning!?! Inviting user not found???")
-//                    }
-//                    MyAccount.addChat(chat, users)
-//                    updateUsersOffset( r.offset() )
-//                }
-//              case Left(_) => () // if errors, do nothing, because I am added in users_chats
-//              // so in next logging chat will show up.
-//            }
-//          }
-//        )
-//      }
-//      joinConsumer.close()
-//    }
-//
-//    // if error occured, try to restart (reassign) future
-//    future.onComplete()
-//    optionListener = Some( future )

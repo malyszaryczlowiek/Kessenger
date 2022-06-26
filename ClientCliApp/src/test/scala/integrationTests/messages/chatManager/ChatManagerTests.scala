@@ -42,6 +42,7 @@ class ChatManagerTests extends KafkaIntegrationTestsTrait, DbIntegrationTestsTra
 
   var user1: User = _
   var cm: ChatManager = _
+  var chat: Chat = _
 
 
 
@@ -59,6 +60,7 @@ class ChatManagerTests extends KafkaIntegrationTestsTrait, DbIntegrationTestsTra
 
   override def afterEach(context: ChatManagerTests.this.AfterEach): Unit =
     if cm != null then cm.closeChatManager()
+    MyAccount.logOut()
     KessengerAdmin.closeAdmin()
     super.afterEach(context)
 
@@ -127,8 +129,14 @@ class ChatManagerTests extends KafkaIntegrationTestsTrait, DbIntegrationTestsTra
       case Right(user) => user
     }
 
-    val id = Domain.generateChatId(user1.userId, user2.userId)
-    val chat = Chat(id, "Chat name", false, 0L, LocalDateTime.now())
+    //val id = Domain.generateChatId(user1.userId, user2.userId)
+
+    ExternalDB.createChat(List(user1, user2), "Chat name") match {
+      case Left(_) => throw new Exception(s"should return chat object")
+      case Right(chatt: Chat) => chat = chatt
+    }
+
+
 
     cm.askToJoinChat(List(user2), chat) match {
       case Left(ke: KafkaError) =>
@@ -174,7 +182,7 @@ class ChatManagerTests extends KafkaIntegrationTestsTrait, DbIntegrationTestsTra
    * Sending invitations to existing user via chat manager
    * does not return any error.
    */
-  test("Sending invitations to existing user via chat manager  does not return any error.") {
+  test("Sending invitations to existing user via chat manager does not return any error.") {
 
     cm = MyAccount.initialize(user1) match {
       case Left((dbErrors: Option[QueryErrors], kafkaError: Option[KafkaError])) =>
@@ -190,10 +198,24 @@ class ChatManagerTests extends KafkaIntegrationTestsTrait, DbIntegrationTestsTra
       case Right(user) => user
     }
 
-    val id = Domain.generateChatId(user1.userId, user2.userId)
-    val anyChat = Chat(id, "Chat name", false, 0L, LocalDateTime.now())
 
-    cm.askToJoinChat(List(user2), anyChat) match {
+    /// create joining topic for user2
+
+    KessengerAdmin.createJoiningTopic(user2.userId) match {
+      case Left(_)  => throw new Exception( s"should normally create joining topic")
+      case Right(_) => {} // ok
+    }
+
+
+    // define chat
+    ExternalDB.createChat(List(user1, user2), "Chat name") match {
+      case Left(_) => throw new Exception(s"should return chat object")
+      case Right(chatt: Chat) => chat = chatt
+    }
+
+
+    // sending invitation
+    cm.askToJoinChat(List(user1, user2), chat) match {
       case Left(ke: KafkaError) =>
         println(s"$ke")
         assert(false, s"should return Right object.")
@@ -208,9 +230,11 @@ class ChatManagerTests extends KafkaIntegrationTestsTrait, DbIntegrationTestsTra
     joinConsumer.assign(java.util.List.of(topic))
     joinConsumer.seek(topic, 0L)
     val records: ConsumerRecords[String, String] = joinConsumer.poll(java.time.Duration.ofMillis(1000))
+    // we should have zero invitations send from myself
     if records.count() != 0 then
-      assert(false, "Bad record size in sender topic." )
+      assert(false, s"Bad record size in sender topic: ${records.count()}" )
     joinConsumer.close()
+
 
     // checking if user2 got invitation
 
@@ -218,15 +242,22 @@ class ChatManagerTests extends KafkaIntegrationTestsTrait, DbIntegrationTestsTra
     val topic2 = new TopicPartition(Domain.generateJoinId(user2.userId), 0)
     joinConsumer2.assign(java.util.List.of(topic2))
     joinConsumer2.seek(topic2, 0L)
-    val records2: ConsumerRecords[String, String] = joinConsumer2.poll(java.time.Duration.ofMillis(1000))
-    if records2.count() != 1 then
-      throw new IllegalStateException("Bad record size.")
+    val records2: ConsumerRecords[String, String] = joinConsumer2.poll(java.time.Duration.ofMillis(5000))
+
+    // assertion on number of obtained joining invitations
+    // user2 should have one invitation to chat.
+    assert(  records2.count() == 1 , s"Bad record size: ${records2.count()}")
+
+
     records2.forEach(
       (r: ConsumerRecord[String, String]) => {
         val whoSent = UUID.fromString(r.key())
         val chatId = r.value()
+
+        // assertion of information of joining message.
         assert( whoSent.equals(user1.userId), s"Users id not match")
-        assert( chatId == id , s"Chat id not match")
+        assert( chatId == chat.chatId , s"Chat id not match")
+
       }
     )
     joinConsumer2.close()
@@ -268,37 +299,9 @@ class ChatManagerTests extends KafkaIntegrationTestsTrait, DbIntegrationTestsTra
         assert(chat == anyChat, s"should return $anyChat object.")
     }
 
-    // checking weather we do not get invitation from myself.
-
-//    val joinConsumer: KafkaConsumer[String, String] = KessengerAdmin.createJoiningConsumer()
-//    val topic = new TopicPartition(Domain.generateJoinId(user1.userId), 0)
-//    joinConsumer.assign(java.util.List.of(topic))
-//    joinConsumer.seek(topic, 0L)
-//    val records: ConsumerRecords[String, String] = joinConsumer.poll(java.time.Duration.ofMillis(1000))
-//    if records.count() != 0 then
-//      assert(false, "Bad record size in sender topic." )
-//    joinConsumer.close()
-//
-//    // checking if user2 got invitation
-//
-//    val joinConsumer2: KafkaConsumer[String, String] = KessengerAdmin.createJoiningConsumer()
-//    val topic2 = new TopicPartition(Domain.generateJoinId(user2.userId), 0)
-//    joinConsumer2.assign(java.util.List.of(topic2))
-//    joinConsumer2.seek(topic2, 0L)
-//    val records2: ConsumerRecords[String, String] = joinConsumer2.poll(java.time.Duration.ofMillis(1000))
-//    if records2.count() != 1 then
-//      throw new IllegalStateException("Bad record size.")
-//    records2.forEach(
-//      (r: ConsumerRecord[String, String]) => {
-//        val whoSent = UUID.fromString(r.key())
-//        val chatId = r.value()
-//        assert( whoSent.equals(user1.userId), s"Users id not match")
-//        assert( chatId == id , s"Chat id not match")
-//      }
-//    )
-//    joinConsumer2.close()
-
   }
+
+
 
 
   /**
@@ -320,7 +323,6 @@ class ChatManagerTests extends KafkaIntegrationTestsTrait, DbIntegrationTestsTra
     val uuid = UUID.randomUUID()
     println(s"uuid: $uuid")
     val notExistingUser: User = User(uuid, "FooUser" )
-
 
     val producer = KessengerAdmin.createJoiningProducer(uuid)
 
