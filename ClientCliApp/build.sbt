@@ -15,7 +15,10 @@ lazy val root = (project in file("."))
       "org.postgresql" % "postgresql" % "42.3.3" ,
       "org.scalameta" %% "munit" % "0.7.29" % Test,
       "org.scalameta" %% "munit-scalacheck" % "0.7.29" % Test,
-      "org.slf4j" % "slf4j-nop" % "1.7.36" % Test ,// to switch off logging
+      // https://mvnrepository.com/artifact/org.slf4j/slf4j-api
+      //"org.slf4j" % "slf4j-api" % "1.7.36",
+
+      "org.slf4j" % "slf4j-nop" % "1.7.36",// to switch off logging
 
       // used in future impelementation
       "io.circe" %% "circe-core" % "0.14.1",

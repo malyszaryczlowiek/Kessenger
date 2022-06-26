@@ -35,7 +35,7 @@ class ProgramExecutionTests extends munit.FunSuite:
 
   // todo wstawic to do Program Executor'a
   test("Does login regex match example incorrect logins.") {
-    val loginRegex = "[\\p{Punct}a-z0-9]+|([0-9]+)".r
+    val loginRegex = "([\\p{Alnum}]*[\\p{Punct}]+[\\p{Alnum}]*)|([0-9]+)".r
 
     // these logins should NOT be valid
     assert(   loginRegex.matches("#")     )
@@ -46,6 +46,7 @@ class ProgramExecutionTests extends munit.FunSuite:
 
     // these logins should be valid
     assert( ! loginRegex.matches("Walo")  )
+    assert( ! loginRegex.matches("walo")  )
     assert( ! loginRegex.matches("ę")     )
     assert( ! loginRegex.matches("ę99")   )
 

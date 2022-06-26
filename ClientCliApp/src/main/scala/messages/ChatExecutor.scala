@@ -6,13 +6,14 @@ import domain.Domain.{ChatName, Login, UserID}
 import domain.User
 import util.TimeConverter
 
-import com.github.malyszaryczlowiek.db.queries.QueryErrors
+import db.queries.QueryErrors
 import org.apache.kafka.clients.consumer.{ConsumerRecord, ConsumerRecords, KafkaConsumer}
 import org.apache.kafka.clients.producer.{Callback, KafkaProducer, ProducerRecord, RecordMetadata}
 import org.apache.kafka.common.TopicPartition
 
 import java.time.{Duration, Instant, LocalDateTime, ZoneId, ZoneOffset, ZonedDateTime}
 import java.util.UUID
+import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicLong}
 import scala.collection.parallel.mutable.ParTrieMap
 import scala.concurrent.Future
@@ -38,14 +39,20 @@ class ChatExecutor(me: User, chat: Chat, chatUsers: List[User]):
 
   private val unreadMessages: ParTrieMap[Long,(Login, LocalDateTime, String)] = ParTrieMap.empty[Long, (Login, LocalDateTime, String)]
 
-  // TODO ********************************************************
-  // TODO sprawdzić tego sendera aby dział tak jak w chatManagerze.
-  // TODO ********************************************************
+
+
   def sendMessage(message: String): Unit =
-    chatProducer.send(new ProducerRecord[String, String](chat.chatId, me.userId.toString, message)) // , callBack)
+    Future {
+      val fut = chatProducer.send(new ProducerRecord[String, String](chat.chatId, me.userId.toString, message)) // , callBack)
+      val result = fut.get(5L, TimeUnit.SECONDS)
+      newOffset.set( result.offset() )
+      lastMessageTime.set( result.timestamp() )
+    }
 
 
   private var chatReader: Option[Future[Unit]] = Some(createChatReader())
+
+
 
   private def createChatReader(): Future[Unit] =
     val future = Future {
@@ -79,7 +86,8 @@ class ChatExecutor(me: User, chat: Chat, chatUsers: List[User]):
           Thread.sleep(3000)
           chatReader = Some( createChatReader() )  // TODO watch out of infinite loop when future ends so fast that  onComplete is not defined yet
       case Success(value) =>
-        println(s"Chat \'${chat.chatName}\' closed.")
+        // we do not need notify user that chatExecutor is closed.
+        //println(s"Chat \'${chat.chatName}\' closed.")
     }
     future
 
@@ -181,10 +189,11 @@ class ChatExecutor(me: User, chat: Chat, chatUsers: List[User]):
       lastMessageTime.set( timeStamp )
     ExternalDB.updateChatOffsetAndMessageTime(me, Seq(getChat)) match {
       case Left(queryErrors: QueryErrors) =>
-        println(s"LOGOUT DB ERROR.") // todo delete it
-        println(s"${queryErrors.listOfErrors.head.description}")
+        queryErrors.listOfErrors.foreach(error => println(s"${error.description}"))
+        println(s"Leave the chat, and back in a few minutes.")
       case Right(value) =>
-        println(s"Updated $value chats to DB.")
+      // we do not need to notify user (sender)
+      // that some values were updated in DB.
     }
 
 

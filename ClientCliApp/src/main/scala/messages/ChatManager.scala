@@ -230,11 +230,10 @@ class ChatManager(var me: User, private var topicCreated: Boolean = false):
       users.foreach(u => {
         if u.userId != me.userId then
           val joiningTopicName = Domain.generateJoinId(u.userId)
-          println(s"Start sending join message")
+          // println(s"Start sending join message")// todo delete for tests
           joinProducer.send(new ProducerRecord[String, String](joiningTopicName, me.userId.toString, chat.chatId))
-          println(s"message sent ")
+          println(s"Invitation send to ${u.login}.")
           // val recordMetadata = result.get(10_000L, TimeUnit.MILLISECONDS)  //get() // call to wait
-          // println(s"Result is.... $recordMetadata, offset: ${recordMetadata.offset()}")
       })
       joinProducer.commitTransaction()
     }

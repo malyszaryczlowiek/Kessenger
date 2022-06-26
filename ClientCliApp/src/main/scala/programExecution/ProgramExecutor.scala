@@ -7,15 +7,17 @@ import scala.annotation.tailrec
 import scala.collection.immutable
 import scala.collection.mutable.ListBuffer
 import scala.io.StdIn.{readChar, readInt, readLine}
-import com.github.malyszaryczlowiek.account.MyAccount
-import com.github.malyszaryczlowiek.db.ExternalDB
-import com.github.malyszaryczlowiek.db.queries.{QueryError, QueryErrorMessage, QueryErrors}
-import com.github.malyszaryczlowiek.domain.Domain.{Login, Password}
-import com.github.malyszaryczlowiek.domain.User
-import com.github.malyszaryczlowiek.messages.kafkaConfiguration.KafkaProductionConfigurator
-import com.github.malyszaryczlowiek.messages.kafkaErrorsUtil.{KafkaError, KafkaErrorMessage, KafkaErrorStatus}
-import com.github.malyszaryczlowiek.messages.{Chat, ChatExecutor, ChatManager, KessengerAdmin}
-import com.github.malyszaryczlowiek.util.{ChatNameValidator, PasswordConverter}
+import account.MyAccount
+import db.ExternalDB
+import db.queries.{QueryError, QueryErrorMessage, QueryErrors}
+import domain.Domain.{Login, Password}
+import domain.User
+import messages.kafkaConfiguration.KafkaProductionConfigurator
+import messages.kafkaErrorsUtil.{KafkaError, KafkaErrorMessage, KafkaErrorStatus}
+import messages.{Chat, ChatExecutor, ChatManager, KessengerAdmin}
+import util.{ChatNameValidator, PasswordConverter}
+
+import scala.::
 
 
 
@@ -67,8 +69,10 @@ object ProgramExecutor :
     var login: Login = ""
     if log.isEmpty then login = readLine()
     else login = log
-    // validate if login does not match #something
-    val loginRegex =  "[\\p{Punct}a-z0-9]+|([0-9]+)".r
+    // validate if login does not match punctation characters:
+    // !#%&'()*+,-./:;<=>?@[\\]^_`{|}~.\"$
+    // and does not contain only numbers
+    val loginRegex = "([\\p{Alnum}]*[\\p{Punct}]+[\\p{Alnum}]*)|([0-9]+)".r
     //if so we need to repeat question.
     if "".equals(login) then
       println(s"Login cannot be empty.")
@@ -145,7 +149,7 @@ object ProgramExecutor :
     println(s"1) Show my chats.")
     println(s"2) Create new chat")
     println(s"3) Settings.")
-    println(s"4) Log out and Exit.")
+    println(s"4) Log out and back to main Menu.")
     print("> ")
     Try {
       readInt()
@@ -174,12 +178,12 @@ object ProgramExecutor :
 
   @tailrec
   private def showChats(): Unit =
-    println(s"Please select chat, or type #back to menu.")
-    println("Your chats:")
     val chats: immutable.SortedMap[Chat, ChatExecutor] = MyAccount.getMyChats
     val chatSize = chats.size
     if chats.isEmpty then println(s"Ooopsss, you have not chats.")  // and we return to menu
     else
+      println(s"Please select chat, or type #back to menu.")
+      println("Your chats:")
       val sorted = chats.toSeq.sortBy(chatAndExecutor => chatAndExecutor._2.getLastMessageTime).reverse
       val indexed = sorted.zipWithIndex
       indexed.foreach(
@@ -217,10 +221,9 @@ object ProgramExecutor :
    */
   private def workInChat(chat: Chat, executor: ChatExecutor): Unit =
     if chat.groupChat then
-      println(s"You are in ${chat.chatName}, type '#back' to return to chat list\n " +
-        s"or #escape_chat if you do not want participate longer.")
+      println(s"You are in \'${chat.chatName}\' chat, type your messages, or type '#back' to return to chat list\nor '#escape_chat if you do not want participate longer in group chat. ")
     else
-      println(s"you are in ${chat.chatName}, type '#back' to return to chat list")
+      println(s"You are in '${chat.chatName}' chat, type your messages, or type '#back' to return to chat list.")
     executor.printUnreadMessages()
     print("> ")
     Try {
@@ -242,12 +245,14 @@ object ProgramExecutor :
       case Success(chatExecutor: ChatExecutor) =>
         val chat = chatExecutor.getChat
         val me = MyAccount.getMyObject
+        MyAccount.updateChat(chat, chatExecutor)
         // we save offset to db
         ExternalDB.updateChatOffsetAndMessageTime(me, Seq(chat)) match {
           case Left(qe: QueryErrors) =>
-            println(s"Cannot update chat information: ${qe.listOfErrors.head.description} ")
+            println(s"Cannot update chat information:  ")
+            qe.listOfErrors.foreach(error => println(s"${error.description}"))
           case Right(saved: Int)     =>
-            println(s"Chat information updated.")
+            // we do not need notify user about updates in DB
         }
     }
 
@@ -263,9 +268,10 @@ object ProgramExecutor :
   private def createChat(): Option[Chat] =
     val bufferUsers   = ListBuffer.empty[User]
     val selectedUsers = addUser(bufferUsers)
-    if selectedUsers.isEmpty then
+    if selectedUsers.size == 1 && selectedUsers.head.login == MyAccount.getMyObject.login then
       println(s"There is no users to add.")
       println(s"Type #add to try again or any other key to return to menu.")
+      print(s"> ")
       val entry = readLine()
       if entry == "#add" then createChat()
       else Option.empty[Chat] // do nothing, simply return to menu
@@ -280,11 +286,15 @@ object ProgramExecutor :
     print("> ")
     val user = readLine()
     if user == "#end" then
-      buffer.distinct.filter(u => u != MyAccount.getMyObject).toList
+      val me = MyAccount.getMyObject
+      me :: buffer.distinct.toList
+    else if user == MyAccount.getMyObject.login then
+      println(s"You do not need add manually yourself to chat.")
+      addUser(buffer)
     else
       ExternalDB.findUser(user) match {
         case Left(queryErrors: QueryErrors) =>
-          println(s"${queryErrors.listOfErrors.head.description}")
+          queryErrors.listOfErrors.foreach(error => println(s"${error.description}"))
           addUser(buffer)
         case Right(user: User) =>
           buffer.addOne(user)
@@ -307,16 +317,23 @@ object ProgramExecutor :
               queryErrors.listOfErrors.foreach(error => println(s"${error.description}"))
               Option.empty[Chat]
             case Right(chat) =>
-              chatManager.askToJoinChat(users, chat) match {
+              KessengerAdmin.createNewChat(chat) match {
                 case Left(kafkaError: KafkaError) =>
-                  // if some gone wrong
-                  println(s"Error, cannot create chat. ${kafkaError.description}")
+                  println(s"Cannot create new chat. ${kafkaError.description}")
                   Option.empty[Chat]
-                case Right(createdChat) => Some(createdChat)
+                case Right(chatt: Chat) =>
+                  chatManager.askToJoinChat(users, chatt) match {
+                    case Left(kafkaError: KafkaError) =>
+                      println(s"${kafkaError.description}, Cannot send invitations to other users... ")
+                      Option.empty[Chat]
+                    case Right(createdChat) =>
+                      println(s"Chat '${createdChat.chatName}' created correctly.'")
+                      Some(createdChat)
+                  }
               }
           }
         case None =>
-          println(s"Some error, please try to log in again in a while.")
+          println(s"Kafka Connection Error, please try to log in again in a while.")
           Option.empty[Chat]
       }
     else

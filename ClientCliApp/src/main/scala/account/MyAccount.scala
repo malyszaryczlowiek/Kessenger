@@ -115,6 +115,15 @@ object MyAccount:
   def addChat(chat: Chat, users: List[User]): Unit =
     myChats.addOne((chat, new ChatExecutor(me, chat, users)))
 
+  def updateChat(updatedChat: Chat, chatExecutor: ChatExecutor): Unit  =
+    // note, old chatExecutor is the same class object as new chat executor.
+    myChats.find( (oldChat: Chat, oldExecutor: ChatExecutor) => oldChat.chatId == updatedChat.chatId) match {
+      case None               => // nothing to do
+      case Some((oldChat, _)) =>
+        myChats.remove(oldChat)
+        myChats.addOne(updatedChat -> chatExecutor)
+    }
+
 
 
   def removeChat(chat: Chat): Option[ChatExecutor] = myChats.remove(chat)
