@@ -122,7 +122,6 @@ class ChatExecutor(me: User, chat: Chat, chatUsers: List[User]):
    * Note:
    * Notifications do not change offset,
    * because message is still not read.
-   * @param records
    */
   private def showNotification(login: Login, timeStamp: Long, message: String, offset: Long): Unit =
     if login == me.login then ()

@@ -1,11 +1,11 @@
 package com.github.malyszaryczlowiek
 package db
 
-import com.github.malyszaryczlowiek.db.queries.*
-import com.github.malyszaryczlowiek.domain.Domain.{ChatId, ChatName, Login, Password, UserID, generateChatId}
-import com.github.malyszaryczlowiek.domain.{Domain, User}
-import com.github.malyszaryczlowiek.messages.Chat
-import com.github.malyszaryczlowiek.util.TimeConverter
+import db.queries.*
+import domain.Domain.{ChatId, ChatName, Login, Password, UserID, generateChatId}
+import domain.{Domain, User}
+import messages.Chat
+import util.TimeConverter
 
 import java.sql.{Connection, DriverManager, PreparedStatement, ResultSet, SQLType, Savepoint, Statement, Timestamp}
 import java.time.LocalDateTime
@@ -47,7 +47,7 @@ object ExternalDB:
 
   /**
    * write tests
-   * @param user
+   * @param user user
    * @return
    */
   def findUsersChats(user: User): Either[QueryErrors, Map[Chat, List[User]]] =
@@ -90,8 +90,6 @@ object ExternalDB:
 
   /**
    * TODO write test
-   * @param chat
-   * @return
    */
   def findChatAndUsers(me: User, chatId: ChatId): Either[QueryErrors,(Chat, List[User])] =
     val sql = "SELECT chats.chat_id, chats.chat_name, " +
