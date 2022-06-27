@@ -47,7 +47,7 @@ class ChatExecutor(me: User, chat: Chat, chatUsers: List[User]):
     Future {
       val fut = chatProducer.send(new ProducerRecord[String, String](chat.chatId, me.userId.toString, message)) // , callBack)
       val result = fut.get(5L, TimeUnit.SECONDS)
-      newOffset.set( result.offset() )
+      newOffset.set( result.offset() + 1L )
       lastMessageTime.set( result.timestamp() )
       ExternalDB.updateChatOffsetAndMessageTime(me, Seq(getChat)) match {
         case Left(queryErrors: QueryErrors) =>
@@ -147,7 +147,7 @@ class ChatExecutor(me: User, chat: Chat, chatUsers: List[User]):
     val map: immutable.SortedMap[Long, (Login, LocalDateTime, String)] =
       unreadMessages.seq.to(immutable.SortedMap) // conversion to SortedMap
     map.foreach( (k,v) => {
-      newOffset.set(k)
+      newOffset.set(k + 1L)
       lastMessageTime.set( TimeConverter.fromLocalToEpochTime(v._2) )
       // this prints messages to user
       print(s"${v._1} ${v._2} >> ${v._3}\n> ")
@@ -191,19 +191,19 @@ class ChatExecutor(me: User, chat: Chat, chatUsers: List[User]):
       if login == me.login then ()
         // we not print own messages
       else print(s"$login $localTime >> $message\n> ")
-      newOffset.set( offset )
+      newOffset.set( offset + 1L )
       lastMessageTime.set( timeStamp )
     else
       val map: immutable.SortedMap[Long,(Login, LocalDateTime, String)] =
         unreadMessages.seq.to(immutable.SortedMap) // conversion to SortedMap
       map.foreach( (k,v) => {
         print(s"${v._1} ${v._2} >> ${v._3}\n> ")
-        newOffset.set(k)
+        newOffset.set( k + 1L)
         lastMessageTime.set( TimeConverter.fromLocalToEpochTime( v._2 ) )
       } )
       unreadMessages.clear() // clear off ParSequence
       print(s"$login $localTime >> $message\n> ") // and finally print last message.
-      newOffset.set( offset )
+      newOffset.set( offset + 1L )
       lastMessageTime.set( timeStamp )
     ExternalDB.updateChatOffsetAndMessageTime(me, Seq(getChat)) match {
       case Left(queryErrors: QueryErrors) =>
