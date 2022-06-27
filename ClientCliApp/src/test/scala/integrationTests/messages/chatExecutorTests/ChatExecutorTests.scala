@@ -1,14 +1,14 @@
 package com.github.malyszaryczlowiek
 package integrationTests.messages.chatExecutorTests
 
-import com.github.malyszaryczlowiek.db.ExternalDB
-import com.github.malyszaryczlowiek.db.queries.QueryErrors
-import com.github.malyszaryczlowiek.domain.*
-import com.github.malyszaryczlowiek.messages.kafkaConfiguration.KafkaTestConfigurator
-import com.github.malyszaryczlowiek.messages.{Chat, ChatExecutor, ChatManager, KessengerAdmin}
-import com.github.malyszaryczlowiek.messages.kafkaErrorsUtil.KafkaError
-import com.github.malyszaryczlowiek.messages.KessengerAdmin
-import com.github.malyszaryczlowiek.account.MyAccount
+import account.MyAccount
+import db.ExternalDB
+import db.queries.QueryErrors
+import domain.*
+import messages.kafkaConfiguration.KafkaTestConfigurator
+import messages.{Chat, ChatExecutor, ChatManager, KessengerAdmin}
+import messages.kafkaErrorsUtil.KafkaError
+import messages.KessengerAdmin
 import integrationTests.messages.KafkaIntegrationTestsTrait
 import integrationTests.db.DbIntegrationTestsTrait
 

@@ -45,7 +45,8 @@ object ProgramExecutor :
           else if value == 2 then
             createAccount()
             runProgram(Array.empty)
-          else if value == 3 then () // exit method and program
+          else if value == 3 then
+            ExternalDB.closeConnection()
           else
             println("Please select 1, 2 or 3.")
             runProgram(args)
@@ -118,6 +119,7 @@ object ProgramExecutor :
         signIn()
       case Right(user) => // user found
         // from test purposes, better is to move starting KafkaAdmin out of MyAccount object
+        // TODO **********************************************************************
         KessengerAdmin.startAdmin(new KafkaProductionConfigurator)
         MyAccount.initialize(user) match {
           case Left(errorsTuple) =>
@@ -169,6 +171,7 @@ object ProgramExecutor :
           printMenu()
         else if value == 4 then
           MyAccount.logOut()
+          KessengerAdmin.closeAdmin()
         else
           println("Wrong number, please select 1, 2, 3 or 4.")
           printMenu()
@@ -225,7 +228,6 @@ object ProgramExecutor :
     else
       println(s"You are in '${chat.chatName}' chat, type your messages, or type '#back' to return to chat list.")
     executor.printUnreadMessages()
-    print("> ")
     Try {
       var line = readLine()
       while (line != "#back") {
@@ -343,7 +345,7 @@ object ProgramExecutor :
 
 
 
-  
+
   private def escapeChat(executor: ChatExecutor): Unit =
     val me = executor.getUser
     ExternalDB.deleteMeFromChat( me, executor.getChat) match {

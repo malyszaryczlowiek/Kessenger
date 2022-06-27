@@ -100,7 +100,7 @@ object ExternalDB:
       "INNER JOIN users " +
       "ON users_chats.user_id = users.user_id " +
       "INNER JOIN chats " +
-      "ON users_chats.chat_id = chats.chat_id" +
+      "ON users_chats.chat_id = chats.chat_id " +
       "WHERE users_chats.chat_id = ?"
     Using(connection.prepareStatement(sql)) {
       (statement: PreparedStatement) =>
@@ -260,8 +260,8 @@ object ExternalDB:
 
   private def insertChatAndAssignUsersToChat(users: List[User], chat: Chat): Try[Either[QueryErrors, Chat]] =
     insertChat(chat) match {
-      case Failure(exception) => throw exception
-      case Success(value) =>
+      case Failure(exception) => Try { handleExceptionMessage(exception) }
+      case Success(value)     =>
         if value == 1 then assignUsersToChat(users, chat)
         else Try { Left(QueryErrors(List(QueryError(QueryErrorType.FATAL_ERROR, QueryErrorMessage.DataProcessingError)))) }
     }

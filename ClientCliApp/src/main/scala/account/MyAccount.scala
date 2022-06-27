@@ -145,6 +145,9 @@ object MyAccount:
 //      case Right(value) =>
 //        println(s"Updated $value chats to DB.")
 //    }
+
     // and make my chats empty
-    myChats.empty                               // make chat map empty
+    val keys = myChats.keys
+    keys.foreach(chat => myChats.remove(chat))
+    // myChats.empty                               // make chat map empty
     me = User(UUID.randomUUID(), "NULL_LOGIN")  // reassign user to null one

@@ -2,11 +2,11 @@ package com.github.malyszaryczlowiek
 package messages
 
 import db.ExternalDB
+import db.queries.QueryErrors
 import domain.Domain.{ChatName, Login, UserID}
 import domain.User
 import util.TimeConverter
 
-import db.queries.QueryErrors
 import org.apache.kafka.clients.consumer.{ConsumerRecord, ConsumerRecords, KafkaConsumer}
 import org.apache.kafka.clients.producer.{Callback, KafkaProducer, ProducerRecord, RecordMetadata}
 import org.apache.kafka.common.TopicPartition
@@ -37,8 +37,10 @@ class ChatExecutor(me: User, chat: Chat, chatUsers: List[User]):
   private val topicPartition: TopicPartition                = new TopicPartition(chat.chatId, 0)
   private var chatProducer:   KafkaProducer[String, String] = KessengerAdmin.createChatProducer
 
+  // (offset, (login, date, message string))
   private val unreadMessages: ParTrieMap[Long,(Login, LocalDateTime, String)] = ParTrieMap.empty[Long, (Login, LocalDateTime, String)]
 
+  private var chatReader: Option[Future[Unit]] = Some(createChatReader())
 
 
   def sendMessage(message: String): Unit =
@@ -47,10 +49,16 @@ class ChatExecutor(me: User, chat: Chat, chatUsers: List[User]):
       val result = fut.get(5L, TimeUnit.SECONDS)
       newOffset.set( result.offset() )
       lastMessageTime.set( result.timestamp() )
+      ExternalDB.updateChatOffsetAndMessageTime(me, Seq(getChat)) match {
+        case Left(queryErrors: QueryErrors) =>
+          queryErrors.listOfErrors.foreach(error => println(s"${error.description}"))
+          println(s"Leave the chat, and back in a few minutes.")
+        case Right(value) =>
+        // we do not need to notify user (sender)
+        // that some values were updated in DB.
+      }
     }
 
-
-  private var chatReader: Option[Future[Unit]] = Some(createChatReader())
 
 
 
@@ -61,7 +69,7 @@ class ChatExecutor(me: User, chat: Chat, chatUsers: List[User]):
       chatConsumer.assign(java.util.List.of(topicPartition))
       // we manually set offset to read from and
       // we start reading from topic from last read message (offset)
-      chatConsumer.seek(topicPartition, newOffset.get())
+      chatConsumer.seek(topicPartition, newOffset.get() )
       while (continueReading.get()) {
         val records: ConsumerRecords[String, String] = chatConsumer.poll(Duration.ofMillis(250))
         records.forEach(
@@ -84,10 +92,17 @@ class ChatExecutor(me: User, chat: Chat, chatUsers: List[User]):
         // if some error occurred we restart chatReader, every 3 seconds
         if continueReading.get() then
           Thread.sleep(3000)
-          chatReader = Some( createChatReader() )  // TODO watch out of infinite loop when future ends so fast that  onComplete is not defined yet
+          chatReader = Some( createChatReader() )  // watch out of infinite loop when future ends so fast that  onComplete is not defined yet
       case Success(value) =>
-        // we do not need notify user that chatExecutor is closed.
-        //println(s"Chat \'${chat.chatName}\' closed.")
+        // after work we should save new offset and time
+        ExternalDB.updateChatOffsetAndMessageTime(me, Seq(getChat)) match {
+          case Left(queryErrors: QueryErrors) =>
+            queryErrors.listOfErrors.foreach(error => println(s"${error.description}"))
+            println(s"Leave the chat, and back in a few minutes.")
+          case Right(value) =>
+          // we do not need to notify user (sender)
+          // that some values were updated in DB.
+        }
     }
     future
 
@@ -112,7 +127,7 @@ class ChatExecutor(me: User, chat: Chat, chatUsers: List[User]):
   private def showNotification(login: Login, timeStamp: Long, message: String, offset: Long): Unit =
     if login == me.login then ()
     else
-      println(s"One new message from $login in ${chat.chatName}.") // print notification
+      print(s"One new message from $login in ${chat.chatName}.\n> ") // print notification
       val time: LocalDateTime = TimeConverter.fromMilliSecondsToLocal( timeStamp )
       unreadMessages.addOne((offset,(login, time, message)))
 
@@ -120,7 +135,7 @@ class ChatExecutor(me: User, chat: Chat, chatUsers: List[User]):
   /**
    * This method is safe for unreadMessages. We can transform
    * our ParMap to SortedMap and then clear unreadMessages and dont worry
-   * that between this two calls some item will be added to unreadMessages,
+   * that between these two calls some item will be added to unreadMessages,
    * because before we call this message in ProgramExecutor
    * we call startPrintingMessages(), so
    * printMessage is set to true and
@@ -129,20 +144,23 @@ class ChatExecutor(me: User, chat: Chat, chatUsers: List[User]):
    * and so, unreadMessages is not modified in this time.
    */
   def printUnreadMessages(): Unit =
+    val map: immutable.SortedMap[Long, (Login, LocalDateTime, String)] =
+      unreadMessages.seq.to(immutable.SortedMap) // conversion to SortedMap
+    map.foreach( (k,v) => {
+      newOffset.set(k)
+      lastMessageTime.set( TimeConverter.fromLocalToEpochTime(v._2) )
+      // this prints messages to user
+      print(s"${v._1} ${v._2} >> ${v._3}\n> ")
+    } )
+    if map.isEmpty then print("> ")
+    unreadMessages.clear() // clear off ParSequence
     printMessage.set(true)
     // if from some reasons chat reader is not running
     // but we have some unread messages we print them
     // otherwise we print them via printMessage() method
     // in chatReader future.
-    if chatReader.get.isCompleted then
-      val map: immutable.SortedMap[Long, (Login, LocalDateTime, String)] =
-        unreadMessages.seq.to(immutable.SortedMap) // conversion to SortedMap
-      unreadMessages.clear() // clear off ParSequence
-      map.foreach( (k,v) => {
-        newOffset.set(k)
-        // this prints messages to user
-        println(s"${v._1} ${v._2} >> ${v._3}")
-      } )
+
+
 
 
 
@@ -172,19 +190,19 @@ class ChatExecutor(me: User, chat: Chat, chatUsers: List[User]):
     if unreadMessages.isEmpty then
       if login == me.login then ()
         // we not print own messages
-      else println(s"$login $localTime >> $message")
+      else print(s"$login $localTime >> $message\n> ")
       newOffset.set( offset )
       lastMessageTime.set( timeStamp )
     else
       val map: immutable.SortedMap[Long,(Login, LocalDateTime, String)] =
         unreadMessages.seq.to(immutable.SortedMap) // conversion to SortedMap
-      unreadMessages.clear() // clear off ParSequence
       map.foreach( (k,v) => {
-        println(s"${v._1} ${v._2} >> ${v._3}")
+        print(s"${v._1} ${v._2} >> ${v._3}\n> ")
         newOffset.set(k)
         lastMessageTime.set( TimeConverter.fromLocalToEpochTime( v._2 ) )
       } )
-      println(s"$login $localTime >> $message") // and finally print last message.
+      unreadMessages.clear() // clear off ParSequence
+      print(s"$login $localTime >> $message\n> ") // and finally print last message.
       newOffset.set( offset )
       lastMessageTime.set( timeStamp )
     ExternalDB.updateChatOffsetAndMessageTime(me, Seq(getChat)) match {
