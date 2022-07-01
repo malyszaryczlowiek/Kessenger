@@ -4,6 +4,10 @@ docker stop KessengerDB
 docker rm -v KessengerDB
 docker rmi kessenger_db      ##   delete unused image
 
+# This may be disabled.
+# docker stop pgadmin
+# docker rm -v pgadmin
+
 docker stop kafka1
 docker rm -v kafka1
 #docker rmi kessenger_kafka1

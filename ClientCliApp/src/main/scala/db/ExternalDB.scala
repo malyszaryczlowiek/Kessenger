@@ -73,6 +73,7 @@ object ExternalDB:
               val time:      Long     = resultSet.getLong("message_time")
               val userId:    UUID     = resultSet.getObject[UUID]("user_id", classOf[UUID])
               val login:     Login    = resultSet.getString("login")
+              print(s"DB.findUsersChats wczytany z bazy offset ma wartość: $offset\n> ")   // TODO DELETE
               val chat:      Chat     = Chat(chatId, chatName, groupChat, offset, TimeConverter.fromMilliSecondsToLocal(time))
               val u:         User     = User(userId, login)
               buffer += ((chat, u))
@@ -93,7 +94,7 @@ object ExternalDB:
    */
   def findChatAndUsers(me: User, chatId: ChatId): Either[QueryErrors,(Chat, List[User])] =
     val sql = "SELECT chats.chat_id, chats.chat_name, " +
-      "users_chats.group_chat, users_chats.users_offset, users_chats.message_time, " +
+      "chats.group_chat, users_chats.users_offset, users_chats.message_time, " +
       "users.user_id, users.login FROM users_chats " +
       "INNER JOIN users " +
       "ON users_chats.user_id = users.user_id " +
@@ -222,6 +223,7 @@ object ExternalDB:
         insertChatAndAssignUsersToChat(users, chat) match {
           case Failure(ex) =>
             connection.rollback(beforeAnyInsertions) // we roll back any insertions
+            connection.setAutoCommit(true)
             handleExceptionMessage[Chat](ex)
           case Success(either) => either
         }
@@ -311,6 +313,7 @@ object ExternalDB:
       val totalAffectedRows: Int = Await.result(zippedFuture, Duration.create(5L, duration.SECONDS))
       if totalAffectedRows == users.length then
         connection.commit()
+        connection.setAutoCommit(true) // TODO brak tego zrobiło bajzer
         Right(chat)
       else
         throw new Exception("Not all Users added to chat.")
@@ -551,7 +554,9 @@ object ExternalDB:
             Future { // each insertion executed in separate thread
               Using(connection.prepareStatement(sql)) {
                 (statement: PreparedStatement) =>
-                  statement.setLong(1, chat.offset)
+                  print(s"${user.login}, Zapisywany bezpośrednio do bazy offset jest: ${chat.offset}\n")  // TODO DELETE
+                  val offset: Long = chat.offset
+                  statement.setLong(1, 0L + offset )
                   statement.setLong(2, TimeConverter.fromLocalToEpochTime(chat.timeOfLastMessage))
                   statement.setString(3, chat.chatId)
                   statement.setObject(4, user.userId)

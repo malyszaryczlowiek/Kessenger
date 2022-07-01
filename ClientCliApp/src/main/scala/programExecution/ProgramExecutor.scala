@@ -25,7 +25,6 @@ import scala.::
 object ProgramExecutor :
 
   private var manager: Option[ChatManager] = None
-  //private var myAccount: Option[MyAccount] = None
 
 
   @tailrec
@@ -90,7 +89,7 @@ object ProgramExecutor :
         print("> ")
         lazy val pass = console.readPassword()
         if pass != null then
-          ExternalDB.findUsersSalt(login) match {
+          ExternalDB.findUsersSalt(login) match { // TODO to powoduje problem jak nie ma na samym początku connection
             case Right(salt) =>
               lazy val password = pass.mkString("")
               PasswordConverter.convert(password, salt) match {
@@ -171,6 +170,15 @@ object ProgramExecutor :
           printMenu()
         else if value == 4 then
           MyAccount.logOut()
+          manager match {
+            case Some(man) =>
+              man.closeChatManager() match {
+                case Some(kafkaError: KafkaError) =>
+                  print(s"${kafkaError.description}\n> ")
+                case None =>
+              }
+            case None      =>
+          }
           KessengerAdmin.closeAdmin()
         else
           println("Wrong number, please select 1, 2, 3 or 4.")
@@ -192,6 +200,7 @@ object ProgramExecutor :
       indexed.foreach(
         chatIndex => {
           // if offset is different than 0 means that user read from chat so accept them
+          // TODO @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
           if chatIndex._1._1.offset == 0L then
             println(s"${chatIndex._2 + 1}) ${chatIndex._1._1.chatName} (NOT ACCEPTED)")
           else
@@ -243,17 +252,19 @@ object ProgramExecutor :
       executor
     } match {
       case Failure(exception)    =>
-        println(s"Unexpected Error in chat.")
+        print(s"Unexpected Error in chat.\n> ")
       case Success(chatExecutor: ChatExecutor) =>
         val chat = chatExecutor.getChat
         val me = MyAccount.getMyObject
         MyAccount.updateChat(chat, chatExecutor)
         // we save offset to db
+        print(s"OFFSET is ${chat.offset}\n> ")
         ExternalDB.updateChatOffsetAndMessageTime(me, Seq(chat)) match {
           case Left(qe: QueryErrors) =>
             println(s"Cannot update chat information:  ")
-            qe.listOfErrors.foreach(error => println(s"${error.description}"))
+            qe.listOfErrors.foreach(error => print(s"${error.description}\n> "))
           case Right(saved: Int)     =>
+            print(s"Przy zamykaniu czatu zaktualizowano $saved czatów.\n> ") // TODO DELETE
             // we do not need notify user about updates in DB
         }
     }
@@ -319,6 +330,18 @@ object ProgramExecutor :
               queryErrors.listOfErrors.foreach(error => println(s"${error.description}"))
               Option.empty[Chat]
             case Right(chat) =>
+              // Uzyć findChatAndUsers() z ExternalDB
+              
+              
+              
+              // TODO jeśli udało się zapisac dane do db to nalezy je teraz wyekstrahować. i ich uzyć do 
+              
+              
+              
+              
+              
+              
+              
               KessengerAdmin.createNewChat(chat) match {
                 case Left(kafkaError: KafkaError) =>
                   println(s"Cannot create new chat. ${kafkaError.description}")
@@ -329,7 +352,7 @@ object ProgramExecutor :
                       println(s"${kafkaError.description}, Cannot send invitations to other users... ")
                       Option.empty[Chat]
                     case Right(createdChat) =>
-                      println(s"Chat '${createdChat.chatName}' created correctly.'")
+                      println(s"Chat '${createdChat.chatName}' created correctly.")
                       Some(createdChat)
                   }
               }
@@ -380,36 +403,40 @@ object ProgramExecutor :
 
   @tailrec
   private def createAccount(): Unit =
-    println("Login must have 8 characters at leased and must contain only letters, numbers or underscore '_'. If you want exit type #exit:")
-    print("> ")
+    print(s"Set your login. Login can contain letters and numbers.\n")
+    print("Login cannot contain punctuation characters: !#%&'()*+,-./:;<=>?@[\\]^_`{|}~.\"$\n> ")
     val login = readLine()
-    val regex = "[\\w]{8,}".r
+    val loginRegex = "([\\p{Alnum}]*[\\p{Punct}]+[\\p{Alnum}]*)|([0-9]+)".r
     if login == "#exit"          then () // back to main menu
-    else if regex.matches(login) then setPassword(login, "")
-    else
+    else if loginRegex.matches(login) then
       println(s"Login is incorrect, try with another one, or type #exit.")
       createAccount()
+    else
+      setPassword(login, "")
 
 
-
+  /**
+   * TODO write integration tests
+   * @param login
+   * @param s
+   */
   @tailrec
   private def setPassword(login: Login, s: String): Unit =
     val console: Console = System.console()
     if console != null then
-      println("Set your Password:")
-      print("> ")
+      print("Set your Password:\n> ")
       val pass1 = console.readPassword()
       if pass1 != null then
         println("Please repeat the password:")
         print("> ")
         val pass2 = console.readPassword()
-        if pass2 != null && pass1.toSeq == pass2.toSeq then
+        if pass2 != null && pass1.toSeq == pass2.toSeq && pass1.nonEmpty then
           // probably must call gc() to remove pass1 and pass2 from heap
           println("Passwords matched.")
           val salt = PasswordConverter.generateSalt
           PasswordConverter.convert(pass2.mkString(""), salt) match {
             case Left(_) =>
-              println("Undefined error, try again")
+              print("Undefined error, try again\n> ")
               setPassword(login, s)
             case Right(p) =>
               ExternalDB.createUser(login, p, salt) match {
@@ -418,19 +445,23 @@ object ProgramExecutor :
                   println(s"You are moved back to User Creator.")
                   createAccount()
                 case Right(user: User) =>
+                  println(s"User $user")  // TODO DELETE
                   // from test purposes, better is to move starting KafkaAdmin out of MyAccount object
                   KessengerAdmin.startAdmin(new KafkaProductionConfigurator)
                   MyAccount.initializeAfterCreation(user) match {
                     case Left((dbError, kafkaError)) =>
                       (dbError, kafkaError) match {
-                        case (Some(db), None)      => println(s"${db.listOfErrors.head.description}")
+                        case (Some(db), None)      => db.listOfErrors.foreach(error => println(s"${error.description}"))
                         case (None, Some(kaf))     => println(s"${kaf.description}")
                         case (Some(db), Some(kaf)) =>
-                          println(s"${db.listOfErrors.head.description}")
+                          db.listOfErrors.foreach(error => println(s"${error.description}"))
                           println(s"${kaf.description}")
                         case _                     => println(s"Undefined Error") // not reachable
                       }
-                    case Right(chatManager: ChatManager) => manager = Some(chatManager) // and we return to menu
+                    case Right(chatManager: ChatManager) =>
+                      // we assign chatManager and return to menu
+                      manager = Some(chatManager)
+                      print(s"Account created correctly. Please Sign in now.\n")
                   }
                 case _ =>
                   println("Undefined error.")

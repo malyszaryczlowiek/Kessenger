@@ -1,12 +1,12 @@
 package com.github.malyszaryczlowiek
 package messages
 
-import com.github.malyszaryczlowiek.account.MyAccount
-import com.github.malyszaryczlowiek.db.ExternalDB
-import com.github.malyszaryczlowiek.db.queries.QueryErrors
-import com.github.malyszaryczlowiek.domain.{Domain, User}
-import com.github.malyszaryczlowiek.domain.Domain.*
-import com.github.malyszaryczlowiek.messages.kafkaErrorsUtil.{KafkaError, KafkaErrorMessage, KafkaErrorStatus, KafkaErrorsHandler}
+import account.MyAccount
+import db.ExternalDB
+import db.queries.QueryErrors
+import domain.{Domain, User}
+import domain.Domain.*
+import messages.kafkaErrorsUtil.{KafkaError, KafkaErrorMessage, KafkaErrorStatus, KafkaErrorsHandler}
 import org.apache.kafka.clients.consumer.{ConsumerRecord, ConsumerRecords, KafkaConsumer}
 import org.apache.kafka.clients.producer.{Callback, KafkaProducer, ProducerRecord, RecordMetadata}
 import org.apache.kafka.common.TopicPartition
@@ -26,8 +26,6 @@ import concurrent.ExecutionContext.Implicits.global
 
 /**
  *
- * @param me
- * @param topicCreated
  */
 class ChatManager(var me: User, private var topicCreated: Boolean = false):
 
@@ -85,8 +83,8 @@ class ChatManager(var me: User, private var topicCreated: Boolean = false):
                   case Some(_) => ()
                   case None =>
                     users.find(_.userId == userID) match {
-                      case Some(user) => println(s"You got invitation from ${user.login} to chat ${chat.chatName}. ")
-                      case None       => println(s"Warning!?! Inviting user not found???")
+                      case Some(user) => print(s"You got invitation from ${user.login} to chat ${chat.chatName}.\n> ")
+                      case None       => print(s"Warning!?! Inviting user not found???\n> ")
                     }
                     MyAccount.addChat(chat, users)
                     updateUsersOffset( r.offset() )
@@ -220,8 +218,6 @@ class ChatManager(var me: User, private var topicCreated: Boolean = false):
    * So when they log in again, they will get information from DB obout new chat.
    *
    *
-   * @param users
-   * @param chat
    */
   private def sendInvitations(users: List[User], chat: Chat): Unit =
     // we start future and forget it.
@@ -230,10 +226,8 @@ class ChatManager(var me: User, private var topicCreated: Boolean = false):
       users.foreach(u => {
         if u.userId != me.userId then
           val joiningTopicName = Domain.generateJoinId(u.userId)
-          // println(s"Start sending join message")// todo delete for tests
           joinProducer.send(new ProducerRecord[String, String](joiningTopicName, me.userId.toString, chat.chatId))
-          println(s"Invitation send to ${u.login}.")
-          // val recordMetadata = result.get(10_000L, TimeUnit.MILLISECONDS)  //get() // call to wait
+          print(s"Invitation send to ${u.login}.\n> ")
       })
       joinProducer.commitTransaction()
     }

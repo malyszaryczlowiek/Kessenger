@@ -99,6 +99,38 @@ services:
     ports:
       - '5438:5432'
 
+
+  pgadmin:
+    container_name: pgadmin
+    image: dpage/pgadmin4:6.10
+    depends_on:
+      - db
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@admin.com
+      PGADMIN_DEFAULT_PASSWORD: root
+#      host: localhost
+#      port: 5432
+#      user: admin
+#      password: passw
+#      db: kessenger_schema
+
+      # POSTGRES_USER: admin
+      # POSTGRES_PASSWORD: passw
+      # POSTGRES_HOSTNAME: localhost
+      # POSTGRES_PORT: 5432
+    ports:
+      - "5050:80"
+    networks:
+      - my-simple-network
+    restart: unless-stopped
+    logging:
+      driver: "none"
+
+
+
+
+
+
 # client removed from main App docker container
 #  client_cli_app:
 #    container_name: client_cli_app

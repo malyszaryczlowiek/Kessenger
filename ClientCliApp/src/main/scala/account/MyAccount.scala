@@ -27,7 +27,6 @@ object MyAccount:
 
   /**
    *
-   * @param user
    */
   def initialize(user: User): Either[(Option[QueryErrors], Option[KafkaError]), ChatManager] =
     me = user
@@ -41,7 +40,10 @@ object MyAccount:
         case Right(usersChats: Map[Chat, List[User]]) =>
           val transform = usersChats.map(
             (chatList: (Chat, List[User])) =>
-              (chatList._1, new ChatExecutor(me, chatList._1, chatList._2))
+              val chat = chatList._1
+              val users = chatList._2
+              print(s"wczytany z DB chat ma offset ${chat.offset}\n> ") // TODO DELETE
+              (chat, new ChatExecutor(me, chat, users))
           )
           myChats.addAll(transform)
           val chatManager = new ChatManager(me, true)
@@ -59,7 +61,6 @@ object MyAccount:
   /**
    * this method comparing to initialize() avoids,
    * sending request to DB.
-   * @param user
    */
   def initializeAfterCreation(user: User): Either[(Option[QueryErrors], Option[KafkaError]), ChatManager] =
     me = user
@@ -85,7 +86,7 @@ object MyAccount:
               case Left(dbError: QueryErrors) =>
                 // this error isn't problem because we automatically handle it
                 // when running up next time
-                println(s"Cannot update user's joining offset: ${dbError.listOfErrors.head.description}")
+                // println(s"Cannot update user's joining offset: ${dbError.listOfErrors.head.description}")
                 Left(Some(dbError), Some(ke))
             }
           case _ =>
@@ -140,7 +141,7 @@ object MyAccount:
 //    val chatsToSave = myChats.values.par.map(_.closeChat()).seq.toSeq       // close all Kafka connections
 //    ExternalDB.updateChatOffsetAndMessageTime(me, chatsToSave) match {
 //      case Left(queryErrors: QueryErrors) =>
-//        println(s"LOGOUT DB ERROR.") // todo delete it
+//        println(s"LOGOUT DB ERROR.") //  delete it
 //        println(s"${queryErrors.listOfErrors.head.description}")
 //      case Right(value) =>
 //        println(s"Updated $value chats to DB.")
