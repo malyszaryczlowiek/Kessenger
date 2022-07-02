@@ -42,7 +42,6 @@ object MyAccount:
             (chatList: (Chat, List[User])) =>
               val chat = chatList._1
               val users = chatList._2
-              print(s"wczytany z DB chat ma offset ${chat.offset}\n> ") // TODO DELETE
               (chat, new ChatExecutor(me, chat, users))
           )
           myChats.addAll(transform)
@@ -99,10 +98,7 @@ object MyAccount:
         //updateOffset(chatManager, None)
         Right(chatManager) // chat manager created without any internal errors
     }
-
-
-
-
+    
 
   def updateUser(user: User): Unit =
     me = user

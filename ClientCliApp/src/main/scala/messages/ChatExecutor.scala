@@ -29,18 +29,7 @@ import scala.util.{Failure, Success}
 class ChatExecutor(me: User, chat: Chat, chatUsers: List[User]):
 
   private val continueReading:  AtomicBoolean = new AtomicBoolean(true)
-  private val newOffset:           AtomicLong = new AtomicLong( 0L ) // TODO ewentualnie zmienić z powrotem na chat.offset
-
-  newOffset.set( 0L + chat.offset) // TODO tutaj jest ostatnia nieprzetestowana zmiana.
-
-  //  ^
-  //  | TODO przetestowac powyższa zmienę.
-
-
-
-
-  private var simpleOffset: Long              = chat.offset // TODO
-  //private val lastUnreadOffset:    AtomicLong = new AtomicLong( 0L )
+  private val newOffset:           AtomicLong = new AtomicLong( chat.offset )
   private val lastMessageTime:     AtomicLong = new AtomicLong( TimeConverter.fromLocalToEpochTime(chat.timeOfLastMessage) )
   private val printMessage:     AtomicBoolean = new AtomicBoolean(false)
 
@@ -60,8 +49,6 @@ class ChatExecutor(me: User, chat: Chat, chatUsers: List[User]):
       val fut = chatProducer.send(new ProducerRecord[String, String](chat.chatId, me.userId.toString, message)) // , callBack)
       val result = fut.get(5L, TimeUnit.SECONDS)
       newOffset.set( result.offset() + 1L )
-      // newOffset.se
-      simpleOffset = result.offset() + 1L
       lastMessageTime.set( result.timestamp() )
       updateDB()
     }
@@ -81,8 +68,7 @@ class ChatExecutor(me: User, chat: Chat, chatUsers: List[User]):
         val records: ConsumerRecords[String, String] = chatConsumer.poll(Duration.ofMillis(250))
         records.forEach(
           (r: ConsumerRecord[String, String]) => {
-            if printMessage.get() then
-              printMessage(r)
+            if printMessage.get() then printMessage( r )
             else showNotification( r )
           }
         )
@@ -92,9 +78,7 @@ class ChatExecutor(me: User, chat: Chat, chatUsers: List[User]):
     future.onComplete {
       case Failure(ex)    =>
         // if some error occurred we restart chatReader, every 3 seconds
-        print(s" ChatExecutor.onCOmplete ERROR\n> ")  // TODO DELETE
         if continueReading.get() then
-          print(s"ERROR CHAT_READER RECREATED\n")  // TODO DELETE
           Thread.sleep(3000)
           chatReader = Some( createChatReader() )  // watch out of infinite loop when future ends so fast that  onComplete is not defined yet
         else updateDB()
@@ -113,7 +97,7 @@ class ChatExecutor(me: User, chat: Chat, chatUsers: List[User]):
 
   def stopPrintMessages(): Unit =
     printMessage.set(false)
-    //Future { updateDB() }
+    Future { updateDB() }
 
 
 
@@ -146,32 +130,28 @@ class ChatExecutor(me: User, chat: Chat, chatUsers: List[User]):
    * and so, unreadMessages is not modified in this time.
    */
   def printUnreadMessages(): Unit =
-    //val f   = Future {
-      val map: immutable.SortedMap[Long, (Login, LocalDateTime, String)] =
-        unreadMessages.seq.to(immutable.SortedMap) // conversion to SortedMap
-      map.foreach( (k,v) => {
-        simpleOffset = k + 1L
-        newOffset.set( 1L + k )
-        lastMessageTime.set( TimeConverter.fromLocalToEpochTime(v._2) )
-        // this prints messages to user
-        print(s"${v._1} ${v._2} >> ${v._3}\n> ")
-      } )
-      if map.isEmpty then print("> ")
-      // newOffset.set( lastUnreadOffset.get() )
-      unreadMessages.clear() // clear off ParSequence
-      printMessage.set(true)
-      updateDB()
-//    }
-    // Await.
-
+    val map: immutable.SortedMap[Long, (Login, LocalDateTime, String)] =
+      unreadMessages.seq.to(immutable.SortedMap) // conversion to SortedMap
+    map.foreach( (k,v) => {
+      newOffset.set( 1L + k )
+      lastMessageTime.set( TimeConverter.fromLocalToEpochTime(v._2) )
+      // this prints messages to user
+      print(s"${v._1} ${v._2} >> ${v._3}\n> ")
+    } )
+    if map.isEmpty then print("> ")
+    unreadMessages.clear() // clear off ParSequence
+    printMessage.set(true)
+    Future { updateDB() }
     // if from some reasons chat reader is not running
     // but we have some unread messages we print them
     // otherwise we print them via printMessage() method
     // in chatReader future.
 
 
-
-
+  /**
+   * This method is always called from external thread (not main),
+   * so we can coll updateDB directly in it.
+   */
   private def printMessage(r: ConsumerRecord[String, String]): Unit =
     val localTime: LocalDateTime = TimeConverter.fromMilliSecondsToLocal( r.timestamp() )
     val senderUUID = UUID.fromString(r.key())
@@ -181,7 +161,6 @@ class ChatExecutor(me: User, chat: Chat, chatUsers: List[User]):
     val message = r.value()
     if unreadMessages.isEmpty then
       if login != me.login then print(s"$login $localTime >> $message\n> ")
-      simpleOffset = r.offset() + 1L
       newOffset.set( r.offset() + 1L )
       lastMessageTime.set( r.timestamp() )
     else
@@ -190,7 +169,6 @@ class ChatExecutor(me: User, chat: Chat, chatUsers: List[User]):
       map.foreach( (k,v) => if login != me.login then print(s"${v._1} ${v._2} >> ${v._3}\n> ") )
       unreadMessages.clear() // clear off ParSequence
       print(s"$login $localTime >> $message\n> ") // and finally print last message.
-      simpleOffset = r.offset() + 1L
       newOffset.set( r.offset() + 1L )
       lastMessageTime.set( r.timestamp() )
     updateDB()
@@ -220,7 +198,6 @@ class ChatExecutor(me: User, chat: Chat, chatUsers: List[User]):
         queryErrors.listOfErrors.foreach(error => println(s"${error.description}"))
         print(s"Leave the chat, and back in a few minutes.\n> ")
       case Right(value) =>
-        print(s"chat info updated to DB in $value chats.\n> ")   // TODO DELETE
       // we do not need to notify user (sender)
       // that some values were updated in DB.
     }

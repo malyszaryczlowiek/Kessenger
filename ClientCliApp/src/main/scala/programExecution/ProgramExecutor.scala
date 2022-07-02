@@ -200,7 +200,7 @@ object ProgramExecutor :
       indexed.foreach(
         chatIndex => {
           // if offset is different than 0 means that user read from chat so accept them
-          // TODO @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+          // TODO reimplement it @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
           if chatIndex._1._1.offset == 0L then
             println(s"${chatIndex._2 + 1}) ${chatIndex._1._1.chatName} (NOT ACCEPTED)")
           else
@@ -264,7 +264,6 @@ object ProgramExecutor :
             println(s"Cannot update chat information:  ")
             qe.listOfErrors.foreach(error => print(s"${error.description}\n> "))
           case Right(saved: Int)     =>
-            print(s"Przy zamykaniu czatu zaktualizowano $saved czatów.\n> ") // TODO DELETE
             // we do not need notify user about updates in DB
         }
     }
@@ -330,26 +329,18 @@ object ProgramExecutor :
               queryErrors.listOfErrors.foreach(error => println(s"${error.description}"))
               Option.empty[Chat]
             case Right(chat) =>
-              // Uzyć findChatAndUsers() z ExternalDB
-              
-              
-              
-              // TODO jeśli udało się zapisac dane do db to nalezy je teraz wyekstrahować. i ich uzyć do 
-              
-              
-              
-              
-              
-              
-              
+              // if chat is created correctly in DB,
+              // we can create proper kafka topic for this chat
               KessengerAdmin.createNewChat(chat) match {
                 case Left(kafkaError: KafkaError) =>
                   println(s"Cannot create new chat. ${kafkaError.description}")
                   Option.empty[Chat]
                 case Right(chatt: Chat) =>
+                  // if we created proper kafka topic for chat
+                  // we send information obout to chat's participants
                   chatManager.askToJoinChat(users, chatt) match {
                     case Left(kafkaError: KafkaError) =>
-                      println(s"${kafkaError.description}, Cannot send invitations to other users... ")
+                      print(s"${kafkaError.description}, Cannot send invitations to other users...\n> ")
                       Option.empty[Chat]
                     case Right(createdChat) =>
                       println(s"Chat '${createdChat.chatName}' created correctly.")
@@ -416,7 +407,7 @@ object ProgramExecutor :
 
 
   /**
-   * TODO write integration tests
+   * TODO write integration tests ???
    * @param login
    * @param s
    */
@@ -432,7 +423,7 @@ object ProgramExecutor :
         val pass2 = console.readPassword()
         if pass2 != null && pass1.toSeq == pass2.toSeq && pass1.nonEmpty then
           // probably must call gc() to remove pass1 and pass2 from heap
-          println("Passwords matched.")
+          print("Passwords matched.\n> ")
           val salt = PasswordConverter.generateSalt
           PasswordConverter.convert(pass2.mkString(""), salt) match {
             case Left(_) =>
@@ -441,22 +432,21 @@ object ProgramExecutor :
             case Right(p) =>
               ExternalDB.createUser(login, p, salt) match {
                 case Left(QueryErrors(List(QueryError(queryErrorType, description)))) =>
-                  println(s"Error: $description")
-                  println(s"You are moved back to User Creator.")
+                  print(s"Error: $description\n> ")
+                  print(s"You are moved back to User Creator.\n> ")
                   createAccount()
                 case Right(user: User) =>
-                  println(s"User $user")  // TODO DELETE
                   // from test purposes, better is to move starting KafkaAdmin out of MyAccount object
                   KessengerAdmin.startAdmin(new KafkaProductionConfigurator)
                   MyAccount.initializeAfterCreation(user) match {
                     case Left((dbError, kafkaError)) =>
                       (dbError, kafkaError) match {
-                        case (Some(db), None)      => db.listOfErrors.foreach(error => println(s"${error.description}"))
-                        case (None, Some(kaf))     => println(s"${kaf.description}")
+                        case (Some(db), None)      => db.listOfErrors.foreach(error => print(s"${error.description}\n> "))
+                        case (None, Some(kaf))     => print(s"${kaf.description}\n> ")
                         case (Some(db), Some(kaf)) =>
-                          db.listOfErrors.foreach(error => println(s"${error.description}"))
-                          println(s"${kaf.description}")
-                        case _                     => println(s"Undefined Error") // not reachable
+                          db.listOfErrors.foreach(error => print(s"${error.description}\n> "))
+                          print(s"${kaf.description}\n> ")
+                        case _                     => print(s"Undefined Error\n> ") // not reachable
                       }
                     case Right(chatManager: ChatManager) =>
                       // we assign chatManager and return to menu
@@ -464,15 +454,15 @@ object ProgramExecutor :
                       print(s"Account created correctly. Please Sign in now.\n")
                   }
                 case _ =>
-                  println("Undefined error.")
+                  print("Undefined error.\n> ")
                   setPassword(login, s)
               }
           }
         else
-          println("Passwords do not match. Try Again.")
+          print("Passwords do not match. Try Again.\n> ")
           setPassword(login, s)
       else
-        println("Password was empty. Try with non empty.")
+        print("Password was empty. Try with non empty.\n> ")
         setPassword(login, s)
     else
-      println("Cannot read user input. Program termination.")
+      print("Cannot read user input. Program termination.\n> ")

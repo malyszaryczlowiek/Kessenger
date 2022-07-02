@@ -39,6 +39,7 @@ class ChatManager(var me: User, private var topicCreated: Boolean = false):
 
   // we will read from topic with name of chatId. Each chat topic
   // has only one partition (and three replicas)
+  // TODO zmienić na AtomicLong
   private var joinOffset: Long = me.joiningOffset
 
   private val errorLock: AnyRef = new AnyRef
@@ -87,7 +88,7 @@ class ChatManager(var me: User, private var topicCreated: Boolean = false):
                       case None       => print(s"Warning!?! Inviting user not found???\n> ")
                     }
                     MyAccount.addChat(chat, users)
-                    updateUsersOffset( r.offset() )
+                    updateUsersOffset( r.offset() + 1L )
                 }
               case Left(_) => () // if errors, do nothing, because I am added in users_chats
               // so in next logging chat will show up.
@@ -155,8 +156,8 @@ class ChatManager(var me: User, private var topicCreated: Boolean = false):
     me = me.copy(joiningOffset = joinOffset) // we need to change joining offset because in db is set to -1
     MyAccount.updateUser(me)
     ExternalDB.updateJoiningOffset(me, offset) match {
-      case Right(user) => //println(s"User's data updated. ")
-      case Left(dbError: QueryErrors) => //  println(s"Cannot update user's data to DB. ") // joining offset: ${dbError.listOfErrors.head.description}
+      case Right(user) => // println(s"User's data updated. ")
+      case Left(dbError: QueryErrors) => // println(s"Cannot update user's data to DB. ") // joining offset: ${dbError.listOfErrors.head.description}
     }
 
 

@@ -33,7 +33,6 @@ class ProgramExecutionTests extends munit.FunSuite:
   }
 
 
-  // todo wstawic to do Program Executor'a
   test("Does login regex match example incorrect logins.") {
     val loginRegex = "([\\p{Alnum}]*[\\p{Punct}]+[\\p{Alnum}]*)|([0-9]+)".r
 

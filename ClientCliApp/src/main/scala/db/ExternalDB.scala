@@ -73,7 +73,6 @@ object ExternalDB:
               val time:      Long     = resultSet.getLong("message_time")
               val userId:    UUID     = resultSet.getObject[UUID]("user_id", classOf[UUID])
               val login:     Login    = resultSet.getString("login")
-              print(s"DB.findUsersChats wczytany z bazy offset ma wartość: $offset\n> ")   // TODO DELETE
               val chat:      Chat     = Chat(chatId, chatName, groupChat, offset, TimeConverter.fromMilliSecondsToLocal(time))
               val u:         User     = User(userId, login)
               buffer += ((chat, u))
@@ -225,7 +224,9 @@ object ExternalDB:
             connection.rollback(beforeAnyInsertions) // we roll back any insertions
             connection.setAutoCommit(true)
             handleExceptionMessage[Chat](ex)
-          case Success(either) => either
+          case Success(either) =>
+            connection.setAutoCommit(true)
+            either
         }
   end createChat
 
@@ -313,7 +314,7 @@ object ExternalDB:
       val totalAffectedRows: Int = Await.result(zippedFuture, Duration.create(5L, duration.SECONDS))
       if totalAffectedRows == users.length then
         connection.commit()
-        connection.setAutoCommit(true) // TODO brak tego zrobiło bajzer
+        connection.setAutoCommit(true)
         Right(chat)
       else
         throw new Exception("Not all Users added to chat.")
@@ -554,9 +555,7 @@ object ExternalDB:
             Future { // each insertion executed in separate thread
               Using(connection.prepareStatement(sql)) {
                 (statement: PreparedStatement) =>
-                  print(s"${user.login}, Zapisywany bezpośrednio do bazy offset jest: ${chat.offset}\n")  // TODO DELETE
-                  val offset: Long = chat.offset
-                  statement.setLong(1, 0L + offset )
+                  statement.setLong(1, chat.offset )
                   statement.setLong(2, TimeConverter.fromLocalToEpochTime(chat.timeOfLastMessage))
                   statement.setString(3, chat.chatId)
                   statement.setObject(4, user.userId)
@@ -628,9 +627,13 @@ object ExternalDB:
             throw new Exception("Data processing error.")
       } match {
         case Failure(ex) =>
-          if stateBeforeInsertion != null then connection.rollback(stateBeforeInsertion) // This connection has been closed
+          if stateBeforeInsertion != null then
+            connection.rollback(stateBeforeInsertion) // This connection has been closed
+          connection.setAutoCommit(true)
           handleExceptionMessage[Chat](ex)  // returns DataProcessing Error
-        case Success(either) => either
+        case Success(either) =>
+          connection.setAutoCommit(true)
+          either
       }
 
 
