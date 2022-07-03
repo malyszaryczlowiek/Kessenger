@@ -35,13 +35,10 @@ object ExternalDB:
    * @return
    */
   def recreateConnection(): Try[Unit] = Try {
-    if connection.isClosed then
-      connection = DriverManager.getConnection(dbUrl, dbProps)
-      //connection.setAutoCommit(false)
-    else
-      closeConnection()
-      connection = DriverManager.getConnection(dbUrl, dbProps)
-      //connection.setAutoCommit(false)
+    if ! connection.isClosed then closeConnection()
+    connection = DriverManager.getConnection(dbUrl, dbProps)
+    if ! connection.getAutoCommit then
+      connection.setAutoCommit(true)
   }
 
 
@@ -662,16 +659,19 @@ object ExternalDB:
    * no modify
    * @param me
    * @param chat
-   * @return
+   * @return Returns number of users in chat. If returns 0 then we must delete of
+   *         proper kafka topic with chat.
    */
-  def deleteMeFromChat(me: User, chat: Chat): Either[QueryErrors, Chat] =
+  def deleteMeFromChat(me: User, chat: Chat): Either[QueryErrors, Int] =
     numOfChatUsers(chat) match {
       case Left(queryErrors: QueryErrors) => Left(queryErrors)
-      case Right(value) =>
-        if value < 0 then
+      case Right(chatUsers) =>
+        if chatUsers < 0 then
           Left(QueryErrors(List(QueryError(QueryErrorType.ERROR, QueryErrorMessage.DataProcessingError))))
         else if !chat.groupChat then // cannot remove user from no group chat
           Left(QueryErrors(List(QueryError(QueryErrorType.ERROR, QueryErrorMessage.UnsupportedOperation))))
+        else if chatUsers == 0 then
+          Right(chatUsers)
         else // we process group chat
           Using(connection.prepareStatement("DELETE FROM users_chats WHERE chat_id = ? AND user_id = ?")) {
             (statement: PreparedStatement) =>
@@ -681,11 +681,24 @@ object ExternalDB:
           } match {
             case Failure(ex) => handleExceptionMessage(ex)
             case Success(value) =>
-              if value == 1 then Right(chat)
+              if value == 1 then Right(chatUsers - value)
               else Left(QueryErrors(List(QueryError(QueryErrorType.ERROR, QueryErrorMessage.DataProcessingError))))
           }
     }
-
+    
+    
+  def deleteChat(chat: Chat): Either[QueryErrors, Int] =
+    val sql = "DELETE FROM chats WHERE chat_id = ? "
+    Using(connection.prepareStatement( sql )) {
+      (statement: PreparedStatement) =>
+        statement.setString(1, chat.chatId)
+        statement.executeUpdate()
+    } match {
+      case Failure(ex) => handleExceptionMessage(ex)
+      case Success(value) =>
+        if value == 1 then Right(value)
+        else Left(QueryErrors(List(QueryError(QueryErrorType.ERROR, QueryErrorMessage.DataProcessingError))))
+    }
 
   private def numOfChatUsers(chat: Chat): Either[QueryErrors, Int] =
     Using(connection.prepareStatement("SELECT * FROM users_chats WHERE chat_id = ?")) {

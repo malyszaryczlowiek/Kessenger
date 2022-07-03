@@ -98,7 +98,7 @@ object MyAccount:
         //updateOffset(chatManager, None)
         Right(chatManager) // chat manager created without any internal errors
     }
-    
+
 
   def updateUser(user: User): Unit =
     me = user
@@ -123,7 +123,14 @@ object MyAccount:
 
 
 
-  def removeChat(chat: Chat): Option[ChatExecutor] = myChats.remove(chat)
+  def removeChat(chatToRemove: Chat): Unit =
+    myChats.find( (chat: Chat, oldExecutor: ChatExecutor) => chat.chatId == chatToRemove.chatId) match {
+      case None               =>
+        print(s"Cannot remove chat '${chatToRemove.chatName}'. Does not exist in chat list.\n> ")
+      case Some((found, _)) =>
+        myChats.remove(found)
+        print(s"Chat '${found.chatName}' removed from list.\n> ")
+    }
 
 
   /**

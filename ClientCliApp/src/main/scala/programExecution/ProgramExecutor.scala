@@ -18,6 +18,9 @@ import messages.{Chat, ChatExecutor, ChatManager, KessengerAdmin}
 import util.{ChatNameValidator, PasswordConverter}
 
 import scala.::
+import scala.concurrent.Future
+
+import concurrent.ExecutionContext.Implicits.global
 
 
 
@@ -38,14 +41,19 @@ object ProgramExecutor :
           println("Please select 1, 2 or 3.")
           runProgram(args)
         case Success(value) =>
-          if   value == 1    then
+          if      value == 1 then
             signIn()
             runProgram(Array.empty)
           else if value == 2 then
             createAccount()
             runProgram(Array.empty)
           else if value == 3 then
-            ExternalDB.closeConnection()
+            ExternalDB.closeConnection() match {
+              case Success(_) =>
+                print(s"Disconnected with DB.\n")
+              case Failure(_) =>
+                print(s"Error with disconnecting with DB.\n")
+            }
           else
             println("Please select 1, 2 or 3.")
             runProgram(args)
@@ -169,13 +177,13 @@ object ProgramExecutor :
           showSettings() // TODO  implement
           printMenu()
         else if value == 4 then
-          MyAccount.logOut()
+          MyAccount.logOut()  
           manager match {
             case Some(man) =>
               man.closeChatManager() match {
                 case Some(kafkaError: KafkaError) =>
                   print(s"${kafkaError.description}\n> ")
-                case None =>
+                case None => {}
               }
             case None      =>
           }
@@ -258,7 +266,6 @@ object ProgramExecutor :
         val me = MyAccount.getMyObject
         MyAccount.updateChat(chat, chatExecutor)
         // we save offset to db
-        print(s"OFFSET is ${chat.offset}\n> ")
         ExternalDB.updateChatOffsetAndMessageTime(me, Seq(chat)) match {
           case Left(qe: QueryErrors) =>
             println(s"Cannot update chat information:  ")
@@ -362,18 +369,37 @@ object ProgramExecutor :
 
   private def escapeChat(executor: ChatExecutor): Unit =
     val me = executor.getUser
+    print(s"Escaping chat, please wait...\n> ")
     ExternalDB.deleteMeFromChat( me, executor.getChat) match {
       case Left(qErrors: QueryErrors) =>
-        qErrors.listOfErrors.foreach(qe => println(qe.description))
+        qErrors.listOfErrors.foreach(qe => print(s"${qe.description}\n> "))
         println(s"Try again later.")
-      case Right(chat: Chat)          =>
+      case Right(chatUsers: Int)      =>
         executor.sendMessage(s"## ${me.login} Stopped participating in chat. ##")
         executor.closeChat()
-        println(s"You escaped chat ${chat.chatName}.")
-        MyAccount.removeChat(chat) match {
-          case Some(_) => println(s"Chat ${chat.chatName} removed from list.")
-          case None    => println(s"Oooopsss, chat you want to escape and delete not found. ")
-        }
+        val removedChat = executor.getChat
+        MyAccount.removeChat( removedChat )
+        print(s"You escaped chat '${removedChat.chatName}'.\n> ")
+        if chatUsers == 0 then
+          // if In chat is no more users we need remove topic from kafka Broker.
+          Future {
+            ExternalDB.deleteChat(removedChat) match {
+              case Left(qErrors: QueryErrors) =>
+                qErrors.listOfErrors.foreach(qe => print(s"${qe.description}\n> "))
+                // println(s"Nie MOżnA USUnąć za bazy danych czatu. ") // DELETE
+              case Right(chatUsers: Int) =>
+                // print(s"$chatUsers czat usunięty z tablei chats") // DELETE
+            }
+          }
+          Future {
+            KessengerAdmin.removeChat(removedChat) match {
+              case Left(ke: KafkaError)      =>
+                // print(s"ERROR przy permanentnym usuwaniu topika czatu.\n> ") // DELETE
+                // if we got error we do not inform user about
+              case Right(permanentlyRemovedChat) =>
+                print(s"Chat ${permanentlyRemovedChat.chatName} was removed permanently.\n> ")
+            }
+          }
     }
 
 

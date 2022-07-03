@@ -195,8 +195,8 @@ class ChatExecutor(me: User, chat: Chat, chatUsers: List[User]):
   private def updateDB(): Unit =
     ExternalDB.updateChatOffsetAndMessageTime(me, Seq(getChat)) match {
       case Left(queryErrors: QueryErrors) =>
-        queryErrors.listOfErrors.foreach(error => println(s"${error.description}"))
-        print(s"Leave the chat, and back in a few minutes.\n> ")
+        // queryErrors.listOfErrors.foreach(error => println(s"${error.description}"))
+        // print(s"Leave the chat, and back in a few minutes.\n> ")
       case Right(value) =>
       // we do not need to notify user (sender)
       // that some values were updated in DB.

@@ -7,13 +7,14 @@ import db.queries.QueryErrors
 import domain.{Domain, User}
 import domain.Domain.*
 import messages.kafkaErrorsUtil.{KafkaError, KafkaErrorMessage, KafkaErrorStatus, KafkaErrorsHandler}
+
 import org.apache.kafka.clients.consumer.{ConsumerRecord, ConsumerRecords, KafkaConsumer}
 import org.apache.kafka.clients.producer.{Callback, KafkaProducer, ProducerRecord, RecordMetadata}
 import org.apache.kafka.common.TopicPartition
 
 import java.util.UUID
 import java.util.concurrent.TimeUnit
-import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.{AtomicBoolean, AtomicLong}
 import scala.annotation.tailrec
 import scala.collection.mutable.ListBuffer
 import scala.concurrent.{Await, Future}
@@ -39,8 +40,7 @@ class ChatManager(var me: User, private var topicCreated: Boolean = false):
 
   // we will read from topic with name of chatId. Each chat topic
   // has only one partition (and three replicas)
-  // TODO zmienić na AtomicLong
-  private var joinOffset: Long = me.joiningOffset
+  private val joinOffset: AtomicLong = new AtomicLong( me.joiningOffset )
 
   private val errorLock: AnyRef = new AnyRef
   private var error: Option[KafkaError] = None
@@ -66,7 +66,7 @@ class ChatManager(var me: User, private var topicCreated: Boolean = false):
       val joinConsumer: KafkaConsumer[String, String] = KessengerAdmin.createJoiningConsumer()
       val topic = new TopicPartition(Domain.generateJoinId(me.userId), 0)
       joinConsumer.assign(java.util.List.of(topic))
-      joinConsumer.seek(topic, joinOffset)
+      joinConsumer.seek(topic, joinOffset.get() )
       // this may throw IllegalArgumentException if joining topic exists,
       // but in db we do not have updated offset
       // and inserted value of joinOffset (taken from db) is -1.
@@ -152,8 +152,8 @@ class ChatManager(var me: User, private var topicCreated: Boolean = false):
 
 
   private def updateUsersOffset(offset: Long): Unit =
-    joinOffset = offset
-    me = me.copy(joiningOffset = joinOffset) // we need to change joining offset because in db is set to -1
+    joinOffset.set( offset )
+    me = me.copy(joiningOffset = joinOffset.get() ) // we need to change joining offset because in db is set to -1
     MyAccount.updateUser(me)
     ExternalDB.updateJoiningOffset(me, offset) match {
       case Right(user) => // println(s"User's data updated. ")
@@ -263,8 +263,8 @@ class ChatManager(var me: User, private var topicCreated: Boolean = false):
           // TODO delete, used in integration tests
           case Failure(exception) =>
             println(s"join consumer closed with Error.")
-          case Success(unitValue) =>
-            println(s"join consumer closed correctly.")
+          case Success(unitValue) => // we do nothing
+            // println(s"option listener w Chat Manager zamknięty normalnie. ")  // TODODELETE
         }
     } match {
       case Failure(ex) =>
@@ -277,7 +277,7 @@ class ChatManager(var me: User, private var topicCreated: Boolean = false):
 
 
 
-  def updateOffset(offset: Long): Unit = joinOffset = offset
+  def updateOffset(offset: Long): Unit = joinOffset.set(offset)
 
   def setTopicCreated(boolean: Boolean): Unit = topicCreated = boolean
 

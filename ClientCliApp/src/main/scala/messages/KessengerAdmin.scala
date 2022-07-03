@@ -85,8 +85,7 @@ object KessengerAdmin {
    * @param writingId
    * @return
    */
-  @deprecated("this method won't be used in future versions.")
-  def removeChat(chat: Chat): Either[KafkaError, ChatId] =
+  def removeChat(chat: Chat): Either[KafkaError, Chat] =
     Try {
       val deleteTopicResult: DeleteTopicsResult = admin.deleteTopics(java.util.List.of(chat.chatId))
       val topicMap = CollectionConverters.asScala[String, KafkaFuture[Void]](deleteTopicResult.topicNameValues()).toMap
@@ -95,12 +94,13 @@ object KessengerAdmin {
         optionKafkaFuture.get // may throw NoSuchElementException
           .get(5L, TimeUnit.SECONDS) // we give five seconds to complete removing chat
           // may throw  InterruptedException ExecutionException TimeoutException
-        Right( topicMap.keys.head )
+        // Right( topicMap.keys.head )
+        Right( chat )
       else
         Left( KafkaError(KafkaErrorStatus.FatalError, KafkaErrorMessage.UndefinedError) )
     } match {
       case Success(either) => either
-      case Failure(ex)     => KafkaErrorsHandler.handleWithErrorMessage[ChatId](ex)
+      case Failure(ex)     => KafkaErrorsHandler.handleWithErrorMessage[Chat](ex)
     }
 
 

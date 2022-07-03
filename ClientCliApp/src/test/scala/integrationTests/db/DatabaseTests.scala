@@ -1283,9 +1283,9 @@ class DatabaseTests extends DbIntegrationTestsTrait:
     }
 
     ExternalDB.deleteMeFromChat(user1, createdChat) match {
-      case Right(chat) =>
-        assert(chat == createdChat, s"method should return $createdChat")
-      case Left(_) => assert(false, s"Method should return $createdChat")
+      case Right(chatUsers: Int) =>
+        assert(chatUsers == 2, s"method should return 2 users stayed in chat.")
+      case Left(_) => assert(false, s"Method should return Right(2)")
     }
   }
 
