@@ -6,6 +6,9 @@ lazy val root = (project in file("."))
     name := "ClientCliApp",
     idePackagePrefix := Some("com.github.malyszaryczlowiek"),
     assembly / assemblyJarName := s"${name.value}-${version.value}.jar",
+
+    externalResolvers += "KessengerLibrary packages" at "https://maven.pkg.github.com/malyszaryczlowiek/KessengerLibrary", ///KessengerLibrary/kessengerlibrary/kessengerlibrary_3/0.1.0 //"https://maven.pkg.github.com/malyszaryczlowiek/KessengerLibrary",// "https://maven.pkg.github.com/supermanue/example-library",  /0.1.0/kessengerlibrary_3-0.1.0.pom
+      //libraryDependencies += "supermanue" %% "example-library" % "0.1.0-SNAPSHOT"
     libraryDependencies ++= Seq(
       ("org.apache.kafka" %% "kafka" % "3.1.0").cross(CrossVersion.for3Use2_13),
       "org.apache.kafka" % "kafka-clients" % "3.1.0",
@@ -19,6 +22,10 @@ lazy val root = (project in file("."))
       //"org.slf4j" % "slf4j-api" % "1.7.36",
 
       "org.slf4j" % "slf4j-nop" % "1.7.36",// to switch off logging
+
+
+      // added own  library
+      "com.github.malyszaryczlowiek" %% "KessengerLibrary" % "0.1.3"
 
       // used in future impelementation
 //      "io.circe" %% "circe-core" % "0.14.1",

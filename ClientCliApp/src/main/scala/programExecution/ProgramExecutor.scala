@@ -34,6 +34,7 @@ object ProgramExecutor :
   def runProgram(args: Array[String]): Unit =
     val length = args.length
     if length == 0 then
+      Greeting.showGreeting()
       println("Select what to do:\n1) Sign in,\n2) Create Account,\n3) Exit.")
       print("> ")
       Try { readInt() } match {
@@ -68,6 +69,7 @@ object ProgramExecutor :
 
 
   private def signIn(): Unit = signInWithLogin("")
+
 
 
   @tailrec
@@ -116,6 +118,7 @@ object ProgramExecutor :
           signInWithLogin("")
       else
         println("OOOps problem with Console. Cannot use it.")
+
 
 
 
@@ -177,7 +180,7 @@ object ProgramExecutor :
           showSettings() // TODO  implement
           printMenu()
         else if value == 4 then
-          MyAccount.logOut()  
+          MyAccount.logOut()
           manager match {
             case Some(man) =>
               man.closeChatManager() match {
@@ -192,6 +195,7 @@ object ProgramExecutor :
           println("Wrong number, please select 1, 2, 3 or 4.")
           printMenu()
     }
+
 
 
 
@@ -233,6 +237,7 @@ object ProgramExecutor :
               //s"or #escape_chat if you do not want participate")
             showChats()
           }
+
 
 
 
@@ -299,6 +304,7 @@ object ProgramExecutor :
 
 
 
+
   @tailrec
   private def addUser(buffer: ListBuffer[User]): List[User] =
     println(s"Find users to add to chat, or type #end to finish adding.")
@@ -319,6 +325,7 @@ object ProgramExecutor :
           buffer.addOne(user)
           addUser(buffer)
       }
+
 
 
 
@@ -403,6 +410,8 @@ object ProgramExecutor :
     }
 
 
+
+
   /**
    * In this method we can change our password
    * and login (if is not taken).
@@ -430,6 +439,8 @@ object ProgramExecutor :
       createAccount()
     else
       setPassword(login, "")
+
+
 
 
   /**
