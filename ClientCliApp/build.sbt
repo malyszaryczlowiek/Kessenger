@@ -41,13 +41,6 @@ lazy val root = (project in file("."))
       // For Tests
       "org.scalameta" %% "munit" % "0.7.29" % Test,
       "org.scalameta" %% "munit-scalacheck" % "0.7.29" % Test
-
-
-
-      // used in future impelementation
-//      "io.circe" %% "circe-core" % "0.14.1",
-//      "io.circe" %% "circe-generic" % "0.14.1",
-//      "io.circe" %% "circe-parser" % "0.14.1",
     )
   )
 
