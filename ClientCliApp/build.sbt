@@ -7,25 +7,41 @@ lazy val root = (project in file("."))
     idePackagePrefix := Some("com.github.malyszaryczlowiek"),
     assembly / assemblyJarName := s"${name.value}-${version.value}.jar",
 
-    externalResolvers += "KessengerLibrary packages" at "https://maven.pkg.github.com/malyszaryczlowiek/KessengerLibrary", ///KessengerLibrary/kessengerlibrary/kessengerlibrary_3/0.1.0 //"https://maven.pkg.github.com/malyszaryczlowiek/KessengerLibrary",// "https://maven.pkg.github.com/supermanue/example-library",  /0.1.0/kessengerlibrary_3-0.1.0.pom
-      //libraryDependencies += "supermanue" %% "example-library" % "0.1.0-SNAPSHOT"
+    externalResolvers += "KessengerLibrary packages" at "https://maven.pkg.github.com/malyszaryczlowiek/KessengerLibrary",
+
     libraryDependencies ++= Seq(
+
+      // Kafka Repos
       ("org.apache.kafka" %% "kafka" % "3.1.0").cross(CrossVersion.for3Use2_13),
       "org.apache.kafka" % "kafka-clients" % "3.1.0",
       // ("org.apache.kafka" %% "kafka-streams-scala" % "3.1.0").cross(CrossVersion.for3Use2_13)
+
+
+      // For usage of Scala's parallel collections
       ("org.scala-lang.modules" %% "scala-parallel-collections" % "1.0.4") .cross(CrossVersion.for3Use2_13),
-      ("com.github.t3hnar" %% "scala-bcrypt" % "4.3.0").cross(CrossVersion.for3Use2_13), // https://github.com/t3hnar/scala-bcrypt
+
+
+      // For hashing password with BCrypt algorithm    // https://github.com/t3hnar/scala-bcrypt
+      ("com.github.t3hnar" %% "scala-bcrypt" % "4.3.0").cross(CrossVersion.for3Use2_13),
+
+
+      // for connecting to PostgreSQL db
       "org.postgresql" % "postgresql" % "42.3.3" ,
+
+
+      // to switch off logging
+      "org.slf4j" % "slf4j-nop" % "1.7.36",
+
+
+      // Own library with util and domain classes.
+      // https://github.com/malyszaryczlowiek/KessengerLibrary
+      "com.github.malyszaryczlowiek" %% "KessengerLibrary" % "0.1.3",
+
+
+      // For Tests
       "org.scalameta" %% "munit" % "0.7.29" % Test,
       "org.scalameta" %% "munit-scalacheck" % "0.7.29" % Test,
-      // https://mvnrepository.com/artifact/org.slf4j/slf4j-api
-      //"org.slf4j" % "slf4j-api" % "1.7.36",
 
-      "org.slf4j" % "slf4j-nop" % "1.7.36",// to switch off logging
-
-
-      // added own  library
-      "com.github.malyszaryczlowiek" %% "KessengerLibrary" % "0.1.3"
 
       // used in future impelementation
 //      "io.circe" %% "circe-core" % "0.14.1",
