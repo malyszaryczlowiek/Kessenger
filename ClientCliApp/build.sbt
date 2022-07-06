@@ -18,7 +18,7 @@ lazy val root = (project in file("."))
 
 
       // For usage of Scala's parallel collections
-      ("org.scala-lang.modules" %% "scala-parallel-collections" % "1.0.4") .cross(CrossVersion.for3Use2_13),
+      ("org.scala-lang.modules" %% "scala-parallel-collections" % "1.0.4").cross(CrossVersion.for3Use2_13),
 
 
       // For hashing password with BCrypt algorithm    // https://github.com/t3hnar/scala-bcrypt
@@ -40,7 +40,7 @@ lazy val root = (project in file("."))
 
       // For Tests
       "org.scalameta" %% "munit" % "0.7.29" % Test,
-      "org.scalameta" %% "munit-scalacheck" % "0.7.29" % Test,
+      "org.scalameta" %% "munit-scalacheck" % "0.7.29" % Test
 
 
 
