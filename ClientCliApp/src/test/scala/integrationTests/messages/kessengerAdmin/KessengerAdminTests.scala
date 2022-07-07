@@ -1,12 +1,14 @@
 package com.github.malyszaryczlowiek
 package integrationTests.messages.kessengerAdmin
 
-import domain.Domain.{Login, UserID}
-import domain.Domain
-import domain.User
-import messages.{Chat, ChatExecutor, ChatManager, KessengerAdmin}
-import messages.kafkaErrorsUtil.{KafkaError, KafkaErrorMessage}
+
+import messages.{ChatExecutor, ChatManager, KessengerAdmin}
 import integrationTests.messages.KafkaIntegrationTestsTrait
+
+import com.github.malyszaryczlowiek.kessengerlibrary.domain.{Chat, User}
+import com.github.malyszaryczlowiek.kessengerlibrary.domain.Domain
+import com.github.malyszaryczlowiek.kessengerlibrary.domain.Domain.UserID
+import com.github.malyszaryczlowiek.kessengerlibrary.kafka.errors.{KafkaError, KafkaErrorMessage}
 
 import java.time.LocalDateTime
 import scala.sys.process.*

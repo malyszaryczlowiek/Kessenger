@@ -1,15 +1,17 @@
 package com.github.malyszaryczlowiek
 package messages
 
-import com.github.malyszaryczlowiek.domain.Domain.{ChatId, JoinId, UserID, WritingId}
-import com.github.malyszaryczlowiek.domain.{Domain, User}
-import com.github.malyszaryczlowiek.messages.kafkaConfiguration.KafkaConfigurator
-import com.github.malyszaryczlowiek.messages.kafkaErrorsUtil.{KafkaError, KafkaErrorMessage, KafkaErrorStatus, KafkaErrors, KafkaErrorsHandler}
+import kessengerlibrary.domain.Domain.{ChatId, JoinId, UserID, WritingId}
+import kessengerlibrary.domain.{Chat, Domain, User}
+import kessengerlibrary.kafka.configurators.KafkaConfigurator
+import kessengerlibrary.kafka.errors.*
+
 import org.apache.kafka.clients.admin.{Admin, AdminClientConfig, CreateTopicsResult, DeleteTopicsResult, NewTopic}
 import org.apache.kafka.clients.consumer.{ConsumerConfig, KafkaConsumer}
 import org.apache.kafka.clients.producer.{KafkaProducer, ProducerConfig}
 import org.apache.kafka.common.KafkaFuture
 import org.apache.kafka.common.config.TopicConfig
+
 import java.time.Duration
 import java.util.concurrent.TimeUnit
 import java.util.{Collections, Properties, UUID}

@@ -1,9 +1,12 @@
 package com.github.malyszaryczlowiek
 package util
 
-import domain.Domain.Password
+
+import kessengerlibrary.domain.Domain.Password
+
 import com.github.t3hnar.bcrypt
 import com.github.t3hnar.bcrypt.*
+
 import scala.util.{Failure, Success, Try}
 
 

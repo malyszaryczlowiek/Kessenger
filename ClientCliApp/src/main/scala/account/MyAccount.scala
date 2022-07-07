@@ -2,13 +2,17 @@ package com.github.malyszaryczlowiek
 package account
 
 import db.ExternalDB
-import db.queries.{QueryError, QueryErrorMessage, QueryErrorType, QueryErrors}
-import domain.Domain.{Login, UserID}
-import domain.User
-import messages.{Chat, ChatExecutor, ChatManager, KessengerAdmin}
-import messages.ChatGivens.given
-import messages.kafkaConfiguration.KafkaProductionConfigurator
-import messages.kafkaErrorsUtil.{KafkaError, KafkaErrorMessage, KafkaErrorStatus, KafkaErrorsHandler}
+import messages.{ChatExecutor, ChatManager, KessengerAdmin}
+
+import kessengerlibrary.db.queries.{QueryError, QueryErrorMessage, QueryErrorType, QueryErrors}
+import kessengerlibrary.domain.Domain.{Login, UserID}
+import kessengerlibrary.domain.{Chat, User}
+import kessengerlibrary.domain.ChatGivens.given
+
+import kessengerlibrary.kafka.errors.{KafkaError, KafkaErrorMessage}
+
+//import messages.kafkaConfiguration.KafkaProductionConfigurator
+//import messages.kafkaErrorsUtil.{KafkaError, KafkaErrorMessage, KafkaErrorStatus, KafkaErrorsHandler}
 
 import java.util.UUID
 import scala.annotation.tailrec

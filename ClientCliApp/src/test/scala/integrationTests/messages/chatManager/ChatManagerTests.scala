@@ -3,11 +3,7 @@ package integrationTests.messages.chatManager
 
 import account.MyAccount
 import db.ExternalDB
-import db.queries.QueryErrors
-import domain.*
-import messages.kafkaConfiguration.KafkaTestConfigurator
-import messages.{Chat, ChatExecutor, ChatManager, KessengerAdmin}
-import messages.kafkaErrorsUtil.KafkaError
+import messages.{ChatExecutor, ChatManager, KessengerAdmin}
 import messages.KessengerAdmin
 
 import java.time.LocalDateTime
@@ -17,7 +13,11 @@ import scala.sys.process.*
 import scala.util.{Failure, Success}
 import integrationTests.messages.KafkaIntegrationTestsTrait
 import integrationTests.db.DbIntegrationTestsTrait
+import kessengerlibrary.domain.{Chat, Domain, User}
+import kessengerlibrary.kafka.configurators.KafkaTestConfigurator
 
+import com.github.malyszaryczlowiek.kessengerlibrary.db.queries.QueryErrors
+import com.github.malyszaryczlowiek.kessengerlibrary.kafka.errors.KafkaError
 import org.apache.kafka.clients.consumer.{ConsumerRecord, ConsumerRecords, KafkaConsumer}
 import org.apache.kafka.clients.producer.ProducerRecord
 import org.apache.kafka.common.TopicPartition

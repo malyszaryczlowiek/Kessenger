@@ -9,20 +9,18 @@ import scala.collection.mutable.ListBuffer
 import scala.io.StdIn.{readChar, readInt, readLine}
 import account.MyAccount
 import db.ExternalDB
-import db.queries.{QueryError, QueryErrorMessage, QueryErrors}
-import domain.Domain.{Login, Password}
-import domain.User
-import messages.kafkaConfiguration.KafkaProductionConfigurator
-import messages.kafkaErrorsUtil.{KafkaError, KafkaErrorMessage, KafkaErrorStatus}
-import messages.{Chat, ChatExecutor, ChatManager, KessengerAdmin}
+import messages.{ChatExecutor, ChatManager, KessengerAdmin}
 import util.{ChatNameValidator, PasswordConverter}
+
+import com.github.malyszaryczlowiek.kessengerlibrary.db.queries.{QueryError, QueryErrors}
+import com.github.malyszaryczlowiek.kessengerlibrary.domain.{Chat, User}
+import com.github.malyszaryczlowiek.kessengerlibrary.domain.Domain.{Login, Password}
+import com.github.malyszaryczlowiek.kessengerlibrary.kafka.configurators.KafkaProductionConfigurator
+import com.github.malyszaryczlowiek.kessengerlibrary.kafka.errors.KafkaError
 
 import scala.::
 import scala.concurrent.Future
-
 import concurrent.ExecutionContext.Implicits.global
-
-
 
 
 object ProgramExecutor :
@@ -34,7 +32,6 @@ object ProgramExecutor :
   def runProgram(args: Array[String]): Unit =
     val length = args.length
     if length == 0 then
-      Greeting.showGreeting()
       println("Select what to do:\n1) Sign in,\n2) Create Account,\n3) Exit.")
       print("> ")
       Try { readInt() } match {

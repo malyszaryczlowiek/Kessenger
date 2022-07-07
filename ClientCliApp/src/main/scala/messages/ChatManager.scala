@@ -3,11 +3,11 @@ package messages
 
 import account.MyAccount
 import db.ExternalDB
-import db.queries.QueryErrors
-import domain.{Domain, User}
-import domain.Domain.*
-import messages.kafkaErrorsUtil.{KafkaError, KafkaErrorMessage, KafkaErrorStatus, KafkaErrorsHandler}
+import kessengerlibrary.domain.{Chat, Domain, User}
+import kessengerlibrary.domain.Domain.*
+import kessengerlibrary.kafka.errors.{KafkaError, KafkaErrorsHandler}
 
+import com.github.malyszaryczlowiek.kessengerlibrary.db.queries.QueryErrors
 import org.apache.kafka.clients.consumer.{ConsumerRecord, ConsumerRecords, KafkaConsumer}
 import org.apache.kafka.clients.producer.{Callback, KafkaProducer, ProducerRecord, RecordMetadata}
 import org.apache.kafka.common.TopicPartition

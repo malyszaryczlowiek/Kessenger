@@ -1,8 +1,8 @@
 package com.github.malyszaryczlowiek
 package integrationTests.db
 
-import com.github.malyszaryczlowiek.db.*
-import com.github.malyszaryczlowiek.integrationTests.IntegrationTestsTrait
+import db.*
+import integrationTests.IntegrationTestsTrait
 
 import java.sql.Connection
 import java.time.LocalDateTime

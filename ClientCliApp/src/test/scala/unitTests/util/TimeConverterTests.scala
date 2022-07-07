@@ -1,10 +1,12 @@
 package com.github.malyszaryczlowiek
 package unitTests.util
 
-import java.time.LocalDateTime
-import com.github.malyszaryczlowiek.util.TimeConverter
-
 import java.time.temporal.ChronoUnit
+import java.time.LocalDateTime
+
+import kessengerlibrary.util.TimeConverter
+
+
 
 class TimeConverterTests extends  munit.FunSuite :
 

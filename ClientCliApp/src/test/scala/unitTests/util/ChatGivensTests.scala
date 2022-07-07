@@ -1,8 +1,9 @@
 package com.github.malyszaryczlowiek
 package unitTests.util
 
-import com.github.malyszaryczlowiek.messages.Chat
-import com.github.malyszaryczlowiek.messages.ChatGivens.given
+import kessengerlibrary.domain.Chat
+import kessengerlibrary.domain.ChatGivens.given
+
 
 import java.time.LocalDateTime
 import java.time.temporal.{ChronoUnit, TemporalUnit}

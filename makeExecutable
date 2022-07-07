@@ -1,0 +1,6 @@
+#!/bin/zsh
+
+chmod +x startProject
+chmod +x stopProject
+chmod +x runClient
+chmod +x ./ClientCliApp/generateJAR

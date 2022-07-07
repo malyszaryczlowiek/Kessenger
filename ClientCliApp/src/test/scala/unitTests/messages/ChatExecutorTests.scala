@@ -1,14 +1,15 @@
 package com.github.malyszaryczlowiek
 package unitTests.messages
 
-import com.github.malyszaryczlowiek.domain.Domain.{ChatName, Login, UserID}
+import kessengerlibrary.domain.Domain.{ChatName, Login, UserID}
+import kessengerlibrary.domain.User
 
 import java.time.LocalDateTime
 import collection.parallel.CollectionConverters.RangeIsParallelizable
 import collection.parallel.CollectionConverters.MutableMapIsParallelizable
 import scala.collection.mutable
 import scala.collection.parallel.mutable.ParMap
-import com.github.malyszaryczlowiek.domain.User
+
 
 import java.util.UUID
 import scala.util.Random

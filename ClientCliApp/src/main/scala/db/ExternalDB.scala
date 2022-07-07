@@ -1,11 +1,10 @@
 package com.github.malyszaryczlowiek
 package db
 
-import db.queries.*
-import domain.Domain.{ChatId, ChatName, Login, Password, UserID, generateChatId}
-import domain.{Domain, User}
-import messages.Chat
-import util.TimeConverter
+import kessengerlibrary.db.queries.*
+import kessengerlibrary.domain.Domain.{ChatId, ChatName, Login, Password, UserID, generateChatId}
+import kessengerlibrary.domain.{Domain, User, Chat}
+import kessengerlibrary.util.TimeConverter
 
 import java.sql.{Connection, DriverManager, PreparedStatement, ResultSet, SQLType, Savepoint, Statement, Timestamp}
 import java.time.LocalDateTime

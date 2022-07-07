@@ -1,10 +1,11 @@
 package com.github.malyszaryczlowiek
 package unitTests.messages
 
-import com.github.malyszaryczlowiek.db.*
-import com.github.malyszaryczlowiek.messages.KessengerAdmin
-import com.github.malyszaryczlowiek.messages.kafkaConfiguration.KafkaTestConfigurator
-import com.github.malyszaryczlowiek.domain.User
+import db.ExternalDB
+import messages.KessengerAdmin
+
+import kessengerlibrary.domain.User
+import kessengerlibrary.kafka.configurators.KafkaTestConfigurator
 
 import java.sql.Connection
 import java.time.LocalDateTime

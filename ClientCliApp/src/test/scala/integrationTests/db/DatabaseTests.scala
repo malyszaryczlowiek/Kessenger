@@ -1,12 +1,13 @@
 package com.github.malyszaryczlowiek
 package integrationTests.db
 
-import com.github.malyszaryczlowiek.db.queries.{QueryError, QueryErrorMessage, QueryErrors}
-import com.github.malyszaryczlowiek.db.*
-import com.github.malyszaryczlowiek.domain.Domain.{ChatId, ChatName, Login, Password}
-import com.github.malyszaryczlowiek.domain.{Domain, User}
-import com.github.malyszaryczlowiek.messages.Chat
-import com.github.malyszaryczlowiek.util.PasswordConverter
+import kessengerlibrary.db.queries.{QueryError, QueryErrorMessage, QueryErrors}
+import kessengerlibrary.db.*
+import kessengerlibrary.domain.Domain.{ChatId, ChatName, Login, Password}
+import kessengerlibrary.domain.{Chat, Domain, User}
+
+import db.ExternalDB
+import util.PasswordConverter
 
 import java.time.LocalDateTime
 import java.util.UUID

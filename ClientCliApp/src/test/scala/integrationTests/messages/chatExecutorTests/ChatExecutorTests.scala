@@ -3,15 +3,15 @@ package integrationTests.messages.chatExecutorTests
 
 import account.MyAccount
 import db.ExternalDB
-import db.queries.QueryErrors
-import domain.*
-import messages.kafkaConfiguration.KafkaTestConfigurator
-import messages.{Chat, ChatExecutor, ChatManager, KessengerAdmin}
-import messages.kafkaErrorsUtil.KafkaError
+import messages.{ChatExecutor, ChatManager, KessengerAdmin}
 import messages.KessengerAdmin
+import kessengerlibrary.domain.{Chat, User}
+import kessengerlibrary.kafka.configurators.KafkaTestConfigurator
+import kessengerlibrary.kafka.errors.KafkaError
 import integrationTests.messages.KafkaIntegrationTestsTrait
 import integrationTests.db.DbIntegrationTestsTrait
 
+import com.github.malyszaryczlowiek.kessengerlibrary.db.queries.QueryErrors
 import org.apache.kafka.clients.consumer.{ConsumerRecord, ConsumerRecords, KafkaConsumer}
 import org.apache.kafka.common.TopicPartition
 

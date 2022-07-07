@@ -1,7 +1,7 @@
 package com.github.malyszaryczlowiek
 package unitTests.messages.kafkaErrorsUtil
 
-import messages.kafkaErrorsUtil.*
+import kessengerlibrary.kafka.errors.*
 import org.apache.kafka.common.errors.*
 
 

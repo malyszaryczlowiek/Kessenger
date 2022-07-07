@@ -2,10 +2,11 @@ package com.github.malyszaryczlowiek
 package messages
 
 import db.ExternalDB
-import db.queries.QueryErrors
-import domain.Domain.{ChatName, Login, UserID}
-import domain.User
-import util.TimeConverter
+
+import kessengerlibrary.db.queries.QueryErrors
+import kessengerlibrary.domain.{Chat, User}
+import kessengerlibrary.domain.Domain.*
+import kessengerlibrary.util.TimeConverter
 
 import org.apache.kafka.clients.consumer.{ConsumerRecord, ConsumerRecords, KafkaConsumer}
 import org.apache.kafka.clients.producer.{Callback, KafkaProducer, ProducerRecord, RecordMetadata}

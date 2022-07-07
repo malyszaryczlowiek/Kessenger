@@ -1,10 +1,13 @@
 package com.github.malyszaryczlowiek
 package integrationTests.messages
 
-import com.github.malyszaryczlowiek.domain.User
-import com.github.malyszaryczlowiek.integrationTests.IntegrationTestsTrait
-import com.github.malyszaryczlowiek.messages.kafkaConfiguration.KafkaTestConfigurator
-import com.github.malyszaryczlowiek.messages.{Chat, ChatExecutor, ChatManager, KessengerAdmin}
+import kessengerlibrary.domain.{User, Chat}
+import kessengerlibrary.kafka.configurators.KafkaTestConfigurator
+
+import messages.{ ChatExecutor, ChatManager, KessengerAdmin}
+
+import integrationTests.IntegrationTestsTrait
+
 
 import java.util.UUID
 
