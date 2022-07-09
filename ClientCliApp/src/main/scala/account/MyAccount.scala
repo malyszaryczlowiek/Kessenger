@@ -8,11 +8,7 @@ import kessengerlibrary.db.queries.{QueryError, QueryErrorMessage, QueryErrorTyp
 import kessengerlibrary.domain.Domain.{Login, UserID}
 import kessengerlibrary.domain.{Chat, User}
 import kessengerlibrary.domain.ChatGivens.given
-
 import kessengerlibrary.kafka.errors.{KafkaError, KafkaErrorMessage}
-
-//import messages.kafkaConfiguration.KafkaProductionConfigurator
-//import messages.kafkaErrorsUtil.{KafkaError, KafkaErrorMessage, KafkaErrorStatus, KafkaErrorsHandler}
 
 import java.util.UUID
 import scala.annotation.tailrec
