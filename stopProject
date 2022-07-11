@@ -8,6 +8,9 @@ docker rmi kessenger_db      ##   delete unused image
 # docker stop pgadmin
 # docker rm -v pgadmin
 
+docker stop kafka_streams_chat_analyser
+docker rm -v kafka_streams_chat_analyser
+
 docker stop kafka1
 docker rm -v kafka1
 #docker rmi kessenger_kafka1

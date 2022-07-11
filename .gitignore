@@ -7,5 +7,9 @@ TODO
 ./ClientCliApp/project
 ./ClientCliApp/target
 ./ClientCliApp/createClientImage
+./KafkaStreamsChatAnalyser/.bsp
+./KafkaStreamsChatAnalyser/.idea
+./KafkaStreamsChatAnalyser/project
+./KafkaStreamsChatAnalyser/target
 
 ./kafka-broker/kafka-volume

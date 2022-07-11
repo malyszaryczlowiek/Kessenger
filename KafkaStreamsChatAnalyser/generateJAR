@@ -1,0 +1,4 @@
+#!/bin/zsh
+cd KafkaStreamsChatAnalyser
+sbt assembly
+cd ..

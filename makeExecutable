@@ -4,3 +4,4 @@ chmod +x startProject
 chmod +x stopProject
 chmod +x runClient
 chmod +x ./ClientCliApp/generateJAR
+chmod +x ./KafkaStreamsChatAnalyser/generateJAR

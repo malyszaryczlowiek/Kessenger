@@ -44,7 +44,6 @@ services:
 
   kafka2:
     container_name: kafka2
-    #hostname: kafka2
     build: ./kafka-broker
     ports:
       - "9091:9092"
@@ -63,9 +62,9 @@ services:
     networks:
       - my-simple-network
 
+
   kafka3:
     container_name: kafka3
-    #hostname: kafka3
     build: ./kafka-broker
     ports:
       - "9090:9092"
@@ -108,16 +107,6 @@ services:
     environment:
       PGADMIN_DEFAULT_EMAIL: admin@admin.com
       PGADMIN_DEFAULT_PASSWORD: root
-#      host: localhost
-#      port: 5432
-#      user: admin
-#      password: passw
-#      db: kessenger_schema
-
-      # POSTGRES_USER: admin
-      # POSTGRES_PASSWORD: passw
-      # POSTGRES_HOSTNAME: localhost
-      # POSTGRES_PORT: 5432
     ports:
       - "5050:80"
     networks:
@@ -127,18 +116,16 @@ services:
       driver: "none"
 
 
-
-
-
-
-# client removed from main App docker container
-#  client_cli_app:
-#    container_name: client_cli_app
-#    build: ./ClientCliApp    # ClientCliApp is folder where Dockerfile can be found
-##    ports:
-##      - "8080:8080"
-#    depends_on:
-#      - db
+  # Kafka streams chat Analyser
+  kafka_streams:
+    container_name: kafka_streams_chat_analyser
+    build: ./KafkaStreamsChatAnalyser    # KafkaStreamsChatAnalyser is folder where Dockerfile can be found
+    ports:
+      - "8081:8080"
+    depends_on:
+      - kafka1
+      - kafka2
+      - kafka3
 #    restart: always
-#    networks:
-#      - my-simple-network
+    networks:
+      - my-simple-network
