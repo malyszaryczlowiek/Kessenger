@@ -1,25 +1,54 @@
 #!/bin/zsh
 
+function close_pgadmin {
+  docker stop pgadmin
+  docker rm -v pgadmin
+}
+
+function ask_argument {
+  read r
+  if [[ $r == "y" ]] ; then
+    close_pgadmin
+  fi
+}
+
+if [[ $# -eq 1 && "--all" == $1 ]] ; then
+  close_pgadmin
+elif [[ $# -eq 1 && "--all" != $1 ]]; then
+  echo "Bad argument '$1'."
+  echo "Did you mean '--all'? Type y if so or any key otherwise."
+  ask_argument
+elif [[ $# -gt 1 ]]; then
+  echo "Script may have only one optional '--all' argument. "
+  echo "Would you like to apply '--all' argument to close"
+  echo "all running Kessenger containers in Docker?"
+  echo "Type y if so or any key otherwise."
+  ask_argument
+fi
+
+# then we close and remove all other container
+
 docker stop KessengerDB
 docker rm -v KessengerDB
 docker rmi kessenger_db      ##   delete unused image
 
-# This may be disabled.
-# docker stop pgadmin
-# docker rm -v pgadmin
 
 docker stop kafka_streams_chat_analyser
 docker rm -v kafka_streams_chat_analyser
+
 
 docker stop kafka1
 docker rm -v kafka1
 #docker rmi kessenger_kafka1
 
+
 docker stop kafka2
 docker rm -v kafka2
 
+
 docker stop kafka3
 docker rm -v kafka3
+
 
 docker stop zookeeper
 docker rm -v zookeeper

@@ -38,7 +38,7 @@ And finally start project running `startProject` script:<br>
  ./startProject
 ```
 
-This script builds all required docker images, starts docker containers, compile all source files and build executable JAR files (some of them are required by docker images). 
+This script builds all required docker images, starts docker containers, compile all source files and build executable JAR files (a few of them are required by docker images). 
 
 ## How to use project
 
