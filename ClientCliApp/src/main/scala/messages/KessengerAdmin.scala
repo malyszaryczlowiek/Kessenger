@@ -133,7 +133,8 @@ object KessengerAdmin {
    * Autocomit is set to false because we keep offest in db in users_chat table in users_offset
    * column.
    *
-   * @param groupId
+   * @param groupId this is normally chat-id. So all chat users are whithin one consumer group,
+   *                so they can read from all partitions of this topic.
    * @return
    */
   def createChatConsumer(groupId: String): KafkaConsumer[String, String] =
