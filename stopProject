@@ -1,19 +1,55 @@
 #!/bin/zsh
 
-function close_pgadmin {
+
+function close_required {
+
+  docker stop KessengerDB
+  docker rm -v KessengerDB
+  docker rmi kessenger_db      ##   delete unused image
+
+
+  docker stop kafka_streams_chat_analyser
+  docker rm -v kafka_streams_chat_analyser
+  docker rmi  kessenger_kafka_streams
+
+  docker stop kafka1
+  docker rm -v kafka1
+  #docker rmi kessenger_kafka1
+
+
+  docker stop kafka2
+  docker rm -v kafka2
+
+
+  docker stop kafka3
+  docker rm -v kafka3
+}
+
+# we start closing some docker containers
+close_required
+
+
+function close_other {
   docker stop pgadmin
   docker rm -v pgadmin
+
+  docker stop zookeeper
+  docker rm -v zookeeper
+  #docker rmi zookeeper
 }
+
 
 function ask_argument {
   read r
   if [[ $r == "y" ]] ; then
-    close_pgadmin
+    close_other
   fi
 }
 
+
+
 if [[ $# -eq 1 && "--all" == $1 ]] ; then
-  close_pgadmin
+  close_other
 elif [[ $# -eq 1 && "--all" != $1 ]]; then
   echo "Bad argument '$1'."
   echo "Did you mean '--all'? Type y if so or any key otherwise."
@@ -25,31 +61,3 @@ elif [[ $# -gt 1 ]]; then
   echo "Type y if so or any key otherwise."
   ask_argument
 fi
-
-# then we close and remove all other container
-
-docker stop KessengerDB
-docker rm -v KessengerDB
-docker rmi kessenger_db      ##   delete unused image
-
-
-docker stop kafka_streams_chat_analyser
-docker rm -v kafka_streams_chat_analyser
-
-
-docker stop kafka1
-docker rm -v kafka1
-#docker rmi kessenger_kafka1
-
-
-docker stop kafka2
-docker rm -v kafka2
-
-
-docker stop kafka3
-docker rm -v kafka3
-
-
-docker stop zookeeper
-docker rm -v zookeeper
-#docker rmi zookeeper

@@ -126,6 +126,6 @@ services:
       - kafka1
       - kafka2
       - kafka3
-#    restart: always
+    restart: always
     networks:
       - my-simple-network

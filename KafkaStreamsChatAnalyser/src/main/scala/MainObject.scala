@@ -7,7 +7,7 @@ object MainObject {
 
     while (true) {
       Thread.sleep(2000)
-      println(s"KafkaStreamsChatAnalyser built and run correctly.")
+      println(s"KafkaStreamsChatAnalyser built and run correctly !!!")
     }
 
 
