@@ -31,7 +31,7 @@ lazy val root = (project in file("."))
   )
 
 // for build JAR executable.
-assembly / mainClass := Some("com.github.malyszaryczlowiek.MainObject")
+assembly / mainClass := Some("com.github.malyszaryczlowiek.StreamsChatAnalyser")
 assembly / assemblyMergeStrategy := {
   case PathList("META-INF", xs @ _*) => MergeStrategy.discard
   case x => MergeStrategy.first

@@ -59,7 +59,7 @@ class ChatExecutor(me: User, chat: Chat, chatUsers: List[User]):
 
   private def createChatReader(): Future[Unit] =
     val future = Future {
-      val chatConsumer: KafkaConsumer[String, String] = KessengerAdmin.createChatConsumer(chat.chatId)
+      val chatConsumer: KafkaConsumer[String, String] = KessengerAdmin.createChatConsumer(me.userId.toString)
       // assign specific topic to read from
       chatConsumer.assign(java.util.List.of(topicPartition))
       // we manually set offset to read from and
@@ -68,9 +68,9 @@ class ChatExecutor(me: User, chat: Chat, chatUsers: List[User]):
       while (continueReading.get()) {
         val records: ConsumerRecords[String, String] = chatConsumer.poll(Duration.ofMillis(250))
         records.forEach(
-          (r: ConsumerRecord[String, String]) => {
-            if printMessage.get() then printMessage( r )
-            else showNotification( r )
+          (record: ConsumerRecord[String, String]) => {
+            if printMessage.get() then printMessage( record )
+            else showNotification( record )
           }
         )
       }
@@ -206,7 +206,7 @@ class ChatExecutor(me: User, chat: Chat, chatUsers: List[User]):
 
   // this method is not used currently
   def showLastNMessages(n: Long): Unit =
-    val nMessageConsumer: KafkaConsumer[String, String] = KessengerAdmin.createChatConsumer(chat.chatId)
+    val nMessageConsumer: KafkaConsumer[String, String] = KessengerAdmin.createChatConsumer(me.userId.toString)
     nMessageConsumer.assign(java.util.List.of(topicPartition))
     var readFrom = newOffset.get() - n
     if readFrom < 0L then readFrom = 0L
