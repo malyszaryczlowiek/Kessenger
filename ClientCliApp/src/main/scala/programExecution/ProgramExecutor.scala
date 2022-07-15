@@ -32,6 +32,7 @@ object ProgramExecutor :
   def runProgram(args: Array[String]): Unit =
     val length = args.length
     if length == 0 then
+      println(s"Kessenger v0.1.0")
       println("Select what to do:\n1) Sign in,\n2) Create Account,\n3) Exit.")
       print("> ")
       Try { readInt() } match {
@@ -351,7 +352,7 @@ object ProgramExecutor :
                   // we send information obout to chat's participants
                   chatManager.askToJoinChat(users, chatt) match {
                     case Left(kafkaError: KafkaError) =>
-                      print(s"${kafkaError.description}, Cannot send invitations to other users...\n> ")
+                      print(s"${kafkaError.description}, Cannot send invitations to all other users...\n> ")
                       Option.empty[Chat]
                     case Right(createdChat) =>
                       println(s"Chat '${createdChat.chatName}' created correctly.")

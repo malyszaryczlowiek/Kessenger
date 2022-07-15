@@ -36,7 +36,7 @@ class ChatExecutor(me: User, chat: Chat, chatUsers: List[User]):
 
   // we will read from topic with name of chatId. Each chat topic
   // has only one partition (and three replicas)
-  private val topicPartition: TopicPartition                = new TopicPartition(chat.chatId, 0)
+  //private val topicPartition: TopicPartition                = new TopicPartition(chat.chatId, 0)
   private var chatProducer:   KafkaProducer[String, String] = KessengerAdmin.createChatProducer
 
   // (offset, (login, date, message string))
@@ -60,11 +60,20 @@ class ChatExecutor(me: User, chat: Chat, chatUsers: List[User]):
   private def createChatReader(): Future[Unit] =
     val future = Future {
       val chatConsumer: KafkaConsumer[String, String] = KessengerAdmin.createChatConsumer(me.userId.toString)
+      val topicPartition0: TopicPartition                = new TopicPartition(chat.chatId, 0)
+//      val topicPartition1: TopicPartition                = new TopicPartition(chat.chatId, 1)
+//      val topicPartition2: TopicPartition                = new TopicPartition(chat.chatId, 2)
+
+      // chatConsumer.commitSync() // todo try next
+
       // assign specific topic to read from
-      chatConsumer.assign(java.util.List.of(topicPartition))
+      chatConsumer.assign(java.util.List.of(topicPartition0))
       // we manually set offset to read from and
       // we start reading from topic from last read message (offset)
-      chatConsumer.seek(topicPartition, newOffset.get() )
+      chatConsumer.seek(topicPartition0, newOffset.get() )  // TODO
+//      chatConsumer.seek(topicPartition1, newOffset.get() )  // TODO
+//      chatConsumer.seek(topicPartition2, newOffset.get() )  // TODO
+
       while (continueReading.get()) {
         val records: ConsumerRecords[String, String] = chatConsumer.poll(Duration.ofMillis(250))
         records.forEach(
@@ -205,23 +214,23 @@ class ChatExecutor(me: User, chat: Chat, chatUsers: List[User]):
 
 
   // this method is not used currently
-  def showLastNMessages(n: Long): Unit =
-    val nMessageConsumer: KafkaConsumer[String, String] = KessengerAdmin.createChatConsumer(me.userId.toString)
-    nMessageConsumer.assign(java.util.List.of(topicPartition))
-    var readFrom = newOffset.get() - n
-    if readFrom < 0L then readFrom = 0L
-    nMessageConsumer.seek(topicPartition, readFrom) // we start reading from topic from last read message (offset) minus n
-    val records: ConsumerRecords[String, String] = nMessageConsumer.poll(Duration.ofMillis(250))
-    records.forEach(
-      (r: ConsumerRecord[String, String]) => {
-        val senderUUID = UUID.fromString(r.key())
-        val login = chatUsers.find(_.userId == senderUUID) match
-          case Some(u: User) => u.login
-          case None          => "Deleted User"
-        printMessage(r) //  watch out on offset
-      }
-    )
-    nMessageConsumer.close()  // we close message consumer.
+//  def showLastNMessages(n: Long): Unit =
+//    val nMessageConsumer: KafkaConsumer[String, String] = KessengerAdmin.createChatConsumer(me.userId.toString)
+//    nMessageConsumer.assign(java.util.List.of(topicPartition))
+//    var readFrom = newOffset.get() - n
+//    if readFrom < 0L then readFrom = 0L
+//    nMessageConsumer.seek(topicPartition, readFrom) // we start reading from topic from last read message (offset) minus n
+//    val records: ConsumerRecords[String, String] = nMessageConsumer.poll(Duration.ofMillis(250))
+//    records.forEach(
+//      (r: ConsumerRecord[String, String]) => {
+//        val senderUUID = UUID.fromString(r.key())
+//        val login = chatUsers.find(_.userId == senderUUID) match
+//          case Some(u: User) => u.login
+//          case None          => "Deleted User"
+//        printMessage(r) //  watch out on offset
+//      }
+//    )
+//    nMessageConsumer.close()  // we close message consumer.
 
 
 //  @deprecated

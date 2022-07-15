@@ -20,7 +20,11 @@ lazy val root = (project in file("."))
 
       // Own library with util and domain classes.
       // https://github.com/malyszaryczlowiek/KessengerLibrary
-      "com.github.malyszaryczlowiek" %% "KessengerLibrary" % "0.1.5",
+      "com.github.malyszaryczlowiek" %% "KessengerLibrary" % "0.1.8",
+
+
+      // to switch off logging from postgres dependency
+      "org.slf4j" % "slf4j-nop" % "1.7.36",
 
 
       // For Tests

@@ -6,8 +6,8 @@ import db.ExternalDB
 import kessengerlibrary.domain.{Chat, Domain, User}
 import kessengerlibrary.domain.Domain.*
 import kessengerlibrary.kafka.errors.{KafkaError, KafkaErrorsHandler}
+import kessengerlibrary.db.queries.QueryErrors
 
-import com.github.malyszaryczlowiek.kessengerlibrary.db.queries.QueryErrors
 import org.apache.kafka.clients.consumer.{ConsumerRecord, ConsumerRecords, KafkaConsumer}
 import org.apache.kafka.clients.producer.{Callback, KafkaProducer, ProducerRecord, RecordMetadata}
 import org.apache.kafka.common.TopicPartition
@@ -22,6 +22,7 @@ import scala.concurrent.duration.{Duration, SECONDS}
 import scala.io.StdIn.readLine
 import scala.util.{Failure, Success, Try}
 import concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.impl.Promise
 
 
 
@@ -64,9 +65,17 @@ class ChatManager(var me: User, private var topicCreated: Boolean = false):
   private def assignListener(): Option[Future[Unit]] =
     val future: Future[Unit ] = Future {
       val joinConsumer: KafkaConsumer[String, String] = KessengerAdmin.createJoiningConsumer()
-      val topic = new TopicPartition(Domain.generateJoinId(me.userId), 0)
-      joinConsumer.assign(java.util.List.of(topic))
-      joinConsumer.seek(topic, joinOffset.get() )
+
+      val topic0 = new TopicPartition(Domain.generateJoinId(me.userId), 0)// TODO
+//      val topic1 = new TopicPartition(Domain.generateJoinId(me.userId), 1)// TODO
+//      val topic2 = new TopicPartition(Domain.generateJoinId(me.userId), 2)// TODO
+
+      joinConsumer.assign(java.util.List.of(topic0))
+      joinConsumer.seek(topic0, joinOffset.get() )// TODO
+//      joinConsumer.seek(topic1, joinOffset.get() )// TODO
+//      joinConsumer.seek(topic2, joinOffset.get() )// TODO
+
+
       // this may throw IllegalArgumentException if joining topic exists,
       // but in db we do not have updated offset
       // and inserted value of joinOffset (taken from db) is -1.
@@ -185,21 +194,66 @@ class ChatManager(var me: User, private var topicCreated: Boolean = false):
    * @param chat  chat to join. May exists earlier or be newly created.
    */
   def askToJoinChat(users: List[User], chat: Chat): Either[KafkaError, Chat] =
-    Try {
-      if transactionInitialized then
-        sendInvitations(users, chat)
-      else
-        // before each transaction join producer must be
-        // initialized exactly one time.
-        joinProducer.initTransactions()
-        sendInvitations(users, chat)
-        transactionInitialized = true
-    } match {
-      case Failure(ex) =>
-        restartProducer()
-        KafkaErrorsHandler.handleWithErrorMessage[Chat](ex)
-      case Success(_)  => Right(chat)
-    }
+    val listOfErrors: List[Either[KafkaError, Chat]] = users.filter(u => u.userId != me.userId )
+      .map(u => {
+        val joiningTopicName = Domain.generateJoinId(u.userId)
+        val recordMetadata: java.util.concurrent.Future[RecordMetadata] =
+          joinProducer.send(
+            new ProducerRecord[String, String](joiningTopicName, me.userId.toString, chat.chatId),
+            (metadata: RecordMetadata, ex: Exception) =>
+              if ex != null then print(s"Invitation send to ${u.login}.\n> ")
+              else print(s"Error sending invitation to ${u.login}.\n> ")
+          )
+        recordMetadata
+        }
+      )
+      .map(
+        (recordMetadata: java.util.concurrent.Future[RecordMetadata]) =>
+          Try {
+            recordMetadata.get()
+            chat
+          } match {
+            case Failure(ex)   =>
+              KafkaErrorsHandler.handleWithErrorMessage[Chat](ex)
+            case Success(chat) =>
+              Right(chat)
+          }
+      )
+      .filter( either =>
+        either match {
+          case Left(er) => true
+          case Right(_) => false
+        }
+      )
+    if listOfErrors.isEmpty then
+      MyAccount.addChat(chat, users)
+      Right(chat)
+    else 
+      listOfErrors.head
+
+
+
+
+
+
+//    Try {
+//      if transactionInitialized then
+//        println(s"TRANSACTION NOT INITIALIZED") // TODO DELETE
+//        sendInvitations(users, chat)
+//      else
+//        // before each transaction join producer must be
+//        // initialized exactly one time.
+//        println(s"BEFORE TRANSACTION INITIALIZATION")// TODO DELETE
+//        // joinProducer.initTransactions()
+//        println(s"TRANSACTION INITIALIZED")// TODO DELETE
+//        sendInvitations(users, chat)
+//        transactionInitialized = true
+//    } match {
+//      case Failure(ex) =>
+//        restartProducer()
+//        KafkaErrorsHandler.handleWithErrorMessage[Chat](ex)
+//      case Success(_)  => Right(chat)
+//    }
 
 
 
@@ -224,12 +278,7 @@ class ChatManager(var me: User, private var topicCreated: Boolean = false):
     // we start future and forget it.
     Future {
       joinProducer.beginTransaction()
-      users.foreach(u => {
-        if u.userId != me.userId then
-          val joiningTopicName = Domain.generateJoinId(u.userId)
-          joinProducer.send(new ProducerRecord[String, String](joiningTopicName, me.userId.toString, chat.chatId))
-          print(s"Invitation send to ${u.login}.\n> ")
-      })
+
       joinProducer.commitTransaction()
     }
     MyAccount.addChat(chat, users)

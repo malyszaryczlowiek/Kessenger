@@ -9,6 +9,8 @@ import org.apache.kafka.streams.scala.kstream.{Consumed, KStream, Produced}
 import org.apache.kafka.streams.scala.serialization.Serdes
 
 import java.util.Properties
+import java.util.concurrent.CountDownLatch
+import java.util.regex.Pattern
 
 object StreamsChatAnalyser {
 
@@ -20,9 +22,9 @@ object StreamsChatAnalyser {
     val properties: Properties = new Properties()
 
     properties.put(StreamsConfig.APPLICATION_ID_CONFIG, "chat-analyser")
-    properties.put(StreamsConfig.BOOTSTRAP_SERVERS_CONFIG, "localhost:9092")
-    properties.put(StreamsConfig.producerPrefix(ProducerConfig.ACKS_CONFIG), "all")
-    properties.put(StreamsConfig.topicPrefix(TopicConfig.MIN_IN_SYNC_REPLICAS_CONFIG), 2)
+    properties.put(StreamsConfig.BOOTSTRAP_SERVERS_CONFIG, "kafka1:9092,kafka2:9092,kafka3:9092")
+//    properties.put(StreamsConfig.producerPrefix(ProducerConfig.ACKS_CONFIG), "all")
+//    properties.put(StreamsConfig.topicPrefix(TopicConfig.MIN_IN_SYNC_REPLICAS_CONFIG), 2)
     // properties.put(StreamsConfig.NUM_STANDBY_REPLICAS_CONFIG, 1)
 
 
@@ -35,8 +37,10 @@ object StreamsChatAnalyser {
     val stringSerde: Serde[String] = Serdes.stringSerde
 
 
+    val pattern: Pattern = Pattern.compile(s"chat--([\\p{Alnum}-]*)")
+
     // we define topic we read from
-    val source: KStream[String, String] = builder.stream("chat-*")(Consumed `with` (stringSerde, stringSerde))
+    val source: KStream[String, String] = builder.stream(pattern)(Consumed `with` (stringSerde, stringSerde))
 
 
     // we simply print every message
@@ -50,28 +54,44 @@ object StreamsChatAnalyser {
     // we build topology of the stream
     val topology: Topology = builder.build()
 
+    var continue = true
 
-    //
-    val streams: KafkaStreams = new KafkaStreams(topology, properties)
+    while (continue) {
+      //
+      val streams: KafkaStreams = new KafkaStreams(topology, properties)
+
+      // val latch: CountDownLatch = new CountDownLatch(1)
 
 
-    Runtime.getRuntime.addShutdownHook( new Thread("closing_stream_thread") {
-      override
-      def run(): Unit = streams.close()
-    })
+      Runtime.getRuntime.addShutdownHook( new Thread("closing_stream_thread") {
+        override
+        def run(): Unit =
+          streams.close()
+          println(s"Streams closed.")
+          //latch.countDown()
+      })
 
-    try {
-      streams.start()
-    } catch {
-      case e: Throwable =>
-        System.exit(1)
+      try {
+        streams.start()
+        // latch.await()
+      } catch {
+        case e: Throwable =>
+          println(s"ERROR: ${e.toString}")
+          continue = false
+          System.exit(1)
+      }
+      println(s"KafkaStreamsChatAnalyser v0.1.1 run correctly !!!")
+      Thread.sleep(10_000)
+      streams.close()
+      println(s"Streams closed.")
     }
 
-    System.exit(0)
+
+
+//    System.exit(0)
 
 //    while (true) {
-//      Thread.sleep(2000)
-//      println(s"KafkaStreamsChatAnalyser built and run correctly !!!")
+//
 //    }
 
 

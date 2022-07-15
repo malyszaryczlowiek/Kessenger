@@ -115,6 +115,7 @@ object KessengerAdmin {
     properties.put(ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG, "true") // we do not need duplicates in partitions
     // ProducerConfig.RETRIES_CONFIG which is default set to Integer.MAX_VALUE id required by idempotence.
     properties.put(ProducerConfig.LINGER_MS_CONFIG, "0") // we do not wait to fill the buffer and send message immediately
+    properties.put(ProducerConfig.DELIVERY_TIMEOUT_MS_CONFIG, "3000") // we try to resend every message via 3000 ms
     properties.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, "org.apache.kafka.common.serialization.StringSerializer")
     properties.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, "org.apache.kafka.common.serialization.StringSerializer")
     new KafkaProducer[String, String](properties)
@@ -194,8 +195,8 @@ object KessengerAdmin {
     val properties = new Properties
     properties.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, configurator.SERVERS)
     properties.put(ProducerConfig.ACKS_CONFIG, "all")  // all replicas must confirm
-    properties.put(ProducerConfig.TRANSACTIONAL_ID_CONFIG, userId.toString)  // idempotence is activated automatically
-    // properties.put(ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG, "true") // we do not need duplicate records in partitions
+    //properties.put(ProducerConfig.TRANSACTIONAL_ID_CONFIG, userId.toString)  // idempotence is activated automatically
+    properties.put(ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG, "true") // we do not need duplicate records in partitions
     properties.put(ProducerConfig.LINGER_MS_CONFIG, "0") // we do not wait to fill the producer's buffer and send records immediately
     properties.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, "org.apache.kafka.common.serialization.StringSerializer")
     properties.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, "org.apache.kafka.common.serialization.StringSerializer")
