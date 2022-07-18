@@ -39,6 +39,8 @@ object StreamsChatAnalyser {
 
     val pattern: Pattern = Pattern.compile(s"chat--([\\p{Alnum}-]*)")
 
+
+    // TODO change serdes to user and message serdes
     // we define topic we read from
     val source: KStream[String, String] = builder.stream(pattern)(Consumed `with` (stringSerde, stringSerde))
 

@@ -12,8 +12,8 @@ lazy val root = (project in file("."))
     libraryDependencies ++= Seq(
 
       // Kafka Repos
-      ("org.apache.kafka" %% "kafka" % "3.1.0").cross(CrossVersion.for3Use2_13),
-      "org.apache.kafka" % "kafka-clients" % "3.1.0",
+      ("org.apache.kafka" %% "kafka"         % "3.1.0").cross(CrossVersion.for3Use2_13),
+      "org.apache.kafka"  %  "kafka-clients" % "3.1.0",
       // ("org.apache.kafka" %% "kafka-streams-scala" % "3.1.0").cross(CrossVersion.for3Use2_13)
 
 
@@ -29,7 +29,7 @@ lazy val root = (project in file("."))
       "org.postgresql" % "postgresql" % "42.3.3" ,
 
 
-      // to switch off logging from postgres dependency
+      // to switch off logging warning from slf4j
       "org.slf4j" % "slf4j-nop" % "1.7.36",
 
 
@@ -39,7 +39,7 @@ lazy val root = (project in file("."))
 
 
       // For Tests
-      "org.scalameta" %% "munit" % "0.7.29" % Test,
+      "org.scalameta" %% "munit"            % "0.7.29" % Test,
       "org.scalameta" %% "munit-scalacheck" % "0.7.29" % Test
     )
   )

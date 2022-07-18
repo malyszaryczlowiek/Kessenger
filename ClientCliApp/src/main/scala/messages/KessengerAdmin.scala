@@ -144,8 +144,8 @@ object KessengerAdmin {
     props.setProperty(ConsumerConfig.GROUP_ID_CONFIG                , groupId)
     props.setProperty(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG      , "false")
     // props.setProperty(ConsumerConfig.AUTO_COMMIT_INTERVAL_MS_CONFIG , "1000")
-    props.setProperty(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG  , "org.apache.kafka.common.serialization.StringDeserializer");
-    props.setProperty(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, "org.apache.kafka.common.serialization.StringDeserializer");
+    props.setProperty(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG  , "org.apache.kafka.common.serialization.StringDeserializer")
+    props.setProperty(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, "org.apache.kafka.common.serialization.StringDeserializer")
     new KafkaConsumer[String, String](props)
 
 
@@ -216,8 +216,8 @@ object KessengerAdmin {
     //props.setProperty(ConsumerConfig.GROUP_ID_CONFIG                , groupId)
     props.setProperty(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG      , "false")
     // props.setProperty(ConsumerConfig.AUTO_COMMIT_INTERVAL_MS_CONFIG , "1000")
-    props.setProperty(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG  , "org.apache.kafka.common.serialization.StringDeserializer");
-    props.setProperty(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, "org.apache.kafka.common.serialization.StringDeserializer");
+    props.setProperty(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG  , "org.apache.kafka.common.serialization.StringDeserializer")
+    props.setProperty(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, "org.apache.kafka.common.serialization.StringDeserializer")
     new KafkaConsumer[String, String](props)
 
 }

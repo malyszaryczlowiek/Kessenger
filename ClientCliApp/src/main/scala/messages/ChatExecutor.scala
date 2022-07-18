@@ -20,9 +20,8 @@ import java.util.concurrent.atomic.{AtomicBoolean, AtomicLong}
 import scala.collection.parallel.mutable.ParTrieMap
 import scala.concurrent.{Await, Future}
 import scala.collection.immutable
-//import collection.parallel.CollectionConverters.MutableMapIsParallelizable
-import concurrent.ExecutionContext.Implicits.global
 import scala.util.{Failure, Success}
+import concurrent.ExecutionContext.Implicits.global
 
 
 
@@ -36,7 +35,6 @@ class ChatExecutor(me: User, chat: Chat, chatUsers: List[User]):
 
   // we will read from topic with name of chatId. Each chat topic
   // has only one partition (and three replicas)
-  //private val topicPartition: TopicPartition                = new TopicPartition(chat.chatId, 0)
   private var chatProducer:   KafkaProducer[String, String] = KessengerAdmin.createChatProducer
 
   // (offset, (login, date, message string))
@@ -60,17 +58,18 @@ class ChatExecutor(me: User, chat: Chat, chatUsers: List[User]):
   private def createChatReader(): Future[Unit] =
     val future = Future {
       val chatConsumer: KafkaConsumer[String, String] = KessengerAdmin.createChatConsumer(me.userId.toString)
-      val topicPartition0: TopicPartition                = new TopicPartition(chat.chatId, 0)
+      // val topicPartition0: TopicPartition                = new TopicPartition(chat.chatId, 0)
 //      val topicPartition1: TopicPartition                = new TopicPartition(chat.chatId, 1)
 //      val topicPartition2: TopicPartition                = new TopicPartition(chat.chatId, 2)
 
       // chatConsumer.commitSync() // todo try next
 
+      chatConsumer.subscribe(java.util.List.of(chat.chatId))
       // assign specific topic to read from
-      chatConsumer.assign(java.util.List.of(topicPartition0))
+      // chatConsumer.assign(java.util.List.of(topicPartition0))
       // we manually set offset to read from and
       // we start reading from topic from last read message (offset)
-      chatConsumer.seek(topicPartition0, newOffset.get() )  // TODO
+      //chatConsumer.seek(topicPartition0, newOffset.get() )  // TODO
 //      chatConsumer.seek(topicPartition1, newOffset.get() )  // TODO
 //      chatConsumer.seek(topicPartition2, newOffset.get() )  // TODO
 
@@ -90,6 +89,7 @@ class ChatExecutor(me: User, chat: Chat, chatUsers: List[User]):
         // if some error occurred we restart chatReader, every 3 seconds
         if continueReading.get() then
           Thread.sleep(3000)
+          println(s"chat executor restarted.") // TODO DELETE
           chatReader = Some( createChatReader() )  // watch out of infinite loop when future ends so fast that  onComplete is not defined yet
         else updateDB()
       case Success(value) => updateDB()

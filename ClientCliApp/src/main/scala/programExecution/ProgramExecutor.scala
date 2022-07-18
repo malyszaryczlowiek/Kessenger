@@ -12,11 +12,11 @@ import db.ExternalDB
 import messages.{ChatExecutor, ChatManager, KessengerAdmin}
 import util.{ChatNameValidator, PasswordConverter}
 
-import com.github.malyszaryczlowiek.kessengerlibrary.db.queries.{QueryError, QueryErrors}
-import com.github.malyszaryczlowiek.kessengerlibrary.domain.{Chat, User}
-import com.github.malyszaryczlowiek.kessengerlibrary.domain.Domain.{Login, Password}
-import com.github.malyszaryczlowiek.kessengerlibrary.kafka.configurators.KafkaProductionConfigurator
-import com.github.malyszaryczlowiek.kessengerlibrary.kafka.errors.KafkaError
+import kessengerlibrary.db.queries.{QueryError, QueryErrors}
+import kessengerlibrary.domain.{Chat, User}
+import kessengerlibrary.domain.Domain.{Login, Password}
+import kessengerlibrary.kafka.configurators.KafkaProductionConfigurator
+import kessengerlibrary.kafka.errors.KafkaError
 
 import scala.::
 import scala.concurrent.Future
@@ -30,6 +30,18 @@ object ProgramExecutor :
 
   @tailrec
   def runProgram(args: Array[String]): Unit =
+    // if we want to force close program we should close all connections
+    // ass well
+    Runtime.getRuntime.addShutdownHook(new Thread(new Runnable() {
+      override
+       def run(): Unit = {
+        manager match {
+          case Some(chatManager) => chatManager.closeChatManager()
+          case None =>
+        }
+        ExternalDB.closeConnection()
+      }
+    }))
     val length = args.length
     if length == 0 then
       println(s"Kessenger v0.1.0")

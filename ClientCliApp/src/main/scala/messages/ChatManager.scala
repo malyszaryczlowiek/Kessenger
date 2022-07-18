@@ -70,8 +70,9 @@ class ChatManager(var me: User, private var topicCreated: Boolean = false):
 //      val topic1 = new TopicPartition(Domain.generateJoinId(me.userId), 1)// TODO
 //      val topic2 = new TopicPartition(Domain.generateJoinId(me.userId), 2)// TODO
 
-      joinConsumer.assign(java.util.List.of(topic0))
-      joinConsumer.seek(topic0, joinOffset.get() )// TODO
+      joinConsumer.subscribe(java.util.List.of(topic0))
+      // joinConsumer.assign(java.util.List.of(topic0))
+      // joinConsumer.seek(topic0, joinOffset.get() )// TODO
 //      joinConsumer.seek(topic1, joinOffset.get() )// TODO
 //      joinConsumer.seek(topic2, joinOffset.get() )// TODO
 
@@ -121,6 +122,7 @@ class ChatManager(var me: User, private var topicCreated: Boolean = false):
                 }
               } )
               // we try to restart
+              println(s"chat manager restarted.") // TODO DELETE
               optionListener = assignListener()
             else
               // if we should not listen further we reassign to None
@@ -228,7 +230,7 @@ class ChatManager(var me: User, private var topicCreated: Boolean = false):
     if listOfErrors.isEmpty then
       MyAccount.addChat(chat, users)
       Right(chat)
-    else 
+    else
       listOfErrors.head
 
 
@@ -274,6 +276,7 @@ class ChatManager(var me: User, private var topicCreated: Boolean = false):
    *
    *
    */
+  @deprecated
   private def sendInvitations(users: List[User], chat: Chat): Unit =
     // we start future and forget it.
     Future {
