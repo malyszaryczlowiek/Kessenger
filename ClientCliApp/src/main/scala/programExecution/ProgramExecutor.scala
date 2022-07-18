@@ -9,7 +9,7 @@ import scala.collection.mutable.ListBuffer
 import scala.io.StdIn.{readChar, readInt, readLine}
 import account.MyAccount
 import db.ExternalDB
-import messages.{ChatExecutor, ChatManager, KessengerAdmin}
+import messages.{ ChatManager, KessengerAdmin}
 import util.{ChatNameValidator, PasswordConverter}
 
 import kessengerlibrary.db.queries.{QueryError, QueryErrors}
@@ -36,7 +36,7 @@ object ProgramExecutor :
       override
        def run(): Unit = {
         manager match {
-          case Some(chatManager) => chatManager.closeChatManager()
+          case Some(chatManager: ChatManager) => chatManager.closeChatManager()
           case None =>
         }
         ExternalDB.closeConnection()
@@ -161,8 +161,34 @@ object ProgramExecutor :
             printMenu()
         }
     }
-
-
+    
+  
+  private def initializeUser(user: User): Either[(Option[QueryErrors], Option[KafkaError]), ChatManager] =
+    me = user
+    if user.joiningOffset == -1 then
+      val chatManager = new ChatManager(me, false)
+      tryToStartChatManager(chatManager)
+    else
+      ExternalDB.findUsersChats(user) match {
+        case Left(dbError: QueryErrors)               =>
+          Left(Some(dbError), None)
+        case Right(usersChats: Map[Chat, List[User]]) =>
+          val transform = usersChats.map(
+            (chatList: (Chat, List[User])) =>
+              val chat = chatList._1
+              val users = chatList._2
+              (chat, new ChatExecutor(me, chat, users))
+          )
+          myChats.addAll(transform)
+          val chatManager = new ChatManager(me, true)
+          chatManager.getError() match {
+            case ke @ Some(_) =>
+              // if something goes wrong we should close chat manager
+              chatManager.closeChatManager()
+              Left((None, ke))
+            case None         => Right(chatManager)
+          }
+      }
 
 
   @tailrec

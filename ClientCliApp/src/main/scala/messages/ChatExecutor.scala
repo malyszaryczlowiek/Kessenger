@@ -41,7 +41,7 @@ class ChatExecutor(me: User, chat: Chat, chatUsers: List[User]):
   private val unreadMessages: ParTrieMap[Long,(Login, LocalDateTime, String)] = ParTrieMap.empty[Long, (Login, LocalDateTime, String)]
 
   private var chatReader: Option[Future[Unit]] = Some( createChatReader() )
-
+  chatProducer.initTransactions()
 
   def sendMessage(message: String): Unit =
     Future {

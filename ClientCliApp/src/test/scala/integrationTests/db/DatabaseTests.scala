@@ -1388,7 +1388,7 @@ class DatabaseTests extends DbIntegrationTestsTrait:
   }
 
 
-
+end DatabaseTests
 
 
 

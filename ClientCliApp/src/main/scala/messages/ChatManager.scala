@@ -5,6 +5,7 @@ import account.MyAccount
 import db.ExternalDB
 import kessengerlibrary.domain.{Chat, Domain, User}
 import kessengerlibrary.domain.Domain.*
+import kessengerlibrary.messages.Message
 import kessengerlibrary.kafka.errors.{KafkaError, KafkaErrorsHandler}
 import kessengerlibrary.db.queries.QueryErrors
 
@@ -17,25 +18,29 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicLong}
 import scala.annotation.tailrec
 import scala.collection.mutable.ListBuffer
+import scala.collection.parallel.mutable.ParTrieMap
 import scala.concurrent.{Await, Future}
 import scala.concurrent.duration.{Duration, SECONDS}
 import scala.io.StdIn.readLine
-import scala.util.{Failure, Success, Try}
+import scala.util.{Failure, Success, Try, Using}
 import concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.impl.Promise
+
 
 
 
 /**
  *
  */
-class ChatManager(var me: User, private var topicCreated: Boolean = false):
+class ChatManager(var me: User):
+
+  private val myChats: ParTrieMap[Chat, List[User]] = ParTrieMap.empty[Chat, List[User]]
 
   // producer is thread safe, so we can keep single object of producer.
-  private var joinProducer: KafkaProducer[String, String] = KessengerAdmin.createJoiningProducer(me.userId)
+  private val joinProducer: KafkaProducer[User, Message] = KessengerAdmin.createJoiningProducer()
   private val chatsToJoin:  ListBuffer[(UserID, ChatId)]  = ListBuffer.empty[(UserID, ChatId)]
 
-  private var transactionInitialized: Boolean = false
+  // private var transactionInitialized: Boolean = false
   private val continueChecking: AtomicBoolean = new AtomicBoolean(true)
 
 
@@ -44,8 +49,8 @@ class ChatManager(var me: User, private var topicCreated: Boolean = false):
   private val joinOffset: AtomicLong = new AtomicLong( me.joiningOffset )
 
   private val errorLock: AnyRef = new AnyRef
-  private var error: Option[KafkaError] = None
 
+  private var error: Option[KafkaError] = None
 
   /**
    * This future runs all time during program execution.
@@ -58,55 +63,74 @@ class ChatManager(var me: User, private var topicCreated: Boolean = false):
    * so when we restarting app and
    * we read in all requests (above offset) again.
    */
-  private var optionListener: Option[Future[Unit]] = None
+  private var joiningListener: Option[Future[Unit]] = None
+
+
+  
+  
+  
+
+  def tryToCreateJoiningTopic(): Either[KafkaError, Unit] =
+    KessengerAdmin.createJoiningTopic(me.userId) match {
+      case l @ Left(kafkaError) =>
+        // error = Some(kafkaError)
+        l
+      case Right(_) => // joining topic created without errors
+        joinOffset.set( 0L )
+        me = me.copy(joiningOffset = 0L ) // we need to change joining offset because in db is set to -1
+        Right({})
+    }
+
+  
+  def addChats(usersChats: Map[Chat, List[User]]): Unit =
+    myChats.addAll(usersChats)
 
 
 
-  private def assignListener(): Option[Future[Unit]] =
-    val future: Future[Unit ] = Future {
-      val joinConsumer: KafkaConsumer[String, String] = KessengerAdmin.createJoiningConsumer()
-
-      val topic0 = new TopicPartition(Domain.generateJoinId(me.userId), 0)// TODO
-//      val topic1 = new TopicPartition(Domain.generateJoinId(me.userId), 1)// TODO
-//      val topic2 = new TopicPartition(Domain.generateJoinId(me.userId), 2)// TODO
-
-      joinConsumer.subscribe(java.util.List.of(topic0))
-      // joinConsumer.assign(java.util.List.of(topic0))
-      // joinConsumer.seek(topic0, joinOffset.get() )// TODO
-//      joinConsumer.seek(topic1, joinOffset.get() )// TODO
-//      joinConsumer.seek(topic2, joinOffset.get() )// TODO
 
 
-      // this may throw IllegalArgumentException if joining topic exists,
-      // but in db we do not have updated offset
-      // and inserted value of joinOffset (taken from db) is -1.
-      while ( continueChecking.get() ) {
-        val records: ConsumerRecords[String, String] = joinConsumer.poll(java.time.Duration.ofMillis(1000))
-        records.forEach(
-          (r: ConsumerRecord[String, String]) => {
-            val userID = UUID.fromString(r.key())
-            val chatId = r.value()
-            chatsToJoin.addOne((userID, chatId))
-            ExternalDB.findChatAndUsers(me, chatId) match {
-              case Right((chat: Chat, users: List[User])) =>
-                MyAccount.getMyChats.find(chatAndExecutor => chatAndExecutor._1.chatId == chat.chatId) match {
-                  // if chat already exists in my chat list, do nothing, we must not add this chat to list of my chats
-                  case Some(_) => ()
-                  case None =>
-                    users.find(_.userId == userID) match {
-                      case Some(user) => print(s"You got invitation from ${user.login} to chat ${chat.chatName}.\n> ")
-                      case None       => print(s"Warning!?! Inviting user not found???\n> ")
+
+
+  private def assignJoiningListener(): Option[Future[Unit]] =
+    val future: Future[Unit] = Future {
+      Using (KessengerAdmin.createJoiningConsumer(me.userId.toString)) {
+        (joinConsumer: KafkaConsumer[User, Message]) =>
+          val topic0 = new TopicPartition(Domain.generateJoinId(me.userId), 0)
+          joinConsumer.assign(java.util.List.of(topic0))
+          // this may throw IllegalArgumentException if joining topic exists,
+          // but in db we do not have updated offset
+          // and inserted value of joinOffset (taken from db) is -1.
+          joinConsumer.seek(topic0, joinOffset.get() )
+          while ( continueChecking.get() ) {
+            val records: ConsumerRecords[User, Message] = joinConsumer.poll(java.time.Duration.ofMillis(1000))
+            records.forEach(
+              (r: ConsumerRecord[User, Message]) => {
+                val userID = UUID.fromString(r.key())
+                val chatId = r.value()
+                chatsToJoin.addOne((userID, chatId))
+
+                // TODO to jest do przepisania tak aby nie musieć wykonywać zapytania do DB
+
+                ExternalDB.findChatAndUsers(me, chatId) match {
+                  case Right((chat: Chat, users: List[User])) =>
+                    MyAccount.getMyChats.find(chatAndExecutor => chatAndExecutor._1.chatId == chat.chatId) match {
+                      // if chat already exists in my chat list, do nothing, we must not add this chat to list of my chats
+                      case Some(_) => ()
+                      case None =>
+                        users.find(_.userId == userID) match {
+                          case Some(user) => print(s"You got invitation from ${user.login} to chat ${chat.chatName}.\n> ")
+                          case None       => print(s"Warning!?! Inviting user not found???\n> ")
+                        }
+                        MyAccount.addChat(chat, users)
+                        updateUsersOffset( r.offset() + 1L )
                     }
-                    MyAccount.addChat(chat, users)
-                    updateUsersOffset( r.offset() + 1L )
+                  case Left(_) => () // if errors, do nothing, because I added in users_chats
+                  // so in next logging chat will show up.
                 }
-              case Left(_) => () // if errors, do nothing, because I am added in users_chats
-              // so in next logging chat will show up.
-            }
+              }
+            )
           }
-        )
       }
-      joinConsumer.close()
     }
     future.onComplete(
       (tryy: Try[Unit]) => {
@@ -123,15 +147,16 @@ class ChatManager(var me: User, private var topicCreated: Boolean = false):
               } )
               // we try to restart
               println(s"chat manager restarted.") // TODO DELETE
-              optionListener = assignListener()
+              joiningListener = assignJoiningListener()
             else
               // if we should not listen further we reassign to None
+              println(s"chat manager listener reassigned to none. ") // TODO DELETE
               error = None
-              optionListener = None
+              joiningListener = None
           case Success(_) =>
             // if we closed this future successfully, we simply reassign to None
             error = None
-            optionListener = None
+            joiningListener = None
         }
       }
     )
@@ -144,32 +169,19 @@ class ChatManager(var me: User, private var topicCreated: Boolean = false):
    *
    * @return
    */
-  private def startChatManager(): Unit =
-    if topicCreated then
-      optionListener = assignListener()
-    else
-      KessengerAdmin.createJoiningTopic(me.userId) match {
-        case Left(kafkaError) =>
-          error = Some(kafkaError)
-        case Right(_) => // joining topic created without errors
-          topicCreated = true
-          updateUsersOffset(0L)
-          optionListener = assignListener()
-      }
+//  private def startChatManager(): Unit =
+//    if topicCreated then
+//      joiningListener = assignJoiningListener()
+//    else
+
 
   // here we start ChatManager
-  startChatManager()
+  //startChatManager()
 
 
 
-  private def updateUsersOffset(offset: Long): Unit =
-    joinOffset.set( offset )
-    me = me.copy(joiningOffset = joinOffset.get() ) // we need to change joining offset because in db is set to -1
-    MyAccount.updateUser(me)
-    ExternalDB.updateJoiningOffset(me, offset) match {
-      case Right(user) => // println(s"User's data updated. ")
-      case Left(dbError: QueryErrors) => // println(s"Cannot update user's data to DB. ") // joining offset: ${dbError.listOfErrors.head.description}
-    }
+
+
 
 
 
@@ -276,15 +288,15 @@ class ChatManager(var me: User, private var topicCreated: Boolean = false):
    *
    *
    */
-  @deprecated
-  private def sendInvitations(users: List[User], chat: Chat): Unit =
-    // we start future and forget it.
-    Future {
-      joinProducer.beginTransaction()
-
-      joinProducer.commitTransaction()
-    }
-    MyAccount.addChat(chat, users)
+//  @deprecated
+//  private def sendInvitations(users: List[User], chat: Chat): Unit =
+//    // we start future and forget it.
+//    Future {
+//      joinProducer.beginTransaction()
+//
+//      joinProducer.commitTransaction()
+//    }
+//    MyAccount.addChat(chat, users)
 
 
 
@@ -295,11 +307,12 @@ class ChatManager(var me: User, private var topicCreated: Boolean = false):
    * requires aborting transaction,
    * and creating another producer object.
    */
-  private def restartProducer(): Unit =
-    joinProducer.abortTransaction()
-    joinProducer.close()
-    transactionInitialized = false
-    joinProducer = KessengerAdmin.createJoiningProducer(me.userId)
+//  @deprecated("this method was used in past when producer was transaction implemented.")
+//  private def restartProducer(): Unit =
+//    joinProducer.abortTransaction()
+//    joinProducer.close()
+//    transactionInitialized = false
+//    joinProducer = KessengerAdmin.createJoiningProducer(me.userId)
 
 
 
@@ -310,9 +323,9 @@ class ChatManager(var me: User, private var topicCreated: Boolean = false):
     Try {
       joinProducer.close()
       continueChecking.set(false)
-      if optionListener.isDefined then
-        optionListener.get.onComplete {
-          // TODO delete, used in integration tests
+      if joiningListener.isDefined then
+        joiningListener.get.onComplete {
+          // TODO delete, used for tests
           case Failure(exception) =>
             println(s"join consumer closed with Error.")
           case Success(unitValue) => // we do nothing
@@ -338,4 +351,21 @@ class ChatManager(var me: User, private var topicCreated: Boolean = false):
 
 
 
+  /*
+   *  Methods addopted from deprecated MyAccount object
+  */
+
+  def removeChat(chatToRemove: Chat): Unit =
+    myChats.find( (chat: Chat, _) => chat.chatId == chatToRemove.chatId) match {
+      case None               =>
+        print(s"Cannot remove chat '${chatToRemove.chatName}'. Does not exist in chat list.\n> ")
+      case Some((found, _)) =>
+        myChats.remove(found)
+        print(s"Chat '${found.chatName}' removed from list.\n> ")
+    }
+
+
+  def getMyObject: User = me
+
+  // def getMyChats: immutable.SortedMap[Chat, ChatExecutor] = myChats.to(immutable.SortedMap)
 

@@ -3,8 +3,10 @@ package messages
 
 import kessengerlibrary.domain.Domain.{ChatId, JoinId, UserID, WritingId}
 import kessengerlibrary.domain.{Chat, Domain, User}
+import kessengerlibrary.messages.Message
 import kessengerlibrary.kafka.configurators.KafkaConfigurator
 import kessengerlibrary.kafka.errors.*
+import kessengerlibrary.serdes.*
 
 import org.apache.kafka.clients.admin.{Admin, AdminClientConfig, CreateTopicsResult, DeleteTopicsResult, NewTopic}
 import org.apache.kafka.clients.consumer.{ConsumerConfig, KafkaConsumer}
@@ -29,6 +31,11 @@ object KessengerAdmin {
 
   private var admin: Admin = _
   private var configurator: KafkaConfigurator = _
+
+  private val userSerializer      = new UserSerializer
+  private val userDeserializer    = new UserDeserializer
+  private val messageSerializer   = new MessageSerializer
+  private val messageDeserializer = new MessageDeserializer
 
 
   def startAdmin(conf: KafkaConfigurator): Unit =
@@ -108,17 +115,17 @@ object KessengerAdmin {
 
 
 
-  def createChatProducer: KafkaProducer[String, String] =
+  def createChatProducer: KafkaProducer[User, Message] =
     val properties = new Properties
-    properties.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, configurator.SERVERS)
-    properties.put(ProducerConfig.ACKS_CONFIG, "all")  // (1) this configuration specifies the minimum number of replicas that must acknowledge a write for the write to be considered successful
-    properties.put(ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG, "true") // we do not need duplicates in partitions
     // ProducerConfig.RETRIES_CONFIG which is default set to Integer.MAX_VALUE id required by idempotence.
-    properties.put(ProducerConfig.LINGER_MS_CONFIG, "0") // we do not wait to fill the buffer and send message immediately
-    properties.put(ProducerConfig.DELIVERY_TIMEOUT_MS_CONFIG, "3000") // we try to resend every message via 3000 ms
-    properties.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, "org.apache.kafka.common.serialization.StringSerializer")
-    properties.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, "org.apache.kafka.common.serialization.StringSerializer")
-    new KafkaProducer[String, String](properties)
+    properties.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG     , configurator.SERVERS)
+    properties.put(ProducerConfig.ACKS_CONFIG                  , "all")  // (1) this configuration specifies the minimum number of replicas that must acknowledge a write for the write to be considered successful
+    properties.put(ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG    , "true") // we do not need duplicates in partitions
+    properties.put(ProducerConfig.LINGER_MS_CONFIG             , "0") // we do not wait to fill the buffer and send message immediately
+    properties.put(ProducerConfig.DELIVERY_TIMEOUT_MS_CONFIG   , "3000") // we try to resend every message via 3000 ms
+    properties.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG  , userSerializer) // "org.apache.kafka.common.serialization.StringSerializer"
+    properties.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, messageSerializer)
+    new KafkaProducer[User, Message](properties)
 
 
 
@@ -138,15 +145,14 @@ object KessengerAdmin {
    *                so they can read from all partitions of this topic.
    * @return
    */
-  def createChatConsumer(groupId: String): KafkaConsumer[String, String] =
+  def createChatConsumer(groupId: String): KafkaConsumer[User, Message] =
     val props: Properties = new Properties();
-    props.setProperty(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG       , configurator.SERVERS)
-    props.setProperty(ConsumerConfig.GROUP_ID_CONFIG                , groupId)
-    props.setProperty(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG      , "false")
-    // props.setProperty(ConsumerConfig.AUTO_COMMIT_INTERVAL_MS_CONFIG , "1000")
-    props.setProperty(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG  , "org.apache.kafka.common.serialization.StringDeserializer")
-    props.setProperty(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, "org.apache.kafka.common.serialization.StringDeserializer")
-    new KafkaConsumer[String, String](props)
+    props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG       , configurator.SERVERS)
+    props.put(ConsumerConfig.GROUP_ID_CONFIG                , groupId)
+    props.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG      , "false")
+    props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG  , userDeserializer)
+    props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, messageDeserializer)
+    new KafkaConsumer[User, Message](props)
 
 
 
@@ -191,16 +197,16 @@ object KessengerAdmin {
    * @param userId
    * @return
    */
-  def createJoiningProducer(userId: UserID): KafkaProducer[String, String] = //???
+  def createJoiningProducer(): KafkaProducer[User, Message] = //???
     val properties = new Properties
-    properties.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, configurator.SERVERS)
-    properties.put(ProducerConfig.ACKS_CONFIG, "all")  // all replicas must confirm
-    //properties.put(ProducerConfig.TRANSACTIONAL_ID_CONFIG, userId.toString)  // idempotence is activated automatically
-    properties.put(ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG, "true") // we do not need duplicate records in partitions
-    properties.put(ProducerConfig.LINGER_MS_CONFIG, "0") // we do not wait to fill the producer's buffer and send records immediately
-    properties.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, "org.apache.kafka.common.serialization.StringSerializer")
-    properties.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, "org.apache.kafka.common.serialization.StringSerializer")
-    new KafkaProducer[String, String](properties)
+    properties.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG     , configurator.SERVERS)
+    properties.put(ProducerConfig.ACKS_CONFIG                  , "all")    // (1) this configuration specifies the minimum number of replicas that must acknowledge a write for the write to be considered successful
+    properties.put(ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG    , "true")   // we do not need duplicates in partitions
+    properties.put(ProducerConfig.LINGER_MS_CONFIG             , "0")      // we do not wait to fill the buffer and send message immediately
+    properties.put(ProducerConfig.DELIVERY_TIMEOUT_MS_CONFIG   , "3000")   // we try to resend every message via 3000 ms
+    properties.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG  , userSerializer)
+    properties.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, messageSerializer)
+    new KafkaProducer[User, Message](properties)
 
 
 
@@ -210,17 +216,27 @@ object KessengerAdmin {
    * set group_id.
    * @return
    */
-  def createJoiningConsumer(): KafkaConsumer[String, String] =
+  def createJoiningConsumer(groupId: String): KafkaConsumer[User, Message] =
     val props: Properties = new Properties();
-    props.setProperty(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG       , configurator.SERVERS)
-    //props.setProperty(ConsumerConfig.GROUP_ID_CONFIG                , groupId)
-    props.setProperty(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG      , "false")
-    // props.setProperty(ConsumerConfig.AUTO_COMMIT_INTERVAL_MS_CONFIG , "1000")
-    props.setProperty(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG  , "org.apache.kafka.common.serialization.StringDeserializer")
-    props.setProperty(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, "org.apache.kafka.common.serialization.StringDeserializer")
-    new KafkaConsumer[String, String](props)
+    props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG       , configurator.SERVERS)
+    props.put(ConsumerConfig.GROUP_ID_CONFIG                , groupId)
+    props.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG      , "false")
+    props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG  , userDeserializer)
+    props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, messageDeserializer)
+    new KafkaConsumer[User, Message](props)
 
 }
+
+
+
+
+
+
+
+
+
+
+
 
 
 
