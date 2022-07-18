@@ -181,7 +181,7 @@ object ProgramExecutor :
           )
           myChats.addAll(transform)
           val chatManager = new ChatManager(me, true)
-          chatManager.getError() match {
+          chatManager.getError match {
             case ke @ Some(_) =>
               // if something goes wrong we should close chat manager
               chatManager.closeChatManager()

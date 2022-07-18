@@ -2,12 +2,12 @@ package com.github.malyszaryczlowiek
 package messages
 
 import db.ExternalDB
-
 import kessengerlibrary.db.queries.QueryErrors
 import kessengerlibrary.domain.{Chat, User}
 import kessengerlibrary.domain.Domain.*
 import kessengerlibrary.util.TimeConverter
 
+import com.github.malyszaryczlowiek.kessengerlibrary.messages.Message
 import org.apache.kafka.clients.consumer.{ConsumerRecord, ConsumerRecords, KafkaConsumer}
 import org.apache.kafka.clients.producer.{Callback, KafkaProducer, ProducerRecord, RecordMetadata}
 import org.apache.kafka.common.TopicPartition
@@ -35,7 +35,7 @@ class ChatExecutor(me: User, chat: Chat, chatUsers: List[User]):
 
   // we will read from topic with name of chatId. Each chat topic
   // has only one partition (and three replicas)
-  private var chatProducer:   KafkaProducer[String, String] = KessengerAdmin.createChatProducer
+  private var chatProducer:   KafkaProducer[User, Message] = KessengerAdmin.createChatProducer
 
   // (offset, (login, date, message string))
   private val unreadMessages: ParTrieMap[Long,(Login, LocalDateTime, String)] = ParTrieMap.empty[Long, (Login, LocalDateTime, String)]

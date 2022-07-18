@@ -2,25 +2,19 @@ package com.github.malyszaryczlowiek
 package account
 
 import db.ExternalDB
-import messages.{ChatExecutor, ChatManager, KessengerAdmin}
+import messages.{ChatManager, KessengerAdmin}
+
 import kessengerlibrary.db.queries.{QueryError, QueryErrorMessage, QueryErrorType, QueryErrors}
-import kessengerlibrary.domain.Domain.{Login, UserID}
 import kessengerlibrary.domain.{Chat, User}
-import kessengerlibrary.domain.ChatGivens.given
 import kessengerlibrary.kafka.errors.{KafkaError, KafkaErrorMessage}
 
-import java.util.UUID
-import scala.annotation.tailrec
-import scala.collection.immutable.SortedMap
-import scala.collection.{immutable, mutable}
-import scala.collection.mutable.{ArrayBuffer, ListBuffer}
 import scala.collection.parallel.mutable.ParTrieMap
 import scala.concurrent.Future
 import scala.util.{Failure, Success, Try}
 import concurrent.ExecutionContext.Implicits.global
 
 
-@deprecated
+
 object MyAccount:
 
   /**
@@ -30,38 +24,26 @@ object MyAccount:
     val chatManager = new ChatManager(me)
     if me.joiningOffset == -1 then
       chatManager.tryToCreateJoiningTopic() match {
-        case Left(kafkaError: KafkaError) =>
-          kafkaError match {
-            case ke @ KafkaError(_, KafkaErrorMessage.ChatExistsError) => // here we handle problem when joining topic exists but we could not update joining offset in db earlier
-              updateOffsetInDb(me, 0L)
-              chatManager.updateOffset(0L)
-              // so if user had joining offset > than -1 its means that he could have
-              // some chats. So we search them
-              findUsersChats(me, chatManager)
-            case kafkaError: KafkaError =>
-              // in case of other kafka errors we cannot use
-              // chat manager and we return obtained kafka error
-              Left(None, Option(kafkaError))
-          }
+//        case Left(kafkaError: KafkaError) =>
+        case ke @ KafkaError(_, KafkaErrorMessage.ChatExistsError) => // here we handle problem when joining topic exists but we could not update joining offset in db earlier
+          chatManager.updateOffset(0L)
+          // so if user had joining offset > than -1 its means that he could have
+          // some chats. So we search them
+          findUsersChats(me, chatManager)
+        case kafkaError: KafkaError =>
+          // in case of other kafka errors we cannot use
+          // chat manager and we return obtained kafka error
+          Left(None, Option(kafkaError))
         // in case when we created joining topic correctly
         // we need to update users offset in db
         // and in Chat Manager
         case Right(_) =>
-          updateOffsetInDb(me, 0L)
           chatManager.updateOffset(0L)
-          Right (chatManager) // TODO może jeszcze powinniśmy go tutaj wystartować??? tzn wszystkie czatty
+          chatManager.startListeningInvitations()
+          Right (chatManager)
       }
     else
       findUsersChats(me, chatManager)
-
-
-  /**
-   *
-   * @param me
-   * @param offset
-   */
-  private def updateOffsetInDb(me: User, offset: Long): Unit =
-    Future { ExternalDB.updateJoiningOffset(me, 0L) }
 
 
 
@@ -77,7 +59,8 @@ object MyAccount:
         Left(Some(dbError), None)
       case Right(usersChats: Map[Chat, List[User]]) =>
         chatManager.addChats(usersChats)
-        Right(chatManager) // TODO może jeszcze powinniśmy go tutaj wystartować??? tzn wszystkie czatty
+        chatManager.startListeningInvitations()
+        Right(chatManager)
     }
 
 

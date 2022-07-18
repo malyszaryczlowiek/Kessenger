@@ -13,6 +13,7 @@ import org.apache.kafka.clients.consumer.{ConsumerRecord, ConsumerRecords, Kafka
 import org.apache.kafka.clients.producer.{Callback, KafkaProducer, ProducerRecord, RecordMetadata}
 import org.apache.kafka.common.TopicPartition
 
+import java.time.{LocalDateTime, ZoneId}
 import java.util.UUID
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicLong}
@@ -23,11 +24,8 @@ import scala.concurrent.{Await, Future}
 import scala.concurrent.duration.{Duration, SECONDS}
 import scala.io.StdIn.readLine
 import scala.util.{Failure, Success, Try, Using}
-import concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.impl.Promise
-
-
-
+import concurrent.ExecutionContext.Implicits.global
 
 /**
  *
@@ -35,10 +33,12 @@ import scala.concurrent.impl.Promise
 class ChatManager(var me: User):
 
   private val myChats: ParTrieMap[Chat, List[User]] = ParTrieMap.empty[Chat, List[User]]
+  private val chatsToJoin: ParTrieMap[Chat, User]   = ParTrieMap.empty[Chat, User]
+
 
   // producer is thread safe, so we can keep single object of producer.
   private val joinProducer: KafkaProducer[User, Message] = KessengerAdmin.createJoiningProducer()
-  private val chatsToJoin:  ListBuffer[(UserID, ChatId)]  = ListBuffer.empty[(UserID, ChatId)]
+  // private val chatsToJoin:  ListBuffer[(User, Chat)]  = ListBuffer.empty[(User, Chat)]
 
   // private var transactionInitialized: Boolean = false
   private val continueChecking: AtomicBoolean = new AtomicBoolean(true)
@@ -65,27 +65,42 @@ class ChatManager(var me: User):
    */
   private var joiningListener: Option[Future[Unit]] = None
 
+  private val restartingThread: Option[Future[Unit]] = None
 
-  
-  
-  
 
   def tryToCreateJoiningTopic(): Either[KafkaError, Unit] =
     KessengerAdmin.createJoiningTopic(me.userId) match {
-      case l @ Left(kafkaError) =>
-        // error = Some(kafkaError)
-        l
+      case l @ Left(kafkaError) => l
       case Right(_) => // joining topic created without errors
-        joinOffset.set( 0L )
-        me = me.copy(joiningOffset = 0L ) // we need to change joining offset because in db is set to -1
+        joinOffset.set( 0L ) // we need to change joining offset because in db is set to -1
         Right({})
     }
 
-  
+
   def addChats(usersChats: Map[Chat, List[User]]): Unit =
     myChats.addAll(usersChats)
 
 
+
+  def startListeningInvitations(): Unit =
+//    restartingThread match {
+//      case Some(value) => ???
+//      case None =>
+//        restartingThread = Future {
+//
+//        }
+//    }
+
+    joiningListener match {
+      case Some(_) => // if already started we do nothing
+      case None    => joiningListener = assignJoiningListener()
+    }
+
+
+
+  def updateOffset(offset: Long): Unit =
+    Future { ExternalDB.updateJoiningOffset(me, offset) }
+    joinOffset.set(offset)
 
 
 
@@ -105,28 +120,15 @@ class ChatManager(var me: User):
             val records: ConsumerRecords[User, Message] = joinConsumer.poll(java.time.Duration.ofMillis(1000))
             records.forEach(
               (r: ConsumerRecord[User, Message]) => {
-                val userID = UUID.fromString(r.key())
-                val chatId = r.value()
-                chatsToJoin.addOne((userID, chatId))
-
-                // TODO to jest do przepisania tak aby nie musieć wykonywać zapytania do DB
-
-                ExternalDB.findChatAndUsers(me, chatId) match {
-                  case Right((chat: Chat, users: List[User])) =>
-                    MyAccount.getMyChats.find(chatAndExecutor => chatAndExecutor._1.chatId == chat.chatId) match {
-                      // if chat already exists in my chat list, do nothing, we must not add this chat to list of my chats
-                      case Some(_) => ()
-                      case None =>
-                        users.find(_.userId == userID) match {
-                          case Some(user) => print(s"You got invitation from ${user.login} to chat ${chat.chatName}.\n> ")
-                          case None       => print(s"Warning!?! Inviting user not found???\n> ")
-                        }
-                        MyAccount.addChat(chat, users)
-                        updateUsersOffset( r.offset() + 1L )
-                    }
-                  case Left(_) => () // if errors, do nothing, because I added in users_chats
-                  // so in next logging chat will show up.
-                }
+                val user = r.key()
+                val m: Message = r.value()
+                val groupChat = false // TODO PILNE
+                //todo  ZAIMPLEMENTOWAĆ że MESSAGE PRZENOSI TEŻ INFO czy jest to  GROUP CHAT
+                val chat = Chat(m.chatId, m.chatName, groupChat, 0L, LocalDateTime.MIN)
+                chatsToJoin.addOne(chat -> user)
+                updateOffset(r.offset() + 1L)
+                val group = "group "  // todo test it
+                print(s"You got invitation from ${user.login} to ${if groupChat then group}chat ${chat.chatName}.\n> ")
               }
             )
           }
@@ -147,7 +149,8 @@ class ChatManager(var me: User):
               } )
               // we try to restart
               println(s"chat manager restarted.") // TODO DELETE
-              joiningListener = assignJoiningListener()
+              // joiningListener = assignJoiningListener() // TODO i switch off restarting
+              joiningListener = None
             else
               // if we should not listen further we reassign to None
               println(s"chat manager listener reassigned to none. ") // TODO DELETE
@@ -162,32 +165,42 @@ class ChatManager(var me: User):
     )
     Some(future)
 
+/*
+                ExternalDB.findChatAndUsers(me, chatId) match {
+                  case Right((chat: Chat, users: List[User])) =>
+                    MyAccount.getMyChats.find(chatAndExecutor => chatAndExecutor._1.chatId == chat.chatId) match {
+                      // if chat already exists in my chat list, do nothing, we must not add this chat to list of my chats
+                      case Some(_) => ()
+                      case None =>
+                        users.find(_.userId == userID) match {
+                          case Some(user) => print(s"You got invitation from ${user.login} to chat ${chat.chatName}.\n> ")
+                          case None       => print(s"Warning!?! Inviting user not found???\n> ")
+                        }
+
+                        updateUsersOffset(  )
+                    }
+                  case Left(_) => () // if errors, do nothing, because I added in users_chats
+                  // so in next logging chat will show up.
+                }
+
+*/
 
 
-
-  /**
+/*
+// todo przepisać to do KafkaKonfiguratora w Kessenger library
+  * I set auto.create.topics.enable to false, to not create
+   * automatically topics when they not exists, due to this option
+   * send() method hangs.
    *
-   * @return
-   */
-//  private def startChatManager(): Unit =
-//    if topicCreated then
-//      joiningListener = assignJoiningListener()
-//    else
-
-
-  // here we start ChatManager
-  //startChatManager()
+// TODO to jest skonfigurowane w docker-compose.
+*/
 
 
 
 
 
 
-
-
-
-
-  def getError(): Option[KafkaError] =
+  def getError: Option[KafkaError] =
     errorLock.synchronized( {
       val toReturn = error
       error = None
@@ -212,11 +225,20 @@ class ChatManager(var me: User):
       .map(u => {
         val joiningTopicName = Domain.generateJoinId(u.userId)
         val recordMetadata: java.util.concurrent.Future[RecordMetadata] =
+          val message = Message(
+            "",
+            me.userId,
+            System.currentTimeMillis(),
+            ZoneId.systemDefault(),
+            chat.chatId,
+            chat.chatName
+          )
+          // TODO tutaj przeanalizować to wysyłanie.
           joinProducer.send(
-            new ProducerRecord[String, String](joiningTopicName, me.userId.toString, chat.chatId),
+            new ProducerRecord[User, Message](joiningTopicName, me, message),
             (metadata: RecordMetadata, ex: Exception) =>
-              if ex != null then print(s"Invitation send to ${u.login}.\n> ")
-              else print(s"Error sending invitation to ${u.login}.\n> ")
+              if ex != null then print(s"Error sending invitation to ${u.login}.\n> ")
+              else print(s"Invitation send to ${u.login}.\n> ")
           )
         recordMetadata
         }
@@ -244,6 +266,81 @@ class ChatManager(var me: User):
       Right(chat)
     else
       listOfErrors.head
+
+
+
+
+
+  /**
+   *
+   */
+  def closeChatManager(): Option[KafkaError] =
+    Try {
+      joinProducer.close()
+      continueChecking.set(false)
+      if joiningListener.isDefined then
+        joiningListener.get.onComplete {
+          // TODO delete, used for tests
+          case Failure(exception) =>
+            println(s"join consumer closed with Error.")
+          case Success(unitValue) => // we do nothing
+          // println(s"option listener w Chat Manager zamknięty normalnie. ")  // TODODELETE
+        }
+    } match {
+      case Failure(ex) =>
+        KafkaErrorsHandler.handleWithErrorMessage(ex) match {
+          case Left(kError: KafkaError) => Option(kError)
+          case Right(value)             => None // this will never be called
+        }
+      case Success(_) => None
+    }
+
+
+
+
+
+
+
+
+
+
+
+
+  /*
+   *  Methods addopted from deprecated MyAccount object
+  */
+
+  def removeChat(chatToRemove: Chat): Unit =
+    myChats.find( (chat: Chat, _) => chat.chatId == chatToRemove.chatId) match {
+      case None               =>
+        print(s"Cannot remove chat '${chatToRemove.chatName}'. Does not exist in chat list.\n> ")
+      case Some((found, _)) =>
+        myChats.remove(found)
+        print(s"Chat '${found.chatName}' removed from list.\n> ")
+    }
+
+
+  def getMyObject: User = me
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -277,10 +374,7 @@ class ChatManager(var me: User):
    * blocking nature of send() method in case of sending
    * to non existing topic.
    *
-   * I set auto.create.topics.enable to false, to not create
-   * automatically topics when they not exists, due to this option
-   * send() method hangs.
-   *
+
    * But, even if here we cannot send invitations to some set of users,
    * (because of for example  not created joining topic), is not a problem,
    * because of users have information about new chat in DB.
@@ -297,75 +391,4 @@ class ChatManager(var me: User):
 //      joinProducer.commitTransaction()
 //    }
 //    MyAccount.addChat(chat, users)
-
-
-
-  /**
-   * According to documentation some Exceptions like
-   * ProducerFencedException, OutOfOrderSequenceException,
-   * UnsupportedVersionException, or an AuthorizationException,
-   * requires aborting transaction,
-   * and creating another producer object.
-   */
-//  @deprecated("this method was used in past when producer was transaction implemented.")
-//  private def restartProducer(): Unit =
-//    joinProducer.abortTransaction()
-//    joinProducer.close()
-//    transactionInitialized = false
-//    joinProducer = KessengerAdmin.createJoiningProducer(me.userId)
-
-
-
-  /**
-   *
-   */
-  def closeChatManager(): Option[KafkaError] =
-    Try {
-      joinProducer.close()
-      continueChecking.set(false)
-      if joiningListener.isDefined then
-        joiningListener.get.onComplete {
-          // TODO delete, used for tests
-          case Failure(exception) =>
-            println(s"join consumer closed with Error.")
-          case Success(unitValue) => // we do nothing
-            // println(s"option listener w Chat Manager zamknięty normalnie. ")  // TODODELETE
-        }
-    } match {
-      case Failure(ex) =>
-        KafkaErrorsHandler.handleWithErrorMessage(ex) match {
-          case Left(kError: KafkaError) => Option(kError)
-          case Right(value)             => None // this will never be called
-        }
-      case Success(_) => None
-    }
-
-
-
-  def updateOffset(offset: Long): Unit = joinOffset.set(offset)
-
-  def setTopicCreated(boolean: Boolean): Unit = topicCreated = boolean
-
-
-
-
-
-
-  /*
-   *  Methods addopted from deprecated MyAccount object
-  */
-
-  def removeChat(chatToRemove: Chat): Unit =
-    myChats.find( (chat: Chat, _) => chat.chatId == chatToRemove.chatId) match {
-      case None               =>
-        print(s"Cannot remove chat '${chatToRemove.chatName}'. Does not exist in chat list.\n> ")
-      case Some((found, _)) =>
-        myChats.remove(found)
-        print(s"Chat '${found.chatName}' removed from list.\n> ")
-    }
-
-
-  def getMyObject: User = me
-
-  // def getMyChats: immutable.SortedMap[Chat, ChatExecutor] = myChats.to(immutable.SortedMap)
 
