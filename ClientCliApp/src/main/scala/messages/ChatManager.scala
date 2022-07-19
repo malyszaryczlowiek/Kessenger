@@ -9,6 +9,7 @@ import kessengerlibrary.messages.Message
 import kessengerlibrary.kafka.errors.{KafkaError, KafkaErrorsHandler}
 import kessengerlibrary.db.queries.QueryErrors
 
+import com.github.malyszaryczlowiek.kessengerlibrary.util.TimeConverter
 import org.apache.kafka.clients.consumer.{ConsumerRecord, ConsumerRecords, KafkaConsumer}
 import org.apache.kafka.clients.producer.{Callback, KafkaProducer, ProducerRecord, RecordMetadata}
 import org.apache.kafka.common.TopicPartition
@@ -20,6 +21,7 @@ import java.util.concurrent.atomic.{AtomicBoolean, AtomicLong}
 import scala.annotation.tailrec
 import scala.collection.mutable.ListBuffer
 import scala.collection.parallel.mutable.ParTrieMap
+import scala.collection.parallel.mutable.ParSeq
 import scala.concurrent.{Await, Future}
 import scala.concurrent.duration.{Duration, SECONDS}
 import scala.io.StdIn.readLine
@@ -32,8 +34,8 @@ import concurrent.ExecutionContext.Implicits.global
  */
 class ChatManager(var me: User):
 
-  private val myChats: ParTrieMap[Chat, List[User]] = ParTrieMap.empty[Chat, List[User]]
-  private val chatsToJoin: ParTrieMap[Chat, User]   = ParTrieMap.empty[Chat, User]
+  private val myChats: ParTrieMap[ChatId, (Chat, List[User])] = ParTrieMap.empty[ChatId, (Chat, List[User])]
+  private val chatsToJoin: ParTrieMap[Chat, User] = ParTrieMap.empty[Chat, User]
 
 
   // producer is thread safe, so we can keep single object of producer.
@@ -78,7 +80,9 @@ class ChatManager(var me: User):
 
 
   def addChats(usersChats: Map[Chat, List[User]]): Unit =
-    myChats.addAll(usersChats)
+    val mapped = usersChats.map(
+      (chat: Chat, list: List[User]) => chat.chatId -> (chat, list))
+    myChats.addAll(mapped)
 
 
 
@@ -262,7 +266,7 @@ class ChatManager(var me: User):
         }
       )
     if listOfErrors.isEmpty then
-      MyAccount.addChat(chat, users)
+      // MyAccount.addChat(chat, users)
       Right(chat)
     else
       listOfErrors.head
@@ -311,16 +315,98 @@ class ChatManager(var me: User):
   */
 
   def removeChat(chatToRemove: Chat): Unit =
-    myChats.find( (chat: Chat, _) => chat.chatId == chatToRemove.chatId) match {
-      case None               =>
-        print(s"Cannot remove chat '${chatToRemove.chatName}'. Does not exist in chat list.\n> ")
-      case Some((found, _)) =>
-        myChats.remove(found)
-        print(s"Chat '${found.chatName}' removed from list.\n> ")
+    myChats.remove(chatToRemove.chatId) match {
+      case Some((chat, list)) =>
+        print(s"Chat '${chat.chatName}' removed.\n>")
+      case None =>
+        print(s"Error, cannot find chat '${chatToRemove.chatName}'.\n> ")
     }
+//    myChats.find( (chatId: ChatId, _) => chatId == chatToRemove.chatId) match {
+//      case None               =>
+//        print(s"Cannot remove chat '${chatToRemove.chatName}'. Does not exist in chat list.\n> ")
+//      case Some((found, _)) =>
+//        myChats.remove(found)
+//        print(s"Chat '${found.chatName}' removed from list.\n> ")
+//    }
 
 
   def getMyObject: User = me
+
+
+
+  /*
+   Chat executor part
+  */
+
+
+  //
+
+  // we will read from topic with name of chatId. Each chat topic
+  // has only one partition (and three replicas)
+  private var chatProducer:   KafkaProducer[User, Message] = KessengerAdmin.createChatProducer
+
+  // (offset, (login, date, message string))
+  private val unreadMessages: ParTrieMap[Long,(Login, LocalDateTime, String)] = ParTrieMap.empty[Long, (Login, LocalDateTime, String)]
+
+
+
+  def sendMessage(chat: Chat, content: String): Unit =
+    Future {
+
+      // we create message object to send
+      val message = Message(
+        content,
+        me.userId,
+        System.currentTimeMillis(),
+        ZoneId.systemDefault(),
+        chat.chatId,
+        chat.chatName
+      )
+      val fut = chatProducer.send(new ProducerRecord[User, Message](chat.chatId, me, message)) // , callBack)
+
+
+      // we wait to get response from kafka broker
+      val result = fut.get(5L, TimeUnit.SECONDS)
+
+
+      // extract all needed data, and update myChats with them
+      val newOffset = result.offset() + 1L // to read from this newOffset
+      val updatedChat = chat.copy(
+        offset = newOffset,
+        timeOfLastMessage = TimeConverter.fromMilliSecondsToLocal(result.timestamp())
+      )
+      myChats.get(chat.chatId) match {
+        case Some(chatAndList) => myChats.update(chat.chatId, (updatedChat, chatAndList._2))
+        case None => // we do not update
+      }
+
+
+      // we update offset and message time for this message in DB
+      ExternalDB.updateChatOffsetAndMessageTime(me, Seq(updatedChat)) match {
+        case Left(queryErrors: QueryErrors) =>
+        // queryErrors.listOfErrors.foreach(error => println(s"${error.description}"))
+        // print(s"Leave the chat, and back in a few minutes.\n> ")
+        case Right(value) =>
+        // we do not need to notify user (sender)
+        // that some values were updated in DB.
+      }
+    }
+
+
+  /**
+   * Method closes producer, closes consumer loop in another thread,
+   * with closing that thread and closes consumer object.
+   *
+   * @return returns chat object with updated offset,
+   *         which must be saved to DB subsequently.
+   */
+  def closeChats(): Unit =
+    chatProducer.close()
+    joinProducer.close()
+
+
+
+
 
 
 

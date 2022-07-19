@@ -34,10 +34,10 @@ object MyAccount:
           // in case of other kafka errors we cannot use
           // chat manager and we return obtained kafka error
           Left(None, Option(kafkaError))
-        // in case when we created joining topic correctly
-        // we need to update users offset in db
-        // and in Chat Manager
         case Right(_) =>
+          // in case when we created joining topic correctly
+          // we need to update users offset in db
+          // and in Chat Manager
           chatManager.updateOffset(0L)
           chatManager.startListeningInvitations()
           Right (chatManager)
