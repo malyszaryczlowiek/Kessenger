@@ -28,14 +28,16 @@ import scala.io.StdIn.readLine
 import scala.util.{Failure, Success, Try, Using}
 import scala.concurrent.impl.Promise
 import concurrent.ExecutionContext.Implicits.global
+import scala.collection.parallel.ParIterable
 
 /**
  *
  */
 class ChatManager(var me: User):
 
-  private val myChats: ParTrieMap[ChatId, (Chat, List[User])] = ParTrieMap.empty[ChatId, (Chat, List[User])]
-  private val chatsToJoin: ParTrieMap[Chat, User] = ParTrieMap.empty[Chat, User]
+  private val myChats: ParTrieMap[ChatId, MessagePrinter] = ParTrieMap.empty[ChatId, MessagePrinter]
+
+  //private val chatsToJoin: ParTrieMap[Chat, User] = ParTrieMap.empty[Chat, User]
 
 
   // producer is thread safe, so we can keep single object of producer.
@@ -81,7 +83,7 @@ class ChatManager(var me: User):
 
   def addChats(usersChats: Map[Chat, List[User]]): Unit =
     val mapped = usersChats.map(
-      (chat: Chat, list: List[User]) => chat.chatId -> (chat, list))
+      (chat: Chat, list: List[User]) => chat.chatId -> new MessagePrinter(me, chat, list))
     myChats.addAll(mapped)
 
 
@@ -129,7 +131,7 @@ class ChatManager(var me: User):
                 val groupChat = false // TODO PILNE
                 //todo  ZAIMPLEMENTOWAĆ że MESSAGE PRZENOSI TEŻ INFO czy jest to  GROUP CHAT
                 val chat = Chat(m.chatId, m.chatName, groupChat, 0L, LocalDateTime.MIN)
-                chatsToJoin.addOne(chat -> user)
+                myChats.addOne(chat.chatId -> new MessagePrinter(me, chat, List.empty[User]))
                 updateOffset(r.offset() + 1L)
                 val group = "group "  // todo test it
                 print(s"You got invitation from ${user.login} to ${if groupChat then group}chat ${chat.chatName}.\n> ")
@@ -217,7 +219,7 @@ class ChatManager(var me: User):
 
   /**
    * This method sends invitations to chat,
-   * to all selected users.
+   * to all selected users and myself.
    *
    * This may return kafkaError if some user has no created joining topic
    *
@@ -266,7 +268,7 @@ class ChatManager(var me: User):
         }
       )
     if listOfErrors.isEmpty then
-      // MyAccount.addChat(chat, users)
+      // myChats.addOne() // todo dodać jeszcze czat
       Right(chat)
     else
       listOfErrors.head
@@ -280,6 +282,7 @@ class ChatManager(var me: User):
    */
   def closeChatManager(): Option[KafkaError] =
     Try {
+      // TODO Tutaj upchnąć wszystkie rzeczy, które należy pozamykać.
       joinProducer.close()
       continueChecking.set(false)
       if joiningListener.isDefined then
@@ -313,15 +316,17 @@ class ChatManager(var me: User):
   /*
    *  Methods addopted from deprecated MyAccount object
   */
+  // TODo this method may be implemented in the future
+//  def removeChat(chatToRemove: Chat): Unit =
+//    myChats.remove(chatToRemove.chatId) match {
+//      case Some((chat, list)) =>
+//        print(s"Chat '${chat.chatName}' removed.\n>")
+//      case None =>
+//        print(s"Error, cannot find chat '${chatToRemove.chatName}'.\n> ")
+//    }
 
-  def removeChat(chatToRemove: Chat): Unit =
-    myChats.remove(chatToRemove.chatId) match {
-      case Some((chat, list)) =>
-        print(s"Chat '${chat.chatName}' removed.\n>")
-      case None =>
-        print(s"Error, cannot find chat '${chatToRemove.chatName}'.\n> ")
-    }
-//    myChats.find( (chatId: ChatId, _) => chatId == chatToRemove.chatId) match {
+
+  //    myChats.find( (chatId: ChatId, _) => chatId == chatToRemove.chatId) match {
 //      case None               =>
 //        print(s"Cannot remove chat '${chatToRemove.chatName}'. Does not exist in chat list.\n> ")
 //      case Some((found, _)) =>
@@ -334,19 +339,22 @@ class ChatManager(var me: User):
 
 
 
-  /*
-   Chat executor part
-  */
 
 
-  //
+
+
+  //*****************************
+  // Sending new messages
+  //*****************************
+
+
 
   // we will read from topic with name of chatId. Each chat topic
   // has only one partition (and three replicas)
-  private var chatProducer:   KafkaProducer[User, Message] = KessengerAdmin.createChatProducer
+  private val chatProducer:   KafkaProducer[User, Message] = KessengerAdmin.createChatProducer
 
   // (offset, (login, date, message string))
-  private val unreadMessages: ParTrieMap[Long,(Login, LocalDateTime, String)] = ParTrieMap.empty[Long, (Login, LocalDateTime, String)]
+  // private val unreadMessages: ParTrieMap[Long,(Login, LocalDateTime, String)] = ParTrieMap.empty[Long, (Login, LocalDateTime, String)]
 
 
 
@@ -371,15 +379,17 @@ class ChatManager(var me: User):
 
       // extract all needed data, and update myChats with them
       val newOffset = result.offset() + 1L // to read from this newOffset
-      val updatedChat = chat.copy(
-        offset = newOffset,
-        timeOfLastMessage = TimeConverter.fromMilliSecondsToLocal(result.timestamp())
-      )
+
       myChats.get(chat.chatId) match {
-        case Some(chatAndList) => myChats.update(chat.chatId, (updatedChat, chatAndList._2))
+        case Some(messagePrinter: MessagePrinter) => // myChats.update(chat.chatId, (updatedChat, chatAndList._2))
+          messagePrinter.updateOffsetAndLastMessageTime(newOffset, result.timestamp())
         case None => // we do not update
       }
 
+      val updatedChat: Chat = chat.copy(
+        offset = newOffset,
+        timeOfLastMessage = TimeConverter.fromMilliSecondsToLocal( result.timestamp() )
+      )
 
       // we update offset and message time for this message in DB
       ExternalDB.updateChatOffsetAndMessageTime(me, Seq(updatedChat)) match {

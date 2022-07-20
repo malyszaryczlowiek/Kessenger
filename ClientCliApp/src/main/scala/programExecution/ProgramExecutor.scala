@@ -1,12 +1,7 @@
 package com.github.malyszaryczlowiek
 package programExecution
 
-import java.io.Console
-import scala.util.{Failure, Success, Try}
-import scala.annotation.tailrec
-import scala.collection.immutable
-import scala.collection.mutable.ListBuffer
-import scala.io.StdIn.{readChar, readInt, readLine}
+
 import account.MyAccount
 import db.ExternalDB
 import messages.{ ChatManager, KessengerAdmin}
@@ -18,8 +13,15 @@ import kessengerlibrary.domain.Domain.{Login, Password}
 import kessengerlibrary.kafka.configurators.KafkaProductionConfigurator
 import kessengerlibrary.kafka.errors.KafkaError
 
+import java.io.Console
+
 import scala.::
+import scala.annotation.tailrec
+import scala.collection.immutable
+import scala.collection.mutable.ListBuffer
 import scala.concurrent.Future
+import scala.io.StdIn.{readChar, readInt, readLine}
+import scala.util.{Failure, Success, Try}
 import concurrent.ExecutionContext.Implicits.global
 
 
@@ -32,16 +34,7 @@ object ProgramExecutor :
   def runProgram(args: Array[String]): Unit =
     // if we want to force close program we should close all connections
     // ass well
-    Runtime.getRuntime.addShutdownHook(new Thread(new Runnable() {
-      override
-       def run(): Unit = {
-        manager match {
-          case Some(chatManager: ChatManager) => chatManager.closeChatManager()
-          case None =>
-        }
-        ExternalDB.closeConnection()
-      }
-    }))
+    Runtime.getRuntime.addShutdownHook(new Thread(new Runnable() { override def run(): Unit = { logout() } }))
     val length = args.length
     if length == 0 then
       println(s"Kessenger v0.1.0")
@@ -161,34 +154,33 @@ object ProgramExecutor :
             printMenu()
         }
     }
-    
-  
-  private def initializeUser(user: User): Either[(Option[QueryErrors], Option[KafkaError]), ChatManager] =
-    me = user
-    if user.joiningOffset == -1 then
-      val chatManager = new ChatManager(me, false)
-      tryToStartChatManager(chatManager)
-    else
-      ExternalDB.findUsersChats(user) match {
-        case Left(dbError: QueryErrors)               =>
-          Left(Some(dbError), None)
-        case Right(usersChats: Map[Chat, List[User]]) =>
-          val transform = usersChats.map(
-            (chatList: (Chat, List[User])) =>
-              val chat = chatList._1
-              val users = chatList._2
-              (chat, new ChatExecutor(me, chat, users))
-          )
-          myChats.addAll(transform)
-          val chatManager = new ChatManager(me, true)
-          chatManager.getError match {
-            case ke @ Some(_) =>
-              // if something goes wrong we should close chat manager
-              chatManager.closeChatManager()
-              Left((None, ke))
-            case None         => Right(chatManager)
-          }
-      }
+
+
+//  private def initializeUser(me: User): Either[(Option[QueryErrors], Option[KafkaError]), ChatManager] =
+//    if me.joiningOffset == -1 then
+//      val chatManager = new ChatManager(me, false)
+//      tryToStartChatManager(chatManager)
+//    else
+//      ExternalDB.findUsersChats(user) match {
+//        case Left(dbError: QueryErrors)               =>
+//          Left(Some(dbError), None)
+//        case Right(usersChats: Map[Chat, List[User]]) =>
+//          val transform = usersChats.map(
+//            (chatList: (Chat, List[User])) =>
+//              val chat = chatList._1
+//              val users = chatList._2
+//              (chat, new ChatExecutor(me, chat, users))
+//          )
+//          myChats.addAll(transform)
+//          val chatManager = new ChatManager(me, true)
+//          chatManager.getError match {
+//            case ke @ Some(_) =>
+//              // if something goes wrong we should close chat manager
+//              chatManager.closeChatManager()
+//              Left((None, ke))
+//            case None         => Right(chatManager)
+//          }
+//      }
 
 
   @tailrec
@@ -216,17 +208,12 @@ object ProgramExecutor :
           showSettings() // TODO  implement
           printMenu()
         else if value == 4 then
-          MyAccount.logOut()
-          manager match {
-            case Some(man) =>
-              man.closeChatManager() match {
-                case Some(kafkaError: KafkaError) =>
-                  print(s"${kafkaError.description}\n> ")
-                case None => {}
-              }
-            case None      =>
-          }
-          KessengerAdmin.closeAdmin()
+          logout()
+
+
+
+
+
         else
           println("Wrong number, please select 1, 2, 3 or 4.")
           printMenu()
@@ -539,3 +526,14 @@ object ProgramExecutor :
         setPassword(login, s)
     else
       print("Cannot read user input. Program termination.\n> ")
+
+
+  
+  private def logout(): Unit =
+    manager match {
+      case Some(chatManager: ChatManager) => chatManager.closeChatManager()
+      case None =>
+    }
+    KessengerAdmin.closeAdmin()
+    ExternalDB.closeConnection()
+  end logout
