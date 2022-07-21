@@ -3,13 +3,14 @@ package messages
 
 import account.MyAccount
 import db.ExternalDB
+
+import kessengerlibrary.db.queries.QueryErrors
 import kessengerlibrary.domain.{Chat, Domain, User}
 import kessengerlibrary.domain.Domain.*
 import kessengerlibrary.messages.Message
 import kessengerlibrary.kafka.errors.{KafkaError, KafkaErrorsHandler}
-import kessengerlibrary.db.queries.QueryErrors
+import kessengerlibrary.util.TimeConverter
 
-import com.github.malyszaryczlowiek.kessengerlibrary.util.TimeConverter
 import org.apache.kafka.clients.consumer.{ConsumerRecord, ConsumerRecords, KafkaConsumer}
 import org.apache.kafka.clients.producer.{Callback, KafkaProducer, ProducerRecord, RecordMetadata}
 import org.apache.kafka.common.TopicPartition
@@ -413,6 +414,16 @@ class ChatManager(var me: User):
   def closeChats(): Unit =
     chatProducer.close()
     joinProducer.close()
+
+end ChatManager
+
+object ChatManager:
+
+  given messagePrinterOrdering: Ordering[MessagePrinter] with
+    override def compare(x: MessagePrinter, y: MessagePrinter): Int =
+      if x.getLastMessageTime > y.getLastMessageTime then 1
+      else if x.getLastMessageTime < y.getLastMessageTime then -1
+      else 0
 
 
 

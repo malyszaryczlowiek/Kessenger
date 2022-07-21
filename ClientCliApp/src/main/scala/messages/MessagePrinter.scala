@@ -4,9 +4,10 @@ package messages
 import db.ExternalDB
 import kessengerlibrary.db.queries.QueryErrors
 import kessengerlibrary.domain.{Chat, User}
+import kessengerlibrary.domain.Domain.{ChatId, Login}
+import kessengerlibrary.kafka.errors.{KafkaError, KafkaErrorsHandler}
 import kessengerlibrary.messages.Message
 import kessengerlibrary.util.TimeConverter
-import kessengerlibrary.domain.Domain.{ChatId, Login}
 
 import org.apache.kafka.clients.consumer.{ConsumerRecord, ConsumerRecords, KafkaConsumer}
 import org.apache.kafka.common.TopicPartition
@@ -14,6 +15,7 @@ import org.apache.kafka.common.TopicPartition
 import java.time.{Duration, LocalDateTime}
 import java.util.UUID
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicLong}
+import java.util.List as JList
 
 import scala.collection.immutable
 import scala.collection.parallel.mutable.ParTrieMap
@@ -29,7 +31,7 @@ import concurrent.ExecutionContext.Implicits.global
  * Second target of class is database updates of offset of
  *
  *
- * @param me
+ * @param me {@link User} object who reads from chat.
  * @param chat chat we print messages from
  * @param chatUsers list of all users of chat
  */
@@ -79,7 +81,7 @@ class MessagePrinter(private var me: User, private var chat: Chat, private var c
   /**
    * THis Future object is responsible of collecting messages from
    * kafka broker from specific chat topic.
-   * @see {@link createChatReader()} method implementation.
+   * @see {@link createChatReader createChatReader()} method implementation.
    */
   private var chatReader: Option[Future[Unit]] = None
 
@@ -95,7 +97,7 @@ class MessagePrinter(private var me: User, private var chat: Chat, private var c
 
 
   /**
-   * Method tries to pull chat's user list from db.
+   * Method tries to pull list of chat user from db.
    */
   private def pullChatUsersList(): Unit =
     Future {
@@ -115,9 +117,11 @@ class MessagePrinter(private var me: User, private var chat: Chat, private var c
     }
 
 
-
-
-
+  /**
+   * Method used to starting {@link chatReader}
+   * if it not exists or if it is completed
+   * (due to some exceptions for example).
+   */
   def startMessagePrinter(): Unit =
     if chatReader.isEmpty then
       chatReader = createChatReader()
@@ -127,6 +131,11 @@ class MessagePrinter(private var me: User, private var chat: Chat, private var c
 
 
 
+  /**
+   * Method defines creates {@link chatReader} object.
+   * Internally it uses kafka consumer.
+   * @return
+   */
   private def createChatReader(): Option[Future[Unit]] =
     val future: Future[Unit] = Future {
 
@@ -135,12 +144,12 @@ class MessagePrinter(private var me: User, private var chat: Chat, private var c
       // starting from saved chat offset parameter.
       // note that kafka consumer is closed automatically in
       // this case by Using clause.
-      Using(KessengerAdmin.createChatConsumer(me.userId.toString)) {
+      Using( KessengerAdmin.createChatConsumer(me.userId.toString) ) {
         (chatConsumer: KafkaConsumer[User, Message]) =>
-          val topicPartition0: TopicPartition            = new TopicPartition(chat.chatId, 0)
+          val topicPartition0: TopicPartition = new TopicPartition(chat.chatId, 0)
 
           // assign specific topic and partition to read from
-          chatConsumer.assign(java.util.List.of(topicPartition0))
+          chatConsumer.assign(JList.of(topicPartition0))
 
           // we manually set offset to read from and
           // we start reading from topic from last read message (offset)
@@ -151,22 +160,33 @@ class MessagePrinter(private var me: User, private var chat: Chat, private var c
             val records: ConsumerRecords[User, Message] = chatConsumer.poll(Duration.ofMillis(250))
             records.forEach(
               (record: ConsumerRecord[User, Message]) => {
+
+                // if we need print messages we do it,
+                // otherwise we show notification
+                // and collect messages in buffer.
                 if printMessage.get() then printMessage( record )
                 else showNotification( record )
+
               }
             )
           }
       }
     }
     future.onComplete {
-      case Failure(ex)    =>
-        // if some error occurred we restart chatReader, every 3 seconds
-        if continueReading.get() then
-          // Thread.sleep(3000)
-          println(s"chat reader in MessagePrinter closed.") // TODO DELETE
-          chatReader = None  // watch out of infinite loop when future ends so fast that  onComplete is not defined yet
-        else updateDB()
-      case Success(value) => updateDB()
+      case Failure(ex) =>
+
+        // if somethings will fail, we print error message,
+        KafkaErrorsHandler.handleWithErrorMessage(ex) match
+          case Left(kE: KafkaError) => print(s"${kE.description}. Cannot read messages from server.\n> ")
+          case Right(_)             => // not reachable
+
+        // reassign chatReader object
+        chatReader = None
+
+        // and updated db with last stored offset and message time.
+        updateDB()
+
+      case Success(_) => updateDB()
       // after work we should save new offset and time
     }
     Some(future)
@@ -175,11 +195,10 @@ class MessagePrinter(private var me: User, private var chat: Chat, private var c
 
 
 
-
   /**
    * This method only stops printing messages,
-   * but does not stop Kafka consumer and so
-   * messeges are still collecting in unreadMessages.
+   * but does not stop Kafka consumer so
+   * messages are still collecting in {@link unreadMessages }.
    */
   def stopPrintMessages(): Unit =
     printMessage.set(false)
@@ -188,14 +207,29 @@ class MessagePrinter(private var me: User, private var chat: Chat, private var c
 
 
   /**
-   * Note:
-   * Notifications do not change offset,
-   * because message is still not read.
+   * Method shows notification of incoming messages
+   * and collects these messages in {@link unreadMessages}
+   * buffer. <p>
+   *
+   * @note Notifications do not change offset,
+   *       but change {@link lastMessageTime },
+   *       which is used to sorting all chats in
+   *       descending order of last message time.
    */
   private def showNotification(r: ConsumerRecord[User, Message]): Unit =
     val sender = r.key().login
-    if sender != me.login then // we do not need notification of own messages.
+    if sender != me.login then
+
+      // we do not need notification of own messages.
       print(s"One new message from $sender in chat '${chat.chatName}'.\n> ") // print notification
+
+      // we need to change last message time for sorting purposes
+      lastMessageTime.set( r.timestamp() )
+
+      // and actualize chat object
+      chat = chat.copy(timeOfLastMessage = TimeConverter.fromMilliSecondsToLocal( r.timestamp() ))
+
+      // finally we save last message
       unreadMessages.addOne(r.offset() -> ( r.key(), r.value() ))
 
 
@@ -212,20 +246,35 @@ class MessagePrinter(private var me: User, private var chat: Chat, private var c
    * and so, unreadMessages is not modified in this time.
    */
   def printUnreadMessages(): Unit =
+
+    // we sort unread messages according to ascending offset
     val sorted: immutable.SortedMap[Long, (User, Message)] =
       unreadMessages.seq.to(immutable.SortedMap) // conversion to SortedMap
+
     if sorted.nonEmpty then
       sorted.foreach( (k: Long, v: (User, Message)) => {
+
+        // we update offset and last message time
         updateOffsetAndLastMessageTime( k + 1L, v._2.utcTime )
-        // this prints messages to user
+
+        // we extract and convert required data
         val login = v._1.login
         val time = TimeConverter.fromMilliSecondsToLocal(v._2.utcTime)
+
+        // and we print each message
         print(s"$login $time >> ${v._2.content}\n> ")
-      } )
+      })
     else print("> ")
-    unreadMessages.clear() // clear off ParTreeMap
-    printMessage.set(true) // this going to start printing messages from kafka consumer
+
+    // clear off unreadMessages
+    unreadMessages.clear()
+
+    // set to start printing messages
+    printMessage.set(true)
+
+    // we update offset and last message time to db
     Future { updateDB() }
+
     // and if from some reasons we do not have chatReader started,
     // or is it is completed,
     // we try to restart it now
@@ -236,7 +285,8 @@ class MessagePrinter(private var me: User, private var chat: Chat, private var c
 
 
   /**
-   * This method is always called from external thread (not main),
+   * This method is called in {@link chatReader}
+   * and is called always from external thread (not main),
    * so we can coll updateDB directly in it.
    */
   private def printMessage(r: ConsumerRecord[User, Message]): Unit =
@@ -282,9 +332,26 @@ class MessagePrinter(private var me: User, private var chat: Chat, private var c
     )
 
 
+  /**
+   * Simple chat getter method.
+   * @return {@link chat}
+   */
+  def getChat: Chat = chat
+
+
+  /**
+   * Method
+   * @return
+   */
+  def getLastMessageTime: Long = lastMessageTime.get()
+
+
   def closeMessagePrinter(): Unit =
     continueReading.set(false)
 
 
 end MessagePrinter
 
+//object MessagePrinter:
+//
+//  given orderingMessagePrinter: Ordering[MessagePrinter]
