@@ -417,15 +417,6 @@ class ChatManager(var me: User):
 
 end ChatManager
 
-object ChatManager:
-
-  given messagePrinterOrdering: Ordering[MessagePrinter] with
-    override def compare(x: MessagePrinter, y: MessagePrinter): Int =
-      if x.getLastMessageTime > y.getLastMessageTime then 1
-      else if x.getLastMessageTime < y.getLastMessageTime then -1
-      else 0
-
-
 
 
 

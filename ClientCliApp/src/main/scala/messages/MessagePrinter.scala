@@ -352,6 +352,21 @@ class MessagePrinter(private var me: User, private var chat: Chat, private var c
 
 end MessagePrinter
 
-//object MessagePrinter:
+
+/**
+ * TODO write tests for fake chats with empty
+ *  user lists.
+ */
+object MessagePrinter:
+
+  given messagePrinterOrdering: Ordering[MessagePrinter] with
+    override def compare(x: MessagePrinter, y: MessagePrinter): Int =
+      if x.getLastMessageTime > y.getLastMessageTime then 1
+      else if x.getLastMessageTime < y.getLastMessageTime then -1
+      else 0
+
+  given invertedMessagePrinterOrdering(using normal: Ordering[MessagePrinter]): Ordering[MessagePrinter] with
+    override def compare(x: MessagePrinter, y: MessagePrinter): Int =
+      -1 * normal.compare(x, y)
 //
 //  given orderingMessagePrinter: Ordering[MessagePrinter]
