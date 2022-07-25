@@ -4,7 +4,7 @@ package integrationTests.messages
 import kessengerlibrary.domain.{User, Chat}
 import kessengerlibrary.kafka.configurators.KafkaTestConfigurator
 
-import messages.{ ChatExecutor, ChatManager, KessengerAdmin}
+import messages.{ MessagePrinter, ChatManager, KessengerAdmin}
 
 import integrationTests.IntegrationTestsTrait
 

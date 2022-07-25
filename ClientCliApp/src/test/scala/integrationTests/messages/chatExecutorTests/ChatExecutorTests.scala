@@ -3,7 +3,7 @@ package integrationTests.messages.chatExecutorTests
 
 import account.MyAccount
 import db.ExternalDB
-import messages.{ChatExecutor, ChatManager, KessengerAdmin}
+import messages.{MessagePrinter, ChatManager, KessengerAdmin}
 import messages.KessengerAdmin
 import kessengerlibrary.db.queries.QueryErrors
 import kessengerlibrary.domain.{Chat, User}

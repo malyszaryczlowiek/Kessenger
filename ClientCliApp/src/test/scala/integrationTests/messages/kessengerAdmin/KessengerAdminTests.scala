@@ -2,7 +2,7 @@ package com.github.malyszaryczlowiek
 package integrationTests.messages.kessengerAdmin
 
 
-import messages.{ChatExecutor, ChatManager, KessengerAdmin}
+import messages.{MessagePrinter, ChatManager, KessengerAdmin}
 import integrationTests.messages.KafkaIntegrationTestsTrait
 
 import kessengerlibrary.domain.{Chat, User}

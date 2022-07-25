@@ -32,9 +32,11 @@ object ProgramExecutor :
 
   @tailrec
   def runProgram(args: Array[String]): Unit =
+
     // if we want to force close program we should close all connections
     // ass well
-    Runtime.getRuntime.addShutdownHook(new Thread(new Runnable() { override def run(): Unit = { logout() } }))
+    // Runtime.getRuntime.addShutdownHook(new Thread(new Runnable() { override def run(): Unit = { logout() } }))
+    Runtime.getRuntime.addShutdownHook(new Thread(() => logout()))
     val length = args.length
     if length == 0 then
       println(s"Kessenger v0.1.0")
@@ -131,23 +133,20 @@ object ProgramExecutor :
         queryErrors.listOfErrors.foreach(error => println(s"${error.description}"))
         signIn()
       case Right(user) => // user found
-        // from test purposes, better is to move starting KafkaAdmin out of MyAccount object
-        // TODO **********************************************************************
         KessengerAdmin.startAdmin(new KafkaProductionConfigurator)
         MyAccount.initialize(user) match {
           case Left(errorsTuple) =>
             errorsTuple match {
-              case (Some(dbError), None)     =>
-                println(s"${dbError.listOfErrors.head.description}")
-                printMenu()
+              case (Some(dbErrors), None)     =>
+                // we print the error
+                dbErrors.listOfErrors.foreach(error => println(s"${error.description}"))
+              // and after printing move back to main menu
               case (None, Some(kafkaError))  =>
+                // we print error and move back to main manu
                 println(s"${kafkaError.description}")
-                printMenu()
-              case (Some(dbEr), Some(kafEr)) =>
-                println(s"${dbEr.listOfErrors.head.description}")
-                println(s"${kafEr.description}")
-              case (None, None)              =>
-                printMenu() // Not reachable
+                // and after printing move back to main menu
+              case _ =>
+                println(s"Some undefined error.")
             }
           case Right(chatManager: ChatManager) =>
             manager = Some(chatManager)
@@ -208,12 +207,9 @@ object ProgramExecutor :
           showSettings() // TODO  implement
           printMenu()
         else if value == 4 then
+
+          // TODO when testing take care of closing everything
           logout()
-
-
-
-
-
         else
           println("Wrong number, please select 1, 2, 3 or 4.")
           printMenu()
@@ -361,10 +357,26 @@ object ProgramExecutor :
     else if ChatNameValidator.isValid(name) then
       manager match {
         case Some(chatManager: ChatManager) =>
+
+
+          // ERRORR
+          // TODO noajpierw powinniśmy spróbować utowrzyć odpowiedni topic a czatem
+          //   a dopiero potem próbować dodać userów w db i w kafce
+          //   jeśli to nam failuje to znaczy, że coś jest z kafką i należy następnie spróbować
+          //   w db. jeśli to też failuje to nie można utowrzyć czatu i należy spróbować później.
+
+
+
           ExternalDB.createChat(users, name) match {
             case Left(queryErrors: QueryErrors) =>
               queryErrors.listOfErrors.foreach(error => println(s"${error.description}"))
               Option.empty[Chat]
+
+              // patrz errror powyżej.
+              // TODO tutaj powinniśmy wysłać dane do topików tak aby mieć zduplikowane te dane
+
+
+
             case Right(chat) =>
               // if chat is created correctly in DB,
               // we can create proper kafka topic for this chat
@@ -375,7 +387,7 @@ object ProgramExecutor :
                 case Right(chatt: Chat) =>
                   // if we created proper kafka topic for chat
                   // we send information obout to chat's participants
-                  chatManager.askToJoinChat(users, chatt) match {
+                  chatManager.sendInvitations(chatt, users) match {
                     case Left(kafkaError: KafkaError) =>
                       print(s"${kafkaError.description}, Cannot send invitations to all other users...\n> ")
                       Option.empty[Chat]
@@ -528,7 +540,7 @@ object ProgramExecutor :
       print("Cannot read user input. Program termination.\n> ")
 
 
-  
+
   private def logout(): Unit =
     manager match {
       case Some(chatManager: ChatManager) => chatManager.closeChatManager()
@@ -536,4 +548,5 @@ object ProgramExecutor :
     }
     KessengerAdmin.closeAdmin()
     ExternalDB.closeConnection()
+    manager = None
   end logout

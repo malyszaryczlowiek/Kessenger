@@ -24,13 +24,14 @@ object MyAccount:
     val chatManager = new ChatManager(me)
     if me.joiningOffset == -1 then
       chatManager.tryToCreateJoiningTopic() match {
-//        case Left(kafkaError: KafkaError) =>
-        case ke @ KafkaError(_, KafkaErrorMessage.ChatExistsError) => // here we handle problem when joining topic exists but we could not update joining offset in db earlier
+        // here we handle problem when joining topic exists,
+        // but we could not update joining offset in db earlier
+        case lke @ Left( KafkaError(_, KafkaErrorMessage.ChatExistsError) ) =>
           chatManager.updateOffset(0L)
           // so if user had joining offset > than -1 its means that he could have
           // some chats. So we search them
           findUsersChats(me, chatManager)
-        case kafkaError: KafkaError =>
+        case Left(kafkaError: KafkaError) =>
           // in case of other kafka errors we cannot use
           // chat manager and we return obtained kafka error
           Left(None, Option(kafkaError))
@@ -58,8 +59,11 @@ object MyAccount:
       case Left(dbError: QueryErrors)               =>
         Left(Some(dbError), None)
       case Right(usersChats: Map[Chat, List[User]]) =>
+        // we add all saved in db chats to chat manager
         chatManager.addChats(usersChats)
+        // and start listening from kafka broker
         chatManager.startListeningInvitations()
+        chatManager.startAllChats()
         Right(chatManager)
     }
 

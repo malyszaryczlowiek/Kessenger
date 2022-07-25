@@ -14,7 +14,6 @@ lazy val root = (project in file("."))
       // Kafka Repos
       ("org.apache.kafka" %% "kafka"         % "3.1.0").cross(CrossVersion.for3Use2_13),
       "org.apache.kafka"  %  "kafka-clients" % "3.1.0",
-      // ("org.apache.kafka" %% "kafka-streams-scala" % "3.1.0").cross(CrossVersion.for3Use2_13)
 
 
       // For usage of Scala's parallel collections
@@ -35,7 +34,7 @@ lazy val root = (project in file("."))
 
       // Own library with util and domain classes.
       // https://github.com/malyszaryczlowiek/KessengerLibrary
-      "com.github.malyszaryczlowiek" %% "KessengerLibrary" % "0.1.10",
+      "com.github.malyszaryczlowiek" %% "KessengerLibrary" % "0.1.13",
 
 
       // For Tests

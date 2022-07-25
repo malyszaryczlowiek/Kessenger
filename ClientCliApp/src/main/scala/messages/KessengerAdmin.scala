@@ -197,7 +197,7 @@ object KessengerAdmin {
    * @param userId
    * @return
    */
-  def createJoiningProducer(): KafkaProducer[User, Message] = //???
+  def createJoiningProducer: KafkaProducer[User, Message] = //???
     val properties = new Properties
     properties.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG     , configurator.SERVERS)
     properties.put(ProducerConfig.ACKS_CONFIG                  , "all")    // (1) this configuration specifies the minimum number of replicas that must acknowledge a write for the write to be considered successful

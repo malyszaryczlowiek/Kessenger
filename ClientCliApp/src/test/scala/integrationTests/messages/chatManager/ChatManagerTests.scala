@@ -3,7 +3,7 @@ package integrationTests.messages.chatManager
 
 import account.MyAccount
 import db.ExternalDB
-import messages.{ChatExecutor, ChatManager, KessengerAdmin}
+import messages.{MessagePrinter, ChatManager, KessengerAdmin}
 import messages.KessengerAdmin
 
 import java.time.LocalDateTime

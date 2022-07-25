@@ -3,13 +3,14 @@ package messages
 
 import account.MyAccount
 import db.ExternalDB
-
 import kessengerlibrary.db.queries.QueryErrors
 import kessengerlibrary.domain.{Chat, Domain, User}
 import kessengerlibrary.domain.Domain.*
 import kessengerlibrary.messages.Message
 import kessengerlibrary.kafka.errors.{KafkaError, KafkaErrorsHandler}
 import kessengerlibrary.util.TimeConverter
+import kessengerlibrary.status.Status
+import kessengerlibrary.status.Status.*
 
 import org.apache.kafka.clients.consumer.{ConsumerRecord, ConsumerRecords, KafkaConsumer}
 import org.apache.kafka.clients.producer.{Callback, KafkaProducer, ProducerRecord, RecordMetadata}
@@ -32,30 +33,70 @@ import concurrent.ExecutionContext.Implicits.global
 import scala.collection.parallel.ParIterable
 
 /**
- *
+ * This class is responsible for storing information about user's chats,
+ * sending messages in proper chats, sending and receiving invitations
+ * to chats.
  */
 class ChatManager(var me: User):
 
+
+  /**
+   * Keeps map of user's chats
+   */
   private val myChats: ParTrieMap[ChatId, MessagePrinter] = ParTrieMap.empty[ChatId, MessagePrinter]
 
-  //private val chatsToJoin: ParTrieMap[Chat, User] = ParTrieMap.empty[Chat, User]
 
 
-  // producer is thread safe, so we can keep single object of producer.
-  private val joinProducer: KafkaProducer[User, Message] = KessengerAdmin.createJoiningProducer()
-  // private val chatsToJoin:  ListBuffer[(User, Chat)]  = ListBuffer.empty[(User, Chat)]
+  /**
+   * joinProducer object is responsible for sending invitation
+   * messages to other users.
+   */
+  private val joinProducer: KafkaProducer[User, Message] = KessengerAdmin.createJoiningProducer
 
-  // private var transactionInitialized: Boolean = false
+
+
+  /**
+   * kafka producer used to send messages to specific chat topic.
+   */
+  private val chatProducer:   KafkaProducer[User, Message] = KessengerAdmin.createChatProducer
+
+
+
+  /**
+   * AtomicBoolean value keeping infromation if we should checking
+   * our joining topic. This topic collects logs (invitations)
+   * send from other users when they invite us to join chat.
+   */
   private val continueChecking: AtomicBoolean = new AtomicBoolean(true)
 
 
-  // we will read from topic with name of chatId. Each chat topic
-  // has only one partition (and three replicas)
+
+  /**
+   * Controls current offset of joining offset.
+   * This value is stored in db, and when we start application
+   * value is read in and we can read from topic from specific
+   * offset
+   *
+  */
   private val joinOffset: AtomicLong = new AtomicLong( me.joiningOffset )
 
-  private val errorLock: AnyRef = new AnyRef
 
+
+  /**
+   * Here we store last kafka error occurred.
+   * TODO implement error locking mechanism.
+   */
+  @deprecated("Status used instead")
   private var error: Option[KafkaError] = None
+
+
+  /**
+   * IMplement in Kessenger Library
+   */
+  private var status: Status = NotInitialized
+
+
+
 
   /**
    * This future runs all time during program execution.
@@ -70,74 +111,130 @@ class ChatManager(var me: User):
    */
   private var joiningListener: Option[Future[Unit]] = None
 
-  private val restartingThread: Option[Future[Unit]] = None
 
 
+  /**
+   * Method tries to create joining topic in kafka broker,
+   * and if it does, returns Right object.
+   * Otherwise returns Left object with specific kafka error.
+   * @return
+   */
   def tryToCreateJoiningTopic(): Either[KafkaError, Unit] =
     KessengerAdmin.createJoiningTopic(me.userId) match {
       case l @ Left(kafkaError) => l
       case Right(_) => // joining topic created without errors
-        joinOffset.set( 0L ) // we need to change joining offset because in db is set to -1
+        // we need to change joining offset because in db is set to -1
+        joinOffset.set( 0L )
         Right({})
     }
 
 
-  def addChats(usersChats: Map[Chat, List[User]]): Unit =
-    val mapped = usersChats.map(
-      (chat: Chat, list: List[User]) => chat.chatId -> new MessagePrinter(me, chat, list))
-    myChats.addAll(mapped)
 
-
-
+  /**
+   * This method should be called after
+   * returning right object by method
+   * {@link  tryToCreateJoiningTopic tryToCreateJoiningTopic()}.
+   * <p>
+   * if {@link  tryToCreateJoiningTopic tryToCreateJoiningTopic()}
+   * returns Left object with error other then
+   * {@link com.github.malyszaryczlowiek.kessengerlibrary.kafka.errors.KafkaErrorMessage.ChatExistsError
+   * KafkaErrorMessage.ChatExistsError}
+   * (which means that joining topic already exists),
+   * this means that there is some problems with kafka broker,
+   * and this method should not be called.
+   * This attitude is realized in
+   * {@link MyAccount.initialize MyAccount.initialize()} method.
+   */
   def startListeningInvitations(): Unit =
-//    restartingThread match {
-//      case Some(value) => ???
-//      case None =>
-//        restartingThread = Future {
-//
-//        }
-//    }
-
     joiningListener match {
-      case Some(_) => // if already started we do nothing
-      case None    => joiningListener = assignJoiningListener()
+      case Some(future) =>
+
+        // when joiningListener completed we assign new one.
+        if future.isCompleted && continueChecking.get() then joiningListener = assignJoiningListener()
+
+      // if joining listener is not defined. we assign one
+      case None => joiningListener = assignJoiningListener()
     }
 
 
 
-  def updateOffset(offset: Long): Unit =
-    Future { ExternalDB.updateJoiningOffset(me, offset) }
-    joinOffset.set(offset)
-
-
-
-
-
+  /**
+   * Method defines listener of incomming joining messages from joining topic.
+   *
+   * @return
+   */
   private def assignJoiningListener(): Option[Future[Unit]] =
     val future: Future[Unit] = Future {
-      Using (KessengerAdmin.createJoiningConsumer(me.userId.toString)) {
+
+      // at the beginning we create kafka consumer to consume invitation
+      // from our joining topic.
+      Using(KessengerAdmin.createJoiningConsumer(me.userId.toString)) {
         (joinConsumer: KafkaConsumer[User, Message]) =>
+
+          // we set topic to read from (this topic has only one partition)
           val topic0 = new TopicPartition(Domain.generateJoinId(me.userId), 0)
+
+          // assign this toopic to kafka consumer
           joinConsumer.assign(java.util.List.of(topic0))
+
           // this may throw IllegalArgumentException if joining topic exists,
           // but in db we do not have updated offset
           // and inserted value of joinOffset (taken from db) is -1.
-          joinConsumer.seek(topic0, joinOffset.get() )
-          while ( continueChecking.get() ) {
+
+          // and assign offset for that topic partition
+          joinConsumer.seek(topic0, joinOffset.get())
+
+          // before starting loop pulling, we set status to Starting
+          status.synchronized { status = Starting }
+
+          // Start loop to read from topic
+          while (continueChecking.get()) {
             val records: ConsumerRecords[User, Message] = joinConsumer.poll(java.time.Duration.ofMillis(1000))
+
+            // for each incoming record we extract key (User) and value (Message)
+            // and print notification of chat invitation.
             records.forEach(
               (r: ConsumerRecord[User, Message]) => {
-                val user = r.key()
-                val m: Message = r.value()
-                val groupChat = false // TODO PILNE
-                //todo  ZAIMPLEMENTOWAĆ że MESSAGE PRZENOSI TEŻ INFO czy jest to  GROUP CHAT
-                val chat = Chat(m.chatId, m.chatName, groupChat, 0L, LocalDateTime.MIN)
-                myChats.addOne(chat.chatId -> new MessagePrinter(me, chat, List.empty[User]))
+
+                // extract data
+                val user:      User     = r.key()
+                val m:         Message  = r.value()
+                val groupChat: Boolean  = m.groupChat
+                val time: LocalDateTime = TimeConverter.fromMilliSecondsToLocal( r.timestamp() )
+
+                // set extracted data to chat object
+                val chat = Chat(m.chatId, m.chatName, groupChat, 0L, time)
+
+                // add chat from invitation to mychats only if
+                // we did not do this earlier
+                // we need to avoid override MessagePrinter
+                // if we created this chat, it already exists in myChats,
+                // because was added in sendInvitation() method
+                // Note not sure if starting MessagePrinter in external thread will be safe
+                if !myChats.exists(chatAndPrinter => chatAndPrinter._1 == chat.chatId) then
+                  myChats.addOne(chat.chatId -> new MessagePrinter(me, chat, List.empty[User]))
+
+                  // prepare and print notification
+                  val notification: String = {
+                    if groupChat then
+                      s"You got invitation from ${user.login} to '${chat.chatName}' group chat.\n> "
+                    else
+                      s"You got invitation from ${user.login} to '${chat.chatName}' chat.\n> "
+                  }
+                  print(notification)
+
+
+                // we update joining offset
                 updateOffset(r.offset() + 1L)
-                val group = "group "  // todo test it
-                print(s"You got invitation from ${user.login} to ${if groupChat then group}chat ${chat.chatName}.\n> ")
               }
             )
+
+            // if everything works fine
+            // (we started consumer correctly and has stable connection)
+            // we set status to Running
+            // status is reassigned every 1000 ms (after each while loop).
+            status.synchronized { status = Running }
+
           }
       }
     }
@@ -148,87 +245,95 @@ class ChatManager(var me: User):
             // if we get error in listener and we should listen further,
             // we should restart it.
             if continueChecking.get() then
-              errorLock.synchronized( {
-                KafkaErrorsHandler.handleWithErrorMessage[Unit](ex) match {
-                  case Left(kError: KafkaError) => error = Some(kError)
-                  case Right(_)                 => error = None // this will never be called
-                }
-              } )
-              // we try to restart
-              println(s"chat manager restarted.") // TODO DELETE
-              // joiningListener = assignJoiningListener() // TODO i switch off restarting
-              joiningListener = None
+              KafkaErrorsHandler.handleWithErrorMessage[Unit](ex) match {
+                case Left(kError: KafkaError) =>
+                  print(s"${kError.description}. Connection lost.\n> ")  // TODO DELETE
+
+                  // we set status to error
+                  status.synchronized { status = Error }
+                case Right(_)                 => status.synchronized { status = Error } // this will never be called
+              }
             else
-              // if we should not listen further we reassign to None
-              println(s"chat manager listener reassigned to none. ") // TODO DELETE
-              error = None
-              joiningListener = None
+              // if we do not need read messages from kafka broker we set
+              // status Closing
+              status.synchronized { status = Closing }
           case Success(_) =>
-            // if we closed this future successfully, we simply reassign to None
-            error = None
-            joiningListener = None
+            //
+            status.synchronized { status = Closing }
         }
+        // after completion we reassign joiningListener to none
+        joiningListener = None
       }
     )
     Some(future)
 
-/*
-                ExternalDB.findChatAndUsers(me, chatId) match {
-                  case Right((chat: Chat, users: List[User])) =>
-                    MyAccount.getMyChats.find(chatAndExecutor => chatAndExecutor._1.chatId == chat.chatId) match {
-                      // if chat already exists in my chat list, do nothing, we must not add this chat to list of my chats
-                      case Some(_) => ()
-                      case None =>
-                        users.find(_.userId == userID) match {
-                          case Some(user) => print(s"You got invitation from ${user.login} to chat ${chat.chatName}.\n> ")
-                          case None       => print(s"Warning!?! Inviting user not found???\n> ")
-                        }
-
-                        updateUsersOffset(  )
-                    }
-                  case Left(_) => () // if errors, do nothing, because I added in users_chats
-                  // so in next logging chat will show up.
-                }
-
-*/
 
 
-/*
-// todo przepisać to do KafkaKonfiguratora w Kessenger library
-  * I set auto.create.topics.enable to false, to not create
-   * automatically topics when they not exists, due to this option
-   * send() method hangs.
-   *
-// TODO to jest skonfigurowane w docker-compose.
-*/
-
-
-
-
-
-
-  def getError: Option[KafkaError] =
-    errorLock.synchronized( {
-      val toReturn = error
-      error = None
-      toReturn
-    } )
-
-
+  /**
+   * This method adds
+   * @param usersChats
+   */
+  def addChats(usersChats: Map[Chat, List[User]]): Unit =
+    val mapped = usersChats.map(
+      (chat: Chat, list: List[User]) => chat.chatId -> new MessagePrinter(me, chat, list))
+    myChats.addAll(mapped)
 
 
 
   /**
+   *
+   */
+  def startAllChats(): Unit =
+    myChats.foreach(_._2.startMessagePrinter())
+
+
+
+  /**
+   * This method updates joining offset in db.
+   * @param offset
+   */
+  def updateOffset(offset: Long): Unit =
+    Future { ExternalDB.updateJoiningOffset(me, offset) }
+    joinOffset.set(offset)
+
+
+
+  /**
+   * TODO delete usege of error
+   * @return
+   */
+  def getError: Option[KafkaError] =
+    printReassignmentInfo()  // TODO DELETE uesd for testing
+    error.synchronized {
+      val toReturn = error
+      error = None
+      toReturn
+    }
+
+
+  /**
+   * Returns status of MessagePrinter
+   */
+  def getStatus: Status = status.synchronized { status }
+
+
+  /**
+   * TODO this method is not used yet - use it
+   *
    * This method sends invitations to chat,
    * to all selected users and myself.
+   *
+   * It is good to send to ourself,
+   * because in case of db failure, we still have information
+   * that we attend in this chat.
    *
    * This may return kafkaError if some user has no created joining topic
    *
    * @param users selected users to add to chat
    * @param chat  chat to join. May exists earlier or be newly created.
    */
-  def askToJoinChat(users: List[User], chat: Chat): Either[KafkaError, Chat] =
-    val listOfErrors: List[Either[KafkaError, Chat]] = users.filter(u => u.userId != me.userId )
+  def sendInvitations(chat: Chat, users: List[User]): Either[KafkaError, (Chat, List[User])] =
+    val listOfErrorsAndUsers: List[Either[KafkaError, User]] = users.filter(u => u.userId != me.userId )
       .map(u => {
         val joiningTopicName = Domain.generateJoinId(u.userId)
         val recordMetadata: java.util.concurrent.Future[RecordMetadata] =
@@ -238,127 +343,84 @@ class ChatManager(var me: User):
             System.currentTimeMillis(),
             ZoneId.systemDefault(),
             chat.chatId,
-            chat.chatName
+            chat.chatName,
+            chat.groupChat
           )
-          // TODO tutaj przeanalizować to wysyłanie.
+
+          // here we define callback of send() method
+          val callback: Callback = (metadata: RecordMetadata, ex: Exception) =>
+            if ex != null then print(s"Error! Sending invitation to ${u.login} failed.\n> ")
+            else print(s"Invitation send to ${u.login}.\n> ")
+
+          // and we send invitation to user's joining topic
+          // according to documentation sending is asynchronous,
+          // so we do not need do it in separate threads
           joinProducer.send(
             new ProducerRecord[User, Message](joiningTopicName, me, message),
-            (metadata: RecordMetadata, ex: Exception) =>
-              if ex != null then print(s"Error sending invitation to ${u.login}.\n> ")
-              else print(s"Invitation send to ${u.login}.\n> ")
+            callback
           )
-        recordMetadata
+
+        // RecordMetadata and user are returned tuple object
+        (recordMetadata, u)
         }
       )
       .map(
-        (recordMetadata: java.util.concurrent.Future[RecordMetadata]) =>
+        (recordAndUser: (java.util.concurrent.Future[RecordMetadata], User)) => {
           Try {
-            recordMetadata.get()
-            chat
+            recordAndUser._1.get()  // RecordMetadata
+            recordAndUser._2        // User
           } match {
             case Failure(ex)   =>
-              KafkaErrorsHandler.handleWithErrorMessage[Chat](ex)
-            case Success(chat) =>
-              Right(chat)
+              KafkaErrorsHandler.handleWithErrorMessage[User](ex)
+            case Success(user) =>
+              Right(user)
           }
-      )
-      .filter( either =>
-        either match {
-          case Left(er) => true
-          case Right(_) => false
         }
       )
-    if listOfErrors.isEmpty then
-      // myChats.addOne() // todo dodać jeszcze czat
-      Right(chat)
+
+    // we filter off errors
+    val errors = listOfErrorsAndUsers.filter {
+        case Left(er) => true
+        case Right(_) => false
+    }
+
+    // we filter off users whom invitation was sent
+    val addedUsers = listOfErrorsAndUsers.filterNot {
+      case Left(er) => true
+      case Right(_) => false
+    }
+
+    // if no errors we add created chat to our chat list
+    if errors.isEmpty then
+      addChats(Map(chat -> users))
+      Right((chat,users))
+
+    // if some errors occurred we check if number of errors
+    // is equal to numbers of users
     else
-      listOfErrors.head
 
+      // if number of errors is not equal of number of users
+      // we extract users who did not get invitation
+      // and notify sender of this fact
+      if errors.size < users.size then
+        users.filterNot(u => addedUsers.contains(Right(u)))
+          .foreach(u => print(s"Error, Cannot send invitation to ${u.login}.\n> "))
 
+      // if size is equal we print information of first kafka error occured
+      // we extract only first error to not bombard user with others errors
+      errors.head match {
+        // we reassign to another left
+        case Left(kafkaError) => Left(kafkaError)
+        case Right(_) => Right((chat, users)) // not reachable because in errors we have only Left
+      }
 
 
 
   /**
-   *
+   * Message is used to sendting messages to specific chat.
+   * @param chat    chat where we want to send message
+   * @param content content of message
    */
-  def closeChatManager(): Option[KafkaError] =
-    Try {
-      // TODO Tutaj upchnąć wszystkie rzeczy, które należy pozamykać.
-      joinProducer.close()
-      continueChecking.set(false)
-      if joiningListener.isDefined then
-        joiningListener.get.onComplete {
-          // TODO delete, used for tests
-          case Failure(exception) =>
-            println(s"join consumer closed with Error.")
-          case Success(unitValue) => // we do nothing
-          // println(s"option listener w Chat Manager zamknięty normalnie. ")  // TODODELETE
-        }
-    } match {
-      case Failure(ex) =>
-        KafkaErrorsHandler.handleWithErrorMessage(ex) match {
-          case Left(kError: KafkaError) => Option(kError)
-          case Right(value)             => None // this will never be called
-        }
-      case Success(_) => None
-    }
-
-
-
-
-
-
-
-
-
-
-
-
-  /*
-   *  Methods addopted from deprecated MyAccount object
-  */
-  // TODo this method may be implemented in the future
-//  def removeChat(chatToRemove: Chat): Unit =
-//    myChats.remove(chatToRemove.chatId) match {
-//      case Some((chat, list)) =>
-//        print(s"Chat '${chat.chatName}' removed.\n>")
-//      case None =>
-//        print(s"Error, cannot find chat '${chatToRemove.chatName}'.\n> ")
-//    }
-
-
-  //    myChats.find( (chatId: ChatId, _) => chatId == chatToRemove.chatId) match {
-//      case None               =>
-//        print(s"Cannot remove chat '${chatToRemove.chatName}'. Does not exist in chat list.\n> ")
-//      case Some((found, _)) =>
-//        myChats.remove(found)
-//        print(s"Chat '${found.chatName}' removed from list.\n> ")
-//    }
-
-
-  def getMyObject: User = me
-
-
-
-
-
-
-
-  //*****************************
-  // Sending new messages
-  //*****************************
-
-
-
-  // we will read from topic with name of chatId. Each chat topic
-  // has only one partition (and three replicas)
-  private val chatProducer:   KafkaProducer[User, Message] = KessengerAdmin.createChatProducer
-
-  // (offset, (login, date, message string))
-  // private val unreadMessages: ParTrieMap[Long,(Login, LocalDateTime, String)] = ParTrieMap.empty[Long, (Login, LocalDateTime, String)]
-
-
-
   def sendMessage(chat: Chat, content: String): Unit =
     Future {
 
@@ -369,7 +431,8 @@ class ChatManager(var me: User):
         System.currentTimeMillis(),
         ZoneId.systemDefault(),
         chat.chatId,
-        chat.chatName
+        chat.chatName,
+        chat.groupChat
       )
       val fut = chatProducer.send(new ProducerRecord[User, Message](chat.chatId, me, message)) // , callBack)
 
@@ -395,25 +458,55 @@ class ChatManager(var me: User):
       // we update offset and message time for this message in DB
       ExternalDB.updateChatOffsetAndMessageTime(me, Seq(updatedChat)) match {
         case Left(queryErrors: QueryErrors) =>
-        // queryErrors.listOfErrors.foreach(error => println(s"${error.description}"))
-        // print(s"Leave the chat, and back in a few minutes.\n> ")
         case Right(value) =>
-        // we do not need to notify user (sender)
-        // that some values were updated in DB.
       }
     }
 
 
+
+
+
+
+
   /**
-   * Method closes producer, closes consumer loop in another thread,
-   * with closing that thread and closes consumer object.
-   *
-   * @return returns chat object with updated offset,
-   *         which must be saved to DB subsequently.
+   * This method is used to closing all connections with
+   * kafka broker, irrelevant it is consumer or producer connection.
    */
-  def closeChats(): Unit =
-    chatProducer.close()
-    joinProducer.close()
+  def closeChatManager(): Option[KafkaError] =
+    Try {
+      // switch off main loop fo joining consumer in joining listener
+      // it is only place where we set false to continueChecking
+      continueChecking.set(false)
+
+      // close both producers
+      joinProducer.close()
+      chatProducer.close()
+
+      // we close all message printers which are still running
+      myChats.values.foreach(_.closeMessagePrinter())
+
+      // we clear our chat list.
+      myChats.clear()
+
+      // and set status to terminated
+      status.synchronized { status = Terminated }
+
+    } match {
+      case Failure(ex) =>
+        KafkaErrorsHandler.handleWithErrorMessage(ex) match {
+          case Left(kError: KafkaError) => Option(kError)
+          case Right(value)             => None // this will never be called
+        }
+      case Success(_) => None
+    }
+  end closeChatManager
+
+
+
+  private def printReassignmentInfo(): Unit =
+    println(s"Error object reassigned")
+
+
 
 end ChatManager
 
@@ -424,69 +517,23 @@ end ChatManager
 
 
 
+/*
+ * I set auto.create.topics.enable to false, to not create
+ * automatically topics when they not exists, due to this option
+ * send() method hangs.
+ */
 
 
 
 
 
+//  this method may be implemented in the future
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-//    Try {
-//      if transactionInitialized then
-//        println(s"TRANSACTION NOT INITIALIZED") // TODO DELETE
-//        sendInvitations(users, chat)
-//      else
-//        // before each transaction join producer must be
-//        // initialized exactly one time.
-//        println(s"BEFORE TRANSACTION INITIALIZATION")// TODO DELETE
-//        // joinProducer.initTransactions()
-//        println(s"TRANSACTION INITIALIZED")// TODO DELETE
-//        sendInvitations(users, chat)
-//        transactionInitialized = true
-//    } match {
-//      case Failure(ex) =>
-//        restartProducer()
-//        KafkaErrorsHandler.handleWithErrorMessage[Chat](ex)
-//      case Success(_)  => Right(chat)
+//  def removeChat(chatToRemove: Chat): Unit =
+//    myChats.remove(chatToRemove.chatId) match {
+//      case Some((chat, list)) =>
+//        print(s"Chat '${chat.chatName}' removed.\n>")
+//      case None =>
+//        print(s"Error, cannot find chat '${chatToRemove.chatName}'.\n> ")
 //    }
-
-
-
-  /**
-   * In this method w send joining to chat information to
-   * users, but we must do it in different thread, because of
-   * blocking nature of send() method in case of sending
-   * to non existing topic.
-   *
-
-   * But, even if here we cannot send invitations to some set of users,
-   * (because of for example  not created joining topic), is not a problem,
-   * because of users have information about new chat in DB.
-   * So when they log in again, they will get information from DB obout new chat.
-   *
-   *
-   */
-//  @deprecated
-//  private def sendInvitations(users: List[User], chat: Chat): Unit =
-//    // we start future and forget it.
-//    Future {
-//      joinProducer.beginTransaction()
-//
-//      joinProducer.commitTransaction()
-//    }
-//    MyAccount.addChat(chat, users)
 
