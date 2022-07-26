@@ -303,8 +303,8 @@ class MessagePrinter(private var me: User, private var chat: Chat, private var c
 
     // we extract valuable informations from consumer record
     val localTime: LocalDateTime = TimeConverter.fromMilliSecondsToLocal( r.timestamp() )
-    val sender: User = r.key()
-    val message = r.value()
+    val sender:    User          = r.key()
+    val message:   Message       = r.value()
 
     // check if unread messages is empty or not
     if unreadMessages.isEmpty then
@@ -372,10 +372,12 @@ class MessagePrinter(private var me: User, private var chat: Chat, private var c
   def updateOffsetAndLastMessageTime(offset: Long, newLastMessageTime: Long): Unit =
     newOffset.set( offset )
     lastMessageTime.set( newLastMessageTime )
-    chat = chat.copy(
-      offset = offset,
-      timeOfLastMessage = TimeConverter.fromMilliSecondsToLocal(newLastMessageTime)
-    )
+    chat.synchronized{
+      chat = chat.copy(
+        offset = offset,
+        timeOfLastMessage = TimeConverter.fromMilliSecondsToLocal(newLastMessageTime)
+      )
+    }
 
 
 
@@ -392,6 +394,13 @@ class MessagePrinter(private var me: User, private var chat: Chat, private var c
    * @return
    */
   def getLastMessageTime: Long = lastMessageTime.get()
+
+
+  /**
+   *
+   * @return
+   */
+  def getStatus: Status = status.synchronized { status }
 
 
 
@@ -433,10 +442,10 @@ end MessagePrinter // end of class definition
  */
 object MessagePrinter:
 
-  given messagePrinterOrdering: Ordering[MessagePrinter] with
+  given messagePrinterReverseOrdering: Ordering[MessagePrinter] with
     override def compare(x: MessagePrinter, y: MessagePrinter): Int =
-      if x.getLastMessageTime > y.getLastMessageTime then 1
-      else if x.getLastMessageTime < y.getLastMessageTime then -1
+      if x.getLastMessageTime < y.getLastMessageTime then 1
+      else if x.getLastMessageTime > y.getLastMessageTime then -1
       else 0
 
 end MessagePrinter

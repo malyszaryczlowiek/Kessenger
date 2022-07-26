@@ -34,7 +34,7 @@ lazy val root = (project in file("."))
 
       // Own library with util and domain classes.
       // https://github.com/malyszaryczlowiek/KessengerLibrary
-      "com.github.malyszaryczlowiek" %% "KessengerLibrary" % "0.1.13",
+      "com.github.malyszaryczlowiek" %% "KessengerLibrary" % "0.1.14",
 
 
       // For Tests

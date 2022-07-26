@@ -3,6 +3,7 @@ package messages
 
 import account.MyAccount
 import db.ExternalDB
+
 import kessengerlibrary.db.queries.QueryErrors
 import kessengerlibrary.domain.{Chat, Domain, User}
 import kessengerlibrary.domain.Domain.*
@@ -20,17 +21,17 @@ import java.time.{LocalDateTime, ZoneId}
 import java.util.UUID
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicLong}
+
 import scala.annotation.tailrec
+import scala.collection.immutable.SortedSet
 import scala.collection.mutable.ListBuffer
 import scala.collection.parallel.mutable.ParTrieMap
-import scala.collection.parallel.mutable.ParSeq
 import scala.concurrent.{Await, Future}
 import scala.concurrent.duration.{Duration, SECONDS}
 import scala.io.StdIn.readLine
 import scala.util.{Failure, Success, Try, Using}
 import scala.concurrent.impl.Promise
 import concurrent.ExecutionContext.Implicits.global
-import scala.collection.parallel.ParIterable
 
 /**
  * This class is responsible for storing information about user's chats,
@@ -83,18 +84,9 @@ class ChatManager(var me: User):
 
 
   /**
-   * Here we store last kafka error occurred.
-   * TODO implement error locking mechanism.
-   */
-  @deprecated("Status used instead")
-  private var error: Option[KafkaError] = None
-
-
-  /**
-   * IMplement in Kessenger Library
+   * Current status of chat manager
    */
   private var status: Status = NotInitialized
-
 
 
 
@@ -115,14 +107,15 @@ class ChatManager(var me: User):
 
   /**
    * Method tries to create joining topic in kafka broker,
-   * and if it does, returns Right object.
+   * and if it does, returns Right(Unit) object.
    * Otherwise returns Left object with specific kafka error.
    * @return
    */
   def tryToCreateJoiningTopic(): Either[KafkaError, Unit] =
     KessengerAdmin.createJoiningTopic(me.userId) match {
       case l @ Left(kafkaError) => l
-      case Right(_) => // joining topic created without errors
+      case Right(_) =>
+        // joining topic created without errors
         // we need to change joining offset because in db is set to -1
         joinOffset.set( 0L )
         Right({})
@@ -299,22 +292,24 @@ class ChatManager(var me: User):
 
 
   /**
-   * TODO delete usege of error
-   * @return
-   */
-  def getError: Option[KafkaError] =
-    printReassignmentInfo()  // TODO DELETE uesd for testing
-    error.synchronized {
-      val toReturn = error
-      error = None
-      toReturn
-    }
-
-
-  /**
    * Returns status of MessagePrinter
    */
   def getStatus: Status = status.synchronized { status }
+
+
+
+  /**
+   * This method converts myChats map to sorted
+   * list of chats.
+   * (sorting according to the newest incomming message)
+   * @return Sorted list os chats.
+   */
+  def getUsersChats: List[Chat] =
+    myChats.values.seq.map(_.getChat).toList.sorted
+
+  def getMessagePrinter(chat: Chat): Option[MessagePrinter] =
+    myChats.get(chat.chatId)
+
 
 
   /**

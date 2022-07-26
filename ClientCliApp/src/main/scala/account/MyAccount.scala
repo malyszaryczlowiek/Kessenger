@@ -56,14 +56,19 @@ object MyAccount:
    */
   private def findUsersChats(me: User, chatManager: ChatManager): Either[(Option[QueryErrors], Option[KafkaError]), ChatManager] =
     ExternalDB.findUsersChats(me) match {
-      case Left(dbError: QueryErrors)               =>
-        Left(Some(dbError), None)
+      case Left(dbError: QueryErrors) => Left(Some(dbError), None)
       case Right(usersChats: Map[Chat, List[User]]) =>
+
         // we add all saved in db chats to chat manager
         chatManager.addChats(usersChats)
+
         // and start listening from kafka broker
         chatManager.startListeningInvitations()
+
+        // we start all MessagePrinters to collect new incoming messages
         chatManager.startAllChats()
+
+        // and return chatManager object finally
         Right(chatManager)
     }
 
