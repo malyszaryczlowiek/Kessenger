@@ -16,6 +16,7 @@ import kessengerlibrary.status.Status
 import kessengerlibrary.status.Status.{Closing, NotInitialized, Running, Starting, Terminated}
 
 import java.io.Console
+
 import scala.::
 import scala.annotation.tailrec
 import scala.collection.immutable
@@ -54,8 +55,9 @@ object ProgramExecutor :
             runProgram(Array.empty)
           else if value == 2 then
             createAccount()
-            runProgram(Array.empty)
+            // runProgram(Array.empty)
           else if value == 3 then
+            KessengerAdmin.closeAdmin()
             ExternalDB.closeConnection() match {
               case Success(_) =>
                 print(s"Disconnected with DB.\n")
@@ -106,7 +108,7 @@ object ProgramExecutor :
         print("> ")
         lazy val pass = console.readPassword()
         if pass != null then
-          ExternalDB.findUsersSalt(login) match { // TODO to powoduje problem jak nie ma na samym początku connection
+          ExternalDB.findUsersSalt(login) match { // TODO here is problem if we do not have connection to DB
             case Right(salt) =>
               lazy val password = pass.mkString("")
               PasswordConverter.convert(password, salt) match {
@@ -210,8 +212,6 @@ object ProgramExecutor :
           showSettings() // TODO  implement
           printMenu()
         else if value == 4 then
-
-          // TODO when testing take care of closing everything
           logout()
         else
           println("Wrong number, please select 1, 2, 3 or 4.")
@@ -397,7 +397,7 @@ object ProgramExecutor :
               manager.sendInvitations(chatt, users) match {
                 case Left(kafkaError: KafkaError) =>
                   print(s"Chat created, but cannot send invitations to all selected users. See Error below...")
-                  print(s"${kafkaError.description},\n> ")
+                  print(s"${kafkaError.description},\n")
                   // here chat exists only in db but if someone
                   // log in and read in his own chats,
                   // this chat will show up to him
@@ -412,8 +412,13 @@ object ProgramExecutor :
 
 
 
-
-
+  /**
+   * Note -- this method is blocking because,
+   * we need confirmation from DB of removal
+   * proper records.
+   *
+   * @param chat chat we want to escape
+   */
   private def escapeChat(chat: Chat): Unit =
     print(s"Escaping chat, please wait...\n> ")
     ExternalDB.deleteMeFromChat(me, chat) match {
@@ -422,37 +427,10 @@ object ProgramExecutor :
         println(s"Cannot escape chat. Please try again later.")
       case Right(chatUsers: Int)      =>
         manager.sendMessage(chat, s"## ${me.login} Stopped participating in chat. ##")
-        manager.escapeChat(chat)
-
-        // TODO ******************************
-
-        // TODO here continue reimpelementaiton
-
-        // TODO ******************************
-
-        val removedChat = executor.getChat
-        MyAccount.removeChat( removedChat )
-        print(s"You escaped chat '${removedChat.chatName}'.\n> ")
-        if chatUsers == 0 then
-          // if In chat is no more users we need remove topic from kafka Broker.
-          Future {
-            ExternalDB.deleteChat(removedChat) match {
-              case Left(qErrors: QueryErrors) =>
-                qErrors.listOfErrors.foreach(qe => print(s"${qe.description}\n> "))
-                // println(s"Nie MOżnA USUnąć za bazy danych czatu. ") // DELETE
-              case Right(chatUsers: Int) =>
-                // print(s"$chatUsers czat usunięty z tablei chats") // DELETE
-            }
-          }
-          Future {
-            KessengerAdmin.removeChat(removedChat) match {
-              case Left(ke: KafkaError)      =>
-                // print(s"ERROR przy permanentnym usuwaniu topika czatu.\n> ") // DELETE
-                // if we got error we do not inform user about
-              case Right(permanentlyRemovedChat) =>
-                print(s"Chat ${permanentlyRemovedChat.chatName} was removed permanently.\n> ")
-            }
-          }
+        manager.escapeChat(chat)  // TODO implement
+        print(s"You escaped chat '${chat.chatName}'.\n> ")
+        // we do not delete chat topic because
+        // it is useful for some analytics
     }
 
 
@@ -515,26 +493,52 @@ object ProgramExecutor :
             case Right(p) =>
               ExternalDB.createUser(login, p, salt) match {
                 case Left(QueryErrors(List(QueryError(queryErrorType, description)))) =>
-                  print(s"Error: $description\n> ")
-                  print(s"You are moved back to User Creator.\n> ")
-                  createAccount()
+                  // we print notification about error
+                  // and return to main menu
+                  print(s"Cannot create user account. See error below.\n> ")
+                  print(s"$description\n> ")
+                  // and return to login menu
+                  runProgram(Array.empty)
                 case Right(user: User) =>
-                  // from test purposes, better is to move starting KafkaAdmin out of MyAccount object
+                  // when user is created we need start Kessenger Admin for them.
                   KessengerAdmin.startAdmin(new KafkaProductionConfigurator)
-                  MyAccount.initializeAfterCreation(user) match {
+                  // And initialize it.
+                  MyAccount.initialize(user) match {
+                    // if initialization returns error we should print it
+                    // and start program at the beginning
                     case Left((dbError, kafkaError)) =>
                       (dbError, kafkaError) match {
-                        case (Some(db), None)      => db.listOfErrors.foreach(error => print(s"${error.description}\n> "))
-                        case (None, Some(kaf))     => print(s"${kaf.description}\n> ")
+                        case (Some(db), None)      =>
+                          // print error message
+                          print(s"Cannot load chats from Database. See Error below...")
+                          db.listOfErrors.foreach(error => print(s"${error.description}\n> "))
+                          // and return to login menu
+                          runProgram(Array.empty)
+                        case (None, Some(kaf))     =>
+                          // print error cannot connect to kafka broker
+                          print(s"Cannot connect to chat server. See Error below...")
+                          print(s"${kaf.description}\n> ")
+                          // and return to login menu
+                          runProgram(Array.empty)
                         case (Some(db), Some(kaf)) =>
+                          // case not reachable
                           db.listOfErrors.foreach(error => print(s"${error.description}\n> "))
                           print(s"${kaf.description}\n> ")
-                        case _                     => print(s"Undefined Error\n> ") // not reachable
+                          runProgram(Array.empty)
+                        case _                     =>
+                          // case not reachable
+                          print(s"Undefined Error\n> ")
+                          runProgram(Array.empty)
                       }
                     case Right(chatManager: ChatManager) =>
-                      // we assign chatManager and return to menu
-                      manager = Some(chatManager)
+                      // if we properly created joining topic
+                      // we save user object
+                      me = user.copy(salt = None)
+                      // and save its chat manager
+                      manager = chatManager
                       print(s"Account created correctly. Please Sign in now.\n")
+                      // and finally shows users menu.
+                      printMenu()
                   }
                 case _ =>
                   print("Undefined error.\n> ")
@@ -550,14 +554,9 @@ object ProgramExecutor :
     else
       print("Cannot read user input. Program termination.\n> ")
 
+  end setPassword
+
 
 
   private def logout(): Unit =
-    manager match {
-      case Some(chatManager: ChatManager) => chatManager.closeChatManager()
-      case None =>
-    }
-    KessengerAdmin.closeAdmin()
-    ExternalDB.closeConnection()
-    manager = None
-  end logout
+    manager.closeChatManager()

@@ -33,7 +33,9 @@ object MyAccount:
           findUsersChats(me, chatManager)
         case Left(kafkaError: KafkaError) =>
           // in case of other kafka errors we cannot use
-          // chat manager and we return obtained kafka error
+          // chat manager
+          chatManager.closeChatManager()
+          // and we return obtained kafka error
           Left(None, Option(kafkaError))
         case Right(_) =>
           // in case when we created joining topic correctly
@@ -56,7 +58,15 @@ object MyAccount:
    */
   private def findUsersChats(me: User, chatManager: ChatManager): Either[(Option[QueryErrors], Option[KafkaError]), ChatManager] =
     ExternalDB.findUsersChats(me) match {
-      case Left(dbError: QueryErrors) => Left(Some(dbError), None)
+      case Left(dbError: QueryErrors) =>
+
+        // because we do not use chatManager
+        // we close it
+        chatManager.closeChatManager()
+
+        // and return obtained error message
+        Left(Some(dbError), None)
+
       case Right(usersChats: Map[Chat, List[User]]) =>
 
         // we add all saved in db chats to chat manager

@@ -164,6 +164,9 @@ class MessagePrinter(private var me: User, private var chat: Chat, private var c
           // we start reading from topic from last read message (offset)
           chatConsumer.seek(topicPartition0, newOffset.get() )
 
+          // before starting loop pulling, we set status to Starting
+          status.synchronized { status = Starting }
+
           // then we start reading from topic
           while (continueReading.get()) {
             val records: ConsumerRecords[User, Message] = chatConsumer.poll(jDuration.ofMillis(250))
@@ -178,7 +181,14 @@ class MessagePrinter(private var me: User, private var chat: Chat, private var c
 
               }
             )
-          }
+
+            // if everything works fine
+            // (we started consumer correctly and has stable connection)
+            // we set status to Running
+            // status is reassigned every 250 ms (after each while loop).
+            status.synchronized { status = Running }
+
+          }  // end of while
       }
     }
     future.onComplete {
@@ -397,7 +407,7 @@ class MessagePrinter(private var me: User, private var chat: Chat, private var c
 
 
   /**
-   *
+   * Returns current status of MessagePrinter.
    * @return
    */
   def getStatus: Status = status.synchronized { status }
@@ -416,6 +426,9 @@ class MessagePrinter(private var me: User, private var chat: Chat, private var c
 
     // clear all unread messages
     unreadMessages.clear()
+
+    // and set status to terminated
+    status.synchronized { status = Terminated }
 
     // closing chatReader is unnecessary in this case.
 //    chatReader match

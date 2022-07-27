@@ -459,7 +459,20 @@ class ChatManager(var me: User):
 
 
 
-
+  /**
+   * In this method we close proper
+   * MessagePrinter object and remove it
+   * from myChat map.
+   * @param chat chat to remove.
+   */
+  def escapeChat(chat: Chat): Unit =
+    myChats.get(chat.chatId) match {
+      case Some(messagePrinter: MessagePrinter) =>
+        messagePrinter.stopPrintMessages()
+        messagePrinter.closeMessagePrinter()
+        myChats.remove(chat.chatId)
+      case None => {} // rather unreachable
+    }
 
 
 

@@ -4,7 +4,7 @@ package unitTests.messages
 import kessengerlibrary.domain.{Chat, User}
 
 import messages.MessagePrinter
-import messages.MessagePrinter.messagePrinterOrdering  // given
+import messages.MessagePrinter.messagePrinterReverseOrdering  // given
 
 import java.time.{LocalDateTime, Month}
 import java.util.UUID
@@ -23,10 +23,10 @@ class MessagePrinterTests extends munit.FunSuite:
     val printer2 = new MessagePrinter(user, chat2, List(user))
 
 
-    val value1 = messagePrinterOrdering.compare(printer2, printer1)
+    val value1 = messagePrinterReverseOrdering.compare(printer2, printer1)
     println(s"value = $value1")
 
-    assert( value1 > 0 ,s"value is =< 0" )
+    assert( value1 < 0 ,s"value is =< 0" )
   }
 
 end MessagePrinterTests

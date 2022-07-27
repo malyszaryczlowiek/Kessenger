@@ -2,7 +2,7 @@ package com.github.malyszaryczlowiek
 
 import scala.collection.parallel.mutable.ParTrieMap
 
-class OtherTests extends munit.FunSuite {
+class OtherTests extends munit.FunSuite:
 
   test("String evaluation test") {
 
@@ -13,6 +13,8 @@ class OtherTests extends munit.FunSuite {
     println(s"${if ex then toPrint}")
 
   }
+
+
 
   test("addition pair if key exists") {
 
@@ -29,4 +31,4 @@ class OtherTests extends munit.FunSuite {
 
   }
 
-}
+end OtherTests
