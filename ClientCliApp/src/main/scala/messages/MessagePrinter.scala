@@ -100,8 +100,8 @@ class MessagePrinter(private var me: User, private var chat: Chat, private var c
    * chat users, we retry to get it.
    * This instruction is called in constructor.
    */
-  if chatUsers.isEmpty then
-    pullChatUsersList()
+//  if chatUsers.isEmpty then
+//    pullChatUsersList()
 
 
   /**
@@ -118,9 +118,6 @@ class MessagePrinter(private var me: User, private var chat: Chat, private var c
           // we reassign user list
           chatUsers = list
 
-          // when list of users is reassigned
-          // we can try to start chatReader
-          chatReader = createChatReader()
       }
     }
 
@@ -135,7 +132,7 @@ class MessagePrinter(private var me: User, private var chat: Chat, private var c
     if chatReader.isEmpty then
       chatReader = createChatReader()
     else
-      if ! chatReader.get.isCompleted then
+      if chatReader.get.isCompleted && continueReading.get() then
         chatReader = createChatReader()
 
 
@@ -189,7 +186,13 @@ class MessagePrinter(private var me: User, private var chat: Chat, private var c
             status.synchronized { status = Running }
 
           }  // end of while
-      }
+      } // end of using
+
+      // TODO *************************************************************************************
+      //TODO tutaj kontynuowac implementacje bo należy wywalić wyjątek ponowanie
+      // TODO *************************************************************************************
+
+
     }
     future.onComplete {
       case Failure(ex) =>
@@ -203,9 +206,10 @@ class MessagePrinter(private var me: User, private var chat: Chat, private var c
         chatReader = None
 
         // and updated db with last stored offset and message time.
+        // TODO not sure if this call should be done in external thread
         updateDB()
 
-      case Success(_) => updateDB()
+      case Success(_) => updateDB() // TODO not sure if this call should be done in external thread
       // after work we should save new offset and time
     }
     Some(future)

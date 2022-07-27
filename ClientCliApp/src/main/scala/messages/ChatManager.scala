@@ -237,6 +237,16 @@ class ChatManager(var me: User):
           case Failure(ex) =>
             // if we get error in listener and we should listen further,
             // we should restart it.
+
+            // in first step of restarting we need to close all of our producers
+            if joinProducer != null then joinProducer.close()
+            if chatProducer != null then chatProducer.close()
+
+            // if we lost connection to all kafka brokers
+            // we cannot restart immediately again and again and again,
+            // because this will keep very busy of our processor
+            // Thread.sleep(10_000L)
+
             if continueChecking.get() then
               KafkaErrorsHandler.handleWithErrorMessage[Unit](ex) match {
                 case Left(kError: KafkaError) =>
@@ -268,7 +278,12 @@ class ChatManager(var me: User):
    */
   def addChats(usersChats: Map[Chat, List[User]]): Unit =
     val mapped = usersChats.map(
-      (chat: Chat, list: List[User]) => chat.chatId -> new MessagePrinter(me, chat, list))
+      (chat: Chat, list: List[User]) =>
+        chat.chatId -> {
+          val printer = new MessagePrinter(me, chat, list)
+          printer.startMessagePrinter()
+          printer
+        })
     myChats.addAll(mapped)
 
 
@@ -306,6 +321,8 @@ class ChatManager(var me: User):
    */
   def getUsersChats: List[Chat] =
     myChats.values.seq.map(_.getChat).toList.sorted
+
+
 
   def getMessagePrinter(chat: Chat): Option[MessagePrinter] =
     myChats.get(chat.chatId)

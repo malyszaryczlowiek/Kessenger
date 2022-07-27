@@ -1,5 +1,8 @@
 package com.github.malyszaryczlowiek
 
+import com.github.malyszaryczlowiek.kessengerlibrary.domain.User
+import com.github.malyszaryczlowiek.kessengerlibrary.messages.Message
+import com.github.malyszaryczlowiek.kessengerlibrary.serdes.{MessageSerde, UserSerde}
 import org.apache.kafka.clients.producer.ProducerConfig
 import org.apache.kafka.common.config.TopicConfig
 import org.apache.kafka.common.serialization.Serde
@@ -34,7 +37,9 @@ object StreamsChatAnalyser {
 
 
     // define serde
-    val stringSerde: Serde[String] = Serdes.stringSerde
+    val userSerde: Serde[User] = new UserSerde
+    val messageSerde: Serde[Message] = new MessageSerde
+    // val stringSerde: Serde[String] = Serdes.stringSerde
 
 
     val pattern: Pattern = Pattern.compile(s"chat--([\\p{Alnum}-]*)")
@@ -42,7 +47,7 @@ object StreamsChatAnalyser {
 
     // TODO change serdes to user and message serdes
     // we define topic we read from
-    val source: KStream[String, String] = builder.stream(pattern)(Consumed `with` (stringSerde, stringSerde))
+    val source: KStream[User, Message] = builder.stream(pattern)(Consumed `with` (userSerde, messageSerde))
 
 
     // we simply print every message
@@ -50,7 +55,7 @@ object StreamsChatAnalyser {
 
 
     // define where we write output
-    source.to("analysis")(Produced `with` (stringSerde, stringSerde))
+    // source.to("analysis")(Produced `with` (stringSerde, stringSerde))
 
 
     // we build topology of the stream
@@ -83,7 +88,7 @@ object StreamsChatAnalyser {
           System.exit(1)
       }
       println(s"KafkaStreamsChatAnalyser v0.1.1 run correctly !!!")
-      Thread.sleep(10_000)
+      Thread.sleep(3600_000)
       streams.close()
       println(s"Streams closed.")
     }

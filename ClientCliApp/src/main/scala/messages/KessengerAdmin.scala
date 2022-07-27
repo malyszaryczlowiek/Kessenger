@@ -17,6 +17,7 @@ import org.apache.kafka.common.config.TopicConfig
 import java.time.Duration
 import java.util.concurrent.TimeUnit
 import java.util.{Collections, Properties, UUID}
+
 import scala.util.{Failure, Success, Try}
 import scala.jdk.javaapi.CollectionConverters
 
@@ -32,10 +33,10 @@ object KessengerAdmin {
   private var admin: Admin = _
   private var configurator: KafkaConfigurator = _
 
-  private val userSerializer      = new UserSerializer
-  private val userDeserializer    = new UserDeserializer
-  private val messageSerializer   = new MessageSerializer
-  private val messageDeserializer = new MessageDeserializer
+  private val userSerializer      = "com.github.malyszaryczlowiek.kessengerlibrary.serdes.UserSerializer"
+  private val userDeserializer    = "com.github.malyszaryczlowiek.kessengerlibrary.serdes.UserDeserializer"
+  private val messageSerializer   = "com.github.malyszaryczlowiek.kessengerlibrary.serdes.MessageSerializer"
+  private val messageDeserializer = "com.github.malyszaryczlowiek.kessengerlibrary.serdes.MessageDeserializer"
 
 
   def startAdmin(conf: KafkaConfigurator): Unit =
@@ -52,7 +53,10 @@ object KessengerAdmin {
    * For user it does not matter if we close this correctly.
    */
   def closeAdmin(): Unit =
-    Try { admin.close(Duration.ofMillis(5000)) } match {
+    Try {
+      if admin != null then
+        admin.close(Duration.ofMillis(5000))
+    } match {
       case Failure(_) => {}
       case Success(_) => {}
     }
@@ -122,11 +126,14 @@ object KessengerAdmin {
     properties.put(ProducerConfig.ACKS_CONFIG                  , "all")  // (1) this configuration specifies the minimum number of replicas that must acknowledge a write for the write to be considered successful
     properties.put(ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG    , "true") // we do not need duplicates in partitions
     properties.put(ProducerConfig.LINGER_MS_CONFIG             , "0") // we do not wait to fill the buffer and send message immediately
-    properties.put(ProducerConfig.DELIVERY_TIMEOUT_MS_CONFIG   , "3000") // we try to resend every message via 3000 ms
+    //properties.put(ProducerConfig.DELIVERY_TIMEOUT_MS_CONFIG   , "3000") // we try to resend every message via 3000 ms
     properties.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG  , userSerializer) // "org.apache.kafka.common.serialization.StringSerializer"
     properties.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, messageSerializer)
     new KafkaProducer[User, Message](properties)
 
+
+  // for linger ms and delivery timaout
+  // delivery.timeout.ms should be equal to or larger than linger.ms + request.timeout.ms.
 
 
 
@@ -203,7 +210,7 @@ object KessengerAdmin {
     properties.put(ProducerConfig.ACKS_CONFIG                  , "all")    // (1) this configuration specifies the minimum number of replicas that must acknowledge a write for the write to be considered successful
     properties.put(ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG    , "true")   // we do not need duplicates in partitions
     properties.put(ProducerConfig.LINGER_MS_CONFIG             , "0")      // we do not wait to fill the buffer and send message immediately
-    properties.put(ProducerConfig.DELIVERY_TIMEOUT_MS_CONFIG   , "3000")   // we try to resend every message via 3000 ms
+    //properties.put(ProducerConfig.DELIVERY_TIMEOUT_MS_CONFIG   , "3000")   // we try to resend every message via 3000 ms
     properties.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG  , userSerializer)
     properties.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, messageSerializer)
     new KafkaProducer[User, Message](properties)

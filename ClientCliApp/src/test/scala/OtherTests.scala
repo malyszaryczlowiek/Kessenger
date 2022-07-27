@@ -1,5 +1,7 @@
 package com.github.malyszaryczlowiek
 
+import com.github.malyszaryczlowiek.kessengerlibrary.serdes.UserSerializer
+
 import scala.collection.parallel.mutable.ParTrieMap
 
 class OtherTests extends munit.FunSuite:
@@ -29,6 +31,12 @@ class OtherTests extends munit.FunSuite:
     }
 
 
+  }
+
+
+  test("print name") {
+    val serializer = classOf[UserSerializer].getClass.getName
+    println(serializer)
   }
 
 end OtherTests

@@ -57,13 +57,8 @@ object ProgramExecutor :
             createAccount()
             // runProgram(Array.empty)
           else if value == 3 then
-            KessengerAdmin.closeAdmin()
-            ExternalDB.closeConnection() match {
-              case Success(_) =>
-                print(s"Disconnected with DB.\n")
-              case Failure(_) =>
-                print(s"Error with disconnecting with DB.\n")
-            }
+            closeProgram()
+
           else
             println("Please select 1, 2 or 3.")
             runProgram(args)
@@ -269,10 +264,10 @@ object ProgramExecutor :
     manager.getMessagePrinter(chat) match {
       case Some(messagePrinter: MessagePrinter) =>
         if chat.groupChat then
-          print(s"You are in \'${chat.chatName}\' chat, type your messages, or type '#back' to return to chat list\n"
-            + "or '#escape_chat if you do not want participate longer in group chat.\n> ")
+          println(s"You are in \'${chat.chatName}\' chat, type your messages, or type '#back' to return to chat list\n"
+            + "or '#escape_chat if you do not want participate longer in group chat.")
         else
-          print(s"You are in '${chat.chatName}' chat, type your messages, or type '#back' to return to chat list.\n> ")
+          println(s"You are in '${chat.chatName}' chat, type your messages, or type '#back' to return to chat list.")
 
         // now we print buffered messages and then print all incoming messages
         messagePrinter.printUnreadMessages()
@@ -336,7 +331,10 @@ object ProgramExecutor :
   private def createChat(): Option[Chat] =
     val bufferUsers   = ListBuffer.empty[User]
     val selectedUsers = addUser(bufferUsers)
-    if selectedUsers.size == 1 && selectedUsers.head.login == me.login then
+    if selectedUsers.isEmpty then
+      println(s"You aborted chat creation.")
+      Option.empty[Chat]
+    else if selectedUsers.size == 1 && selectedUsers.head.login == me.login then
       println(s"There is no users to add.")
       println(s"Type #add to try again or any other key to return to menu.")
       print(s"> ")
@@ -354,7 +352,9 @@ object ProgramExecutor :
     println(s"Find users to add to chat, or type #end to finish adding.")
     print("> ")
     val user = readLine()
-    if user == "#end" then
+    if  user == "#end" && buffer.isEmpty then
+      buffer.distinct.toList
+    else if user == "#end" then
       me :: buffer.distinct.toList
     else if user == me.login then
       println(s"You do not need add manually yourself to chat.")
@@ -559,4 +559,14 @@ object ProgramExecutor :
 
 
   private def logout(): Unit =
-    manager.closeChatManager()
+    if manager != null then manager.closeChatManager()
+
+
+  private def closeProgram(): Unit =
+    KessengerAdmin.closeAdmin()
+    ExternalDB.closeConnection() match {
+      case Success(_) =>
+        print(s"Disconnected with DB.\n")
+      case Failure(_) =>
+        print(s"Error with disconnecting with DB.\n")
+    }
