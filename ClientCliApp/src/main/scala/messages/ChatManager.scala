@@ -73,6 +73,13 @@ class ChatManager(var me: User):
 
 
   /**
+   * TODO implement usage
+   */
+  private val continueRestarting: AtomicBoolean = new AtomicBoolean(true)
+
+
+
+  /**
    * Controls current offset of joining offset.
    * This value is stored in db, and when we start application
    * value is read in and we can read from topic from specific
@@ -150,6 +157,15 @@ class ChatManager(var me: User):
     }
 
 
+  /*
+  todo in message analyser we need to create topic first
+    to write to it otherwise stream does not start.
+
+  todo
+    w closeManger w tej klasie należy jeszcze zmaknąć
+    admina bo to on de facto może powodowac problem
+  */
+
 
   /**
    * Method defines listener of incomming joining messages from joining topic.
@@ -178,7 +194,9 @@ class ChatManager(var me: User):
           joinConsumer.seek(topic0, joinOffset.get())
 
           // before starting loop pulling, we set status to Starting
-          status.synchronized { status = Starting }
+          status.synchronized {
+            status = Starting
+          }
 
           // Start loop to read from topic
           while (continueChecking.get()) {
@@ -190,10 +208,10 @@ class ChatManager(var me: User):
               (r: ConsumerRecord[User, Message]) => {
 
                 // extract data
-                val user:      User     = r.key()
-                val m:         Message  = r.value()
-                val groupChat: Boolean  = m.groupChat
-                val time: LocalDateTime = TimeConverter.fromMilliSecondsToLocal( r.timestamp() )
+                val user: User = r.key()
+                val m: Message = r.value()
+                val groupChat: Boolean = m.groupChat
+                val time: LocalDateTime = TimeConverter.fromMilliSecondsToLocal(r.timestamp())
 
                 // set extracted data to chat object
                 val chat = Chat(m.chatId, m.chatName, groupChat, 0L, time)
@@ -205,7 +223,11 @@ class ChatManager(var me: User):
                 // because was added in sendInvitation() method
                 // Note not sure if starting MessagePrinter in external thread will be safe
                 if !myChats.exists(chatAndPrinter => chatAndPrinter._1 == chat.chatId) then
-                  myChats.addOne(chat.chatId -> new MessagePrinter(me, chat, List.empty[User]))
+                  myChats.addOne(chat.chatId -> {
+                    val printer = new MessagePrinter(me, chat, List.empty[User])
+                    printer.startMessagePrinter()
+                    printer
+                  })
 
                   // prepare and print notification
                   val notification: String = {
@@ -226,48 +248,56 @@ class ChatManager(var me: User):
             // (we started consumer correctly and has stable connection)
             // we set status to Running
             // status is reassigned every 1000 ms (after each while loop).
-            status.synchronized { status = Running }
+            status.synchronized {
+              status = Running
+            }
 
+          }
+      } match {
+        case Failure(ex) =>
+          // if we get error in listener and we should listen further,
+          // we should restart it.
+
+          // in first step of restarting we need to close all of our producers
+          if joinProducer != null then Future { joinProducer.close() }
+          if chatProducer != null then Future { chatProducer.close() }
+
+          // if we lost connection to all kafka brokers
+          // we cannot restart immediately again and again and again,
+          // because this will keep very busy of our processor
+          // Thread.sleep(10_000L)
+
+          if continueChecking.get() then
+            KafkaErrorsHandler.handleWithErrorMessage[Unit](ex) match {
+              case Left(kError: KafkaError) =>
+                print(s"${kError.description}. Connection lost.\n> ") // TODO DELETE
+
+                // we set status to error
+                status.synchronized {
+                  status = Error
+                }
+              case Right(_) => status.synchronized {
+                status = Error
+              } // this will never be called
+            }
+          else
+          // if we do not need read messages from kafka broker we set
+          // status Closing
+            status.synchronized {
+              status = Closing
+            }
+        case Success(_) =>
+
+          // in first step of restarting we need to close all of our producers
+          // if joinProducer != null then joinProducer.close()
+          // if chatProducer != null then chatProducer.close()
+
+          //
+          status.synchronized {
+            status = Closing
           }
       }
     }
-    future.onComplete(
-      (tryy: Try[Unit]) => {
-        tryy match {
-          case Failure(ex) =>
-            // if we get error in listener and we should listen further,
-            // we should restart it.
-
-            // in first step of restarting we need to close all of our producers
-            if joinProducer != null then joinProducer.close()
-            if chatProducer != null then chatProducer.close()
-
-            // if we lost connection to all kafka brokers
-            // we cannot restart immediately again and again and again,
-            // because this will keep very busy of our processor
-            // Thread.sleep(10_000L)
-
-            if continueChecking.get() then
-              KafkaErrorsHandler.handleWithErrorMessage[Unit](ex) match {
-                case Left(kError: KafkaError) =>
-                  print(s"${kError.description}. Connection lost.\n> ")  // TODO DELETE
-
-                  // we set status to error
-                  status.synchronized { status = Error }
-                case Right(_)                 => status.synchronized { status = Error } // this will never be called
-              }
-            else
-              // if we do not need read messages from kafka broker we set
-              // status Closing
-              status.synchronized { status = Closing }
-          case Success(_) =>
-            //
-            status.synchronized { status = Closing }
-        }
-        // after completion we reassign joiningListener to none
-        joiningListener = None
-      }
-    )
     Some(future)
 
 
@@ -499,13 +529,19 @@ class ChatManager(var me: User):
    */
   def closeChatManager(): Option[KafkaError] =
     Try {
+
+      // we stop restarting thread
+      continueRestarting.set(false)
+
       // switch off main loop fo joining consumer in joining listener
       // it is only place where we set false to continueChecking
       continueChecking.set(false)
 
+      // TODo w razie dalszych problemów należy wywołać je w oddzielnych wątkach
+
       // close both producers
-      joinProducer.close()
-      chatProducer.close()
+      if joinProducer != null then Future { joinProducer.close() }
+      if chatProducer != null then Future { chatProducer.close() }
 
       // we close all message printers which are still running
       myChats.values.foreach(_.closeMessagePrinter())
@@ -527,9 +563,6 @@ class ChatManager(var me: User):
   end closeChatManager
 
 
-
-  private def printReassignmentInfo(): Unit =
-    println(s"Error object reassigned")
 
 
 

@@ -55,7 +55,8 @@ object KessengerAdmin {
   def closeAdmin(): Unit =
     Try {
       if admin != null then
-        admin.close(Duration.ofMillis(5000))
+        admin.close
+        //admin.close(Duration.ofMillis(5000))
     } match {
       case Failure(_) => {}
       case Success(_) => {}

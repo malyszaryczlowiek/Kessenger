@@ -23,7 +23,7 @@ lazy val root = (project in file("."))
       "com.github.malyszaryczlowiek" %% "KessengerLibrary" % "0.1.14",
 
 
-      // to switch off logging from postgres dependency
+      // to switch off logging from slf4j
       "org.slf4j" % "slf4j-nop" % "1.7.36",
 
 

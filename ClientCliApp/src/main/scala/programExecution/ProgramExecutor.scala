@@ -6,7 +6,6 @@ import account.MyAccount
 import db.ExternalDB
 import messages.{ChatManager, KessengerAdmin, MessagePrinter}
 import util.{ChatNameValidator, PasswordConverter}
-
 import kessengerlibrary.db.queries.{QueryError, QueryErrors}
 import kessengerlibrary.domain.{Chat, User}
 import kessengerlibrary.domain.Domain.{Login, Password}
@@ -16,7 +15,7 @@ import kessengerlibrary.status.Status
 import kessengerlibrary.status.Status.{Closing, NotInitialized, Running, Starting, Terminated}
 
 import java.io.Console
-
+import java.util.concurrent.atomic.AtomicBoolean
 import scala.::
 import scala.annotation.tailrec
 import scala.collection.immutable
@@ -31,6 +30,9 @@ object ProgramExecutor :
 
   private var manager: ChatManager = _
   private var me: User = _
+  private val executeHook: AtomicBoolean = new AtomicBoolean(true)
+
+
 
 
   @tailrec
@@ -38,8 +40,13 @@ object ProgramExecutor :
 
     // if we want to force close program we should close all connections
     // ass well
-    // Runtime.getRuntime.addShutdownHook(new Thread(new Runnable() { override def run(): Unit = { logout() } }))
-    Runtime.getRuntime.addShutdownHook(new Thread(() => logout()))
+
+    Runtime.getRuntime.addShutdownHook(new Thread(() => {
+      if executeHook.get() then
+        logout()
+        closeProgram()
+    }))
+
     val length = args.length
     if length == 0 then
       println(s"Kessenger v0.1.0")
@@ -55,10 +62,8 @@ object ProgramExecutor :
             runProgram(Array.empty)
           else if value == 2 then
             createAccount()
-            // runProgram(Array.empty)
           else if value == 3 then
             closeProgram()
-
           else
             println("Please select 1, 2 or 3.")
             runProgram(args)
@@ -72,7 +77,9 @@ object ProgramExecutor :
 
 
 
+
   private def signIn(): Unit = signInWithLogin("")
+
 
 
 
@@ -126,6 +133,12 @@ object ProgramExecutor :
 
 
 
+  /**
+   *
+   * @param login
+   * @param password
+   * @param salt
+   */
   private def checkCredentials(login: Login, password: Password, salt: String): Unit =
     ExternalDB.findUser(login, password, salt) match {
       case Left(queryErrors: QueryErrors) =>
@@ -155,33 +168,11 @@ object ProgramExecutor :
     }
 
 
-//  private def initializeUser(me: User): Either[(Option[QueryErrors], Option[KafkaError]), ChatManager] =
-//    if me.joiningOffset == -1 then
-//      val chatManager = new ChatManager(me, false)
-//      tryToStartChatManager(chatManager)
-//    else
-//      ExternalDB.findUsersChats(user) match {
-//        case Left(dbError: QueryErrors)               =>
-//          Left(Some(dbError), None)
-//        case Right(usersChats: Map[Chat, List[User]]) =>
-//          val transform = usersChats.map(
-//            (chatList: (Chat, List[User])) =>
-//              val chat = chatList._1
-//              val users = chatList._2
-//              (chat, new ChatExecutor(me, chat, users))
-//          )
-//          myChats.addAll(transform)
-//          val chatManager = new ChatManager(me, true)
-//          chatManager.getError match {
-//            case ke @ Some(_) =>
-//              // if something goes wrong we should close chat manager
-//              chatManager.closeChatManager()
-//              Left((None, ke))
-//            case None         => Right(chatManager)
-//          }
-//      }
 
 
+  /**
+   *
+   */
   @tailrec
   private def printMenu(): Unit =
     println(s"Menu:")
@@ -269,6 +260,7 @@ object ProgramExecutor :
         else
           println(s"You are in '${chat.chatName}' chat, type your messages, or type '#back' to return to chat list.")
 
+        print(s"> ")
         // now we print buffered messages and then print all incoming messages
         messagePrinter.printUnreadMessages()
         Try {
@@ -286,6 +278,7 @@ object ProgramExecutor :
           // we stop printing messages.
           // MessagePrinter will start collecting messages to buffer again
           messagePrinter.stopPrintMessages()
+
           // for clarity we check printer status.
           messagePrinter.getStatus
         } match {
@@ -293,31 +286,11 @@ object ProgramExecutor :
             // some other unexpected error
             print(s"Unexpected Error in chat.\n> ")
           case Success(status: Status) =>
-            print(s"Status messagePrintera po zamknięciu chatu $status\n> ")
+            print(s"Status messagePrintera po zamknięciu chatu $status\n> ") // TODO DELETE
         }
       case None =>
         {} // not reachable
     }
-
-    /*
-
-    case Failure(exception)    =>
-
-          case Success(chatExecutor: ChatExecutor) =>
-            val chat = chatExecutor.getChat
-            val me = MyAccount.getMyObject
-            MyAccount.updateChat(chat, chatExecutor)
-            // we save offset to db
-            ExternalDB.updateChatOffsetAndMessageTime(me, Seq(chat)) match {
-              case Left(qe: QueryErrors) =>
-                println(s"Cannot update chat information:  ")
-                qe.listOfErrors.foreach(error => print(s"${error.description}\n> "))
-              case Right(saved: Int)     =>
-              // we do not need notify user about updates in DB
-            }
-
-    */
-
 
 
 
@@ -412,6 +385,7 @@ object ProgramExecutor :
 
 
 
+
   /**
    * Note -- this method is blocking because,
    * we need confirmation from DB of removal
@@ -444,6 +418,8 @@ object ProgramExecutor :
     println(s"This functionality will be implemented in further versions.")
 
 
+
+
   /*
   *
   * Creating Account
@@ -468,7 +444,6 @@ object ProgramExecutor :
 
 
   /**
-   * TODO write integration tests ???
    * @param login
    * @param s
    */
@@ -558,10 +533,19 @@ object ProgramExecutor :
 
 
 
+
+  /**
+   *
+   */
   private def logout(): Unit =
     if manager != null then manager.closeChatManager()
 
 
+
+
+  /**
+   *
+   */
   private def closeProgram(): Unit =
     KessengerAdmin.closeAdmin()
     ExternalDB.closeConnection() match {
@@ -570,3 +554,7 @@ object ProgramExecutor :
       case Failure(_) =>
         print(s"Error with disconnecting with DB.\n")
     }
+    executeHook.set(false)
+
+
+end ProgramExecutor

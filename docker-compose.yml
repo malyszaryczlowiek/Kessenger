@@ -22,7 +22,7 @@ services:
   kafka1:
     container_name: kafka1
     #hostname: kafka1
-    build: ./kafka-broker
+    build: ./kafka-broker # kafka-broker is folder where Dockerfile can be found
     ports:
       - "9092:9092"
       - "9093:9093"

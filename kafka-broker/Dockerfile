@@ -1,11 +1,4 @@
 FROM bitnami/kafka:3.1
-# # ports
-# EXPOSE 9092
-# EXPOSE 9093
-# # environments
-# ENV KAFKA_CFG_ZOOKEEPER_CONNECT=zookeeper:2181
-# ENV ALLOW_PLAINTEXT_LISTENER=yes
-# ENV KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP=CLIENT:PLAINTEXT,EXTERNAL:PLAINTEXT
-# # ENV KAFKA_CFG_LISTENERS=CLIENT://:9092,EXTERNAL://:9093
-# ENV KAFKA_CFG_ADVERTISED_LISTENERS=CLIENT://kafka0:9092,EXTERNAL://localhost:9093
-# ENV KAFKA_CFG_INTER_BROKER_LISTENER_NAME=CLIENT
+#CMD ["./opt/bitnami/kafka/bin/kafka-topics.sh", "--bootstrap-server", "kafka1:9092", "--create", "--topic", "all-messages", "--if-not-exists", "--partitions", "1", "--replication-factor", "3"]
+#CMD ["./bin/kafka-topics.sh", "--create", "--topic", "all-messages", "--if-not-exists", "--partitions", "1", "--replication-factor", "3"]
+# /opt/bitnami/kafka/bin/kafka-topics.sh to run

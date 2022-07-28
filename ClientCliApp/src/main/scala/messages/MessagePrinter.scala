@@ -33,6 +33,9 @@ import concurrent.ExecutionContext.Implicits.global
  *
  * Second target of class is database updates of offset of
  *
+ * TODO remove dependency to chat list
+ *   (users informations are send in key and value)
+ *
  *
  * @param me {@link User} object who reads from chat.
  * @param chat chat we print messages from
@@ -53,6 +56,13 @@ class MessagePrinter(private var me: User, private var chat: Chat, private var c
    * kafka broker.
    */
   private val continueReading: AtomicBoolean = new AtomicBoolean(true)
+
+
+
+  /**
+   * TODO implement usage
+   */
+  private val continueRestarting: AtomicBoolean = new AtomicBoolean(true)
 
 
 
@@ -95,18 +105,11 @@ class MessagePrinter(private var me: User, private var chat: Chat, private var c
   private var status: Status = NotInitialized
 
 
-  /**
-   * If from some reasons, we do not have list of
-   * chat users, we retry to get it.
-   * This instruction is called in constructor.
-   */
-//  if chatUsers.isEmpty then
-//    pullChatUsersList()
-
 
   /**
    * Method tries to pull list of chat user from db.
    */
+  @deprecated("users list is not used so is not required to pull it from db.")
   private def pullChatUsersList(): Unit =
     Future {
       ExternalDB.findChatAndUsers(me, chat.chatId) match {
@@ -116,7 +119,7 @@ class MessagePrinter(private var me: User, private var chat: Chat, private var c
         case Right((_, list: List[User])) =>
 
           // we reassign user list
-          chatUsers = list
+          // chatUsers = list
 
       }
     }
@@ -150,19 +153,23 @@ class MessagePrinter(private var me: User, private var chat: Chat, private var c
       // starting from saved chat offset parameter.
       // note that kafka consumer is closed automatically in
       // this case by Using clause.
-      Using( KessengerAdmin.createChatConsumer(me.userId.toString) ) {
+      Using(KessengerAdmin.createChatConsumer(me.userId.toString)) {
         (chatConsumer: KafkaConsumer[User, Message]) =>
           val topicPartition0: TopicPartition = new TopicPartition(chat.chatId, 0)
 
           // assign specific topic and partition to read from
           chatConsumer.assign(JList.of(topicPartition0))
 
-          // we manually set offset to read from and
-          // we start reading from topic from last read message (offset)
-          chatConsumer.seek(topicPartition0, newOffset.get() )
+          // we manually set offset to read from topic and
+          // we start reading from it from last read message (offset)
+          // offset is always set as last read message offset + 1
+          // so we dont have duplicated messages.
+          chatConsumer.seek(topicPartition0, newOffset.get())
 
           // before starting loop pulling, we set status to Starting
-          status.synchronized { status = Starting }
+          status.synchronized {
+            status = Starting
+          }
 
           // then we start reading from topic
           while (continueReading.get()) {
@@ -173,8 +180,8 @@ class MessagePrinter(private var me: User, private var chat: Chat, private var c
                 // if we need print messages we do it,
                 // otherwise we show notification
                 // and collect messages in buffer.
-                if printMessage.get() then printMessage( record )
-                else showNotification( record )
+                if printMessage.get() then printMessage(record)
+                else showNotification(record)
 
               }
             )
@@ -183,34 +190,37 @@ class MessagePrinter(private var me: User, private var chat: Chat, private var c
             // (we started consumer correctly and has stable connection)
             // we set status to Running
             // status is reassigned every 250 ms (after each while loop).
-            status.synchronized { status = Running }
+            status.synchronized {
+              status = Running
+            }
 
-          }  // end of while
-      } // end of using
+          } // end of while
+      } match {
+        case Failure(ex) =>
 
-      // TODO *************************************************************************************
-      //TODO tutaj kontynuowac implementacje bo należy wywalić wyjątek ponowanie
-      // TODO *************************************************************************************
+          // if somethings will fail, we print error message,
+          KafkaErrorsHandler.handleWithErrorMessage(ex) match
+            case Left(kE: KafkaError) => print(s"${kE.description}. Cannot read messages from server.\n> ")
+            case Right(_)             => // not reachable
 
+          status.synchronized {
+            status = Error
+          }
 
-    }
-    future.onComplete {
-      case Failure(ex) =>
+          // reassign chatReader object for easier restarting
+          // chatReader = None
 
-        // if somethings will fail, we print error message,
-        KafkaErrorsHandler.handleWithErrorMessage(ex) match
-          case Left(kE: KafkaError) => print(s"${kE.description}. Cannot read messages from server.\n> ")
-          case Right(_)             => // not reachable
+          // and updated db with last stored offset and message time.
+          updateDB()
 
-        // reassign chatReader object for easier restarting
-        chatReader = None
+        case Success(_)     =>
 
-        // and updated db with last stored offset and message time.
-        // TODO not sure if this call should be done in external thread
-        updateDB()
+          status.synchronized {
+            status = Closing
+          }
 
-      case Success(_) => updateDB() // TODO not sure if this call should be done in external thread
-      // after work we should save new offset and time
+          updateDB()
+      }
     }
     Some(future)
 
@@ -287,10 +297,11 @@ class MessagePrinter(private var me: User, private var chat: Chat, private var c
         // and we print each message
         print(s"$login $time >> ${v._2.content}\n> ")
       })
-    else print("> ")
 
-    // clear off unreadMessages
-    unreadMessages.clear()
+      // clear off unreadMessages
+      unreadMessages.clear()
+
+    // else print("> ") // unnecessary usage
 
     // set to start printing messages
     printMessage.set(true)
@@ -424,6 +435,9 @@ class MessagePrinter(private var me: User, private var chat: Chat, private var c
    * (and of course at the end of program execution).
    */
   def closeMessagePrinter(): Unit =
+
+    // we stop restarting thread
+    continueRestarting.set(false)
 
     // we stop main loop in kafka consumer thread
     continueReading.set(false)
