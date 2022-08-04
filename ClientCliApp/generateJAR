@@ -1,4 +1,30 @@
 #!/bin/zsh
 cd ClientCliApp
+
+# here we need add one extra line to log4j2.properties file
+# this line contains info about our home directory.
+# this is needed because we want to save logs from program execution
+# in folder $HOME/.kessenger/logs, but we cannot use
+# environment variable $HOME in properties file.
+# we need add it via script for example
+
+properties_file="src/main/resources/log4j2.properties"
+found_line=$(grep 'property\.home_path' -c $properties_file )
+
+
+
+# if file  src/main/resources/log4j2.properties does not contain
+# line with property.home_path then we need add this line
+
+if [[ $found_line -eq 0 ]]; then
+  echo "\nproperty.home_path = $HOME" >> $properties_file
+  echo "property home_path added to log4j2.properties"
+elif [[ $found_line -eq 1 ]]; then
+  echo "property home_path already exists"
+fi
+
+
+
+# and finally build JAR file
 sbt assembly
 cd ..

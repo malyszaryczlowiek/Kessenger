@@ -3,7 +3,6 @@ package messages
 
 import account.MyAccount
 import db.ExternalDB
-
 import kessengerlibrary.db.queries.QueryErrors
 import kessengerlibrary.domain.{Chat, Domain, User}
 import kessengerlibrary.domain.Domain.*
@@ -16,12 +15,13 @@ import kessengerlibrary.status.Status.*
 import org.apache.kafka.clients.consumer.{ConsumerRecord, ConsumerRecords, KafkaConsumer}
 import org.apache.kafka.clients.producer.{Callback, KafkaProducer, ProducerRecord, RecordMetadata}
 import org.apache.kafka.common.TopicPartition
+import org.slf4j.Logger
+import org.slf4j.LoggerFactory
 
 import java.time.{LocalDateTime, ZoneId}
 import java.util.UUID
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicLong}
-
 import scala.annotation.tailrec
 import scala.collection.immutable.SortedSet
 import scala.collection.mutable.ListBuffer
@@ -39,6 +39,10 @@ import concurrent.ExecutionContext.Implicits.global
  * to chats.
  */
 class ChatManager(var me: User):
+
+
+
+
 
 
   /**

@@ -34,17 +34,13 @@ object StreamsChatAnalyser {
 
     properties.put(StreamsConfig.APPLICATION_ID_CONFIG, "chat-analyser")
     properties.put(StreamsConfig.BOOTSTRAP_SERVERS_CONFIG, "kafka1:9092,kafka2:9092,kafka3:9092")
-    //properties.put(StreamsConfig.BOOTSTRAP_SERVERS_CONFIG, "localhost:9093,localhost:9094,localhost:9095")
-//    properties.put(StreamsConfig.producerPrefix(ProducerConfig.ACKS_CONFIG), "all")
-//    properties.put(StreamsConfig.topicPrefix(TopicConfig.MIN_IN_SYNC_REPLICAS_CONFIG), 2)
-    // properties.put(StreamsConfig.NUM_STANDBY_REPLICAS_CONFIG, 1)
 
 
     val adminProperties: Properties = new Properties()
     adminProperties.put(StreamsConfig.BOOTSTRAP_SERVERS_CONFIG, "kafka1:9092,kafka2:9092,kafka3:9092")
-    // adminProperties.put(StreamsConfig.BOOTSTRAP_SERVERS_CONFIG, "localhost:9093,localhost:9094,localhost:9095")
 
-    // we try to create collectiong topic
+
+    // we try to create collecting topic
 
     Using(Admin.create(adminProperties)) {
       admin =>
@@ -57,15 +53,21 @@ object StreamsChatAnalyser {
             TopicConfig.RETENTION_MS_CONFIG   -> "-1" // keep all logs forever
           )
         )
+
+        // we create create topic
         val result: CreateTopicsResult = admin.createTopics(
           java.util.List.of(
             new NewTopic(topicName, partitionsNum, replicationFactor).configs(chatConfig)
           )
         )
+
+        // extract task of topic creation
         val talkFuture: KafkaFuture[Void] = result.values().get(topicName)
 
+        // we wait patiently to create topic or get error.
         talkFuture.get//(5L, TimeUnit.SECONDS)
 
+        // simply return topic name as proof of creation
         topicName
     } match {
       case Failure(ex)    =>

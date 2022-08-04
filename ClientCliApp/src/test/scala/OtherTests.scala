@@ -1,6 +1,11 @@
 package com.github.malyszaryczlowiek
 
 import com.github.malyszaryczlowiek.kessengerlibrary.serdes.UserSerializer
+import com.github.malyszaryczlowiek.programExecution.ProgramExecutor
+
+import org.apache.logging.log4j.LogManager
+import org.apache.logging.log4j.Logger
+
 
 import scala.collection.parallel.mutable.ParTrieMap
 
@@ -37,6 +42,27 @@ class OtherTests extends munit.FunSuite:
   test("print name") {
     val serializer = classOf[UserSerializer].getClass.getName
     println(serializer)
+  }
+
+  test("logger name") {
+
+    val name = classOf[ProgramExecutor]
+
+
+    println(name)
+  }
+
+  test("logging testing") {
+
+    val  logger = LogManager.getLogger("ProgramExecutor")
+    val  fake = LogManager.getLogger("Fake")
+      //LoggerFactory.getLogger()
+
+    logger.debug("Debug Message Logged !!!")
+    logger.info("Info Message Logged !!!")
+    logger.error("Error Message Logged !!!", new NullPointerException("NullError"))
+
+    fake.info("fake info.")
   }
 
 end OtherTests

@@ -149,14 +149,12 @@ object KessengerAdmin {
    * Autocomit is set to false because we keep offest in db in users_chat table in users_offset
    * column.
    *
-   * @param groupId this is normally chat-id. So all chat users are whithin one consumer group,
-   *                so they can read from all partitions of this topic.
-   * @return
+   * @param userId this is normally user-id. So all chat users are in different consumer group,
    */
-  def createChatConsumer(groupId: String): KafkaConsumer[User, Message] =
+  def createChatConsumer(userId: String): KafkaConsumer[User, Message] =
     val props: Properties = new Properties();
     props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG       , configurator.SERVERS)
-    props.put(ConsumerConfig.GROUP_ID_CONFIG                , groupId)
+    props.put(ConsumerConfig.GROUP_ID_CONFIG                , userId)
     props.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG      , "false")
     props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG  , userDeserializer)
     props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, messageDeserializer)

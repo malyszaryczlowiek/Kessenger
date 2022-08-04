@@ -25,13 +25,13 @@ import scala.io.StdIn.{readChar, readInt, readLine}
 import scala.util.{Failure, Success, Try}
 import concurrent.ExecutionContext.Implicits.global
 
+class ProgramExecutor
 
 object ProgramExecutor :
 
   private var manager: ChatManager = _
-  private var me: User = _
+  private var me: User             = _
   private val executeHook: AtomicBoolean = new AtomicBoolean(true)
-
 
 
 
@@ -47,9 +47,13 @@ object ProgramExecutor :
         closeProgram()
     }))
 
+
+
+
+
     val length = args.length
     if length == 0 then
-      println(s"Kessenger v0.1.0")
+      println(s"Kessenger v0.1.2")
       println("Select what to do:\n1) Sign in,\n2) Create Account,\n3) Exit.")
       print("> ")
       Try { readInt() } match {

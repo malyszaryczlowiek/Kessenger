@@ -7,6 +7,7 @@ TODO
 ./ClientCliApp/project
 ./ClientCliApp/target
 ./ClientCliApp/createClientImage
+./ClientCliApp/logs
 ./KafkaStreamsChatAnalyser/.bsp
 ./KafkaStreamsChatAnalyser/.idea
 ./KafkaStreamsChatAnalyser/project

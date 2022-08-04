@@ -1,7 +1,7 @@
 package com.github.malyszaryczlowiek
 package unitTests
 
-import com.github.malyszaryczlowiek.kessengerlibrary.domain.Domain
+import kessengerlibrary.domain.Domain
 
 import java.util.UUID
 import java.util.regex.Pattern
