@@ -6,7 +6,7 @@ import kessengerlibrary.domain.Domain
 import java.util.UUID
 import java.util.regex.Pattern
 
-class UnitTests extends munit.FunSuite {
+class OtherTests extends munit.FunSuite {
 
   test("Test topic regex matching") {
 
