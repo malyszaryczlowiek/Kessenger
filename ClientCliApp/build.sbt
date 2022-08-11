@@ -27,10 +27,10 @@ lazy val root = (project in file("."))
       // for connecting to PostgreSQL db
       "org.postgresql" % "postgresql" % "42.3.3" ,
 
+
       // logging api
       "org.apache.logging.log4j" % "log4j-api" % "2.18.0",
       "org.apache.logging.log4j" % "log4j-core" % "2.18.0",
-      //"org.apache.logging.log4j" %% "log4j-api-scala" % "11.0",
 
 
       // to switch off logging warning from slf4j

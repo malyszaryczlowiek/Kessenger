@@ -1,7 +1,7 @@
 package com.github.malyszaryczlowiek
 
-import com.github.malyszaryczlowiek.kessengerlibrary.serdes.UserSerializer
-import com.github.malyszaryczlowiek.programExecution.ProgramExecutor
+import kessengerlibrary.serdes.UserSerializer
+import programExecution.ProgramExecutor
 
 import org.apache.logging.log4j.LogManager
 import org.apache.logging.log4j.Logger

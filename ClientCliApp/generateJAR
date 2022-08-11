@@ -5,7 +5,7 @@ cd ClientCliApp
 # this line contains info about our home directory.
 # this is needed because we want to save logs from program execution
 # in folder $HOME/.kessenger/logs, but we cannot use
-# environment variable $HOME in properties file.
+# environment variable $HOME in properties file. It is not possible.
 # we need add it via script for example
 
 properties_file="src/main/resources/log4j2.properties"
@@ -13,7 +13,7 @@ found_line=$(grep 'property\.home_path' -c $properties_file )
 
 
 
-# if file  src/main/resources/log4j2.properties does not contain
+# if file src/main/resources/log4j2.properties does not contain
 # line with property.home_path then we need add this line
 
 if [[ $found_line -eq 0 ]]; then

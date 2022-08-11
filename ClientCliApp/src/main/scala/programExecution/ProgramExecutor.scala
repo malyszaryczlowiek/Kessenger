@@ -6,6 +6,7 @@ import account.MyAccount
 import db.ExternalDB
 import messages.{ChatManager, KessengerAdmin, MessagePrinter}
 import util.{ChatNameValidator, PasswordConverter}
+
 import kessengerlibrary.db.queries.{QueryError, QueryErrors}
 import kessengerlibrary.domain.{Chat, User}
 import kessengerlibrary.domain.Domain.{Login, Password}

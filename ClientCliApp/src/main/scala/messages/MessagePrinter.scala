@@ -77,6 +77,7 @@ class MessagePrinter(private var me: User, private var chat: Chat, private var c
 
   /**
    * This field keeps offset of last read message.
+   * TODO usunąć to a offsety trzymać w ParMap w class Chat
    */
   private val newOffset: AtomicLong = new AtomicLong( chat.offset )
 
