@@ -3,7 +3,7 @@ package db
 
 import kessengerlibrary.db.queries.*
 import kessengerlibrary.domain.Domain.{ChatId, ChatName, Login, Password, UserID, generateChatId}
-import kessengerlibrary.domain.{Domain, User, Chat}
+import kessengerlibrary.domain.{Chat, Domain, User}
 import kessengerlibrary.util.TimeConverter
 
 import java.sql.{Connection, DriverManager, PreparedStatement, ResultSet, SQLType, Savepoint, Statement, Timestamp}
@@ -14,6 +14,7 @@ import scala.concurrent.duration.Duration
 import scala.concurrent.{Await, Future, duration}
 import scala.util.{Failure, Success, Try, Using}
 import concurrent.ExecutionContext.Implicits.global
+import scala.collection.concurrent.TrieMap
 
 
 object ExternalDB:
@@ -47,6 +48,11 @@ object ExternalDB:
    * @return
    */
   def findUsersChats(user: User): Either[QueryErrors, Map[Chat, List[User]]] =
+
+  // TODO
+  //  tutaj trzeba edytować sql query tak aby uwzględziało ilość partycji w topicu
+
+
     val sql = "SELECT chats.chat_id, chats.chat_name, chats.group_chat, users_chats.users_offset, users_chats.message_time, users.user_id, users.login FROM users_chats " + // users_chats.users_offset,
       "INNER JOIN chats " +
       "ON users_chats.chat_id = chats.chat_id " +
@@ -65,11 +71,11 @@ object ExternalDB:
               val chatId:    ChatId   = resultSet.getString("chat_id")
               val chatName:  ChatName = resultSet.getString("chat_name")
               val groupChat: Boolean  = resultSet.getBoolean("group_chat")
-              val offset:    Long     = resultSet.getLong("users_offset")
+              // val offset:    Long     = resultSet.getLong("users_offset")
               val time:      Long     = resultSet.getLong("message_time")
               val userId:    UUID     = resultSet.getObject[UUID]("user_id", classOf[UUID])
               val login:     Login    = resultSet.getString("login")
-              val chat:      Chat     = Chat(chatId, chatName, groupChat, offset, TimeConverter.fromMilliSecondsToLocal(time))
+              val chat:      Chat     = Chat(chatId, chatName, groupChat, TimeConverter.fromMilliSecondsToLocal(time))
               val u:         User     = User(userId, login)
               buffer += ((chat, u))
             val grouped = buffer.toList.groupMap[Chat, User]((chat, user) => chat)((chat, user) => user)
@@ -109,6 +115,8 @@ object ExternalDB:
               val offset:      Long  = resultSet.getLong("users_offset")
               val messageTime: Long  = resultSet.getLong("message_time")
               val lt: LocalDateTime  = TimeConverter.fromMilliSecondsToLocal(messageTime)
+
+              // todo usunąć zależność od offsetu
               val chat:        Chat  = Chat(chatID, chatName, grouped, offset, lt)
               val userId:      UUID  = resultSet.getObject[UUID]("user_id", classOf[UUID])
               val login:       Login = resultSet.getString("login")
@@ -531,13 +539,77 @@ object ExternalDB:
     }
 
 
+
+
+  def updateChatOffsetAndMessageTime(user: User, chat: Chat, offsets: TrieMap[Int, Long]): Either[QueryErrors, Int] =
+    val sortedOffsets = offsets.toSeq.sortBy(_._1) // sort by key (number of partition)
+    val prefix = "UPDATE users_chats SET "
+    val middle = sortedOffsets.foldLeft[String]("")(
+      (folded: String, partitionAndOffset: (Int, Long)) =>
+        s"${folded}users_offset_${partitionAndOffset._1} = ?, "
+    )
+    val postfix = " message_time = ? WHERE chat_id = ? AND user_id = ? "
+    val sql = s"$prefix$middle$postfix"
+
+    Using(connection.prepareStatement(sql)) {
+      (statement: PreparedStatement) =>
+        val numOfPartitions = sortedOffsets.size
+        sortedOffsets.foreach(
+          (partitionAndOffset: (Int, Long)) => {
+            val (partitionNum, offset): (Int, Long) = partitionAndOffset
+            statement.setLong(partitionNum + 1,  offset)
+          }
+        )
+
+        statement.setLong(   numOfPartitions + 1, TimeConverter.fromLocalToEpochTime(chat.timeOfLastMessage))
+        statement.setString( numOfPartitions + 2, chat.chatId)
+        statement.setObject( numOfPartitions + 3, user.userId)
+        statement.executeUpdate()
+    } match {
+      case Failure(ex)    =>           handleExceptionMessage[Int](ex)  // returns DataProcessing Error
+      case Success(value) => Right(value)
+    }
+
+
+//    if chats.isEmpty then
+//      Left(QueryErrors(List(QueryError(QueryErrorType.WARNING,QueryErrorMessage.UserHasNoChats))))
+//    else
+//    //var stateBeforeInsertion: Savepoint = null
+//      Try {
+//        //        connection.setAutoCommit(false)
+//        //        stateBeforeInsertion = connection.setSavepoint()
+//        val futureList = chats.map[Future[Int]](
+//          chat =>
+//            Future { // each insertion executed in separate thread
+//
+//            }
+//        )
+//        // we zip all futures to get one with sum of affected chats
+//        val zippedFuture = futureList.reduceLeft((f1, f2) => f1.zipWith(f2)(_+_))
+//        val affected = Await.result(zippedFuture, Duration.create(5L, duration.SECONDS))
+//        Right(affected)
+//        //        if affected == chats.length then
+//        //          connection.commit()
+//        //          Right(affected)
+//        //        else
+//        //          throw new Exception("Data processing error.")
+//      } match {
+//        case Failure(ex) =>
+//          //          if stateBeforeInsertion != null then connection.rollback(stateBeforeInsertion) // This connection has been closed
+//
+//        case Success(either) => either
+//      }
+
+
+
+
   /**
    * TODO write tests
    * @param user
    * @param chat
    * @return
    */
-  def updateChatOffsetAndMessageTime(user: User, chats: Seq[Chat]): Either[QueryErrors, Int] =
+  def updateChatOffsetAndMessageTime_buckup(user: User, chats: Seq[Chat]): Either[QueryErrors, Int] =
     val sql = "UPDATE users_chats SET users_offset = ?, message_time = ? WHERE chat_id = ? AND user_id = ? "
     if chats.isEmpty then
       Left(QueryErrors(List(QueryError(QueryErrorType.WARNING,QueryErrorMessage.UserHasNoChats))))

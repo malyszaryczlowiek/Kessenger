@@ -4,7 +4,7 @@ package messages
 import db.ExternalDB
 import kessengerlibrary.db.queries.QueryErrors
 import kessengerlibrary.domain.{Chat, User}
-import kessengerlibrary.domain.Domain.{ChatId, Login}
+import kessengerlibrary.domain.Domain.{ChatId, Login, Partition, Offset, MessageTime}
 import kessengerlibrary.kafka.errors.{KafkaError, KafkaErrorsHandler}
 import kessengerlibrary.messages.Message
 import kessengerlibrary.util.TimeConverter
@@ -19,10 +19,12 @@ import java.util.UUID
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicLong}
 import java.util.List as JList
 
+import scala.collection.concurrent.TrieMap
 import scala.collection.immutable
 import scala.collection.parallel.mutable.ParTrieMap
 import scala.concurrent.{Await, Future}
 import scala.concurrent.duration.{Duration, SECONDS}
+import scala.jdk.javaapi.CollectionConverters
 import scala.util.{Failure, Success, Try, Using}
 import concurrent.ExecutionContext.Implicits.global
 
@@ -70,8 +72,8 @@ class MessagePrinter(private var me: User, private var chat: Chat, private var c
    * Buffer storing unread messages from kafka broker from specific chat (topic).
    * These messages will be printed if user open this chat.
    */
-  private val unreadMessages: ParTrieMap[Long, (User,Message)] =
-    ParTrieMap.empty[Long, (User, Message)]
+  private val unreadMessages: TrieMap[MessageTime, (Partition, Offset, Message)] =
+    TrieMap.empty[MessageTime, (Partition, Offset, Message)]
 
 
 
@@ -79,7 +81,8 @@ class MessagePrinter(private var me: User, private var chat: Chat, private var c
    * This field keeps offset of last read message.
    * TODO usunąć to a offsety trzymać w ParMap w class Chat
    */
-  private val newOffset: AtomicLong = new AtomicLong( chat.offset )
+  private val offsets: TrieMap[Partition, Offset] = TrieMap.empty
+  // old //  private val newOffset: AtomicLong = new AtomicLong( chat.offset )
 
 
 
@@ -100,30 +103,11 @@ class MessagePrinter(private var me: User, private var chat: Chat, private var c
   private var chatReader: Option[Future[Unit]] = None
 
 
+
   /**
    * Status of MessagePrinter
    */
   private var status: Status = NotInitialized
-
-
-
-  /**
-   * Method tries to pull list of chat user from db.
-   */
-  @deprecated("users list is not used so is not required to pull it from db.")
-  private def pullChatUsersList(): Unit =
-    Future {
-      ExternalDB.findChatAndUsers(me, chat.chatId) match {
-        case Left(dbErrors: QueryErrors) =>
-          // we print information that we are not able download chat users
-          dbErrors.listOfErrors.foreach(queryError => print(s"${queryError.description}. Cannot load chat users.>\n "))
-        case Right((_, list: List[User])) =>
-
-          // we reassign user list
-          // chatUsers = list
-
-      }
-    }
 
 
 
@@ -156,16 +140,29 @@ class MessagePrinter(private var me: User, private var chat: Chat, private var c
       // this case by Using clause.
       Using(KessengerAdmin.createChatConsumer(me.userId.toString)) {
         (chatConsumer: KafkaConsumer[User, Message]) =>
-          val topicPartition0: TopicPartition = new TopicPartition(chat.chatId, 0)
 
-          // assign specific topic and partition to read from
-          chatConsumer.assign(JList.of(topicPartition0))
+          // we create map of topic partitions and offsets
+          // of these partitions
+          val topicPartitions: Map[TopicPartition, Offset] =
+            offsets.map(
+              (partition: Partition, offset: Offset) =>
+                (new TopicPartition(chat.chatId, partition), offset)
+            ).toMap
 
-          // we manually set offset to read from topic and
+
+          // assign partitions of chat topic to kafka consumer
+          chatConsumer.assign( CollectionConverters.asJava( topicPartitions.keys.toSeq ) )
+
+
+          // we manually set offsets to read from topic and
           // we start reading from it from last read message (offset)
           // offset is always set as last read message offset + 1
           // so we dont have duplicated messages.
-          chatConsumer.seek(topicPartition0, newOffset.get())
+          topicPartitions.toSeq.foreach(
+            (topicPartition, offset) =>
+              chatConsumer.seek(topicPartition, offset)
+          )
+
 
           // before starting loop pulling, we set status to Starting
           status.synchronized {
@@ -175,17 +172,23 @@ class MessagePrinter(private var me: User, private var chat: Chat, private var c
           // then we start reading from topic
           while (continueReading.get()) {
             val records: ConsumerRecords[User, Message] = chatConsumer.poll(jDuration.ofMillis(250))
-            records.forEach(
-              (record: ConsumerRecord[User, Message]) => {
 
-                // if we need print messages we do it,
-                // otherwise we show notification
-                // and collect messages in buffer.
-                if printMessage.get() then printMessage(record)
-                else showNotification(record)
+            // if we got some records, we should
+            // process them.
+            // if we need print messages we do it,
+            // otherwise we show notification
+            // and collect messages in buffer.
+            if ! records.isEmpty then
+              if printMessage.get() then printMessage(record)
+              else showNotification(record)
 
-              }
-            )
+//            records.forEach(
+//              (record: ConsumerRecord[User, Message]) => {
+//                if printMessage.get() then printMessage(record)
+//                else showNotification(record)
+//
+//              }
+//            )
 
             // if everything works fine
             // (we started consumer correctly and has stable connection)
@@ -250,27 +253,40 @@ class MessagePrinter(private var me: User, private var chat: Chat, private var c
    *       which is used to sorting all chats in
    *       descending order of last message time.
    */
-  private def showNotification(r: ConsumerRecord[User, Message]): Unit =
-    val sender = r.key().login
-    if sender != me.login then
+  private def showNotification(records: ConsumerRecords[User, Message]): Unit =
+    records.forEach(
+      (record: ConsumerRecord[User, Message]) => {
 
-      // we do not need notification of own messages.
-      print(s"One new message from $sender in chat '${chat.chatName}'.\n> ") // print notification
+        val sender = r.value().authorId
+        if sender != me.userId then
+        // we do not need notification of own messages.
+          print(s"One new message from ${r.value().authorLogin} in chat '${chat.chatName}'.\n> ")
 
-      // we need to change last message time for sorting purposes
-      lastMessageTime.set( r.timestamp() )
+        val timestamp = record.timestamp()
+        val offset    = record.offset()
+        val partition = record.partition()
+        val message   = record.value()
 
-      // and actualize chat object
-      chat = chat.copy(timeOfLastMessage = TimeConverter.fromMilliSecondsToLocal( r.timestamp() ))
+        // we need to change last message time for sorting purposes
+        lastMessageTime.set( timestamp )
 
-      // finally we save last message
-      unreadMessages.addOne(r.offset() -> ( r.key(), r.value() ))
+        // and actualize chat object
+        chat = chat.copy(timeOfLastMessage = TimeConverter.fromMilliSecondsToLocal( timestamp ))
+
+        //  we save each message
+        unreadMessages.addOne( timestamp -> (partition, offset, message) )
+      }
+    )
+
+
 
 
 
   /**
-   * This method is safe for unreadMessages. We can transform
-   * our ParMap to SortedMap and then clear unreadMessages and dont worry
+   * This method is called when we open chat.
+   *
+   * This method is threadsafe for unreadMessages. We can transform
+   * our TreeMap to SortedMap and then clear unreadMessages and dont worry
    * that between these two calls some item will be added to unreadMessages,
    * because before we call this message in ProgramExecutor
    * we call startPrintingMessages(), so
@@ -281,22 +297,22 @@ class MessagePrinter(private var me: User, private var chat: Chat, private var c
    */
   def printUnreadMessages(): Unit =
 
-    // we sort unread messages according to ascending offset
-    val sorted: immutable.SortedMap[Long, (User, Message)] =
-      unreadMessages.seq.to(immutable.SortedMap) // conversion to SortedMap
+    // we sort unread messages according to ascending timestamp
+    val sorted: immutable.SortedMap[MessageTime, (Partition, Offset, Message)] =
+      unreadMessages.to(immutable.SortedMap) // conversion to SortedMap
 
     if sorted.nonEmpty then
-      sorted.foreach( (k: Long, v: (User, Message)) => {
+      sorted.foreach( (k: MessageTime, v: (Partition, Offset, Message) ) => {
 
         // we update offset and last message time
-        updateOffsetAndLastMessageTime( k + 1L, v._2.utcTime )
+        updateOffsetAndLastMessageTime(v._1, v._2 + 1L, k )
 
         // we extract and convert required data
-        val login = v._1.login
-        val time = TimeConverter.fromMilliSecondsToLocal(v._2.utcTime)
+        val login = v._3.authorLogin
+        val time  = TimeConverter.fromMilliSecondsToLocal( k )
 
         // and we print each message
-        print(s"$login $time >> ${v._2.content}\n> ")
+        print(s"$login $time >> ${v._3.content}\n> ")
       })
 
       // clear off unreadMessages
@@ -322,10 +338,10 @@ class MessagePrinter(private var me: User, private var chat: Chat, private var c
 
   /**
    * This method is called in {@link chatReader}
-   * and is called always from external thread (not main),
+   * and is called always from external (not main) thread,
    * so we can coll updateDB directly in it.
    */
-  private def printMessage(r: ConsumerRecord[User, Message]): Unit =
+  private def printMessage(records: ConsumerRecords[User, Message]): Unit =
 
     // we extract valuable informations from consumer record
     val localTime: LocalDateTime = TimeConverter.fromMilliSecondsToLocal( r.timestamp() )
@@ -339,20 +355,20 @@ class MessagePrinter(private var me: User, private var chat: Chat, private var c
       if sender.login != me.login then print(s"${sender.login} $localTime >> ${message.content}\n> ")
 
       // and update offset and timestamp
-      updateOffsetAndLastMessageTime(r.offset() + 1L, r.timestamp())
+      updateOffsetAndLastMessageTime( r.offset() + 1L, r.timestamp())
 
     // if unread messages buffer is not empty
     else
 
       // we sort stored messages in offset order
-      val sorted: immutable.SortedMap[Long, (User, Message)] =
+      val sorted: immutable.SortedMap[Long, Message] =
         unreadMessages.seq.to(immutable.SortedMap)
 
       // print all messages from unread message buffer
-      sorted.foreach( (k: Long, v: (User, Message)) => {
-        val login = v._1.login
-        val time = TimeConverter.fromMilliSecondsToLocal(v._2.utcTime)
-        print(s"$login $time >> ${v._2.content}\n> ")
+      sorted.foreach( (k: Long, v: Message ) => {
+        val login = v.authorLogin
+        val time = TimeConverter.fromMilliSecondsToLocal(v.utcTime)
+        print(s"$login $time >> ${v.content}\n> ")
       })
 
       // clear all already printed messages
@@ -378,7 +394,7 @@ class MessagePrinter(private var me: User, private var chat: Chat, private var c
    * This method is called from external threads always.
    */
   private def updateDB():     Unit = // we update offset and message time for this message in DB
-    ExternalDB.updateChatOffsetAndMessageTime(me, Seq(chat)) match {
+    ExternalDB.updateChatOffsetAndMessageTime(me, chat, offsets) match {
       case Left(queryErrors: QueryErrors) =>
       // queryErrors.listOfErrors.foreach(error => println(s"${error.description}"))
       // print(s"Leave the chat, and back in a few minutes.\n> ")
@@ -395,12 +411,11 @@ class MessagePrinter(private var me: User, private var chat: Chat, private var c
    * as well.
    *
    */
-  def updateOffsetAndLastMessageTime(offset: Long, newLastMessageTime: Long): Unit =
-    newOffset.set( offset )
+  def updateOffsetAndLastMessageTime(partitionNum: Partition, offset: Offset, newLastMessageTime: MessageTime): Unit =
+    offsets.update(partitionNum, offset)
     lastMessageTime.set( newLastMessageTime )
     chat.synchronized{
       chat = chat.copy(
-        offset = offset,
         timeOfLastMessage = TimeConverter.fromMilliSecondsToLocal(newLastMessageTime)
       )
     }
@@ -417,16 +432,22 @@ class MessagePrinter(private var me: User, private var chat: Chat, private var c
 
   /**
    * Simple getter of last message time.
-   * @return
    */
   def getLastMessageTime: Long = lastMessageTime.get()
 
 
+
   /**
    * Returns current status of MessagePrinter.
-   * @return
    */
   def getStatus: Status = status.synchronized { status }
+
+
+
+  /**
+   * return number of unread messages.
+   */
+  def getNumOfUnreadMessages: Int =  unreadMessages.size
 
 
 
@@ -462,6 +483,25 @@ class MessagePrinter(private var me: User, private var chat: Chat, private var c
   end closeMessagePrinter
 
 
+
+
+  /**
+   * Method tries to pull list of chat user from db.
+   */
+  @deprecated("users list is not used so is not required to pull it from db.")
+  private def pullChatUsersList(): Unit =
+    Future {
+      ExternalDB.findChatAndUsers(me, chat.chatId) match {
+        case Left(dbErrors: QueryErrors) =>
+          // we print information that we are not able download chat users
+          dbErrors.listOfErrors.foreach(queryError => print(s"${queryError.description}. Cannot load chat users.>\n "))
+        case Right((_, list: List[User])) =>
+
+        // we reassign user list
+        // chatUsers = list
+
+      }
+    }
 
 
 end MessagePrinter // end of class definition

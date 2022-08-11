@@ -386,6 +386,7 @@ class ChatManager(var me: User):
           val message = Message(
             "",
             me.userId,
+            me.login,
             System.currentTimeMillis(),
             ZoneId.systemDefault(),
             chat.chatId,
@@ -474,13 +475,15 @@ class ChatManager(var me: User):
       val message = Message(
         content,
         me.userId,
+        me.login,
         System.currentTimeMillis(),
         ZoneId.systemDefault(),
         chat.chatId,
         chat.chatName,
         chat.groupChat
       )
-      val fut = chatProducer.send(new ProducerRecord[User, Message](chat.chatId, me, message)) // , callBack)
+      // we send only value, key of record is null
+      val fut = chatProducer.send(new ProducerRecord[User, Message](chat.chatId, message)) // , callBack)
 
 
       // we wait to get response from kafka broker
@@ -489,20 +492,22 @@ class ChatManager(var me: User):
 
       // extract all needed data, and update myChats with them
       val newOffset = result.offset() + 1L // to read from this newOffset
+      val partition = result.partition()
 
+      // ALERT
+      // TODO we cannot update here because we do not know to which partition message was sent
       myChats.get(chat.chatId) match {
-        case Some(messagePrinter: MessagePrinter) => // myChats.update(chat.chatId, (updatedChat, chatAndList._2))
-          messagePrinter.updateOffsetAndLastMessageTime(newOffset, result.timestamp())
+        case Some(messagePrinter: MessagePrinter) =>
+          messagePrinter.updateOffsetAndLastMessageTime(partition, newOffset, result.timestamp())
         case None => // we do not update
       }
 
       val updatedChat: Chat = chat.copy(
-        offset = newOffset,
         timeOfLastMessage = TimeConverter.fromMilliSecondsToLocal( result.timestamp() )
       )
 
       // we update offset and message time for this message in DB
-      ExternalDB.updateChatOffsetAndMessageTime(me, Seq(updatedChat)) match {
+      ExternalDB.updateChatOffsetAndMessageTime(me, updatedChat, offsets) match {
         case Left(queryErrors: QueryErrors) =>
         case Right(value) =>
       }

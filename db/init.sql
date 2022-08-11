@@ -22,14 +22,16 @@ CREATE TABLE IF NOT EXISTS chats (
 CREATE TABLE users_chats (
   chat_id varchar(255) REFERENCES chats(chat_id) ON DELETE CASCADE,
   user_id uuid REFERENCES users(user_id) ON DELETE CASCADE,
-  users_offset BIGINT DEFAULT 0 NOT NULL, --ON DELETE CASCADE,
+  users_offset_0 BIGINT DEFAULT 0 NOT NULL, --ON DELETE CASCADE,
+  users_offset_1 BIGINT DEFAULT 0 NOT NULL,
+  users_offset_2 BIGINT DEFAULT 0 NOT NULL,
   message_time BIGINT DEFAULT 0 NOT NULL,
   PRIMARY KEY (chat_id, user_id)
 );
 
 -- add two users to db only for some tests
-INSERT INTO users (login, salt, pass) VALUES ( 'Walo'   , '$2a$10$8K1p/a0dL1LXMIgoEDFrwO', '$2a$10$8K1p/a0dL1LXMIgoEDFrwO2L7cYK91Q7Ui9I4HeoAHUf46pq8IdFK'); -- aaa
-INSERT INTO users (login, salt, pass) VALUES ( 'Spejson', '$2a$10$8K1p/a0dL1LXMIgoEDFrwO', '$2a$10$8K1p/a0dL1LXMIgoEDFrwOra5VEq4VeXudMZmp9DH9OnhYQ6iDV1e'); -- bbb
+INSERT INTO users (login, salt, pass) VALUES ( 'Walo'   , '$2a$10$8K1p/a0dL1LXMIgoEDFrwO', '$2a$10$8K1p/a0dL1LXMIgoEDFrwO2L7cYK91Q7Ui9I4HeoAHUf46pq8IdFK'); -- password aaa
+INSERT INTO users (login, salt, pass) VALUES ( 'Spejson', '$2a$10$8K1p/a0dL1LXMIgoEDFrwO', '$2a$10$8K1p/a0dL1LXMIgoEDFrwOra5VEq4VeXudMZmp9DH9OnhYQ6iDV1e'); -- password bbb
 
 
 

@@ -37,6 +37,8 @@ object KessengerAdmin {
   private val userDeserializer    = "com.github.malyszaryczlowiek.kessengerlibrary.serdes.UserDeserializer"
   private val messageSerializer   = "com.github.malyszaryczlowiek.kessengerlibrary.serdes.MessageSerializer"
   private val messageDeserializer = "com.github.malyszaryczlowiek.kessengerlibrary.serdes.MessageDeserializer"
+  private val stringSerializer    = "org.apache.kafka.common.serialization.StringSerializer"
+  private val stringDeserializer  = "org.apache.kafka.common.serialization.StringDeserializer"
 
 
   def startAdmin(conf: KafkaConfigurator): Unit =
