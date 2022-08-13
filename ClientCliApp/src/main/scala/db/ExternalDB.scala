@@ -94,14 +94,30 @@ object ExternalDB:
    * TODO write test
    */
   def findChatAndUsers(me: User, chatId: ChatId): Either[QueryErrors,(Chat, List[User])] =
-    val sql = "SELECT chats.chat_id, chats.chat_name, " +
-      "chats.group_chat, users_chats.users_offset, users_chats.message_time, " +
-      "users.user_id, users.login FROM users_chats " +
+    // todo here change to
+    val numOfPartitions = 3
+
+    val range = 0 until numOfPartitions
+
+    val prefix = "SELECT chats.chat_id, chats.chat_name, " +
+      "chats.group_chat, users_chats.message_time, " +
+      "users.user_id, users.login, "
+
+    val offset = "users_chats.users_offset_"
+
+    val o = range.foldLeft("")((folded, partition) => s"$folded$offset$partition, ").stripTrailing()
+    val offsets = o.substring(0, o.length - 1) // we remove last coma ,
+
+    val postfix = " FROM users_chats " +
       "INNER JOIN users " +
       "ON users_chats.user_id = users.user_id " +
       "INNER JOIN chats " +
       "ON users_chats.chat_id = chats.chat_id " +
       "WHERE users_chats.chat_id = ?"
+
+
+    val sql = s"$prefix$offsets$postfix"
+
     Using(connection.prepareStatement(sql)) {
       (statement: PreparedStatement) =>
         statement.setString(1, chatId)
@@ -112,12 +128,11 @@ object ExternalDB:
               val chatID:   ChatId   = resultSet.getString("chat_id")
               val chatName: ChatName = resultSet.getString("chat_name")
               val grouped:  Boolean  = resultSet.getBoolean("group_chat")
-              val offset:      Long  = resultSet.getLong("users_offset")
               val messageTime: Long  = resultSet.getLong("message_time")
               val lt: LocalDateTime  = TimeConverter.fromMilliSecondsToLocal(messageTime)
-
+              val chat:        Chat  = Chat(chatID, chatName, grouped, lt)
               // todo usunąć zależność od offsetu
-              val chat:        Chat  = Chat(chatID, chatName, grouped, offset, lt)
+
               val userId:      UUID  = resultSet.getObject[UUID]("user_id", classOf[UUID])
               val login:       Login = resultSet.getString("login")
               val u:           User  = User(userId, login)
@@ -222,7 +237,7 @@ object ExternalDB:
           groupChat = true
           chatId = Domain.generateChatId(UUID.randomUUID(), UUID.randomUUID()) // for more than two users we generate random chat_id
         val time = TimeConverter.fromMilliSecondsToLocal( System.currentTimeMillis() )
-        val chat = Chat(chatId, chatName, groupChat, 0L, time)
+        val chat = Chat(chatId, chatName, groupChat, time)
         insertChatAndAssignUsersToChat(users, chat) match {
           case Failure(ex) =>
             connection.rollback(beforeAnyInsertions) // we roll back any insertions
@@ -449,7 +464,7 @@ object ExternalDB:
     val sql = "UPDATE users SET joining_offset = ? WHERE user_id = ? AND login = ? "
     Using(connection.prepareStatement(sql)) {
       (statement: PreparedStatement) =>
-        statement.setLong(1, offset)
+        statement.setLong(1,   offset)
         statement.setObject(2, user.userId)
         statement.setString(3, user.login)
         statement.executeUpdate()
@@ -460,6 +475,8 @@ object ExternalDB:
         else Left(QueryErrors(List(QueryError(QueryErrorType.ERROR, QueryErrorMessage.DataProcessingError))))
     }
 
+  
+  
   /**
    * TODO correct tests
    * @param user
@@ -485,6 +502,7 @@ object ExternalDB:
     }
 
 
+  
   /**
    * No modify
    * @param me
@@ -541,15 +559,15 @@ object ExternalDB:
 
 
 
-  def updateChatOffsetAndMessageTime(user: User, chat: Chat, offsets: TrieMap[Int, Long]): Either[QueryErrors, Int] =
-    val sortedOffsets = offsets.toSeq.sortBy(_._1) // sort by key (number of partition)
+  def updateChatOffsetAndMessageTime(user: User, chat: Chat, sortedOffsets: => Seq[(Int, Long)]): Either[QueryErrors, Int] =
+    //val sortedOffsets: Seq[(Int, Long)] = offsets.toSeq.sortBy(tuple => tuple._1) // sort by key (number of partition)
     val prefix = "UPDATE users_chats SET "
-    val middle = sortedOffsets.foldLeft[String]("")(
+    val offsets = sortedOffsets.foldLeft[String]("")(
       (folded: String, partitionAndOffset: (Int, Long)) =>
         s"${folded}users_offset_${partitionAndOffset._1} = ?, "
     )
     val postfix = " message_time = ? WHERE chat_id = ? AND user_id = ? "
-    val sql = s"$prefix$middle$postfix"
+    val sql = s"$prefix$offsets$postfix"
 
     Using(connection.prepareStatement(sql)) {
       (statement: PreparedStatement) =>
@@ -609,46 +627,46 @@ object ExternalDB:
    * @param chat
    * @return
    */
-  def updateChatOffsetAndMessageTime_buckup(user: User, chats: Seq[Chat]): Either[QueryErrors, Int] =
-    val sql = "UPDATE users_chats SET users_offset = ?, message_time = ? WHERE chat_id = ? AND user_id = ? "
-    if chats.isEmpty then
-      Left(QueryErrors(List(QueryError(QueryErrorType.WARNING,QueryErrorMessage.UserHasNoChats))))
-    else
-      //var stateBeforeInsertion: Savepoint = null
-      Try {
-//        connection.setAutoCommit(false)
-//        stateBeforeInsertion = connection.setSavepoint()
-        val futureList = chats.map[Future[Int]](
-          chat =>
-            Future { // each insertion executed in separate thread
-              Using(connection.prepareStatement(sql)) {
-                (statement: PreparedStatement) =>
-                  statement.setLong(1, chat.offset )
-                  statement.setLong(2, TimeConverter.fromLocalToEpochTime(chat.timeOfLastMessage))
-                  statement.setString(3, chat.chatId)
-                  statement.setObject(4, user.userId)
-                  statement.executeUpdate()
-              } match {
-                case Failure(ex)    => throw ex
-                case Success(value) => value
-              }
-            }
-        )
-        // we zip all futures to get one with sum of affected chats
-        val zippedFuture = futureList.reduceLeft((f1, f2) => f1.zipWith(f2)(_+_))
-        val affected = Await.result(zippedFuture, Duration.create(5L, duration.SECONDS))
-        Right(affected)
-//        if affected == chats.length then
-//          connection.commit()
-//          Right(affected)
-//        else
-//          throw new Exception("Data processing error.")
-      } match {
-        case Failure(ex) =>
-//          if stateBeforeInsertion != null then connection.rollback(stateBeforeInsertion) // This connection has been closed
-          handleExceptionMessage[Int](ex)  // returns DataProcessing Error
-        case Success(either) => either
-      }
+//  def updateChatOffsetAndMessageTime_buckup(user: User, chats: Seq[Chat]): Either[QueryErrors, Int] =
+//    val sql = "UPDATE users_chats SET users_offset = ?, message_time = ? WHERE chat_id = ? AND user_id = ? "
+//    if chats.isEmpty then
+//      Left(QueryErrors(List(QueryError(QueryErrorType.WARNING,QueryErrorMessage.UserHasNoChats))))
+//    else
+//      //var stateBeforeInsertion: Savepoint = null
+//      Try {
+////        connection.setAutoCommit(false)
+////        stateBeforeInsertion = connection.setSavepoint()
+//        val futureList = chats.map[Future[Int]](
+//          chat =>
+//            Future { // each insertion executed in separate thread
+//              Using(connection.prepareStatement(sql)) {
+//                (statement: PreparedStatement) =>
+//                  statement.setLong(1, chat.offset )
+//                  statement.setLong(2, TimeConverter.fromLocalToEpochTime(chat.timeOfLastMessage))
+//                  statement.setString(3, chat.chatId)
+//                  statement.setObject(4, user.userId)
+//                  statement.executeUpdate()
+//              } match {
+//                case Failure(ex)    => throw ex
+//                case Success(value) => value
+//              }
+//            }
+//        )
+//        // we zip all futures to get one with sum of affected chats
+//        val zippedFuture = futureList.reduceLeft((f1, f2) => f1.zipWith(f2)(_+_))
+//        val affected = Await.result(zippedFuture, Duration.create(5L, duration.SECONDS))
+//        Right(affected)
+////        if affected == chats.length then
+////          connection.commit()
+////          Right(affected)
+////        else
+////          throw new Exception("Data processing error.")
+//      } match {
+//        case Failure(ex) =>
+////          if stateBeforeInsertion != null then connection.rollback(stateBeforeInsertion) // This connection has been closed
+//          handleExceptionMessage[Int](ex)  // returns DataProcessing Error
+//        case Success(either) => either
+//      }
 
 
 

@@ -218,7 +218,7 @@ class ChatManager(var me: User):
                 val time: LocalDateTime = TimeConverter.fromMilliSecondsToLocal(r.timestamp())
 
                 // set extracted data to chat object
-                val chat = Chat(m.chatId, m.chatName, groupChat, 0L, time)
+                val chat = Chat(m.chatId, m.chatName, groupChat, time)
 
                 // add chat from invitation to mychats only if
                 // we did not do this earlier
@@ -363,6 +363,14 @@ class ChatManager(var me: User):
 
 
 
+  def getNumOfUnreadMessages(chat: Chat): Int =
+    getMessagePrinter(chat) match {
+      case Some(mMprinter) => mMprinter.getNumOfUnreadMessages
+      case None            => 0 // unrechable
+    }
+
+
+
   /**
    * TODO this method is not used yet - use it
    *
@@ -483,34 +491,38 @@ class ChatManager(var me: User):
         chat.groupChat
       )
       // we send only value, key of record is null
-      val fut = chatProducer.send(new ProducerRecord[User, Message](chat.chatId, message)) // , callBack)
+      chatProducer.send(new ProducerRecord[User, Message](chat.chatId, message)) // , callBack)
+      // val fut =
 
 
-      // we wait to get response from kafka broker
-      val result = fut.get(5L, TimeUnit.SECONDS)
+      // todo i think we can remove this and only wait for response in consumer
 
-
-      // extract all needed data, and update myChats with them
-      val newOffset = result.offset() + 1L // to read from this newOffset
-      val partition = result.partition()
-
-      // ALERT
-      // TODO we cannot update here because we do not know to which partition message was sent
-      myChats.get(chat.chatId) match {
-        case Some(messagePrinter: MessagePrinter) =>
-          messagePrinter.updateOffsetAndLastMessageTime(partition, newOffset, result.timestamp())
-        case None => // we do not update
-      }
-
-      val updatedChat: Chat = chat.copy(
-        timeOfLastMessage = TimeConverter.fromMilliSecondsToLocal( result.timestamp() )
-      )
-
-      // we update offset and message time for this message in DB
-      ExternalDB.updateChatOffsetAndMessageTime(me, updatedChat, offsets) match {
-        case Left(queryErrors: QueryErrors) =>
-        case Right(value) =>
-      }
+//      // we wait to get response from kafka broker
+//      val result = fut.get(5L, TimeUnit.SECONDS)
+//
+//
+//      // extract all needed data, and update myChats with them
+//      val newOffset = result.offset() + 1L // to read from this newOffset
+//      val partition = result.partition()
+//      val messageTime = result.timestamp()
+//
+//      // ALERT
+//      // TODO we cannot update here because we do not know to which partition message was sent
+//      myChats.get(chat.chatId) match {
+//        case Some(messagePrinter: MessagePrinter) =>
+//          messagePrinter.updateOffsetAndLastMessageTime(partition, newOffset, messageTime)
+//        case None => // we do not update
+//      }
+//
+//      val updatedChat: Chat = chat.copy(
+//        timeOfLastMessage = TimeConverter.fromMilliSecondsToLocal( result.timestamp() )
+//      )
+//
+//      // we update offset and message time for this message in DB
+//      ExternalDB.updateChatOffsetAndMessageTime(me, updatedChat, offsets) match {
+//        case Left(queryErrors: QueryErrors) =>
+//        case Right(value) =>
+//      }
     }
 
 

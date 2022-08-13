@@ -14,8 +14,8 @@ class MessagePrinterTests extends munit.FunSuite:
 
   test("Testing ordering of MessagePrinter") {
 
-    val chat1 = Chat("fakeID", "fakeName",false, 0L, LocalDateTime.of(2022, Month.JULY, 18, 18, 18, 18))
-    val chat2 = Chat("fakeID", "fakeName",false, 0L, LocalDateTime.of(2022, Month.JULY, 18, 18, 18, 20))
+    val chat1 = Chat("fakeID", "fakeName",false, LocalDateTime.of(2022, Month.JULY, 18, 18, 18, 18))
+    val chat2 = Chat("fakeID", "fakeName",false, LocalDateTime.of(2022, Month.JULY, 18, 18, 18, 20))
 
     val user = User(UUID.randomUUID(), "fakeuser")
 

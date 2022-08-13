@@ -762,7 +762,7 @@ class DatabaseTests extends DbIntegrationTestsTrait:
         chat
       case Left(queryErrors: QueryErrors) =>
         throw new Exception(s"Method should return Chat object.")
-        Chat("null", "NullChat name", false, 0, fooTime)
+        Chat("null", "NullChat name", false, fooTime)
     }
 
     // finally we try to rename it.
@@ -785,7 +785,7 @@ class DatabaseTests extends DbIntegrationTestsTrait:
   test("Testing of updating of chat name when chat does not exist in DB") {
 
     val newChatName: ChatName = "Ole ole ale bieda w oczy kole"
-    val fakeChat = Chat("ChatId", "Old chat name", false, 0, fooTime)
+    val fakeChat = Chat("ChatId", "Old chat name", false, fooTime)
 
     ExternalDB.updateChatName(fakeChat, newChatName) match {
       case Right(_) =>
@@ -830,7 +830,7 @@ class DatabaseTests extends DbIntegrationTestsTrait:
         chat
       case Left(queryErrors: QueryErrors) =>
         throw new Exception(s"Method should return Chat object.")
-        Chat("null", "NullChat name", false, 0, fooTime)
+        Chat("null", "NullChat name", false, fooTime)
     }
 
     // new name
@@ -897,7 +897,7 @@ class DatabaseTests extends DbIntegrationTestsTrait:
         chat
       case Left(queryErrors: QueryErrors) =>
         throw new Exception(s"Method should return Chat object.")
-        Chat("null", "NullChat name", false, 0, fooTime)
+        Chat("null", "NullChat name", false, fooTime)
     }
 
     val solaris = ExternalDB.createUser("solaris", "pass", salt) match {
@@ -923,7 +923,7 @@ class DatabaseTests extends DbIntegrationTestsTrait:
    */
   test("Try to add user to non existing chat") {
 
-    val fakeChat = Chat("chat-id", "chat-name", true, 0, fooTime)
+    val fakeChat = Chat("chat-id", "chat-name", true, fooTime)
 
 
     val solaris = ExternalDB.createUser("solaris", "pass", salt) match {
@@ -986,7 +986,7 @@ class DatabaseTests extends DbIntegrationTestsTrait:
         chat
       case Left(queryErrors: QueryErrors) =>
         throw new Exception(s"Method should return Chat object.")
-        Chat("null", "NullChat name", false, 0, fooTime)
+        Chat("null", "NullChat name", false, fooTime)
     }
 
     ExternalDB.addNewUsersToChat(List.empty[User], chat) match {
@@ -1040,7 +1040,7 @@ class DatabaseTests extends DbIntegrationTestsTrait:
         chat
       case Left(queryErrors: QueryErrors) =>
         throw new Exception(s"Method should return Chat object.")
-        Chat("null", "NullChat name", false, 0, fooTime)
+        Chat("null", "NullChat name", false, fooTime)
     }
 
     val solaris = ExternalDB.createUser("solaris", "pass", salt) match {
@@ -1374,7 +1374,7 @@ class DatabaseTests extends DbIntegrationTestsTrait:
 
     val chatName: ChatName = "Walo-Spejson-wojtas"
 
-    val fakeChat = Chat("chat-id", "chat-name", false, 0, fooTime)
+    val fakeChat = Chat("chat-id", "chat-name", false, fooTime)
 
     ExternalDB.deleteMeFromChat(user1, fakeChat) match {
       case Right(_) =>

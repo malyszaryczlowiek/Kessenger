@@ -11,13 +11,17 @@ import scala.collection.concurrent.TrieMap
 
 class OtherTests extends munit.FunSuite:
 
-  test("String evaluation test") {
+  test("String evaluation test".fail) {
 
     val ex = true
 
     val toPrint = "Hello"
 
-    println(s"${if ex then toPrint}")
+    val result = s"${if ex then toPrint}"
+
+    println(result)
+
+    assert(result.equals(toPrint)) // this fails
 
   }
 
@@ -83,8 +87,8 @@ class OtherTests extends munit.FunSuite:
 
   test("folding sql statement") {
 
-    val offset: TrieMap[Long, Long] = TrieMap(1L -> 6L, 0L -> 7L)
-        val off = offsets.toSeq.sortBy(_._1) // sort by key (number of partition)
+    val offsets: TrieMap[Long, Long] = TrieMap(1L -> 6L, 0L -> 7L)
+    val off = offsets.toSeq.sortBy(_._1) // sort by key (number of partition)
     val prefix = "UPDATE users_chats SET "
     val middle = off.foldLeft[String]("")(
       (folded: String, partitionAndOffset: (Long, Long)) =>
@@ -96,6 +100,33 @@ class OtherTests extends munit.FunSuite:
     println(sql)
 
 
+
+  }
+
+  test("follding statement 2") {
+    val numOfPartitions = 3
+
+    val range = 0 until numOfPartitions
+
+    val prefix = "SELECT chats.chat_id, chats.chat_name, " +
+      "chats.group_chat, users_chats.message_time, " +
+      "users.user_id, users.login, "
+
+    val offset = "users_chats.users_offset_"
+
+    val o = range.foldLeft("")((folded, partition) => s"$folded$offset$partition, ").stripTrailing()
+    val offsets = o.substring(0, o.length - 1) // we remove last coma ,
+
+    val postfix = " FROM users_chats " +
+      "INNER JOIN users " +
+      "ON users_chats.user_id = users.user_id " +
+      "INNER JOIN chats " +
+      "ON users_chats.chat_id = chats.chat_id " +
+      "WHERE users_chats.chat_id = ?"
+
+
+    val sql = s"$prefix$offsets$postfix"
+    println(sql)
 
   }
 

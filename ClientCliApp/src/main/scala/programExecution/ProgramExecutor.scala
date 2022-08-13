@@ -11,6 +11,7 @@ import kessengerlibrary.db.queries.{QueryError, QueryErrors}
 import kessengerlibrary.domain.{Chat, User}
 import kessengerlibrary.domain.Domain.{Login, Password}
 import kessengerlibrary.kafka.configurators.KafkaProductionConfigurator
+import kessengerlibrary.kafka.configurators.KafkaConfigurator
 import kessengerlibrary.kafka.errors.KafkaError
 import kessengerlibrary.status.Status
 import kessengerlibrary.status.Status.{Closing, NotInitialized, Running, Starting, Terminated}
@@ -151,7 +152,8 @@ object ProgramExecutor :
         signIn()
       case Right(user) => // user found
         me = user.copy(salt = None)
-        KessengerAdmin.startAdmin(new KafkaProductionConfigurator)
+        KafkaConfigurator.setConfigurator(new KafkaProductionConfigurator)
+        KessengerAdmin.startAdmin(KafkaConfigurator.configurator)
         MyAccount.initialize(user) match {
           case Left(errorsTuple) =>
             errorsTuple match {
@@ -222,11 +224,11 @@ object ProgramExecutor :
       println("Your chats:")
       val indexedList = chats.zipWithIndex
       indexedList.foreach(
-        chatIndex => {
-          // if offset is different than 0 means that user read from chat so accept them
-          // TODO reimplement it @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-          if chatIndex._1.offset == 0L then
-            println(s"${chatIndex._2 + 1}) ${chatIndex._1.chatName} (NOT ACCEPTED)")
+        (chatIndex: (Chat, Int)) => {
+          val numOfUnreadMessages = manager.getNumOfUnreadMessages(chatIndex._1)
+
+          if numOfUnreadMessages > 0L then
+            println(s"${chatIndex._2 + 1}) ${chatIndex._1.chatName} ($numOfUnreadMessages new message(s)")
           else
             println(s"${chatIndex._2 + 1}) ${chatIndex._1.chatName}")
         })
