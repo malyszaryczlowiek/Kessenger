@@ -2,9 +2,10 @@ package com.github.malyszaryczlowiek
 package db
 
 import kessengerlibrary.db.queries.*
-import kessengerlibrary.domain.Domain.{ChatId, ChatName, Login, Password, UserID, generateChatId}
+import kessengerlibrary.domain.Domain.{ChatId, ChatName, Login, Offset, Partition, Password, UserID, generateChatId}
 import kessengerlibrary.domain.{Chat, Domain, User}
 import kessengerlibrary.util.TimeConverter
+import kessengerlibrary.kafka.configurators.KafkaConfigurator
 
 import java.sql.{Connection, DriverManager, PreparedStatement, ResultSet, SQLType, Savepoint, Statement, Timestamp}
 import java.time.LocalDateTime
@@ -43,14 +44,64 @@ object ExternalDB:
 
 
   /**
-   * write tests
-   * @param user user
+   *
+   * @param user
    * @return
    */
-  def findUsersChats(user: User): Either[QueryErrors, Map[Chat, List[User]]] =
+  def findUsersChats(user: User): Either[QueryErrors, Map[Chat, Map[Partition, Offset]]] =
+    val numOfPartitions = KafkaConfigurator.configurator.TOPIC_PARTITIONS_NUMBER
+    val range = 0 until numOfPartitions
+    val offsetColumn = "users_chats.users_offset_"
+    val prefix = "SELECT chats.chat_id, chats.chat_name, chats.group_chat, users_chats.message_time, " +
+      "users.user_id, users.login, "
+    val fold = range.foldLeft("")((folded, partition) => s"$folded$offsetColumn$partition, ").stripTrailing()
+    val offsets = fold.substring(0, fold.length - 1) // we remove last coma ,
+    val postfix = " FROM users_chats " +
+      "INNER JOIN chats " +
+      "ON users_chats.chat_id = chats.chat_id " +
+      "INNER JOIN users_chats AS other_chats " +
+      "ON chats.chat_id = other_chats.chat_id " +
+      "INNER JOIN users " +
+      "ON other_chats.user_id = users.user_id " +
+      "WHERE users_chats.user_id = ?"
+    val sql = s"$prefix$offsets$postfix"
+    Using(connection.prepareStatement(sql)) {
+      (statement: PreparedStatement) =>
+        statement.setObject(1, user.userId)
+        val buffer: ListBuffer[(Chat, Map[Partition, Offset])] = ListBuffer()
+        Using(statement.executeQuery()) {
+          (resultSet: ResultSet) =>
+            while (resultSet.next())
+              val chatId:    ChatId   = resultSet.getString("chat_id")
+              val chatName:  ChatName = resultSet.getString("chat_name")
+              val groupChat: Boolean  = resultSet.getBoolean("group_chat")
+              val time:      Long     = resultSet.getLong("message_time")
+              val userId:    UUID     = resultSet.getObject[UUID]("user_id", classOf[UUID])
+              val login:     Login    = resultSet.getString("login")
+              val partitionOffsets: Map[Partition, Offset] =
+                range.map(i => (i, resultSet.getLong(s"users_offset_$i"))).toMap
+              val chat:      Chat     = Chat(chatId, chatName, groupChat, TimeConverter.fromMilliSecondsToLocal(time))
+              val u:         User     = User(userId, login)
+              // we add only when user_id is our id
+              if user.userId == u.userId then
+                buffer += ((chat, partitionOffsets))
+            // val grouped = buffer.toList.groupMap[Chat, User]((chat, user) => chat)((chat, user) => user)
+            val grouped = buffer.toList.toMap
+            Right(grouped)
+        } match {
+          case Failure(ex)     => throw ex
+          case Success(either) => either
+        }
+    } match {
+      case Failure(ex) => handleExceptionMessage[Map[Chat, Map[Int, Long]]](ex)
+      case Success(either) => either
+    }
 
-  // TODO
-  //  tutaj trzeba edytować sql query tak aby uwzględziało ilość partycji w topicu
+  /**
+   *
+   */
+  @deprecated("Method used in older versions.")
+  def findUsersChatsOld(user: User): Either[QueryErrors, Map[Chat, List[User]]] =
 
 
     val sql = "SELECT chats.chat_id, chats.chat_name, chats.group_chat, users_chats.users_offset, users_chats.message_time, users.user_id, users.login FROM users_chats " + // users_chats.users_offset,
@@ -71,7 +122,6 @@ object ExternalDB:
               val chatId:    ChatId   = resultSet.getString("chat_id")
               val chatName:  ChatName = resultSet.getString("chat_name")
               val groupChat: Boolean  = resultSet.getBoolean("group_chat")
-              // val offset:    Long     = resultSet.getLong("users_offset")
               val time:      Long     = resultSet.getLong("message_time")
               val userId:    UUID     = resultSet.getObject[UUID]("user_id", classOf[UUID])
               val login:     Login    = resultSet.getString("login")
@@ -91,12 +141,12 @@ object ExternalDB:
 
 
   /**
-   * TODO write test
+   *
    */
+  @deprecated("Method used in older versions.")
   def findChatAndUsers(me: User, chatId: ChatId): Either[QueryErrors,(Chat, List[User])] =
-    // todo here change to
-    val numOfPartitions = 3
 
+    val numOfPartitions = KafkaConfigurator.configurator.TOPIC_PARTITIONS_NUMBER
     val range = 0 until numOfPartitions
 
     val prefix = "SELECT chats.chat_id, chats.chat_name, " +
@@ -115,7 +165,6 @@ object ExternalDB:
       "ON users_chats.chat_id = chats.chat_id " +
       "WHERE users_chats.chat_id = ?"
 
-
     val sql = s"$prefix$offsets$postfix"
 
     Using(connection.prepareStatement(sql)) {
@@ -131,8 +180,8 @@ object ExternalDB:
               val messageTime: Long  = resultSet.getLong("message_time")
               val lt: LocalDateTime  = TimeConverter.fromMilliSecondsToLocal(messageTime)
               val chat:        Chat  = Chat(chatID, chatName, grouped, lt)
-              // todo usunąć zależność od offsetu
-
+              val partitionOffsets: Map[Int,Long]=
+                range.map(i => (i, resultSet.getLong(s"users_offset_$i"))).toMap
               val userId:      UUID  = resultSet.getObject[UUID]("user_id", classOf[UUID])
               val login:       Login = resultSet.getString("login")
               val u:           User  = User(userId, login)
@@ -460,7 +509,7 @@ object ExternalDB:
    * @param offset
    * @return
    */
-  def updateJoiningOffset(user: User, offset: Long): Either[QueryErrors, User] =
+  def updateJoiningOffset(user: User, offset: Offset): Either[QueryErrors, User] =
     val sql = "UPDATE users SET joining_offset = ? WHERE user_id = ? AND login = ? "
     Using(connection.prepareStatement(sql)) {
       (statement: PreparedStatement) =>
@@ -469,14 +518,14 @@ object ExternalDB:
         statement.setString(3, user.login)
         statement.executeUpdate()
     } match {
-      case Failure(ex) => handleExceptionMessage(ex)
+      case Failure(ex)    => handleExceptionMessage(ex)
       case Success(value) =>
         if value == 1 then Right(user.copy(joiningOffset = offset))
         else Left(QueryErrors(List(QueryError(QueryErrorType.ERROR, QueryErrorMessage.DataProcessingError))))
     }
 
-  
-  
+
+
   /**
    * TODO correct tests
    * @param user
@@ -502,7 +551,7 @@ object ExternalDB:
     }
 
 
-  
+
   /**
    * No modify
    * @param me
@@ -557,18 +606,22 @@ object ExternalDB:
     }
 
 
-
-
+  /**
+   *
+   * @param user
+   * @param chat
+   * @param sortedOffsets argument is sorted according to partition number
+   * @return
+   */
   def updateChatOffsetAndMessageTime(user: User, chat: Chat, sortedOffsets: => Seq[(Int, Long)]): Either[QueryErrors, Int] =
-    //val sortedOffsets: Seq[(Int, Long)] = offsets.toSeq.sortBy(tuple => tuple._1) // sort by key (number of partition)
     val prefix = "UPDATE users_chats SET "
     val offsets = sortedOffsets.foldLeft[String]("")(
       (folded: String, partitionAndOffset: (Int, Long)) =>
         s"${folded}users_offset_${partitionAndOffset._1} = ?, "
-    )
+    ).stripTrailing()
     val postfix = " message_time = ? WHERE chat_id = ? AND user_id = ? "
-    val sql = s"$prefix$offsets$postfix"
 
+    val sql = s"$prefix$offsets$postfix"
     Using(connection.prepareStatement(sql)) {
       (statement: PreparedStatement) =>
         val numOfPartitions = sortedOffsets.size
@@ -578,13 +631,12 @@ object ExternalDB:
             statement.setLong(partitionNum + 1,  offset)
           }
         )
-
         statement.setLong(   numOfPartitions + 1, TimeConverter.fromLocalToEpochTime(chat.timeOfLastMessage))
         statement.setString( numOfPartitions + 2, chat.chatId)
         statement.setObject( numOfPartitions + 3, user.userId)
         statement.executeUpdate()
     } match {
-      case Failure(ex)    =>           handleExceptionMessage[Int](ex)  // returns DataProcessing Error
+      case Failure(ex)    => handleExceptionMessage[Int](ex)  // returns DataProcessing Error
       case Success(value) => Right(value)
     }
 

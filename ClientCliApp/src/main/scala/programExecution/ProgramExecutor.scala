@@ -52,7 +52,6 @@ object ProgramExecutor :
 
 
 
-
     val length = args.length
     if length == 0 then
       println(s"Kessenger v0.1.2")
@@ -408,7 +407,7 @@ object ProgramExecutor :
         println(s"Cannot escape chat. Please try again later.")
       case Right(chatUsers: Int)      =>
         manager.sendMessage(chat, s"## ${me.login} Stopped participating in chat. ##")
-        manager.escapeChat(chat)  // TODO implement
+        manager.escapeChat(chat)
         print(s"You escaped chat '${chat.chatName}'.\n> ")
         // we do not delete chat topic because
         // it is useful for some analytics
@@ -554,7 +553,8 @@ object ProgramExecutor :
    *
    */
   private def closeProgram(): Unit =
-    KessengerAdmin.closeAdmin()
+    if KessengerAdmin.getStatus == Running then
+      Future { KessengerAdmin.closeAdmin() }
     ExternalDB.closeConnection() match {
       case Success(_) =>
         print(s"Disconnected with DB.\n")

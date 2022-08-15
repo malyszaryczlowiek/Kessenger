@@ -2,9 +2,11 @@ package com.github.malyszaryczlowiek
 package unitTests.messages
 
 import kessengerlibrary.domain.{Chat, User}
-
 import messages.MessagePrinter
-import messages.MessagePrinter.messagePrinterReverseOrdering  // given
+import messages.MessagePrinter.messagePrinterReverseOrdering
+
+import com.github.malyszaryczlowiek.kessengerlibrary.domain.Domain.{Offset, Partition}
+import com.github.malyszaryczlowiek.kessengerlibrary.kafka.configurators.KafkaConfigurator
 
 import java.time.{LocalDateTime, Month}
 import java.util.UUID
@@ -18,9 +20,11 @@ class MessagePrinterTests extends munit.FunSuite:
     val chat2 = Chat("fakeID", "fakeName",false, LocalDateTime.of(2022, Month.JULY, 18, 18, 18, 20))
 
     val user = User(UUID.randomUUID(), "fakeuser")
+    val offsets = (0 until KafkaConfigurator.configurator.TOPIC_PARTITIONS_NUMBER)
+      .map(i => (i, 0L)).toMap[Partition, Offset]
 
-    val printer1 = new MessagePrinter(user, chat1, List(user))
-    val printer2 = new MessagePrinter(user, chat2, List(user))
+    val printer1 = new MessagePrinter(user, chat1, offsets)
+    val printer2 = new MessagePrinter(user, chat2, offsets)
 
 
     val value1 = messagePrinterReverseOrdering.compare(printer2, printer1)

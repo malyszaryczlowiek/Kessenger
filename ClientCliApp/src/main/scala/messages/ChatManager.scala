@@ -3,10 +3,12 @@ package messages
 
 import account.MyAccount
 import db.ExternalDB
+
 import kessengerlibrary.db.queries.QueryErrors
 import kessengerlibrary.domain.{Chat, Domain, User}
 import kessengerlibrary.domain.Domain.*
 import kessengerlibrary.messages.Message
+import kessengerlibrary.kafka.configurators.KafkaConfigurator
 import kessengerlibrary.kafka.errors.{KafkaError, KafkaErrorsHandler}
 import kessengerlibrary.util.TimeConverter
 import kessengerlibrary.status.Status
@@ -22,10 +24,11 @@ import java.time.{LocalDateTime, ZoneId}
 import java.util.UUID
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicLong}
+
 import scala.annotation.tailrec
 import scala.collection.immutable.SortedSet
 import scala.collection.mutable.ListBuffer
-import scala.collection.parallel.mutable.ParTrieMap
+import scala.collection.concurrent.TrieMap
 import scala.concurrent.{Await, Future}
 import scala.concurrent.duration.{Duration, SECONDS}
 import scala.io.StdIn.readLine
@@ -41,14 +44,10 @@ import concurrent.ExecutionContext.Implicits.global
 class ChatManager(var me: User):
 
 
-
-
-
-
   /**
    * Keeps map of user's chats
    */
-  private val myChats: ParTrieMap[ChatId, MessagePrinter] = ParTrieMap.empty[ChatId, MessagePrinter]
+  private val myChats: TrieMap[ChatId, MessagePrinter] = TrieMap.empty[ChatId, MessagePrinter]
 
 
 
@@ -63,12 +62,12 @@ class ChatManager(var me: User):
   /**
    * kafka producer used to send messages to specific chat topic.
    */
-  private val chatProducer:   KafkaProducer[User, Message] = KessengerAdmin.createChatProducer
+  private val chatProducer: KafkaProducer[User, Message] = KessengerAdmin.createChatProducer
 
 
 
   /**
-   * AtomicBoolean value keeping infromation if we should checking
+   * AtomicBoolean value keeping information if we should checking
    * our joining topic. This topic collects logs (invitations)
    * send from other users when they invite us to join chat.
    */
@@ -141,8 +140,7 @@ class ChatManager(var me: User):
    * <p>
    * if {@link  tryToCreateJoiningTopic tryToCreateJoiningTopic()}
    * returns Left object with error other then
-   * {@link com.github.malyszaryczlowiek.kessengerlibrary.kafka.errors.KafkaErrorMessage.ChatExistsError
-   * KafkaErrorMessage.ChatExistsError}
+   * {@link com.github.malyszaryczlowiek.kessengerlibrary.kafka.errors.KafkaErrorMessage.ChatExistsError KafkaErrorMessage.ChatExistsError}
    * (which means that joining topic already exists),
    * this means that there is some problems with kafka broker,
    * and this method should not be called.
@@ -154,21 +152,13 @@ class ChatManager(var me: User):
       case Some(future) =>
 
         // when joiningListener completed we assign new one.
-        if future.isCompleted && continueChecking.get() then joiningListener = assignJoiningListener()
+        if future.isCompleted && continueChecking.get() then
+          joiningListener = assignJoiningListener()
 
       // if joining listener is not defined. we assign one
       case None => joiningListener = assignJoiningListener()
     }
 
-
-  /*
-  todo in message analyser we need to create topic first
-    to write to it otherwise stream does not start.
-
-  todo
-    w closeManger w tej klasie należy jeszcze zmaknąć
-    admina bo to on de facto może powodowac problem
-  */
 
 
   /**
@@ -210,12 +200,13 @@ class ChatManager(var me: User):
             // and print notification of chat invitation.
             records.forEach(
               (r: ConsumerRecord[User, Message]) => {
+                // key is always null
 
                 // extract data
-                val user: User = r.key()
-                val m: Message = r.value()
-                val groupChat: Boolean = m.groupChat
-                val time: LocalDateTime = TimeConverter.fromMilliSecondsToLocal(r.timestamp())
+                val m: Message          = r.value()
+                val login               = m.authorLogin
+                val groupChat           = m.groupChat
+                val time: LocalDateTime = TimeConverter.fromMilliSecondsToLocal( r.timestamp() )
 
                 // set extracted data to chat object
                 val chat = Chat(m.chatId, m.chatName, groupChat, time)
@@ -226,24 +217,32 @@ class ChatManager(var me: User):
                 // if we created this chat, it already exists in myChats,
                 // because was added in sendInvitation() method
                 // Note not sure if starting MessagePrinter in external thread will be safe
-                if !myChats.exists(chatAndPrinter => chatAndPrinter._1 == chat.chatId) then
+                if ! myChats.exists(chatAndPrinter => chatAndPrinter._1 == chat.chatId) then
                   myChats.addOne(chat.chatId -> {
-                    val printer = new MessagePrinter(me, chat, List.empty[User])
-                    printer.startMessagePrinter()
-                    printer
+
+                    // we define partition and offsets for new chat
+                    val offsets = (0 until KafkaConfigurator.configurator.TOPIC_PARTITIONS_NUMBER)
+                      .map(i => (i, 0L)).toMap[Partition, Offset]
+
+                    // create MessagePrinter
+                    val printer = new MessagePrinter(me, chat, offsets)
+                    printer.startMessagePrinter() // start it
+                    printer // and save as a value in myChats TrieMap
                   })
 
                   // prepare and print notification
                   val notification: String = {
                     if groupChat then
-                      s"You got invitation from ${user.login} to '${chat.chatName}' group chat.\n> "
+                      s"You got invitation from $login to '${chat.chatName}' group chat.\n> "
                     else
-                      s"You got invitation from ${user.login} to '${chat.chatName}' chat.\n> "
+                      s"You got invitation from $login to '${chat.chatName}' chat.\n> "
                   }
                   print(notification)
 
 
                 // we update joining offset
+                // offset to save must be always +1L higher than
+                // current we read of
                 updateOffset(r.offset() + 1L)
               }
             )
@@ -251,7 +250,7 @@ class ChatManager(var me: User):
             // if everything works fine
             // (we started consumer correctly and has stable connection)
             // we set status to Running
-            // status is reassigned every 1000 ms (after each while loop).
+            // status is reassigned every 1000 ms (after each executed while loop).
             status.synchronized {
               status = Running
             }
@@ -274,7 +273,7 @@ class ChatManager(var me: User):
           if continueChecking.get() then
             KafkaErrorsHandler.handleWithErrorMessage[Unit](ex) match {
               case Left(kError: KafkaError) =>
-                print(s"${kError.description}. Connection lost.\n> ") // TODO DELETE
+                print(s"${kError.description}. Connection lost.\n> ") // TODO DELETE for testing purposes
 
                 // we set status to error
                 status.synchronized {
@@ -285,8 +284,8 @@ class ChatManager(var me: User):
               } // this will never be called
             }
           else
-          // if we do not need read messages from kafka broker we set
-          // status Closing
+          // if we do not need read messages from kafka broker,
+          // we set status to  Closing
             status.synchronized {
               status = Closing
             }
@@ -310,11 +309,11 @@ class ChatManager(var me: User):
    * This method adds
    * @param usersChats
    */
-  def addChats(usersChats: Map[Chat, List[User]]): Unit =
+  def addChats(usersChats: Map[Chat, Map[Partition, Offset]]): Unit =
     val mapped = usersChats.map(
-      (chat: Chat, list: List[User]) =>
+      (chat: Chat, offsets: Map[Partition, Offset]) =>
         chat.chatId -> {
-          val printer = new MessagePrinter(me, chat, list)
+          val printer = new MessagePrinter(me, chat, offsets)
           printer.startMessagePrinter()
           printer
         })
@@ -334,7 +333,7 @@ class ChatManager(var me: User):
    * This method updates joining offset in db.
    * @param offset
    */
-  def updateOffset(offset: Long): Unit =
+  def updateOffset(offset: Offset): Unit =
     Future { ExternalDB.updateJoiningOffset(me, offset) }
     joinOffset.set(offset)
 
@@ -411,8 +410,7 @@ class ChatManager(var me: User):
           // according to documentation sending is asynchronous,
           // so we do not need do it in separate threads
           joinProducer.send(
-            new ProducerRecord[User, Message](joiningTopicName, me, message),
-            callback
+            new ProducerRecord[User, Message](joiningTopicName, message), callback
           )
 
         // RecordMetadata and user are returned tuple object
@@ -447,12 +445,19 @@ class ChatManager(var me: User):
 
     // if no errors we add created chat to our chat list
     if errors.isEmpty then
-      addChats(Map(chat -> users))
+      val offsets = (0 until KafkaConfigurator.configurator.TOPIC_PARTITIONS_NUMBER)
+        .map(i => (i, 0L)).toMap[Partition, Offset]
+      addChats(Map(chat -> offsets))
       Right((chat,users))
 
     // if some errors occurred we check if number of errors
     // is equal to numbers of users
     else
+      // we should not worry about someone not get invitation,
+      // because this method (sendInvitations()) is called
+      // only when invited users are connected to this chat
+      // in db. So even when users not get notification,
+      // in next log in they will get this new chat in his chat list.
 
       // if number of errors is not equal of number of users
       // we extract users who did not get invitation
@@ -464,7 +469,7 @@ class ChatManager(var me: User):
       // if size is equal we print information of first kafka error occured
       // we extract only first error to not bombard user with others errors
       errors.head match {
-        // we reassign to another left
+        // we need reassign to proper new left object
         case Left(kafkaError) => Left(kafkaError)
         case Right(_) => Right((chat, users)) // not reachable because in errors we have only Left
       }
@@ -492,6 +497,7 @@ class ChatManager(var me: User):
       )
       // we send only value, key of record is null
       chatProducer.send(new ProducerRecord[User, Message](chat.chatId, message)) // , callBack)
+    }
       // val fut =
 
 
@@ -523,7 +529,7 @@ class ChatManager(var me: User):
 //        case Left(queryErrors: QueryErrors) =>
 //        case Right(value) =>
 //      }
-    }
+
 
 
 
@@ -563,6 +569,9 @@ class ChatManager(var me: User):
       // close both producers
       if joinProducer != null then Future { joinProducer.close() }
       if chatProducer != null then Future { chatProducer.close() }
+
+      if KessengerAdmin.getStatus == Running then
+        Future { KessengerAdmin.closeAdmin() }
 
       // we close all message printers which are still running
       myChats.values.foreach(_.closeMessagePrinter())

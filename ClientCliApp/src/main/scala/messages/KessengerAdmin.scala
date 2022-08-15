@@ -7,6 +7,8 @@ import kessengerlibrary.messages.Message
 import kessengerlibrary.kafka.configurators.KafkaConfigurator
 import kessengerlibrary.kafka.errors.*
 import kessengerlibrary.serdes.*
+import kessengerlibrary.status.Status
+import kessengerlibrary.status.Status.*
 
 import org.apache.kafka.clients.admin.{Admin, AdminClientConfig, CreateTopicsResult, DeleteTopicsResult, NewTopic}
 import org.apache.kafka.clients.consumer.{ConsumerConfig, KafkaConsumer}
@@ -17,7 +19,6 @@ import org.apache.kafka.common.config.TopicConfig
 import java.time.Duration
 import java.util.concurrent.TimeUnit
 import java.util.{Collections, Properties, UUID}
-
 import scala.util.{Failure, Success, Try}
 import scala.jdk.javaapi.CollectionConverters
 
@@ -28,7 +29,9 @@ import scala.jdk.javaapi.CollectionConverters
  * Note:
  * Future implementation will use custom serdes.
  */
-object KessengerAdmin {
+object KessengerAdmin :
+
+  private var status: Status = NotInitialized
 
   private var admin: Admin = _
   private var configurator: KafkaConfigurator = _
@@ -46,6 +49,7 @@ object KessengerAdmin {
     val properties = new Properties
     properties.put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, configurator.SERVERS)
     admin = Admin.create(properties)
+    status.synchronized { status = Running }
 
 
 
@@ -57,7 +61,8 @@ object KessengerAdmin {
   def closeAdmin(): Unit =
     Try {
       if admin != null then
-        admin.close
+        admin.close()
+        status.synchronized { status = Terminated }
         //admin.close(Duration.ofMillis(5000))
     } match {
       case Failure(_) => {}
@@ -233,7 +238,12 @@ object KessengerAdmin {
     props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, messageDeserializer)
     new KafkaConsumer[User, Message](props)
 
-}
+
+
+  def getStatus: Status = status
+
+
+end KessengerAdmin
 
 
 

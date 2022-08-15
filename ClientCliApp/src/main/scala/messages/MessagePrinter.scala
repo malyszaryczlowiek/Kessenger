@@ -34,15 +34,11 @@ import concurrent.ExecutionContext.Implicits.global
  *
  * Second target of class is database updates of offset of
  *
- * TODO remove dependency to chat list
- *   (users informations are send in key and value)
- *
  *
  * @param me {@link User} object who reads from chat.
  * @param chat chat we print messages from
- * @param chatUsers list of all users of chat
  */
-class MessagePrinter(private var me: User, private var chat: Chat, private var chatUsers: List[User]) :
+class MessagePrinter(private var me: User, private var chat: Chat, startingOffsets: Map[Int, Long]) :
 
 
   /**
@@ -80,7 +76,7 @@ class MessagePrinter(private var me: User, private var chat: Chat, private var c
    * This field keeps offset of last read message.
    * TODO usunąć to a offsety trzymać w ParMap w class Chat
    */
-  private val offsets: TrieMap[Partition, Offset] = TrieMap.empty
+  private val offsets: TrieMap[Partition, Offset] = TrieMap.from(startingOffsets)
   // old //  private val newOffset: AtomicLong = new AtomicLong( chat.offset )
 
 
@@ -296,11 +292,20 @@ class MessagePrinter(private var me: User, private var chat: Chat, private var c
    */
   def printUnreadMessages(): Unit =
 
-    // we sort unread messages according to ascending timestamp
-    val sorted: immutable.SortedMap[MessageTime, (Partition, Offset, Message)] =
-      unreadMessages.to(immutable.SortedMap) // conversion to SortedMap
 
-    if sorted.nonEmpty then
+    // todo here wee should synchronize printing unread messages
+    //  and not writing new messages to unreadMessages in the same time
+//    synchronized(unreadMessages){
+//
+//    }
+
+    // we sort unread messages according to ascending timestamp
+
+
+    if unreadMessages.nonEmpty then
+      val sorted: immutable.SortedMap[MessageTime, (Partition, Offset, Message)] =
+        unreadMessages.to(immutable.SortedMap)
+
       sorted.foreach( (k: MessageTime, v: (Partition, Offset, Message) ) => {
 
         // we update offset and last message time
@@ -383,6 +388,7 @@ class MessagePrinter(private var me: User, private var chat: Chat, private var c
     // print all newest messages
     toPrint.foreach(
       (mTime,value) => {
+        // map tuple to proper values
         val (part, off, mess): (Partition, Offset, Message) = value
 
         // print only messages from other users
@@ -402,47 +408,6 @@ class MessagePrinter(private var me: User, private var chat: Chat, private var c
     updateDB()
 
   end printMessage
-
-
-
-
-    // we extract valuable informations from consumer record
-
-    // check if unread messages is empty or not
-//    if unreadMessages.isEmpty then
-//
-//      // if so we simply print arrived message
-//      if sender.login != me.login then print(s"${sender.login} $localTime >> ${message.content}\n> ")
-//
-//      // and update offset and timestamp
-//      updateOffsetAndLastMessageTime( r.offset() + 1L, r.timestamp())
-//
-//    // if unread messages buffer is not empty
-//    else
-//
-//      // we sort stored messages in offset order
-//      val sorted: immutable.SortedMap[Long, Message] =
-//        unreadMessages.seq.to(immutable.SortedMap)
-//
-//      // print all messages from unread message buffer
-//      sorted.foreach( (k: Long, v: Message ) => {
-//        val login = v.authorLogin
-//        val time = TimeConverter.fromMilliSecondsToLocal(v.utcTime)
-//        print(s"$login $time >> ${v.content}\n> ")
-//      })
-//
-//      // clear all already printed messages
-//      unreadMessages.clear()
-//
-//      // print current record (message)
-//      print(s"${sender.login} $localTime >> ${message.content}\n> ")
-//
-//      // and update offset and last message parameter
-//      updateOffsetAndLastMessageTime(r.offset() + 1L, r.timestamp())
-//
-//
-//    updateDB()
-
 
 
 
@@ -531,7 +496,7 @@ class MessagePrinter(private var me: User, private var chat: Chat, private var c
     // closing chatReader is unnecessary in this case.
 //    chatReader match
 //      case Some(future) =>
-//        // we wait masx 5 seconds
+//        // we wait max 5 seconds
 //        if ! future.isCompleted then Try { Await.result(future, Duration.create(5L, SECONDS))  }
 //      case None => // we do nothing
 
@@ -580,3 +545,45 @@ object MessagePrinter:
 
 end MessagePrinter
 
+
+
+
+
+
+
+// we extract valuable informations from consumer record
+
+// check if unread messages is empty or not
+//    if unreadMessages.isEmpty then
+//
+//      // if so we simply print arrived message
+//      if sender.login != me.login then print(s"${sender.login} $localTime >> ${message.content}\n> ")
+//
+//      // and update offset and timestamp
+//      updateOffsetAndLastMessageTime( r.offset() + 1L, r.timestamp())
+//
+//    // if unread messages buffer is not empty
+//    else
+//
+//      // we sort stored messages in offset order
+//      val sorted: immutable.SortedMap[Long, Message] =
+//        unreadMessages.seq.to(immutable.SortedMap)
+//
+//      // print all messages from unread message buffer
+//      sorted.foreach( (k: Long, v: Message ) => {
+//        val login = v.authorLogin
+//        val time = TimeConverter.fromMilliSecondsToLocal(v.utcTime)
+//        print(s"$login $time >> ${v.content}\n> ")
+//      })
+//
+//      // clear all already printed messages
+//      unreadMessages.clear()
+//
+//      // print current record (message)
+//      print(s"${sender.login} $localTime >> ${message.content}\n> ")
+//
+//      // and update offset and last message parameter
+//      updateOffsetAndLastMessageTime(r.offset() + 1L, r.timestamp())
+//
+//
+//    updateDB()
