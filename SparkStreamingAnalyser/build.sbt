@@ -25,12 +25,12 @@ lazy val root = (project in file("."))
 
 
       // to switch off logging from slf4j
-      // "org.slf4j" % "slf4j-nop" % "1.7.36",
+      //"org.slf4j" % "slf4j-nop" % "1.7.36",
 
 
       // For Tests
       "org.scalameta" %% "munit"            % "0.7.29" % Test,
-      "org.scalameta" %% "munit-scalacheck" % "0.7.29" % Test,
+      "org.scalameta" %% "munit-scalacheck" % "0.7.29" % Test
 
 
       // for kafka stream tests
