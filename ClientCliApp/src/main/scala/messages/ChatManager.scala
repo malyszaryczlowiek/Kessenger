@@ -192,7 +192,6 @@ class ChatManager(var me: User):
             status = Starting
           }
 
-          println(s"Joining loop started.") // todo delete
           // Start loop to read from topic
           while (continueChecking.get()) {
             val records: ConsumerRecords[String, Message] = joinConsumer.poll(java.time.Duration.ofMillis(1000))
@@ -218,11 +217,8 @@ class ChatManager(var me: User):
                 // if we created this chat, it already exists in myChats,
                 // because was added in sendInvitation() method
                 // Note not sure if starting MessagePrinter in external thread will be safe
-
-                println(s"Before adding chat to chat list.") // todo delete
                 if ! myChats.exists(chatAndPrinter => chatAndPrinter._1 == chat.chatId) then
                   myChats.addOne(chat.chatId -> {
-                    println(s"Started chat addition to chat list.") // todo delete
                     // we define partition and offsets for new chat
                     val offsets = (0 until KafkaConfigurator.configurator.CHAT_TOPIC_PARTITIONS_NUMBER)
                       .map(i => (i, 0L)).toMap[Partition, Offset]
@@ -247,7 +243,6 @@ class ChatManager(var me: User):
                 // offset to save must be always +1L higher than
                 // current we read of
                 updateOffset(r.offset() + 1L)
-                println(s"Offset Updated in chat manager.") // todo delete
               }
             )
 
