@@ -55,14 +55,14 @@ class ChatManager(var me: User):
    * joinProducer object is responsible for sending invitation
    * messages to other users.
    */
-  private val joinProducer: KafkaProducer[User, Message] = KessengerAdmin.createJoiningProducer
+  private val joinProducer: KafkaProducer[String, Message] = KessengerAdmin.createJoiningProducer
 
 
 
   /**
    * kafka producer used to send messages to specific chat topic.
    */
-  private val chatProducer: KafkaProducer[User, Message] = KessengerAdmin.createChatProducer
+  private val chatProducer: KafkaProducer[String, Message] = KessengerAdmin.createChatProducer
 
 
 
@@ -172,7 +172,7 @@ class ChatManager(var me: User):
       // at the beginning we create kafka consumer to consume invitation
       // from our joining topic.
       Using(KessengerAdmin.createJoiningConsumer(me.userId.toString)) {
-        (joinConsumer: KafkaConsumer[User, Message]) =>
+        (joinConsumer: KafkaConsumer[String, Message]) =>
 
           // we set topic to read from (this topic has only one partition)
           val topic0 = new TopicPartition(Domain.generateJoinId(me.userId), 0)
@@ -192,14 +192,15 @@ class ChatManager(var me: User):
             status = Starting
           }
 
+          println(s"Joining loop started.") // todo delete
           // Start loop to read from topic
           while (continueChecking.get()) {
-            val records: ConsumerRecords[User, Message] = joinConsumer.poll(java.time.Duration.ofMillis(1000))
+            val records: ConsumerRecords[String, Message] = joinConsumer.poll(java.time.Duration.ofMillis(1000))
 
             // for each incoming record we extract key (User) and value (Message)
             // and print notification of chat invitation.
             records.forEach(
-              (r: ConsumerRecord[User, Message]) => {
+              (r: ConsumerRecord[String, Message]) => {
                 // key is always null
 
                 // extract data
@@ -217,11 +218,13 @@ class ChatManager(var me: User):
                 // if we created this chat, it already exists in myChats,
                 // because was added in sendInvitation() method
                 // Note not sure if starting MessagePrinter in external thread will be safe
+
+                println(s"Before adding chat to chat list.") // todo delete
                 if ! myChats.exists(chatAndPrinter => chatAndPrinter._1 == chat.chatId) then
                   myChats.addOne(chat.chatId -> {
-
+                    println(s"Started chat addition to chat list.") // todo delete
                     // we define partition and offsets for new chat
-                    val offsets = (0 until KafkaConfigurator.configurator.TOPIC_PARTITIONS_NUMBER)
+                    val offsets = (0 until KafkaConfigurator.configurator.CHAT_TOPIC_PARTITIONS_NUMBER)
                       .map(i => (i, 0L)).toMap[Partition, Offset]
 
                     // create MessagePrinter
@@ -244,6 +247,7 @@ class ChatManager(var me: User):
                 // offset to save must be always +1L higher than
                 // current we read of
                 updateOffset(r.offset() + 1L)
+                println(s"Offset Updated in chat manager.") // todo delete
               }
             )
 
@@ -260,6 +264,8 @@ class ChatManager(var me: User):
         case Failure(ex) =>
           // if we get error in listener and we should listen further,
           // we should restart it.
+
+          println(s"problem z joiningListener. wywaliło wyjątek ${ex.getMessage}")
 
           // in first step of restarting we need to close all of our producers
           if joinProducer != null then Future { joinProducer.close() }
@@ -353,7 +359,7 @@ class ChatManager(var me: User):
    * @return Sorted list os chats.
    */
   def getUsersChats: List[Chat] =
-    myChats.values.seq.map(_.getChat).toList.sorted
+    myChats.values.map(_.getChat).toList.sorted
 
 
 
@@ -368,6 +374,13 @@ class ChatManager(var me: User):
       case None            => 0 // unrechable
     }
 
+
+  def getNumOfReadMessages(chat: Chat): Long =
+    myChats.get(chat.chatId) match {
+      case Some(messagePrinter: MessagePrinter) =>
+        messagePrinter.getNumOfReadMessages
+      case None => -1 // means no chat
+    }
 
 
   /**
@@ -410,7 +423,7 @@ class ChatManager(var me: User):
           // according to documentation sending is asynchronous,
           // so we do not need do it in separate threads
           joinProducer.send(
-            new ProducerRecord[User, Message](joiningTopicName, message), callback
+            new ProducerRecord[String, Message](joiningTopicName, message), callback
           )
 
         // RecordMetadata and user are returned tuple object
@@ -445,7 +458,7 @@ class ChatManager(var me: User):
 
     // if no errors we add created chat to our chat list
     if errors.isEmpty then
-      val offsets = (0 until KafkaConfigurator.configurator.TOPIC_PARTITIONS_NUMBER)
+      val offsets = (0 until KafkaConfigurator.configurator.CHAT_TOPIC_PARTITIONS_NUMBER)
         .map(i => (i, 0L)).toMap[Partition, Offset]
       addChats(Map(chat -> offsets))
       Right((chat,users))
@@ -496,7 +509,7 @@ class ChatManager(var me: User):
         chat.groupChat
       )
       // we send only value, key of record is null
-      chatProducer.send(new ProducerRecord[User, Message](chat.chatId, message)) // , callBack)
+      chatProducer.send(new ProducerRecord[String, Message](chat.chatId, message)) // , callBack)
     }
       // val fut =
 

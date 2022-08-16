@@ -20,7 +20,7 @@ class MessagePrinterTests extends munit.FunSuite:
     val chat2 = Chat("fakeID", "fakeName",false, LocalDateTime.of(2022, Month.JULY, 18, 18, 18, 20))
 
     val user = User(UUID.randomUUID(), "fakeuser")
-    val offsets = (0 until KafkaConfigurator.configurator.TOPIC_PARTITIONS_NUMBER)
+    val offsets = (0 until KafkaConfigurator.configurator.CHAT_TOPIC_PARTITIONS_NUMBER)
       .map(i => (i, 0L)).toMap[Partition, Offset]
 
     val printer1 = new MessagePrinter(user, chat1, offsets)

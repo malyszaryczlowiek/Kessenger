@@ -49,7 +49,7 @@ object ExternalDB:
    * @return
    */
   def findUsersChats(user: User): Either[QueryErrors, Map[Chat, Map[Partition, Offset]]] =
-    val numOfPartitions = KafkaConfigurator.configurator.TOPIC_PARTITIONS_NUMBER
+    val numOfPartitions = KafkaConfigurator.configurator.CHAT_TOPIC_PARTITIONS_NUMBER
     val range = 0 until numOfPartitions
     val offsetColumn = "users_chats.users_offset_"
     val prefix = "SELECT chats.chat_id, chats.chat_name, chats.group_chat, users_chats.message_time, " +
@@ -146,7 +146,7 @@ object ExternalDB:
   @deprecated("Method used in older versions.")
   def findChatAndUsers(me: User, chatId: ChatId): Either[QueryErrors,(Chat, List[User])] =
 
-    val numOfPartitions = KafkaConfigurator.configurator.TOPIC_PARTITIONS_NUMBER
+    val numOfPartitions = KafkaConfigurator.configurator.CHAT_TOPIC_PARTITIONS_NUMBER
     val range = 0 until numOfPartitions
 
     val prefix = "SELECT chats.chat_id, chats.chat_name, " +

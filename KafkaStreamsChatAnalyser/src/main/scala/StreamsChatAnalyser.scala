@@ -4,7 +4,6 @@ import kessengerlibrary.domain.{Chat, User}
 import kessengerlibrary.messages.Message
 import kessengerlibrary.serdes.{MessageSerde, UserSerde}
 import kessengerlibrary.kafka.errors.{KafkaError, KafkaErrorsHandler}
-
 import util.TopicCreator
 
 import org.apache.kafka.clients.admin.{Admin, CreateTopicsResult, NewTopic}
@@ -12,6 +11,7 @@ import org.apache.kafka.clients.producer.ProducerConfig
 import org.apache.kafka.common.KafkaFuture
 import org.apache.kafka.common.config.TopicConfig
 import org.apache.kafka.common.serialization.Serde
+import org.apache.kafka.common.serialization.Serdes.StringSerde
 import org.apache.kafka.streams.kstream.{Grouped, TimeWindows, Windowed}
 import org.apache.kafka.streams.{KafkaStreams, StreamsConfig, Topology}
 import org.apache.kafka.streams.scala.StreamsBuilder
@@ -22,7 +22,6 @@ import org.apache.kafka.streams.scala.serialization.Serdes.{longSerde, stringSer
 import java.util.Properties
 import java.util.concurrent.{CountDownLatch, TimeUnit}
 import java.util.regex.Pattern
-
 import scala.jdk.javaapi.CollectionConverters
 import scala.util.{Failure, Success, Using}
 
@@ -75,13 +74,13 @@ object StreamsChatAnalyser {
 
 
     // we define topic we read from
-    val sourceStream: KStream[User, Message] = builder.stream(pattern)(Consumed `with` (userSerde, messageSerde))
+    val sourceStream: KStream[String, Message] = builder.stream(pattern)(Consumed `with` (stringSerde, messageSerde))
 
 
 
     // for testing purposes
     // we simply print every message
-    sourceStream.peek((user, message) => println(s"key: $user, value: $message"))
+    sourceStream.peek((nullString, message) => println(s"Message: $message"))
 
 
     // define where we write output

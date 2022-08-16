@@ -134,7 +134,7 @@ class MessagePrinter(private var me: User, private var chat: Chat, startingOffse
       // note that kafka consumer is closed automatically in
       // this case by Using clause.
       Using(KessengerAdmin.createChatConsumer(me.userId.toString)) {
-        (chatConsumer: KafkaConsumer[User, Message]) =>
+        (chatConsumer: KafkaConsumer[String, Message]) =>
 
           // we create map of topic partitions and offsets
           // of these partitions
@@ -166,7 +166,7 @@ class MessagePrinter(private var me: User, private var chat: Chat, startingOffse
 
           // then we start reading from topic
           while (continueReading.get()) {
-            val records: ConsumerRecords[User, Message] = chatConsumer.poll(jDuration.ofMillis(250))
+            val records: ConsumerRecords[String, Message] = chatConsumer.poll(jDuration.ofMillis(250))
 
             // if we got some records, we should
             // process them.
@@ -248,9 +248,9 @@ class MessagePrinter(private var me: User, private var chat: Chat, startingOffse
    *       which is used to sorting all chats in
    *       descending order of last message time.
    */
-  private def showNotification(records: ConsumerRecords[User, Message]): Unit =
+  private def showNotification(records: ConsumerRecords[String, Message]): Unit =
     records.forEach(
-      (record: ConsumerRecord[User, Message]) => {
+      (record: ConsumerRecord[String, Message]) => {
 
         val sender = record.value().authorId
         if sender != me.userId then
@@ -345,7 +345,7 @@ class MessagePrinter(private var me: User, private var chat: Chat, startingOffse
    * and is called always from external (not main) thread,
    * so we can coll updateDB directly in it.
    */
-  private def printMessage(records: ConsumerRecords[User, Message]): Unit =
+  private def printMessage(records: ConsumerRecords[String, Message]): Unit =
 
     // we print all unread messages first
     if unreadMessages.nonEmpty then
@@ -376,7 +376,7 @@ class MessagePrinter(private var me: User, private var chat: Chat, startingOffse
     // and sort them according to increasing
     // message time
     records.forEach(
-      (record: ConsumerRecord[User, Message]) => {
+      (record: ConsumerRecord[String, Message]) => {
         val messageTime = record.timestamp()
         val partition   = record.partition()
         val offset      = record.offset()
@@ -472,6 +472,14 @@ class MessagePrinter(private var me: User, private var chat: Chat, startingOffse
    */
   def getNumOfUnreadMessages: Int =  unreadMessages.size
 
+
+  /**
+   * number of read messages is sum of offsets from
+   * all partitions
+   * @return
+   */
+  def getNumOfReadMessages: Long =
+    offsets.values.sum
 
 
   /**

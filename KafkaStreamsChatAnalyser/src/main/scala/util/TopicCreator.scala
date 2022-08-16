@@ -30,8 +30,8 @@ object TopicCreator {
     Using(Admin.create(adminProperties)) {
       admin =>
 
-        val partitionsNum: Int       = configurator.TOPIC_PARTITIONS_NUMBER
-        val replicationFactor: Short = configurator.TOPIC_REPLICATION_FACTOR
+        val partitionsNum: Int       = configurator.CHAT_TOPIC_PARTITIONS_NUMBER
+        val replicationFactor: Short = configurator.CHAT_TOPIC_REPLICATION_FACTOR
 
         val chatConfig: java.util.Map[String, String] = CollectionConverters.asJava(
           Map(

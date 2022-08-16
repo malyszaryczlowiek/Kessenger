@@ -225,9 +225,11 @@ object ProgramExecutor :
       indexedList.foreach(
         (chatIndex: (Chat, Int)) => {
           val numOfUnreadMessages = manager.getNumOfUnreadMessages(chatIndex._1)
-
-          if numOfUnreadMessages > 0L then
-            println(s"${chatIndex._2 + 1}) ${chatIndex._1.chatName} ($numOfUnreadMessages new message(s)")
+          val numOfReadMessages   = manager.getNumOfReadMessages(chatIndex._1)
+          if numOfReadMessages = 0L then
+            println(s"${chatIndex._2 + 1}) ${chatIndex._1.chatName} (New Chat) ($numOfUnreadMessages new message(s))")
+          else if numOfReadMessages > 0L && numOfUnreadMessages > 0L then
+            println(s"${chatIndex._2 + 1}) ${chatIndex._1.chatName} ($numOfUnreadMessages new message(s))")
           else
             println(s"${chatIndex._2 + 1}) ${chatIndex._1.chatName}")
         })
@@ -292,7 +294,7 @@ object ProgramExecutor :
             // some other unexpected error
             print(s"Unexpected Error in chat.\n> ")
           case Success(status: Status) =>
-            print(s"Status messagePrintera po zamknięciu chatu $status\n> ") // TODO DELETE
+            // print(s"Status messagePrintera po zamknięciu chatu $status\n> ")
         }
       case None =>
         {} // not reachable

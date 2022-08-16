@@ -117,9 +117,9 @@ class StreamTests extends munit.FunSuite {
     val user1 = User(uuid1, "User1")
     val user2 = User(uuid2, "User1")
 
-    val message1 = Message("", user1.userId, 0L, ZoneId.of("Europe/Warsaw"), "", "", false)
-    val message2 = Message("", user1.userId, 0L, ZoneId.of("Europe/Paris"), "", "", false)
-    val message3 = Message("", user1.userId, 0L, ZoneId.of("Europe/Paris"), "", "", false)
+    val message1 = Message("", user1.userId, user1.login, 0L, ZoneId.of("Europe/Warsaw"), "", "", false)
+    val message2 = Message("", user1.userId, user1.login, 0L, ZoneId.of("Europe/Paris"), "", "", false)
+    val message3 = Message("", user1.userId, user1.login, 0L, ZoneId.of("Europe/Paris"), "", "", false)
 
 
     inputTopic.pipeInput(user1, message1)
@@ -233,9 +233,9 @@ class StreamTests extends munit.FunSuite {
     val user1 = User(uuid1, "User1")
     val user2 = User(uuid2, "User1")
 
-    val message1 = Message("", user1.userId, 0L, ZoneId.of("Europe/Warsaw"), "", "", false)
-    val message2 = Message("", user1.userId, 0L, ZoneId.of("Europe/Paris"), "", "", false)
-    val message3 = Message("", user1.userId, 0L, ZoneId.of("Europe/Paris"), "", "", false)
+    val message1 = Message("", user1.userId,user1.login, 0L, ZoneId.of("Europe/Warsaw"), "", "", false)
+    val message2 = Message("", user1.userId,user1.login, 0L, ZoneId.of("Europe/Paris"), "", "", false)
+    val message3 = Message("", user1.userId,user1.login, 0L, ZoneId.of("Europe/Paris"), "", "", false)
 
 
     inputTopic.pipeInput(user1, message1)
