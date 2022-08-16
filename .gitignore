@@ -8,9 +8,15 @@ TODO
 ./ClientCliApp/target
 ./ClientCliApp/createClientImage
 ./ClientCliApp/logs
+
 ./KafkaStreamsChatAnalyser/.bsp
 ./KafkaStreamsChatAnalyser/.idea
 ./KafkaStreamsChatAnalyser/project
 ./KafkaStreamsChatAnalyser/target
+
+./SparkStreamingAnalyser/.bsp
+./SparkStreamingAnalyser/.idea
+./SparkStreamingAnalyser/project
+./SparkStreamingAnalyser/target
 
 ./kafka-broker/kafka-volume
