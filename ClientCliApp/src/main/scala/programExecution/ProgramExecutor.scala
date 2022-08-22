@@ -226,7 +226,7 @@ object ProgramExecutor :
         (chatIndex: (Chat, Int)) => {
           val numOfUnreadMessages = manager.getNumOfUnreadMessages(chatIndex._1)
           val numOfReadMessages   = manager.getNumOfReadMessages(chatIndex._1)
-          if numOfReadMessages = 0L then
+          if numOfReadMessages == 0L then
             println(s"${chatIndex._2 + 1}) ${chatIndex._1.chatName} (New Chat) ($numOfUnreadMessages new message(s))")
           else if numOfReadMessages > 0L && numOfUnreadMessages > 0L then
             println(s"${chatIndex._2 + 1}) ${chatIndex._1.chatName} ($numOfUnreadMessages new message(s))")

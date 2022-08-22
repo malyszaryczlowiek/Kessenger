@@ -29,7 +29,7 @@ lazy val root = (project in file("."))
 
 
       // logging api
-      "org.apache.logging.log4j" % "log4j-api" % "2.18.0",
+      "org.apache.logging.log4j" % "log4j-api"  % "2.18.0",
       "org.apache.logging.log4j" % "log4j-core" % "2.18.0",
 
 

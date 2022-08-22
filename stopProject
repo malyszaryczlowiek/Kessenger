@@ -12,6 +12,21 @@ function close_required {
   docker rm -v kafka_streams_chat_analyser
   docker rmi  kessenger_kafka_streams
 
+
+#  docker stop spark-worker-1
+#  docker rm -v spark-worker-1
+#  docker rmi kessenger_spark-worker-1
+#
+#  docker stop spark-worker-2
+#  docker rm -v spark-worker-2
+  #docker rmi spark-worker-2
+
+
+  docker stop spark-master
+  docker rm -v spark-master
+
+
+
   docker stop kafka1
   docker rm -v kafka1
   #docker rmi kessenger_kafka1
