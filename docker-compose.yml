@@ -138,8 +138,8 @@ services:
 
   spark-master:
     container_name: spark-master
+    #image: bitnami/spark:3.3.0
     build: ./SparkStreamingAnalyser
-    # image: bitnami/spark:3.2.13
     depends_on:
       - kafka1
       - kafka2
@@ -156,9 +156,12 @@ services:
       - '7077:7077'
     networks:
       - my-simple-network
+    volumes:
+      - ${HOME}/kessenger/spark-volumes:/opt/work-dir      #${SPARK_HOME}
 
 
 
+#
 #  spark-worker-1:
 #    container_name: spark-worker-1
 #    build: ./SparkStreamingAnalyser
@@ -167,8 +170,8 @@ services:
 #    environment:
 #      - SPARK_MODE=worker
 #      - SPARK_MASTER_URL=spark://spark-master:7077
-#      - SPARK_WORKER_MEMORY=1G
-#      - SPARK_WORKER_CORES=1
+#      - SPARK_WORKER_MEMORY=5G
+#      - SPARK_WORKER_CORES=2
 #      - SPARK_RPC_AUTHENTICATION_ENABLED=no
 #      - SPARK_RPC_ENCRYPTION_ENABLED=no
 #      - SPARK_LOCAL_STORAGE_ENCRYPTION_ENABLED=no
@@ -178,19 +181,21 @@ services:
 #    ports:
 #      - '8083:8080'
 #      - '7078:7077'
-#
-#
-#
+#    volumes:
+#      - ${HOME}/kessenger/spark-volumes:/opt/work-dir      #${SPARK_HOME}
+
+
 #  spark-worker-2:
 #    container_name: spark-worker-2
-#    image: bitnami/spark:3.2.1 # build: ./SparkStreamingAnalyser # note this worker do not submit application
+#    build: ./SparkStreamingAnalyser
+##    image: bitnami/spark:3.2.1 # build: ./SparkStreamingAnalyser # note this worker do not submit application
 #    depends_on:
 #      - spark-master
 #    environment:
 #      - SPARK_MODE=worker
 #      - SPARK_MASTER_URL=spark://spark-master:7077
-#      - SPARK_WORKER_MEMORY=1G
-#      - SPARK_WORKER_CORES=1
+#      - SPARK_WORKER_MEMORY=5G
+#      - SPARK_WORKER_CORES=2
 #      - SPARK_RPC_AUTHENTICATION_ENABLED=no
 #      - SPARK_RPC_ENCRYPTION_ENABLED=no
 #      - SPARK_LOCAL_STORAGE_ENCRYPTION_ENABLED=no
@@ -200,19 +205,5 @@ services:
 #    ports:
 #      - '8084:8080'
 #      - '7079:7077'
-
-
-
-
-      #  spark_streaming:
-#    container_name: spark_streaming_analyser
-#    build: ./SparkStreamingAnalyser    # SparkStreamingAnalyser is folder where Dockerfile can be found
-#    ports:
-#      - "8082:8080"   # todo check if port is unoccupied
-#    depends_on:
-#      - kafka1
-#      - kafka2
-#      - kafka3
-#    restart: always
-#    networks:
-#      - my-simple-network
+#    volumes:
+#      - ${HOME}/kessenger/spark-volumes:/opt/work-dir      #${SPARK_HOME}

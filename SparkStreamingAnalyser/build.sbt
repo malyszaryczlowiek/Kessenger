@@ -10,13 +10,13 @@ lazy val root = (project in file("."))
     libraryDependencies ++= Seq(
 
       "org.apache.spark" %% "spark-sql"            % "3.3.0" % "provided",
-      "org.apache.spark" %% "spark-sql-kafka-0-10" % "3.3.0" ,//% "provided",
+      "org.apache.spark" %% "spark-sql-kafka-0-10" % "3.3.0",  //% "provided",
 
       "io.circe" %% "circe-core"    % "0.14.2",
       "io.circe" %% "circe-generic" % "0.14.2",
       "io.circe" %% "circe-parser"  % "0.14.2",
 
-      // to solve transitive dependency error with spark and circle
+      // to solve transitive dependency error with spark and cats
       "org.scalanlp" %% "breeze" % "2.1.0"
     )
   )

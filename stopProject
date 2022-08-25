@@ -24,7 +24,7 @@ function close_required {
 
   docker stop spark-master
   docker rm -v spark-master
-
+  docker rmi kessenger_spark-master
 
 
   docker stop kafka1

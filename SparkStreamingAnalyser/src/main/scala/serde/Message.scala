@@ -3,7 +3,7 @@ package serde
 
 import io.circe.{Decoder, Encoder, HCursor, Json}
 
-import java.time.{ZoneId, ZoneOffset, ZonedDateTime}
+import java.time.{ZoneId, ZoneOffset}
 import java.util.UUID
 
 case class Message(content: String, authorId: UUID, authorLogin: String, utcTime: Long, zoneId: ZoneId, chatId: String, chatName: String, groupChat: Boolean)
