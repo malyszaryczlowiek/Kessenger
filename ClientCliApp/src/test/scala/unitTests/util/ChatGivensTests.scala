@@ -1,8 +1,8 @@
-package com.github.malyszaryczlowiek
+package io.github.malyszaryczlowiek
 package unitTests.util
 
 import kessengerlibrary.domain.Chat
-import kessengerlibrary.domain.ChatGivens.given
+import kessengerlibrary.domain.Chat.orderChatWithDate
 
 
 import java.time.LocalDateTime

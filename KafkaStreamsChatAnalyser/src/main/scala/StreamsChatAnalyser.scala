@@ -1,10 +1,11 @@
-package com.github.malyszaryczlowiek
+package io.github.malyszaryczlowiek
 
 import kessengerlibrary.domain.{Chat, User}
+import kessengerlibrary.env.Environment
+import kessengerlibrary.kafka.errors.{KafkaError, KafkaErrorsHandler}
+import kessengerlibrary.kafka.TopicCreator
 import kessengerlibrary.messages.Message
 import kessengerlibrary.serdes.{MessageSerde, UserSerde}
-import kessengerlibrary.kafka.errors.{KafkaError, KafkaErrorsHandler}
-import util.TopicCreator
 
 import org.apache.kafka.clients.admin.{Admin, CreateTopicsResult, NewTopic}
 import org.apache.kafka.clients.producer.ProducerConfig
@@ -52,7 +53,7 @@ object StreamsChatAnalyser {
 
 
     // we try to create collecting topic
-    TopicCreator.createTopic( MESSAGE_NUM_PER_ZONE )
+    TopicCreator.createTopic( MESSAGE_NUM_PER_ZONE, Environment.Prod )
 
 
 
@@ -179,10 +180,3 @@ object StreamsChatAnalyser {
     }
 
 }
-
-/*
-
-
-<sourceFolder url="file://$MODULE_DIR$/../../src/test/scala" isTestSource="true" packagePrefix="com.github.malyszaryczlowiek" />
-
-*/

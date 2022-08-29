@@ -1,10 +1,14 @@
-package com.github.malyszaryczlowiek
+package io.github.malyszaryczlowiek
 
 import org.apache.log4j.{Level, Logger}
-import org.apache.spark.sql.{Column, DataFrame, Dataset, Encoder, Encoders, ForeachWriter, Row, SparkSession}
-import serde.{Message, MessageDeserializer, MessageEncoder}
+import org.apache.spark.sql.{ Row, SparkSession}
+import encoders.MessageEncoder
 
 import java.sql.Timestamp
+
+import kessengerlibrary.messages.Message
+import kessengerlibrary.serdes.MessageDeserializer
+import kessengerlibrary.kafka.TopicCreator
 
 
 object SparkStreamingAnalyser {
@@ -12,6 +16,12 @@ object SparkStreamingAnalyser {
   def main(args: Array[String]): Unit = {
 
     println(s"\nApp SparkStreamingAnalyser started 14\n")
+
+
+    // in first step we create set of topics for output
+
+
+
 
     Logger.getLogger("org.apache.sparkSession").setLevel(Level.ERROR)
 
@@ -35,20 +45,22 @@ object SparkStreamingAnalyser {
       .readStream
       .format("kafka")
       .option("kafka.bootstrap.servers", "kafka1:9092,kafka2:9092,kafka3:9092") //
-      .option("subscribePattern", "chat--([\\p{Alnum}-]*)") //  // subscribePattern
+      .option("subscribePattern", "chat--([\\p{Alnum}-]*)") // we subscribe all chat topics
       .load()
 
 
+    // mapper for deserialization of kafka values and
+    // conversion for easier data manipulation
     val mapper = (r: Row) => {
       val messageByteArray: Array[Byte] = r.getAs[Array[Byte]]("value") // we know that value is Array[Byte] type
-      val timestamp: Long  = r.getAs[Timestamp]("timestamp").getTime // todo this may cause problems
-      val messageDeserializer = new MessageDeserializer
-      val message = messageDeserializer.deserialize("", messageByteArray)
+      val timestamp: Long  = r.getAs[Timestamp]("timestamp").getTime
+      val messageDeserializer = new MessageDeserializer  // deserializer must be created inside mapper, outer initialization causes exceptions
+      val message: Message = messageDeserializer.deserialize("", messageByteArray)
 
       println(s"$timestamp ${message.authorLogin} >> ${message.content}") // for testing
 
       (
-        timestamp,//, // time of receiving message by kafka // Long
+        timestamp,  //  time of receiving message by kafka // Long
         message.chatId, // string
         message.chatName, // string
         message.content, // string
@@ -66,11 +78,10 @@ object SparkStreamingAnalyser {
       .toDF("server_time", "chat_id", "chat_name", "content", "author_id", "login", "group_chat", "zone", "sending_time" )
 
 
-   // richStream
-
 
     println(s"\n SCHEMA: \n")
     richStream.printSchema()
+
 
     richStream
       .writeStream

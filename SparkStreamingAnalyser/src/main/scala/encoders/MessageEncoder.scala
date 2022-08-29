@@ -1,5 +1,5 @@
-package com.github.malyszaryczlowiek
-package serde
+package io.github.malyszaryczlowiek
+package encoders
 
 import org.apache.spark.sql.Encoder
 import org.apache.spark.sql.Encoders._

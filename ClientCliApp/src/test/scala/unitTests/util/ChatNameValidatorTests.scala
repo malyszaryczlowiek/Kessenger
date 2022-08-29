@@ -1,7 +1,7 @@
-package com.github.malyszaryczlowiek
+package io.github.malyszaryczlowiek
 package unitTests.util
 
-//import com.github.malyszaryczlowiek.util.ChatNameValidator.isValid
+//import io.github.malyszaryczlowiek.util.ChatNameValidator.isValid
 import util.ChatNameValidator.isValid
 
 class ChatNameValidatorTests extends munit.FunSuite :

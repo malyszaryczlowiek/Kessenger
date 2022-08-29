@@ -1,4 +1,4 @@
-package com.github.malyszaryczlowiek
+package io.github.malyszaryczlowiek
 package unitTests.account
 
 import scala.collection.parallel.mutable.ParTrieMap

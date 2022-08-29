@@ -1,4 +1,4 @@
-package com.github.malyszaryczlowiek
+package io.github.malyszaryczlowiek
 
 import kessengerlibrary.serdes.UserSerializer
 import programExecution.ProgramExecutor
