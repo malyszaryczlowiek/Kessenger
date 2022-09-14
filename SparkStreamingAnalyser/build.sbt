@@ -11,7 +11,7 @@ lazy val root = (project in file("."))
 
       // Own library with util and domain classes.
       // https://github.com/malyszaryczlowiek/kessenger-lib
-      "io.github.malyszaryczlowiek" %% "kessenger-lib" % "0.2.1",
+      "io.github.malyszaryczlowiek" %% "kessenger-lib" % "0.2.4",
 
       "org.apache.spark" %% "spark-sql"            % "3.3.0" % "provided",
       "org.apache.spark" %% "spark-sql-kafka-0-10" % "3.3.0",  //% "provided",
