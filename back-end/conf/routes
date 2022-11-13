@@ -1,0 +1,63 @@
+# Routes
+# This file defines all application routes (Higher priority routes first)
+# https://www.playframework.com/documentation/latest/ScalaRouting
+# ~~~~
+
+# An example controller showing a sample home page
+GET     /                           controllers.HomeController.index()
+
+# Map static resources from the /public folder to the /assets URL path
+GET     /assets/*file               controllers.Assets.versioned(path="/public", file: Asset)
+
+
+
++nocsrf
+POST        /signup                                             controllers.KessengerController.signup
++nocsrf
+POST        /signin                                             controllers.KessengerController.signin
+GET         /logout                                             controllers.KessengerController.logout
+GET         /user/:userId                                       controllers.KessengerController.user(userId: java.util.UUID)
+GET         /user/:userId/search                                controllers.KessengerController.searchUsers(userId: java.util.UUID, l: List[String])
+
+
+# chats
+
+
++nocsrf
+POST         /user/:userId/newchat                              controllers.KessengerController.newChat(userId: java.util.UUID)
++nocsrf
+POST         /user/:userId/newgroupchat                         controllers.KessengerController.newGroupChat(userId: java.util.UUID)
+
++nocsrf
+POST         /user/:userId/anytc                                controllers.KessengerController.addUsersToChat(userId: java.util.UUID)
+
+
+GET          /user/:userId/chats/:chatId                        controllers.KessengerController.getChat(userId: java.util.UUID, chatId: String)
++nocsrf
+DELETE       /user/:userId/chats/:chatId                        controllers.KessengerController.leaveChat(userId: java.util.UUID, chatId: String)
++nocsrf
+PUT          /user/:userId/chats/:chatId/newChatName            controllers.KessengerController.updateChatName(userId: java.util.UUID, chatId: String)
++nocsrf
+PUT          /user/:userId/chats/:chatId/addNewUsers            controllers.KessengerController.updateChatName(userId: java.util.UUID, chatId: String)
+
++nocsrf
+PUT          /user/:userId/changelogin                          controllers.KessengerController.changeMyLogin(userId: java.util.UUID, newlogin: String)
+GET          /user/:userId/ws                                   controllers.KessengerController.ws(userId: java.util.UUID)
+
+
+
+# Angulars endpoints
+GET          /angular                                           controllers.KessengerController.angular
+
+
+
+
+
+GET     /json                             controllers.KessengerController.json
+GET     /jsonarray                        controllers.KessengerController.jsonarray
++nocsrf
+POST    /jsonpost                         controllers.KessengerController.jsonpost
++nocsrf
+POST    /jsonarraypost                    controllers.KessengerController.jsonarraypost
+GET     /user/test/usersNewSession        controllers.KessengerController.usersNewSession
+

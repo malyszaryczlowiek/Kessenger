@@ -26,7 +26,12 @@ lazy val root = (project in file("."))
       "io.circe" %% "circe-generic" % "0.14.2",
       "io.circe" %% "circe-parser"  % "0.14.2",
 
-      // to solve transitive dependency error with spark and cats
+      // for tests
+      "org.scalameta" %% "munit"            % "0.7.29" % Test,
+      "org.scalameta" %% "munit-scalacheck" % "0.7.29" % Test,
+
+
+// to solve transitive dependency error with spark and cats
       "org.scalanlp" %% "breeze" % "2.1.0"
     )
   )

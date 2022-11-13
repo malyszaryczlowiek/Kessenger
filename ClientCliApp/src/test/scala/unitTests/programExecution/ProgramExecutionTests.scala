@@ -34,24 +34,41 @@ class ProgramExecutionTests extends munit.FunSuite:
 
 
   test("Does login regex match example incorrect logins.") {
-    val loginRegex = "([\\p{Alnum}]*[\\p{Punct}]+[\\p{Alnum}]*)|([0-9]+)".r
+    val loginRegex = "([\\p{Alnum}\\p{Punct}]*[\\p{Punct}]+[\\p{Alnum}\\p{Punct}]*)|([0-9]+)".r
 
     // these logins should NOT be valid
     assert(   loginRegex.matches("#")     )
     assert(   loginRegex.matches("#exi")  )
     assert(   loginRegex.matches("e$xi")  )
     assert(   loginRegex.matches("&99")   )
+    assert(   loginRegex.matches("&9&9")  )
     assert(   loginRegex.matches("499")   )
+    assert(   loginRegex.matches("Walo#") )
 
     // these logins should be valid
     assert( ! loginRegex.matches("Walo")  )
     assert( ! loginRegex.matches("walo")  )
     assert( ! loginRegex.matches("ę")     )
     assert( ! loginRegex.matches("ę99")   )
-
-
   }
 
+
+  test("password tests") {
+    val passRegex1  = "[\\p{Alnum}&&\\p{Punct}]{8,}".r
+    val passRegex2  = "[\\p{Alnum}\\p{Punct}]{8,}".r
+
+    val passRegex3  = "([\\p{Alnum}]+)&&([\\p{Punct}]){8,}".r
+    val passRegex4  = "([\\p{Digit}]+[\\p{Lower}]+[\\p{Upper}]+[\\p{Punct}]+){8,}".r
+
+    val passRegex5 = "([\\p{Alnum}\\p{Punct}]+[\\p{Digit}]+|[\\p{Lower}]+|[\\p{Upper}]+|[\\p{Punct}]+[\\p{Alnum}\\p{Punct}]+){8,}".r
+    val passRegex = "([\\p{Alnum}\\p{Punct}]+([\\p{Digit}]+&&[\\p{Lower}]+&&[\\p{Upper}]+&&[\\p{Punct}]+)[\\p{Alnum}\\p{Punct}]+){8,}".r
+
+    assert( ! passRegex5.matches("#") )
+    assert( ! passRegex5.matches("mypassword!") )
+    assert( ! passRegex5.matches("mypa$$word!") )
+    assert( ! passRegex5.matches("mypa$$word0") )
+    assert(   passRegex5.matches("myPa$$word0") )
+  }
 //  test("testing inserting string to string") {
 //    val chat = Chat("", "Foo chat name", false, 0L, LocalDateTime.now())
 //    val forGrouped = " or #escape_chat"

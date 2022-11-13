@@ -25,7 +25,7 @@ lazy val root = (project in file("."))
 
 
       // for connecting to PostgreSQL db
-      "org.postgresql" % "postgresql" % "42.3.3" ,
+      "org.postgresql" % "postgresql" % "42.3.3",
 
 
       // logging api

@@ -98,7 +98,7 @@ object ProgramExecutor :
     // validate if login does not match punctation characters:
     // !#%&'()*+,-./:;<=>?@[\\]^_`{|}~.\"$
     // and does not contain only numbers
-    val loginRegex = "([\\p{Alnum}]*[\\p{Punct}]+[\\p{Alnum}]*)|([0-9]+)".r
+    val loginRegex = "([\\p{Alnum}\\p{Punct}]*[\\p{Punct}]+[\\p{Alnum}\\p{Punct}]*)|([0-9]+)".r
     //if so we need to repeat question.
     if "".equals(login) then
       println(s"Login cannot be empty.")

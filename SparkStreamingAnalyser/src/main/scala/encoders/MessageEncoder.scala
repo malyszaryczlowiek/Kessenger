@@ -10,7 +10,7 @@ import org.apache.spark.sql.catalyst.encoders.{ExpressionEncoder, encoderFor}
 
 /**
  * Encoder may be used if we want encode tupple like:
- *       (
+ *    (
         timestamp,  //  time of receiving message by kafka // Long
         message.chatId, // string
         message.chatName, // string
