@@ -561,6 +561,14 @@ class KessengerController @Inject()
 
 
 
+  /*
+  TODO zbudować 4 endpointy
+    1. GET zwracający obiekt User
+    2. POST wysyłający dane do logowania z tokenem CSRF.
+    3. POST obsługujący CSRF wysyłający w body stringa
+    4. websocket gdzie wysyłając get na odpowiedni endpoint uruchamiamy aktora i tak dalej
+   */
+
 
   def angular() = Action.async { implicit request =>
     val headers = request.headers.headers
