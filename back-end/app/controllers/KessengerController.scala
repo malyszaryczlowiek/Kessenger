@@ -15,6 +15,8 @@ import io.github.malyszaryczlowiek.kessengerlibrary.domain.Chat.parseChatToJSON
 import play.api.db.Database
 import play.api.libs.streams.ActorFlow
 import play.api.mvc._
+
+import scala.util.Random
 // import play.api.routing.Router.empty.routes
 
 import java.nio.charset.Charset
@@ -567,22 +569,54 @@ class KessengerController @Inject()
     2. POST wysyłający dane do logowania z tokenem CSRF.
     3. POST obsługujący CSRF wysyłający w body stringa
     4. websocket gdzie wysyłając get na odpowiedni endpoint uruchamiamy aktora i tak dalej
+    5. soprawdzić czy obsługiwane będzie LazyList
    */
 
 
   def angular() = Action.async { implicit request =>
     val headers = request.headers.headers
+
+    println()
+    println()
+    if (request.session.isEmpty) println(s"Sesja jest pusta")
+    else {
+      request.session.data.foreach(println)
+    }
+
+
     headers.foreach(println)
 
     val cookies = request.cookies.toList
     cookies.foreach(println)
 
+    val u1 = User(UUID.randomUUID(), "user1")
+    val u2 = User(UUID.randomUUID(), "user2")
 
-      Future.successful(Ok("response"))
+    val users = List(u1,u2)
+
+    val session = new Session(
+      Map(
+        "session_id" -> s"${UUID.randomUUID().toString}",
+        "user_id" -> s"${UUID.randomUUID().toString}",
+        "validity_time" -> s"${Random.nextLong()}"
+      )
+    )
+    val cookie = new Cookie("KESSENGER_SID", "wartosc-sid", httpOnly = false  ) // , sameSite = Option(Cookie.SameSite.Lax))
+    request.headers.get("MY_KESSENGER_HEADER") match {
+      case Some(value) =>
+        Future.successful(Ok(jsonParser.toJSON(users)).withSession(session).withCookies(cookie).withHeaders(("MY_KESSENGER_HEADER", value)))
+      case None => Future.successful(Ok(jsonParser.toJSON(users)).withSession(session).withCookies(cookie))
+    }
+
+    // Future.successful(Ok(jsonParser.toJSON(users)).withSession(session).withCookies(cookie))
   }
 
 
-
+  def angularpost = Action.async { implicit request =>
+    request.body.asText
+    println("przetwarzam post")
+    Future.successful(Ok("przerobiono rządanie."))
+  }
 
 
 
