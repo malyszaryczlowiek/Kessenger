@@ -634,7 +634,11 @@ class KessengerController @Inject()
 
   def jsonpost = Action.async { implicit request =>
     request.body.asJson.map(jsv => {
-      jsonParser.toUser(jsv.toString()) match {
+      val str = jsv.toString()
+      println()
+      println(s"posted user $str")
+      println()
+      jsonParser.toUser(str) match {
         case Left(_) => Future.successful(BadRequest("Cannot parse JSON payload."))
         case Right(u) => Future.successful(Ok(u.toString))
       }
