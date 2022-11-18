@@ -2,6 +2,7 @@ package controllers
 
 import akka.actor.ActorSystem
 import akka.stream.Materializer
+import akka.stream.scaladsl.Source
 import components.actions.{SessionChecker, SessionUpdater}
 import components.actors.WebSocketActor
 import components.db.MyDbExecutor
@@ -12,6 +13,7 @@ import io.github.malyszaryczlowiek.kessengerlibrary.db.queries.{DataProcessingEr
 import io.github.malyszaryczlowiek.kessengerlibrary.domain.Domain.ChatId
 import io.github.malyszaryczlowiek.kessengerlibrary.domain.{Chat, Domain, SessionInfo, Settings, User}
 import io.github.malyszaryczlowiek.kessengerlibrary.domain.Chat.parseChatToJSON
+import io.github.malyszaryczlowiek.kessengerlibrary.domain.User.{parseListOfUsersToJSON, parseUserToJSON}
 import play.api.db.Database
 import play.api.libs.streams.ActorFlow
 import play.api.mvc._
@@ -611,6 +613,18 @@ class KessengerController @Inject()
     // Future.successful(Ok(jsonParser.toJSON(users)).withSession(session).withCookies(cookie))
   }
 
+
+  def userStreaming = Action.async { implicit request =>
+    val u1 = User(UUID.randomUUID(), "user1")
+    val u2 = User(UUID.randomUUID(), "user2")
+    val u3 = User(UUID.randomUUID(), "user3")
+    lazy val list = u1 #:: u2 #:: u3 #:: LazyList.empty
+    // lazy val source = Source.apply(list.toList.map(parseUserToJSON))
+    println()
+    println("UWAGA STERAM CALLED")
+    println()
+    Future.successful(Ok(parseListOfUsersToJSON(list.toList)))
+  }
 
   def angularpost = Action.async { implicit request =>
     request.body.asText

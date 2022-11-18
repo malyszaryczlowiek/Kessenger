@@ -1,0 +1,16 @@
+<p>first works!</p>
+<button routerLink="">Back to Main</button>
+<button routerLink="/second-component">Go to second</button>
+<p></p>
+<app-inner *ngIf="show"></app-inner>
+
+<button (click)="showHide()">Show or hide</button>
+<p>
+    Users
+</p>
+<!-- <div *ngFor="let u of users$ | async"> -->
+<div *ngFor="let u of users; let i = index">
+    <app-inner (remover)="removeUser($event, i)" [user]="u"></app-inner>
+    <!-- Login: {{ user.login }}   ->    ID: {{ user.user_id }} -->
+</div>
+<button (click)="downloadUsers()">Download users</button>

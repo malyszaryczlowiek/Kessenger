@@ -22,6 +22,11 @@ import { ChatPanelComponent } from './components/user/chat/chat-panel/chat-panel
 import { SendMessageComponent } from './components/user/chat/send-message/send-message.component';
 import { MessageListComponent } from './components/user/chat/message-list/message-list.component';
 import { MessageItemComponent } from './components/user/chat/message-item/message-item.component';
+import { FirstComponent } from './components/dummy/first/first.component';
+import { SecondComponent } from './components/dummy/second/second.component';
+import { InnerComponent } from './components/dummy/inner/inner.component';
+import { ChildAComponent } from './components/dummy/child-a/child-a.component';
+import { ChildBComponent } from './components/dummy/child-b/child-b.component';
 
 @NgModule({
   declarations: [
@@ -41,7 +46,12 @@ import { MessageItemComponent } from './components/user/chat/message-item/messag
     ChatPanelComponent,
     SendMessageComponent,
     MessageListComponent,
-    MessageItemComponent
+    MessageItemComponent,
+    FirstComponent,
+    SecondComponent,
+    InnerComponent,
+    ChildAComponent,
+    ChildBComponent
   ],
   imports: [
     BrowserModule,

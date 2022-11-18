@@ -48,6 +48,7 @@ GET          /user/:userId/ws                                   controllers.Kess
 
 # Angulars endpoints
 GET          /angular/users                                     controllers.KessengerController.angular
+GET          /angular/users/stream                              controllers.KessengerController.userStreaming
 POST         /angular/post                                      controllers.KessengerController.angularpost
 
 

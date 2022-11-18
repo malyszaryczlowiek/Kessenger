@@ -153,5 +153,7 @@ export class ConnectionService {
       return this.http.post(this.api + '/jsonpost', userToSend , {responseType:'text'});
     }
 
-    
+    getStream(): Observable<User[]> {
+      return this.http.get<User[]>( this.api + '/angular/users/stream')
+    }
 }
