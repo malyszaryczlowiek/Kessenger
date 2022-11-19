@@ -548,19 +548,46 @@ class KessengerController @Inject()
   //  https://www.playframework.com/documentation/2.8.x/ScalaWebSockets
   def ws(userId: UUID) =
     WebSocket.accept[String, String] { request =>
-    //WebSocket.acceptOrResult[String, String] { request =>
+      // TODO tutaj należy sprawdzić header (nagłówek) Origin z rządania
+      //  jeśli będzie zgody z localhost:4200 to nie odrzucać.
+      //WebSocket.acceptOrResult[String, String] { request =>
       // TODO tutaj przekopiiować kod z session checkera
       //  tak aby wiedzieć czy użytkownik jest uwierzytelniony
 //      sprawdźSesje match {
 //        case Left(_) =>
 //        case Right =>
-      println(s"odebrałem rządanie.")
-          ActorFlow.actorRef { out =>
-            println(s"wszedłem w ActorFlow.")
-            WebSocketActor.props(out)
-          }
+      println(s"odebrałem rządanie HTTP.")
+      ActorFlow.actorRef { out =>
+        println(s"wszedłem w ActorFlow.")
+        WebSocketActor.props(out)
+      }
 //      }
   }
+
+  def ws =
+    WebSocket.accept[String, String] { request =>
+
+      println()
+      println(s"websocket HEADERS")
+      request.headers.headers.foreach(println)
+
+      // Headers.create().add("Access-Control-Allow-Origin" -> "http://localhost:4200").get("Access-Control-Allow-Origin") match {
+
+      // TODO tutaj należy sprawdzić header (nagłówek) Origin z rządania
+      //  jeśli będzie zgody z localhost:4200 to nie odrzucać.
+      //WebSocket.acceptOrResult[String, String] { request =>
+      // TODO tutaj przekopiiować kod z session checkera
+      //  tak aby wiedzieć czy użytkownik jest uwierzytelniony
+      //      sprawdźSesje match {
+      //        case Left(_) =>
+      //        case Right =>
+      println(s"odebrałem rządanie HTTP.")
+      ActorFlow.actorRef { out =>
+        println(s"wszedłem w ActorFlow.")
+        WebSocketActor.props(out)
+      }
+      //      }
+    }
 
 
 

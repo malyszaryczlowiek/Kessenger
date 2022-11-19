@@ -13,10 +13,13 @@ export class InnerComponent implements OnInit , OnDestroy{
   @Output() remover: EventEmitter<User> = new EventEmitter()
   userr$: Observable<User> = new Observable
 
-  constructor() { }
+  constructor() { 
+    console.log('inner constructor called.')
+
+  }
 
   ngOnInit(): void {
-    console.log('inner initialized')
+    console.log('inner onInit Called ')
   }
 
   ngOnDestroy(): void {

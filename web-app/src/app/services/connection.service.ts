@@ -9,6 +9,9 @@ import { User } from '../models/User';
 import { UntypedFormBuilder } from '@angular/forms';
 import { UtctimeService } from './utctime.service';
 
+import { Client } from '@stomp/stompjs';
+import * as SockJS from 'sockjs-client';
+
 
 @Injectable({
   providedIn: 'root'
@@ -17,6 +20,8 @@ export class ConnectionService {
 
   private csrfToken: string = '';
   private ksid: string | undefined;
+  private wsConnection: WebSocket | undefined
+  // private wsClient: Client | undefined;
 
   private httpOptions = {
     headers: new HttpHeaders()
@@ -71,8 +76,36 @@ export class ConnectionService {
 
 
 
+  connectViaWS() {
+    if (this.wsConnection === undefined) {
+      console.log('tworzę SockJS')
+      this.wsConnection = new SockJS( this.api + '/angular/ws', {}, {}); //, {timeout: 10000}
+      
+      this.wsConnection.onopen = () => console.log('WebSocket connection opened.');
+      this.wsConnection.onmessage = (msg: any) => console.log('Dpstałem wiadomość', msg);
+      this.wsConnection.onclose = () => console.log('WebSocket connection closed.');
+      console.log('Tworzenie SockJS skończone')
+    }
+  }
 
 
+  sendMessage(msg: string) {
+    if (this.wsConnection) {
+      console.log('sending data to server.');
+      this.wsConnection.send(msg);
+    } else {
+      console.error('Did not send data, open a connection first');
+    }
+  }
+
+
+  closeWebSocket() {
+    if (this.wsConnection) {
+      this.wsConnection.close()
+      console.log('connection deeactivated.');
+      this.wsConnection = undefined;
+    }
+  }
 
 
 
@@ -155,5 +188,9 @@ export class ConnectionService {
 
     getStream(): Observable<User[]> {
       return this.http.get<User[]>( this.api + '/angular/users/stream')
+    }
+
+    callAngular() {
+      this.http.get<string>(this.api + '/angular/users').subscribe()
     }
 }

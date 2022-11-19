@@ -27,6 +27,7 @@ import { SecondComponent } from './components/dummy/second/second.component';
 import { InnerComponent } from './components/dummy/inner/inner.component';
 import { ChildAComponent } from './components/dummy/child-a/child-a.component';
 import { ChildBComponent } from './components/dummy/child-b/child-b.component';
+import { WebsocketComponent } from './components/dummy/websocket/websocket.component';
 
 @NgModule({
   declarations: [
@@ -51,13 +52,13 @@ import { ChildBComponent } from './components/dummy/child-b/child-b.component';
     SecondComponent,
     InnerComponent,
     ChildAComponent,
-    ChildBComponent
+    ChildBComponent,
+    WebsocketComponent
   ],
   imports: [
     BrowserModule,
     AppRoutingModule, 
-    HttpClientModule, 
-    
+    HttpClientModule    
   ],
   providers: [
     {

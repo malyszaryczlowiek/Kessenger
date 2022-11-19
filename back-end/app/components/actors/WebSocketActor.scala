@@ -16,7 +16,7 @@ class WebSocketActor(out: ActorRef) extends Actor {
 
 
   override def postStop(): Unit = {
-    println(s"Wyłączyłem actora.")
+    println(s"5. Wyłączyłem actora.")
 
     // TODO tutaj zamykamy wszystkie resources, których używaliśmy w aktorze.
     // someResource.close()
@@ -24,11 +24,16 @@ class WebSocketActor(out: ActorRef) extends Actor {
 
   def receive: Receive = {
     case msg: String =>
-      println(s"Przetwarzam wiadomość. ")
-      out ! ("I received your message: " + msg)
+      println(s"1. Przetwarzam wiadomość. ")
+      if (msg == "exit") {
+        out ! ("4. Wyłączam czat.")
+        self ! PoisonPill
+      }
+      else
+        out ! ("2. Odesłana wiadomość: " + msg)
     case _ =>
-      println(s"Przetwarzam wiadomość #2. ")
-      out ! ("Dostałem nieczytelną wiadomość.")
+      println(s"3a. Nieczytelna wiadomość. ")
+      out ! ("3b. Dostałem nieczytelną wiadomość.")
       /*
       w momencie gdy chcemy zamknąć naszego aktora
       i wywołać automatycznei postStop()
@@ -43,6 +48,6 @@ class WebSocketActor(out: ActorRef) extends Actor {
 
   }
 
-  println(s"Włączam aktora")
+  println(s"0. Włączam aktora")
 
 }

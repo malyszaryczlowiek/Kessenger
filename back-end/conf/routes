@@ -42,7 +42,7 @@ PUT          /user/:userId/chats/:chatId/addNewUsers            controllers.Kess
 
 +nocsrf
 PUT          /user/:userId/changelogin                          controllers.KessengerController.changeMyLogin(userId: java.util.UUID, newlogin: String)
-GET          /user/:userId/ws                                   controllers.KessengerController.ws(userId: java.util.UUID)
+# GET          /user/:userId/ws                                   controllers.KessengerController.ws(userId: java.util.UUID)
 
 
 
@@ -50,7 +50,7 @@ GET          /user/:userId/ws                                   controllers.Kess
 GET          /angular/users                                     controllers.KessengerController.angular
 GET          /angular/users/stream                              controllers.KessengerController.userStreaming
 POST         /angular/post                                      controllers.KessengerController.angularpost
-
+GET          /angular/ws/info                                   controllers.KessengerController.ws
 
 
 

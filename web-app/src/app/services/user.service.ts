@@ -18,7 +18,8 @@ export class UserService {
 
 
   constructor(private connection: ConnectionService) { 
-    this.initializeService()
+    this.initializeService();
+    
   }
 
 
@@ -44,6 +45,33 @@ export class UserService {
   }
 
 
+
+
+
+
+
+
+  connectViaWebsocket() {
+    this.connection.connectViaWS();
+  }
+  /*
+  tutaj będzie musiał być parsing i obudowanie treści wiadomości 
+  w inne informacje jak chat id user id etc. 
+  */
+  sendMessage(msg: string) {
+    this.connection.sendMessage(msg);
+  }
+
+  closeWS() {
+    this.connection.closeWebSocket();
+  }
+
+
+
+  
+  callAngular() {
+    this.connection.callAngular();
+  }
 
 
   

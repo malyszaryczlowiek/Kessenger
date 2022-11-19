@@ -4,9 +4,15 @@ import { ChildAComponent } from './components/dummy/child-a/child-a.component';
 import { ChildBComponent } from './components/dummy/child-b/child-b.component';
 import { FirstComponent } from './components/dummy/first/first.component';
 import { SecondComponent } from './components/dummy/second/second.component';
+import { WebsocketComponent } from './components/dummy/websocket/websocket.component';
 import { MainComponent } from './components/main/main/main.component';
 import { PagenotfoundComponent } from './components/pagenotfound/pagenotfound.component';
 import { UserComponent } from './components/user/user/user.component';
+
+const userChildRoutes: Routes = [
+  {path: 'child-a', component: ChildAComponent},
+  {path: 'child-b', component: ChildBComponent}
+];
 
 const routes: Routes = [
   {path: '', component: MainComponent},
@@ -15,14 +21,14 @@ const routes: Routes = [
   { 
     path: 'second-component', 
     component: SecondComponent ,
-    children: [
-      {path: 'child-a', component: ChildAComponent},
-      {path: 'child-b', component: ChildBComponent},
-    ]  
+    children: userChildRoutes
   },
+  {path: 'websocket-component', component: WebsocketComponent },
   // {path: '', component: },
   {path: '**', component: PagenotfoundComponent},
 ];
+
+
 
 @NgModule({
   imports: [RouterModule.forRoot(routes)],
