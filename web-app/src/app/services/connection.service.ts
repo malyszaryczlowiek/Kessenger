@@ -145,10 +145,18 @@ export class ConnectionService {
   }
 
 
+  createChat() {
+    
+  }
 
 
 
 
+
+
+  /*
+  WEBSOCKET
+  */
 
 
   connectViaWS() {

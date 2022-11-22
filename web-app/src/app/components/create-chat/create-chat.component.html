@@ -1,5 +1,33 @@
+<h1>Create Chat</h1>
 <div>
-    <form>
-        
+    <form [formGroup]="form">
+        <input formControlName="chatName" type="text" id="chat-name" placeholder="Chat Name">
+        <br>
+        <!-- <label>Group Chat</label>
+        <input formControlName="groupChat" type="checkbox" id="group-chat" value="false">
+        <br> -->
+        <input [disabled]="selectedUsers.length == 1  " type="text" id="find-user" placeholder="Find User">
+        <p></p>
+        <p *ngIf="selectedUsers.length == 0"> No User Selected</p>
+        <p *ngIf="selectedUsers.length > 0">Selected Users:</p>
+        <div *ngFor="let selected of selectedUsers">
+            <div  >
+                {{ selected.login + '    ' }}
+                <button (click)="unselect(selected)">Unselect</button>
+            </div>
+        </div>
+        <p></p>
+        <button [disabled]="disableSubmitting" type="submit">Create Chat</button>
+        <button routerLink="" routerLinkActive="active" ariaCurrentWhenActive="page">Cancel</button>
     </form>
+</div>
+<p></p>
+<div>
+    Select found user:
+    <p *ngIf="foundUsers.length == 0"  > No User Found.</p>
+    <div *ngFor="let found of foundUsers"  (click)="addToSelected(found)">
+        <div  >
+            {{ found.login }}
+        </div>
+    </div>
 </div>

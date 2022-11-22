@@ -44,7 +44,7 @@ export class EditChatSettingsComponent implements OnInit {
         this.router.navigate(['pageNotFound'])
       }
     } else {
-      // if chat not found we redirect to /user
+      // if chat not found we redirect to page not found.
       this.router.navigate(['pageNotFound']);
     }
   }
@@ -53,6 +53,12 @@ export class EditChatSettingsComponent implements OnInit {
   // here we save changed name or silence
   saveChanges() {
     console.log('saveChanges was called.')
+    
+    // extract data from form
+    this.chatSettings.value.newChatName
+    this.chatSettings.value.silent
+
+    // save data to server
     // this.userService.
   }
 

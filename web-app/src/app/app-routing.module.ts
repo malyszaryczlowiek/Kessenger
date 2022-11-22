@@ -8,6 +8,7 @@ import { SecondComponent } from './components/dummy/second/second.component';
 import { WebsocketComponent } from './components/dummy/websocket/websocket.component';
 import { MainComponent } from './components/main/main/main.component';
 import { PagenotfoundComponent } from './components/pagenotfound/pagenotfound.component';
+import { SessionTimeoutComponent } from './components/session-timeout/session-timeout.component';
 import { ChatPanelComponent } from './components/user/chat/chat-panel/chat-panel.component';
 import { EditAccountComponent } from './components/user/edit-account/edit-account.component';
 import { EditChatSettingsComponent } from './components/user/edit-chat-settings/edit-chat-settings.component';
@@ -34,7 +35,8 @@ const routes: Routes = [
   },
   {path: 'user/settings', component: EditAccountComponent},
   {path: 'user/createChat', component: CreateChatComponent},
-
+  {path: 'session-timeout', component: SessionTimeoutComponent},
+  // {path: '**', component: PagenotfoundComponent}
 
 
   {path: 'first-component', component: FirstComponent },

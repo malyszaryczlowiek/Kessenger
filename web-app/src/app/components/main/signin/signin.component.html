@@ -1,5 +1,5 @@
 <div>
-    <form form [formGroup]="signInForm" (ngSubmit)="onSubmit()">
+    <form [formGroup]="signInForm" (ngSubmit)="onSubmit()">
         <input formControlName="login" type="text" id="signin-login" placeholder="Login">
         <input formControlName="password" type="password" id="signin-pass" placeholder="Password">
         <button type="submit" >Sign In</button>

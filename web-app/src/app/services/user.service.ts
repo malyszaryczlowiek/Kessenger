@@ -14,6 +14,10 @@ import { ChatData } from '../models/ChatData';
 })
 export class UserService {
 
+  // tutaj trzeba utworzyć obiekt ustawień, 
+  // który de facto będzie zwracany z serwera wraz z danymi 
+  // użytkowniak po logowaniu. 
+  // public settings
 
   public user: User | undefined;
   public chatAndUsers: Array<ChatData> = new Array();
@@ -90,6 +94,7 @@ export class UserService {
       },
       error: (error) => {
         console.log(error);
+        console.log('clearing UserService.')
         this.clearService();
       },
       complete: () => {}
@@ -100,8 +105,17 @@ export class UserService {
 
 
   signIn(login: string, pass: string) {
+    // TODO dopisac min. przekierowanie na stronę /user
+    //  jak użytkownik zostanie zalgowany poprawnie. 
+    //  i pobierze wszystkie dane. 
     this.connection.signIn(login, pass)
   }
+
+
+  createChat() {
+    this.connection.createChat();
+  }
+
 
 
 
