@@ -5,11 +5,12 @@ import { Observable, of } from 'rxjs';
 import { CookieService } from 'ngx-cookie-service';
 import { v4 as uuidv4 } from 'uuid';
 
+import { Chat } from '../models/Chat';
 import { User } from '../models/User';
-import { UntypedFormBuilder } from '@angular/forms';
+import { Ksid } from '../models/Ksid';
+
 import { UtctimeService } from './utctime.service';
 
-import { Client } from '@stomp/stompjs';
 import * as SockJS from 'sockjs-client';
 
 
@@ -19,16 +20,18 @@ import * as SockJS from 'sockjs-client';
 export class ConnectionService {
 
   private csrfToken: string = '';
-  private ksid: string | undefined;
+  private ksid?: Ksid;
+  // private nksid: string = '';
   private wsConnection: WebSocket | undefined
-  // private wsClient: Client | undefined;
+  private coockieValidity: number = 900 // in seocnds
+  
 
-  private httpOptions = {
+  /* private httpOptions = {
     headers: new HttpHeaders()
       .set('MY_KESSENGER_HEADER', 'true'),
     observe: 'response', 
     responseType: 'json'
-  }
+  } */
 
 
   /*
@@ -41,33 +44,105 @@ export class ConnectionService {
     private cookieService: CookieService,
     private utcService: UtctimeService) 
     { 
-      this.ksid = cookieService.get('ksid')
+      const k =  cookieService.get('ksid')
+      if (k != '') {
+        const arr = k.split('__');
+        this.ksid = new Ksid(arr[0], arr[1], arr[2] as unknown as number); 
+      } 
     }
+  
 
 
+
+
+
+
+
+  getUserData(userId: string): Observable<HttpResponse<Chat[]>> {
+    let token: string = '';
+    if (this.ksid) {
+      token = this.ksid.toString();
+      return this.http.get<Chat[]>(this.api + '/user/' + userId,{
+        headers:  new HttpHeaders()
+        .set('KSID', token),
+        observe: 'response', 
+        responseType: 'json'
+      })
+    } 
+    else { // without ksid header request will be rejected
+      return this.http.get<Chat[]>(this.api + '/user/' + userId,{
+        observe: 'response', 
+        responseType: 'json'
+      })
+    }    
+  }
+
+
+
+  getUserId(): string {
+    if (this.ksid) {
+      return this.ksid.userId;
+    } else 
+    return '';
+  }
+
+
+
+
+  hasKSID(): boolean {
+    if (this.ksid) { return true ;}
+    else {return false};
+  }
 
 
   // w tej metodzie generujemy ciasteczko i zapisujemy je w przeglądarce. 
-  saveKSID(userId: string, validityTime: number ) {
-    const time: number = this.utcService.getUTCseconds();
-    this.ksid = `${uuidv4()}__${userId}__${time}`;
-    this.cookieService.set('ksid', this.ksid);
+  saveKSID(userId: string, validityTime: number) {
+    const time: number = this.utcService.getUTCmilliSeconds();
+    this.ksid = new Ksid(uuidv4(), userId, time);    //  `${uuidv4()}__${userId}__${time}`;
+    this.cookieService.set('ksid', this.ksid.toString(), 0.01041667);
   }
+
+
+
 
   getKSID(): string {
     return this.cookieService.get('ksid');
   }
 
+
+
+
   removeKSID() {
     this.cookieService.delete('ksid');
+    this.ksid = undefined;
   }
+
+
+
 
   updateKSID(userId: string, validityTime: number) {
     this.saveKSID(userId, validityTime);
   }
 
 
+  signUp(userId: string, login: string, pass: string): Observable<HttpResponse<User>> {
+    const time: number = this.utcService.getUTCmilliSeconds();
+    this.ksid = new Ksid(uuidv4(), userId , time);
+    this.cookieService.set('ksid', this.ksid.toString(), )
 
+    return this.http.post<HttpResponse<User>>(this.api + '/signup', {
+      headers:  new HttpHeaders()
+      .set('KSID', this.ksid.toString()),
+      observe: 'response', 
+      responseType: 'json'
+    });
+  }
+  
+  
+  
+  signIn(login: string , pass: string) {
+
+  }
 
 
 
@@ -79,6 +154,7 @@ export class ConnectionService {
   connectViaWS() {
     if (this.wsConnection === undefined) {
       console.log('tworzę SockJS')
+      // todo ustawić time out
       this.wsConnection = new SockJS( this.api + '/angular/ws', {}, {}); //, {timeout: 10000}
       
       this.wsConnection.onopen = () => console.log('WebSocket connection opened.');
@@ -155,6 +231,11 @@ export class ConnectionService {
             else console.log('has not COOKIE')
   
             console.log('headers: ' + response.headers.getAll)  
+/*             const play = this.cookie.get('PLAY_SESSION')
+            console.log(`PLAY_SESSION: ${play}`)
+
+            const kes = this.cookie.get('KESSENGER_SID')
+            console.log(`KESSENGER_SID: ${kes}`) */
     
             //console.log('status is: ' + response.status) 
           } , 
@@ -181,7 +262,7 @@ export class ConnectionService {
     postUser(): Observable<string> {
       const userToSend: User = {
         login: 'login',
-        user_id: uuidv4()
+        userId: uuidv4()
       }
       return this.http.post(this.api + '/jsonpost', userToSend , {responseType:'text'});
     }

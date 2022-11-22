@@ -2,7 +2,7 @@
 
 
 export interface User {
-    user_id: string;
+    userId: string;
     login: string;
 }
 

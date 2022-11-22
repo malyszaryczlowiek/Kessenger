@@ -28,6 +28,8 @@ import { InnerComponent } from './components/dummy/inner/inner.component';
 import { ChildAComponent } from './components/dummy/child-a/child-a.component';
 import { ChildBComponent } from './components/dummy/child-b/child-b.component';
 import { WebsocketComponent } from './components/dummy/websocket/websocket.component';
+import { FormsModule, ReactiveFormsModule } from '@angular/forms';
+import { SelectChatComponent } from './components/user/chat/select-chat/select-chat.component';
 
 @NgModule({
   declarations: [
@@ -53,12 +55,15 @@ import { WebsocketComponent } from './components/dummy/websocket/websocket.compo
     InnerComponent,
     ChildAComponent,
     ChildBComponent,
-    WebsocketComponent
+    WebsocketComponent,
+    SelectChatComponent
   ],
   imports: [
     BrowserModule,
     AppRoutingModule, 
-    HttpClientModule    
+    HttpClientModule,
+    ReactiveFormsModule,
+    FormsModule    
   ],
   providers: [
     {

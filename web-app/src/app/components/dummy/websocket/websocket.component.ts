@@ -10,6 +10,7 @@ export class WebsocketComponent implements OnInit, OnDestroy {
 
   private num: number = 0;
   socket : WebSocket | undefined;
+  private mess: string = 'empty message'
 
   constructor(private userService: UserService) { 
 
@@ -20,16 +21,21 @@ export class WebsocketComponent implements OnInit, OnDestroy {
     // this.userService.connectViaWebsocket();
     this.socket = new WebSocket("ws://localhost:9000/angular/ws/info");
     this.socket.onopen = function(e) {
-      alert("[open] Connection established");
-      alert("Sending to server");
+      console.log('connected via WebSocket.')
       //this.socket.send("My name is John");
     };
+    this.socket.onerror = function (error) {
+      console.log('WEBSOCKET ERROR, cannot connect to server', error)
+    }
+
    }
 
   ngOnDestroy(): void {
     // this.userService.closeWS(); 
+
     if (this.socket) {
       this.socket.close()
+      console.log('socket closed.')
     }
   }
 
@@ -42,9 +48,14 @@ export class WebsocketComponent implements OnInit, OnDestroy {
     //this.userService.callAngular();
     // this.sendMessage(`Message num ${++this.num}.`)
     if (this.socket)
-      this.socket.send("My name is John");
+      this.socket.send("Wiadomość");
     else 
       console.log('socket jest niezdefiniowany')
+  }
+
+  sendToClose() {
+    if (this.socket)
+      this.socket.send("exit");
   }
 
 }

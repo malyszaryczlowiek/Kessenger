@@ -10,11 +10,11 @@ export class UtctimeService {
   = new Date(1970,1,1,0,0,0,0) */
 
   constructor() { 
-    console.log('utc time: ' + `${this.getUTCseconds()}`)
+    console.log('utc time: ' + `${this.getUTCmilliSeconds()}`)
     // console.log('utc time: ' + `${this.g}`)
   }
 
-  getUTCseconds(): number {
+  getUTCmilliSeconds(): number {
     const noww = new Date()
     return Date.UTC(
       noww.getUTCFullYear(),

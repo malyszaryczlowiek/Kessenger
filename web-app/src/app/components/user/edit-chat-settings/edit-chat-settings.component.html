@@ -1,12 +1,22 @@
 <div>
     Edit chat
-    <!-- zmień nazwę czatu -->
-
-    <button>Change</button>
-    
-    <!-- wycisz czat jako check-box -->
-    
-    
-    <!-- opuść czat -->
-    <button>Leave Chat</button>
+    <p></p>
+    <form [formGroup]="chatSettings" (ngSubmit)="saveChanges()">
+        Set new chat name:
+        <input type="text" formControlName="newChatName" id="chat-name">
+        <p></p>
+        <label>Silent Chat</label>
+        <input type="checkbox" formControlName="silent">
+        <p></p>
+        <button type="submit">Save Changes</button>
+    </form>
 </div>
+
+<p></p>
+
+<div>
+    Watch out! This operation you cannot undo.
+    <br>
+    <button (click)="leaveChat()">Leave Chat</button>
+</div>
+

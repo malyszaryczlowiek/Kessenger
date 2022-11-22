@@ -53,7 +53,7 @@ class KessengerController @Inject()
    *
    * @return
    */
-  def signup = Action.async { implicit request =>
+  def signup2 = Action.async { implicit request =>
     if (!request.session.isEmpty) {
       Future.successful(BadRequest("Logout from current Session and try again. "))
     }
@@ -100,6 +100,52 @@ class KessengerController @Inject()
     }
   }
 
+
+  def signup = Action.async { implicit request =>
+    request.headers.get("KSID") match {
+      case Some(ksid) =>
+        Future.successful(BadRequest("Logout from current Session and try again. "))
+      case None =>
+        request.body.asJson.map(json => jsonParser.parseLoginAndPass(json.toString())) match {
+          case Some(parsed) =>
+            parsed match {
+              case Left(value) => Future.successful(BadRequest("Error 001. Cannot parse JSON payload."))
+              case Right(loginCredentials) =>
+                Future {
+                  db.withConnection(implicit connection => {
+                    val userId = UUID.randomUUID()
+                    val login = loginCredentials.login
+                    passwordConverter.convert(loginCredentials.pass) match {
+                      case Left(_) =>
+                        InternalServerError("Error 001. Encoding password failed") // .withNewSession
+                      case Right(encoded) =>
+                        val settings = Settings()
+                        val validityTime = System.currentTimeMillis() + settings.sessionDuration * 1000L // in milliseconds + 15 min
+                        val sessionData  = SessionInfo(UUID.randomUUID(), userId, validityTime)
+                        dbExecutor.createUser( User(userId, login), encoded, settings, sessionData) match {
+                          case Left(queryError) =>
+                            InternalServerError(s"Error 002. ${queryError.description.toString()}") // .withNewSession
+                          case Right(value) =>
+                            if (value == 3) {
+                              val session = new Session(
+                                Map(
+                                  "session_id" -> s"${sessionData.sessionId.toString}",
+                                  "user_id" -> s"${userId.toString}",
+                                  "validity_time" -> s"$validityTime"
+                                )
+                              )
+                              Ok(userId.toString).withSession(session)
+                            } else InternalServerError("Error 003. User Creation Error. ").withNewSession
+                        }
+                    }
+                  })
+                }(databaseExecutionContext)
+            }
+          case None =>
+            Future.successful(BadRequest("No payload."))
+        }
+    }
+  }
 
 
 
@@ -630,7 +676,7 @@ class KessengerController @Inject()
         "validity_time" -> s"${Random.nextLong()}"
       )
     )
-    val cookie = new Cookie("KESSENGER_SID", "wartosc-sid", httpOnly = false  ) // , sameSite = Option(Cookie.SameSite.Lax))
+    val cookie = new Cookie("KESSENGER_SID", "wartosc-sid", httpOnly = false, domain = Option("localhost:4200")  ) // , sameSite = Option(Cookie.SameSite.Lax))
     request.headers.get("MY_KESSENGER_HEADER") match {
       case Some(value) =>
         Future.successful(Ok(jsonParser.toJSON(users)).withSession(session).withCookies(cookie).withHeaders(("MY_KESSENGER_HEADER", value)))
@@ -647,10 +693,14 @@ class KessengerController @Inject()
     val u3 = User(UUID.randomUUID(), "user3")
     lazy val list = u1 #:: u2 #:: u3 #:: LazyList.empty
     // lazy val source = Source.apply(list.toList.map(parseUserToJSON))
-    println()
-    println("UWAGA STERAM CALLED")
-    println()
-    Future.successful(Ok(parseListOfUsersToJSON(list.toList)))
+    val session = new Session(
+      Map(
+        "session_id" -> s"${UUID.randomUUID()}",
+        "user_id" -> s"${UUID.randomUUID()}",
+        "validity_time" -> s"${System.currentTimeMillis()}"
+      )
+    )
+    Future.successful(Ok(parseListOfUsersToJSON(list.toList)).withSession(session))
   }
 
   def angularpost = Action.async { implicit request =>

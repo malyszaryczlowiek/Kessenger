@@ -1,1 +1,1 @@
-<p>chat-list works!</p>
+<app-chat-list-item  *ngFor="let c of chats; let i = index" [chatData]="c" (click)="onClick(c)"></app-chat-list-item>

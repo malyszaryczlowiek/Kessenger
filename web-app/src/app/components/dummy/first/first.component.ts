@@ -44,11 +44,15 @@ export class FirstComponent implements OnInit, OnDestroy {
     console.log('Observable po subscribe() ')
   }
 
+  getUsers() {
+    this.connection.getUsers()
+  }
+
   removeUser(user: User, i: number) {
 
 
     this.users =  this.users.filter((u,index, array) => {
-      let bool = u.user_id !== user.user_id ;
+      let bool = u.userId !== user.userId ;
       console.log(`boolean is ${bool}`);
       return bool;
       //array.push(u)      

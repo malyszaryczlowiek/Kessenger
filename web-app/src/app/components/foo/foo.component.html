@@ -1,7 +1,7 @@
 <p>foo chyba works!</p>
 <div>
     <div *ngFor="let user of users$ | async">
-        login: {{user.login}}, uuid: {{user.user_id}}
+        login: {{user.login}}, uuid: {{user.userId}}
     </div>
     <br>
     <button (click)="getUsers()">Get Users</button>

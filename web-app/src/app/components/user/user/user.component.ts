@@ -1,4 +1,9 @@
 import { Component, OnInit } from '@angular/core';
+import { Chat } from 'src/app/models/Chat';
+import { ChatData } from 'src/app/models/ChatData';
+import { UserService } from 'src/app/services/user.service';
+
+
 
 @Component({
   selector: 'app-user',
@@ -7,9 +12,12 @@ import { Component, OnInit } from '@angular/core';
 })
 export class UserComponent implements OnInit {
 
-  constructor() { }
+  public chats: Array<ChatData> = new Array();
+
+  constructor(private userService: UserService) { }
 
   ngOnInit(): void {
+    this.chats = this.userService.chatAndUsers;
   }
 
 }

@@ -1,4 +1,7 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, Input, OnInit } from '@angular/core';
+import { Router } from '@angular/router';
+import { ChatData } from 'src/app/models/ChatData';
+import { UserService } from 'src/app/services/user.service';
 
 @Component({
   selector: 'app-chat-list',
@@ -7,9 +10,16 @@ import { Component, OnInit } from '@angular/core';
 })
 export class ChatListComponent implements OnInit {
 
-  constructor() { }
+  @Input() chats: Array<ChatData> = new Array<ChatData>();
+
+  constructor(private router: Router) { }
 
   ngOnInit(): void {
+
+  }
+
+  onClick(c: ChatData) {
+    this.router.navigate(['']) // , {relativeTo: } dodać to jeszcze 
   }
 
 }

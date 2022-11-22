@@ -28,7 +28,7 @@ class JsonParsers {
           val parsed = i.map((u: Json) => {
             val uc = u.hcursor
             for {
-              userId <- uc.downField("user_id").as[String]
+              userId <- uc.downField("userId").as[String]
               login  <- uc.downField("login") .as[String]
             } yield {
               User(UUID.fromString(userId), login)
@@ -52,7 +52,7 @@ class JsonParsers {
     override def apply(c: HCursor): Result[(List[User], String)] = {
       for {
         users    <- c.downField("users").as[List[User]]
-        chatName <- c.downField("chat_name").as[String]
+        chatName <- c.downField("chatName").as[String]
       } yield {
         (users, chatName)
       }
@@ -64,8 +64,8 @@ class JsonParsers {
     override def apply(c: HCursor): Result[(User, UUID, String)] = {
       for {
         user     <- c.downField("user").as[User]
-        other_id <- c.downField("other_id").as[String]
-        chatName <- c.downField("chat_name").as[String]
+        other_id <- c.downField("otherId").as[String]
+        chatName <- c.downField("chatName").as[String]
       } yield {
         (user, UUID.fromString(other_id), chatName)
       }
@@ -76,8 +76,8 @@ class JsonParsers {
     override def apply(c: HCursor): Result[(List[UUID], String, String)] = {
       for {
         users    <- c.downField("users").as[List[String]]
-        chatId   <- c.downField("chat_id").as[String]
-        chatName <- c.downField("chat_name").as[String]
+        chatId   <- c.downField("chatId").as[String]
+        chatName <- c.downField("chatName").as[String]
       } yield {
         (users.map(UUID.fromString), chatId, chatName)
       }
@@ -92,11 +92,11 @@ class JsonParsers {
         (keyValue._1.chatId, keyValue._1.chatName, keyValue._1.groupChat, keyValue._1.lastMessageTime, keyValue._2.map(kv => (kv._1, kv._2)).toList)
       }).map( tupple => {
         Json.obj(
-          ("chat_id", Json.fromString(tupple._1)),
-          ("chat_name", Json.fromString(tupple._2)),
-          ("group_chat", Json.fromBoolean(tupple._3)),
-          ("last_message_time", Json.fromLong( tupple._4)),
-          ("partition_offsets", tupple._5.map( tup => {
+          ("chatId", Json.fromString(tupple._1)),
+          ("chatName", Json.fromString(tupple._2)),
+          ("groupChat", Json.fromBoolean(tupple._3)),
+          ("lastMessageTime", Json.fromLong( tupple._4)),
+          ("partitionOffsets", tupple._5.map( tup => {
             Json.obj(
               ("partition", Json.fromInt(tup._1)),
               ("offset", Json.fromLong(tup._2))
