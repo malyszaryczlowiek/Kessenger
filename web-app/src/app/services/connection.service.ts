@@ -39,9 +39,23 @@ export class ConnectionService {
 
 
   signUp(login: string, pass: string, userId: string): Observable<HttpResponse<{user: User, settings: Settings}>> {
+    // time is validity time of session. after this time session will be invalid 
+    //   unless user will actualize  session making some request. 
     const time: number = this.utcService.getUTCmilliSeconds() + 900000; // current  time + 15 min
     this.ksid = new Ksid(uuidv4(), userId , time);
-    this.cookieService.set('ksid', this.ksid.toString());
+    this.cookieService.set('ksid', this.ksid.toString(), 1/(24 * 4)); // expires in 15 minutes
+
+    /*
+    TODO 
+      Rozważyć czy nie zmodyfikować KSID'a tak aby przechowywał informacje 
+      o 
+
+      // nie trzeba bo w KSID mamy info o tym kiedy sesja wygasa bo jest dodawana długość
+      // sesji. a server jak otrzyma rządanie wygeneruje sobie aktualny czas i sprawdzi
+      // czy ta wartość jest niższa niż maksymalny czas sesji. jeśli jest niższy 
+      // to rządanie przejdzie, jeśli nie to zostanie odrzucone 
+      // a w Angularze musi nastąpić przekierowanie na stronę session-timeout.
+    */
 
     const body = {
       login: login,
@@ -98,7 +112,7 @@ export class ConnectionService {
 
   hasKSID(): boolean {
     if (this.ksid) { return true ;}
-    else {return false};
+    else {return false;}
   }
 
 
