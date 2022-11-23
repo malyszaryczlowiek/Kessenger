@@ -8,19 +8,20 @@ import { Message} from '../models/Message';
 import { User } from '../models/User';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ChatData } from '../models/ChatData';
+import { Settings } from '../models/Settings';
+import { HttpResponse } from '@angular/common/http';
 
 @Injectable({
   providedIn: 'root'
 })
 export class UserService {
 
-  // tutaj trzeba utworzyć obiekt ustawień, 
-  // który de facto będzie zwracany z serwera wraz z danymi 
-  // użytkowniak po logowaniu. 
-  // public settings
-
   public user: User | undefined;
+  public settings: Settings | undefined;
+
   public chatAndUsers: Array<ChatData> = new Array();
+
+  
 
 
   constructor(private connection: ConnectionService, private router: Router) { 
@@ -80,25 +81,18 @@ export class UserService {
   }
 
 
+  setUserAndSettings(u: User | undefined, s: Settings | undefined) {
+    this.user = u;
+    this.settings = s;
+  }
 
 
-  signUp(log: string, pass: string) {
+
+
+  signUp(log: string, pass: string): Observable<HttpResponse<{user: User, settings: Settings}>> {
     const userId = uuidv4();
-    this.user = {userId: userId, login: log}
-    this.connection.signUp(userId, log, pass).subscribe({
-      next: (response) => {
-        // we save created user 
-        const user = response.body
-        // and redirect to user site
-        this.router.navigate(['user']);
-      },
-      error: (error) => {
-        console.log(error);
-        console.log('clearing UserService.')
-        this.clearService();
-      },
-      complete: () => {}
-    })
+    this.user = {userId: userId, login: log};
+    return this.connection.signUp(log, pass, userId);
   }
 
 

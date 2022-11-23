@@ -26,7 +26,7 @@ class DbExecutor(val kafkaConfigurator: KafkaConfigurator) {
       (statement: Statement) =>
         val sql1 = s"INSERT INTO users (user_id, login, pass) VALUES ('${user.userId.toString}', '${user.login}', '$pass') "
         val sql2 = s"INSERT INTO settings (user_id, zone_id) VALUES ('${user.userId.toString}', '${settings.zoneId.getId}' ) "
-        val sql3 = s"INSERT INTO sessions (session_id, user_id, validity_time)  " +
+        val sql3 = s"INSERT INTO sessions (session_id, user_id, validity_time) " +
           s"VALUES ('${sessionData.sessionId.toString}', '${sessionData.userId.toString}',  ${sessionData.validityTime})"
         statement.addBatch(sql1)
         statement.addBatch(sql2)

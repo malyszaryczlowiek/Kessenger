@@ -14,6 +14,9 @@ export class SigninComponent implements OnInit {
     login: new FormControl('', [Validators.required, Validators.minLength(6)]),
     password: new FormControl('', [Validators.required, Validators.minLength(6)])  //  todo dodać walidatory
   });
+  
+  
+  bad = false;
 
   constructor(private userService: UserService) { }
 
@@ -25,6 +28,14 @@ export class SigninComponent implements OnInit {
     const pass = this.signInForm.value.password;
     if (login && pass ) { 
       this.userService.signIn(login, pass)
+      
+      /* .subscribe({
+        next: () => {} ,
+        error: (error) => {
+          console.log(error)
+        },
+        
+      }) */
     }
   }
 

@@ -12,6 +12,7 @@ import { Ksid } from '../models/Ksid';
 import { UtctimeService } from './utctime.service';
 
 import * as SockJS from 'sockjs-client';
+import { Settings } from '../models/Settings';
 
 
 @Injectable({
@@ -19,38 +20,44 @@ import * as SockJS from 'sockjs-client';
 })
 export class ConnectionService {
 
-  private csrfToken: string = '';
   private ksid?: Ksid;
-  // private nksid: string = '';
   private wsConnection: WebSocket | undefined
-  private coockieValidity: number = 900 // in seocnds
-  
-
-  /* private httpOptions = {
-    headers: new HttpHeaders()
-      .set('MY_KESSENGER_HEADER', 'true'),
-    observe: 'response', 
-    responseType: 'json'
-  } */
 
 
-  /*
-    jak tylko uruchamiamy servis to sprawdzamy czy
-    mamy w przeglądarce zapisane ciasteczko jeśli nie mamy to 
-      
-  */
+
   constructor(private http: HttpClient, 
     @Inject("API_URL") private api: string,
     private cookieService: CookieService,
-    private utcService: UtctimeService) 
-    { 
-      const k =  cookieService.get('ksid')
-      if (k != '') {
-        const arr = k.split('__');
-        this.ksid = new Ksid(arr[0], arr[1], arr[2] as unknown as number); 
-      } 
-    }
+    private utcService: UtctimeService) { 
+    const k =  cookieService.get('ksid')
+    if (k != '') {
+     const arr = k.split('__');
+      this.ksid = new Ksid(arr[0], arr[1], arr[2] as unknown as number); 
+    } 
+  }
   
+
+
+  signUp(login: string, pass: string, userId: string): Observable<HttpResponse<{user: User, settings: Settings}>> {
+    const time: number = this.utcService.getUTCmilliSeconds() + 900000; // current  time + 15 min
+    this.ksid = new Ksid(uuidv4(), userId , time);
+    this.cookieService.set('ksid', this.ksid.toString());
+
+    const body = {
+      login: login,
+      pass: pass,
+      userId: userId
+    };
+
+    return this.http.post<{user: User, settings: Settings}>(this.api + '/signup', body, {
+      headers:  new HttpHeaders()
+        .set('KSID', this.ksid.toString()),
+      observe: 'response', 
+      responseType: 'json'
+    });
+  }  
+
+
 
 
 
@@ -125,18 +132,7 @@ export class ConnectionService {
   }
 
 
-  signUp(userId: string, login: string, pass: string): Observable<HttpResponse<User>> {
-    const time: number = this.utcService.getUTCmilliSeconds();
-    this.ksid = new Ksid(uuidv4(), userId , time);
-    this.cookieService.set('ksid', this.ksid.toString(), )
-
-    return this.http.post<HttpResponse<User>>(this.api + '/signup', {
-      headers:  new HttpHeaders()
-      .set('KSID', this.ksid.toString()),
-      observe: 'response', 
-      responseType: 'json'
-    });
-  }
+  
   
   
   
@@ -146,7 +142,7 @@ export class ConnectionService {
 
 
   createChat() {
-    
+
   }
 
 

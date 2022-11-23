@@ -5,7 +5,7 @@ import io.github.malyszaryczlowiek.kessengerlibrary.util.TimeConverter
 import io.circe.Decoder.Result
 import io.circe.{Decoder, Encoder, Error, HCursor, Json}
 import io.circe.syntax._
-import io.github.malyszaryczlowiek.kessengerlibrary.domain.{Chat, User}
+import io.github.malyszaryczlowiek.kessengerlibrary.domain.{Chat, Settings, User}
 import io.circe.parser.decode
 import io.github.malyszaryczlowiek.kessengerlibrary.domain.Domain.{Offset, Partition}
 
@@ -108,10 +108,20 @@ class JsonParsers {
   }
 
 
+  private implicit object lskaj extends Encoder[(User,Settings)] {
+    override def apply(a: (User, Settings)): Json =
+      Json.obj(
+        ("user", a._1.asJson),
+        ("settings", a._2.asJson)
+      )
+  }
+
 
 
   def toJson(l: List[String]): String = l.asJson.noSpaces
   def toJSON(us: Iterable[User]): String = us.asJson.noSpaces
+
+  def toJSON(u: (User, Settings)): String = u.asJson.noSpaces
 
 
 
@@ -124,7 +134,7 @@ class JsonParsers {
   def toUser(json: String): Either[Error, User] = decode[User](json)
   def newChatJSON(json: String): Either[Error, (User, UUID, String)] = decode[(User, UUID, String)](json)
   def newGroupChatJSON(json: String): Either[Error,(List[User], String)] = decode[(List[User], String)](json)
-  def parseLoginAndPass(json: String): Either[Error,LoginCredentials] = decode[LoginCredentials](json)
+  def parseCredentials(json: String): Either[Error,LoginCredentials] = decode[LoginCredentials](json)
   def parsNewChatUsers(json: String): Either[Error,(List[UUID], String, String)] = decode[(List[UUID], String, String)](json)
 
 
