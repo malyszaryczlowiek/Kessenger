@@ -10,6 +10,7 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { ChatData } from '../models/ChatData';
 import { Settings } from '../models/Settings';
 import { HttpResponse } from '@angular/common/http';
+import { UserSettingsService } from './user-settings.service';
 
 @Injectable({
   providedIn: 'root'
@@ -17,16 +18,14 @@ import { HttpResponse } from '@angular/common/http';
 export class UserService {
 
   public user: User | undefined;
-  public settings: Settings | undefined;
-
   public chatAndUsers: Array<ChatData> = new Array();
 
   
 
 
-  constructor(private connection: ConnectionService, private router: Router) { 
+  constructor(private connection: ConnectionService, private settings: UserSettingsService, private router: Router) { 
     console.log('UserService constructor called.')
-    if ( connection.hasKSID() ) {
+    if ( this.connection.hasKSID() ) {
       // try to load user's data.
       const uid = this.connection.getUserId();
       this.connection.getUserData(uid).subscribe( {
@@ -44,12 +43,12 @@ export class UserService {
                 chat: chat,
                 users: new Array<User>(),
                 messages: new Array<Message>()
-              }
+              };
             });
           }
 
           // update ksid
-          
+          this
 
           // redirect to /user
           this.router.navigate(['user']);
@@ -76,15 +75,21 @@ export class UserService {
   clearService() {
     this.user = undefined;
     this.chatAndUsers = new Array();
-    this.connection.removeKSID;
+    this.connection.removeKSID();
     console.log('UserService clearservice')
   }
 
 
   setUserAndSettings(u: User | undefined, s: Settings | undefined) {
     this.user = u;
-    this.settings = s;
+    if (s) this.settings.setSettings(s);
   }
+
+
+
+
+
+
 
 
 
@@ -144,13 +149,13 @@ export class UserService {
   
 
   createKSID(): string {
-    this.connection.saveKSID(uuidv4(), 900);
-    return this.connection.getKSID();
+    //this.connection.
+    return this.connection.getKSIDvalue();
   }
 
-  getRawKSID() {
-    return this.connection.getKSID();
-  }
+  /* getRawKSID() {
+    return this.connection.();
+  } */
 
 
   getUsers() { 

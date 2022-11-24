@@ -2,17 +2,17 @@ import { HttpClient, HttpHeaders, HttpResponse } from '@angular/common/http';
 import { Injectable, Inject } from '@angular/core';
 
 import { Observable, of } from 'rxjs';
-import { CookieService } from 'ngx-cookie-service';
+
 import { v4 as uuidv4 } from 'uuid';
 
 import { Chat } from '../models/Chat';
 import { User } from '../models/User';
 import { Ksid } from '../models/Ksid';
 
-import { UtctimeService } from './utctime.service';
-
 import * as SockJS from 'sockjs-client';
 import { Settings } from '../models/Settings';
+import { KsidService } from './ksid.service';
+
 
 
 @Injectable({
@@ -20,42 +20,20 @@ import { Settings } from '../models/Settings';
 })
 export class ConnectionService {
 
-  private ksid?: Ksid;
+  
   private wsConnection: WebSocket | undefined
 
 
 
   constructor(private http: HttpClient, 
-    @Inject("API_URL") private api: string,
-    private cookieService: CookieService,
-    private utcService: UtctimeService) { 
-    const k =  cookieService.get('ksid')
-    if (k != '') {
-     const arr = k.split('__');
-      this.ksid = new Ksid(arr[0], arr[1], arr[2] as unknown as number); 
-    } 
-  }
+              @Inject("API_URL") private api: string,
+              private ksid: KsidService) { }
   
 
 
   signUp(login: string, pass: string, userId: string): Observable<HttpResponse<{user: User, settings: Settings}>> {
-    // time is validity time of session. after this time session will be invalid 
-    //   unless user will actualize  session making some request. 
-    const time: number = this.utcService.getUTCmilliSeconds() + 900000; // current  time + 15 min
-    this.ksid = new Ksid(uuidv4(), userId , time);
-    this.cookieService.set('ksid', this.ksid.toString(), 1/(24 * 4)); // expires in 15 minutes
-
-    /*
-    TODO 
-      Rozważyć czy nie zmodyfikować KSID'a tak aby przechowywał informacje 
-      o 
-
-      // nie trzeba bo w KSID mamy info o tym kiedy sesja wygasa bo jest dodawana długość
-      // sesji. a server jak otrzyma rządanie wygeneruje sobie aktualny czas i sprawdzi
-      // czy ta wartość jest niższa niż maksymalny czas sesji. jeśli jest niższy 
-      // to rządanie przejdzie, jeśli nie to zostanie odrzucone 
-      // a w Angularze musi nastąpić przekierowanie na stronę session-timeout.
-    */
+    // we set cookie.
+    this.ksid.setNewKSID(userId);
 
     const body = {
       login: login,
@@ -65,7 +43,7 @@ export class ConnectionService {
 
     return this.http.post<{user: User, settings: Settings}>(this.api + '/signup', body, {
       headers:  new HttpHeaders()
-        .set('KSID', this.ksid.toString()),
+        .set('KSID', this.ksid.getKSIDvalue()),
       observe: 'response', 
       responseType: 'json'
     });
@@ -78,7 +56,7 @@ export class ConnectionService {
 
 
 
-
+  // todo zweryfikować
   getUserData(userId: string): Observable<HttpResponse<Chat[]>> {
     let token: string = '';
     if (this.ksid) {
@@ -101,48 +79,47 @@ export class ConnectionService {
 
 
   getUserId(): string {
-    if (this.ksid) {
-      return this.ksid.userId;
-    } else 
-    return '';
+    return this.ksid.getSavedUserId();
   }
 
 
 
 
+
+
+
+  /*
+    KSID methods
+  */
+
   hasKSID(): boolean {
-    if (this.ksid) { return true ;}
-    else {return false;}
+    return this.ksid.isDefined();
   }
 
 
   // w tej metodzie generujemy ciasteczko i zapisujemy je w przeglądarce. 
-  saveKSID(userId: string, validityTime: number) {
-    const time: number = this.utcService.getUTCmilliSeconds();
-    this.ksid = new Ksid(uuidv4(), userId, time);    //  `${uuidv4()}__${userId}__${time}`;
-    this.cookieService.set('ksid', this.ksid.toString(), 0.01041667);
+  setNewKSID(userId: string) {
+    this.ksid.setNewKSID(userId);
   }
 
 
 
 
-  getKSID(): string {
-    return this.cookieService.get('ksid');
+  getKSIDvalue(): string {
+    return this.ksid.getKSIDvalue();
   }
 
 
 
 
   removeKSID() {
-    this.cookieService.delete('ksid');
-    this.ksid = undefined;
+    this.ksid.removeKSID();
   }
 
 
 
-
-  updateKSID(userId: string, validityTime: number) {
-    this.saveKSID(userId, validityTime);
+  updateKSID() {
+    this.ksid.updateKSID();
   }
 
 

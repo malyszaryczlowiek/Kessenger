@@ -148,7 +148,8 @@ class KessengerController @Inject()
             }
           case None => // invalid KSID header
             Future.successful(
-              BadRequest("Error 002. Invalid Request.")
+              Unauthorized
+              //BadRequest("Error 002. Invalid Request.")
             )
         }
       case None => // no KSID header

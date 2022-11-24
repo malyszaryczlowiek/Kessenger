@@ -44,12 +44,12 @@ export class FooComponent implements OnInit {
 
   cookie: string | undefined;
 
-  generateCookie() {
+  /* generateCookie() {
     this.cookie = this.userService.createKSID()
-  }
+  } */
 
-  getKSID() {
+  /* getKSID() {
     this.cookie = this.userService.getRawKSID();
-  }
+  } */
 
 }
