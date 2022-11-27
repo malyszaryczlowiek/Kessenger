@@ -16,9 +16,9 @@ export class SigninComponent implements OnInit {
   });
   
   
-  bad = false;
+  returnedError: any | undefined;
 
-  constructor(private userService: UserService) { }
+  constructor(private userService: UserService, private router: Router) { }
 
   ngOnInit(): void {
   }
@@ -26,17 +26,37 @@ export class SigninComponent implements OnInit {
   onSubmit() {
     const login = this.signInForm.value.login;
     const pass = this.signInForm.value.password;
-    if (login && pass ) { 
-      this.userService.signIn(login, pass)
-      
-      /* .subscribe({
-        next: () => {} ,
-        error: (error) => {
-          console.log(error)
+    if (login && pass ) {
+      this.userService.signIn(login, pass).subscribe({
+        next: (response) => {
+  
+          // we save created user 
+          this.userService.setUserAndSettings(
+            response.body?.user,
+            response.body?.settings
+          );
+
+          // after successfull request we should update KSID cookie.
+          // this.userService.
+          
+          // and redirect to user site
+          this.router.navigate(['user']);
         },
-        
-      }) */
-    }
+        error: (error) => {
+          console.log(error);
+          console.log('clearing UserService.')
+          this.userService.clearService();
+
+          this.signInForm.reset();
+          // this.signInForm.value.login. = '';
+          ////this.signInForm.value.password = '';
+
+          // print message to user.
+          this.returnedError = error;
+        },
+        complete: () => {}
+      })
+    }  
   }
 
 }

@@ -1,13 +1,13 @@
 import { TestBed } from '@angular/core/testing';
 
-import { KsidService } from './ksid.service';
+import { SessionService } from './session.service';
 
-describe('KsidService', () => {
-  let service: KsidService;
+describe('SessionService', () => {
+  let service: SessionService;
 
   beforeEach(() => {
     TestBed.configureTestingModule({});
-    service = TestBed.inject(KsidService);
+    service = TestBed.inject(SessionService);
   });
 
   it('should be created', () => {

@@ -20,4 +20,11 @@ class HeadersParser {
     } else None
   }
 
+
+  def parseAuthorization(a: String): Option[(String, String)] = {
+    val arr = a.split("\\s") // wplit with white space
+    if ( arr.length != 2) None
+    else Option((arr(0), arr(1)))
+  }
+
 }

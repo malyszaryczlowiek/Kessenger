@@ -15,11 +15,11 @@ export class ChatListComponent implements OnInit {
   constructor(private router: Router) { }
 
   ngOnInit(): void {
-
   }
 
   onClick(c: ChatData) {
-    this.router.navigate(['']) // , {relativeTo: } dodać to jeszcze 
+    const chatId = c.chat.chatId;
+    this.router.navigate(['user', 'chat', chatId]) // , {relativeTo: } dodać to jeszcze 
   }
 
 }

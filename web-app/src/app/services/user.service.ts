@@ -25,47 +25,47 @@ export class UserService {
 
   constructor(private connection: ConnectionService, private settings: UserSettingsService, private router: Router) { 
     console.log('UserService constructor called.')
-    if ( this.connection.hasKSID() ) {
-      // try to load user's data.
-      const uid = this.connection.getUserId();
-      this.connection.getUserData(uid).subscribe( {
-        // Jeśli mamy ksid i rządanie zostanie normalnie przetworzone to 
-        // należy posortować 
-        next: (response) => {
-          
-          // we need to sort our chats according to messageTime
-          const chats = response.body 
-          // we sort newest (larger lastMessageTime) first.
-          if (chats) {
-            this.chatAndUsers = chats.sort((a,b) => -(a.lastMessageTime - b.lastMessageTime))
-            .map((chat, i, array) => {
-              return {
-                chat: chat,
-                users: new Array<User>(),
-                messages: new Array<Message>()
-              };
-            });
-          }
-
-          // update ksid
-          this
-
-          // redirect to /user
-          this.router.navigate(['user']);
-
-        } ,
-        error: (error) => {
-          console.log(error) 
-          // jeśli np otrzymamy error, że sesja jest już nieważna to należy 
-          // usunąć niewazne ciasteczko i 
-          
-          this.connection.removeKSID();
-          console.log('przekierowanie na stronę logownaia')
-          this.router.navigate(['']);
-        } ,
-        complete: () => {}
-      })
-    } 
+    if ( this.connection.isSessionValid() ) {
+      const userId = this.connection.getUserId();
+      const c = this.connection.getUserChats(userId);
+      if ( c ){
+        c.subscribe( {
+          next: (response) => {
+            // we need to sort our chats according to messageTime
+            const chats = response.body 
+            // we sort newest (larger lastMessageTime) first.
+            if (chats) {
+              this.chatAndUsers = chats.sort((a,b) => -(a.lastMessageTime - b.lastMessageTime))
+              .map((chat, i, array) => {
+                return {
+                  chat: chat,
+                  users: new Array<User>(),
+                  messages: new Array<Message>()
+                };
+              });
+            }
+  
+            // update session
+            this.connection.updateSession(userId);
+  
+            // redirect to /user
+            this.router.navigate(['user']);
+  
+          } ,
+          error: (error) => {
+            console.log(error) 
+            // jeśli np otrzymamy error, że sesja jest już nieważna to należy 
+            // usunąć niewazne ciasteczko i 
+            
+            // this.connection.invalidateSession();
+            this.clearService();
+            console.log('przekierowanie na stronę logownaia')
+            this.router.navigate(['']);
+          } ,
+          complete: () => {}
+        })
+      }
+    }
   }
 
 
@@ -75,7 +75,8 @@ export class UserService {
   clearService() {
     this.user = undefined;
     this.chatAndUsers = new Array();
-    this.connection.removeKSID();
+    this.connection.invalidateSession();
+    this.settings.clearSettings();
     console.log('UserService clearservice')
   }
 
@@ -83,6 +84,16 @@ export class UserService {
   setUserAndSettings(u: User | undefined, s: Settings | undefined) {
     this.user = u;
     if (s) this.settings.setSettings(s);
+  }
+
+  updateSession() {
+    if (this.user) {
+      this.connection.updateSession(this.user.userId);
+    }
+  }
+
+  isSessionValid(): boolean {
+    return this.connection.isSessionValid();
   }
 
 
@@ -95,20 +106,40 @@ export class UserService {
 
 
   signUp(log: string, pass: string): Observable<HttpResponse<{user: User, settings: Settings}>> {
-    const userId = uuidv4();
-    this.user = {userId: userId, login: log};
-    return this.connection.signUp(log, pass, userId);
+    return this.connection.signUp(log, pass);
   }
 
 
 
 
-  signIn(login: string, pass: string) {
-    // TODO dopisac min. przekierowanie na stronę /user
-    //  jak użytkownik zostanie zalgowany poprawnie. 
-    //  i pobierze wszystkie dane. 
-    this.connection.signIn(login, pass)
+  signIn(login: string, pass: string): Observable<HttpResponse<{user: User, settings: Settings}>> {
+    return this.connection.signIn(login, pass);
   }
+
+
+  logout() {
+    const l = this.connection.logout();
+    if ( l ) l.subscribe();
+    this.clearService();
+    this.router.navigate(['']);
+  }
+
+
+
+
+  getChats(): Observable<HttpResponse<Chat[]>> | undefined {
+    if ( this.user ) {
+      return this.connection.getUserChats(this.user?.userId);
+    } else {
+      this.clearService();
+      return undefined;
+    } 
+  }
+
+
+
+
+
 
 
   createChat() {

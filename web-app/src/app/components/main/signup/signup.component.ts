@@ -1,6 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import { FormControl, FormGroup, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
+import { Base64HasherService } from 'src/app/services/base64-hasher.service';
 import { UserService } from 'src/app/services/user.service';
 
 @Component({
@@ -11,7 +12,7 @@ import { UserService } from 'src/app/services/user.service';
 export class SignupComponent implements OnInit {
 
   //  todo add own validators 
-  signUpForm =  new FormGroup({
+  signUpForm = new FormGroup({
     login: new FormControl('', [Validators.required, Validators.minLength(6)]),
     password: new FormControl('', [Validators.required, Validators.minLength(6)])  
   });
@@ -38,6 +39,9 @@ export class SignupComponent implements OnInit {
             response.body?.user,
             response.body?.settings
           );
+
+          // update ksid
+          this.userService.updateSession();
           
           // and redirect to user site
           this.router.navigate(['user']);
@@ -46,6 +50,7 @@ export class SignupComponent implements OnInit {
           console.log(error);
           console.log('clearing UserService.')
           this.userService.clearService();
+          this.signUpForm.reset();
           // print message to user.
           this.returnedError = error;
         },

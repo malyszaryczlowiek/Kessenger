@@ -44,7 +44,7 @@ CREATE TABLE IF NOT EXISTS sessions (
 CREATE TABLE IF NOT EXISTS settings (
   user_id uuid UNIQUE,
   joining_offset BIGINT DEFAULT -1 NOT NULL, -- if user has set to -1 this means that he has not running joining topic in kafka broker, and we must create it
-  session_duration BIGINT DEFAULT 900 NOT NULL,
+  session_duration BIGINT DEFAULT 900000 NOT NULL,
   zone_id varchar(255) DEFAULT 'UTC' NOT NULL,
   PRIMARY KEY (user_id)
 );
@@ -61,8 +61,9 @@ CREATE TABLE IF NOT EXISTS logging_attempts (
 
 
 -- add two users to db only for some tests
-INSERT INTO users (user_id, login, pass) VALUES ( 'c8b8c9e6-8cb5-4e5c-86b3-84f55f012172', 'Walo',    '$2a$10$8K1p/a0dL1LXMIgoEDFrwO5gK1Ve3u3CosziY2B6ZUi8bffjEigTe'); -- password Password1!
-INSERT INTO users (user_id, login, pass) VALUES ( '7246bdb7-d4af-4195-a011-d82b13845580', 'Spejson', '$2a$10$8K1p/a0dL1LXMIgoEDFrwOR0fLJZOJj.79gepc.MnAVSlFpq6cY16'); -- password Password2!
+-- in db we store truncated hashed password
+INSERT INTO users (user_id, login, pass) VALUES ( 'c8b8c9e6-8cb5-4e5c-86b3-84f55f012172', 'Walo',    '5gK1Ve3u3CosziY2B6ZUi8bffjEigTe'); -- password Password1!  salt: $2a$10$8K1p/a0dL1LXMIgoEDFrwO
+INSERT INTO users (user_id, login, pass) VALUES ( '7246bdb7-d4af-4195-a011-d82b13845580', 'Spejson', 'R0fLJZOJj.79gepc.MnAVSlFpq6cY16'); -- password Password2!
 INSERT INTO settings (user_id, zone_id) VALUES  ( 'c8b8c9e6-8cb5-4e5c-86b3-84f55f012172', 'Europe/Warsaw')
 INSERT INTO settings (user_id, zone_id) VALUES  ( '7246bdb7-d4af-4195-a011-d82b13845580', 'Europe/Warsaw')
 

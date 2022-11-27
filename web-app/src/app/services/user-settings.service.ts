@@ -18,5 +18,13 @@ export class UserSettingsService {
     this.settings = s;
   }
 
+  clearSettings() {
+    this.settings = {
+      joiningOffset: 0,
+      sessionDuration: 900000, // 15 min 
+      zoneId: "UTC"
+    };
+  }
+
   
 }

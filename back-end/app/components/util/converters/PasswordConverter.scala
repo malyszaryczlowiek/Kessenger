@@ -16,7 +16,9 @@ class PasswordConverter {
   def convert (pas: => String, salt: => String = defaultSalt): Either[String, Password] = {
     pas.bcryptSafeBounded(salt) match {
       case Failure(exception) => Left(exception.getMessage)
-      case Success(encrypted) => Right(encrypted)
+      case Success(encrypted) =>
+        // here we cut off salt from hash
+        Right(encrypted.drop(defaultSalt.length))
     }
   }
 

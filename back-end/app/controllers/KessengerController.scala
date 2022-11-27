@@ -2,17 +2,19 @@ package controllers
 
 import akka.actor.ActorSystem
 import akka.stream.Materializer
+
 import components.actions.{SessionChecker, SessionUpdater}
 import components.actors.WebSocketActor
 import components.db.MyDbExecutor
 import components.executioncontexts.{DatabaseExecutionContext, MyExecutionContext}
-import components.util.FormsAndConstraint
 import components.util.converters.{JsonParsers, PasswordConverter, SessionConverter}
+
 import io.github.malyszaryczlowiek.kessengerlibrary.db.queries.{DataProcessingError, LoginTaken, QueryError, UndefinedError, UnsupportedOperation}
-import io.github.malyszaryczlowiek.kessengerlibrary.domain.Domain.{ChatId, UserID}
-import io.github.malyszaryczlowiek.kessengerlibrary.domain.{Chat, Domain, SessionInfo, Settings, User}
+import io.github.malyszaryczlowiek.kessengerlibrary.domain.Domain.ChatId
+import io.github.malyszaryczlowiek.kessengerlibrary.domain.{Chat, Domain,  Settings, User}
 import io.github.malyszaryczlowiek.kessengerlibrary.domain.Chat.parseChatToJSON
-import io.github.malyszaryczlowiek.kessengerlibrary.domain.User.{parseListOfUsersToJSON, parseUserToJSON}
+import io.github.malyszaryczlowiek.kessengerlibrary.domain.User.parseListOfUsersToJSON
+
 import play.api.db.Database
 import play.api.libs.streams.ActorFlow
 import play.api.mvc._
@@ -24,7 +26,7 @@ import java.util.UUID
 import javax.inject._
 import scala.concurrent.Future
 
-// last Error 027
+
 
 
 class KessengerController @Inject()
@@ -100,123 +102,51 @@ class KessengerController @Inject()
 //    }
 //  }
 
-// TODO write validator for json data login length and so one
+
+
+
+
+  // TODO write validator for json data login length and so one
   def signup = Action.async { implicit request =>
     request.headers.get("KSID") match {
       case Some( ksid ) =>
         headersParser.parseKSID(ksid) match {
           case Some( sessionData ) =>
             request.body.asJson.map(json => jsonParser.parseCredentials(json.toString())) match {
-              case Some( parsedJSON )  =>
-                parsedJSON match {
+              case Some( parsedJSONbody )  =>
+                parsedJSONbody match {
                   case Left(_) => Future.successful(BadRequest("Error 004. Cannot parse JSON payload."))
                   case Right( loginCredentials ) =>
-                    loginCredentials.userId match {
-                      case Some(userId: UserID) =>
-                        val login = loginCredentials.login
-                        passwordConverter.convert(loginCredentials.pass) match {
-                          case Left(_) =>
-                            Future.successful(
-                              InternalServerError("Error 006. Encoding password failed")
-                            )
-                          case Right(encoded) =>
-                            val settings = Settings()
-                            val user = User(userId, login)
-                            Future {
-                              db.withConnection(implicit connection => {
-                                dbExecutor.createUser(user, encoded, settings, sessionData) match {
-                                  case Left(queryError) =>
-                                    InternalServerError(s"Error 007. ${queryError.description.toString()}")
-                                  case Right(value) =>
-                                    if (value == 3) {
-                                      val body = (user, settings)
-                                      Ok( jsonParser.toJSON(body) )
-                                    } else
-                                      InternalServerError("Error 008. User Creation Error. ")
-                                }
-                              })
-                            }(databaseExecutionContext)
-                        }
-                      case None => // web app did not sent user uuid (userId)
+                    val login = loginCredentials.login
+                    val userId = UUID.randomUUID()
+                    passwordConverter.convert(loginCredentials.pass) match {
+                      case Left(_) =>
                         Future.successful(
-                          BadRequest("Error 005. Cannot parse JSON payload.")
+                          InternalServerError("Error 005. Encoding password failed")
                         )
+                      case Right( encodedPass ) =>
+                        val settings = Settings()
+                        val user = User(userId, login)
+                        Future {
+                          db.withConnection(implicit connection => {
+                            dbExecutor.createUser(user, encodedPass, settings, sessionData) match {
+                              case Left(queryError) =>
+                                InternalServerError(s"Error 006. ${queryError.description.toString()}")
+                              case Right(value) =>
+                                if (value == 3) Ok(jsonParser.toJSON((user, settings)))
+                                else InternalServerError("Error 007. User Creation Error. ")
+                            }
+                          })
+                        }(databaseExecutionContext)
                     }
-                }
-              case None => // no payload
-                Future.successful(BadRequest("Error 003. No payload."))
-            }
-          case None => // invalid KSID header
-            Future.successful(
-              Unauthorized
-              //BadRequest("Error 002. Invalid Request.")
-            )
-        }
-      case None => // no KSID header
-        Future.successful(
-          Unauthorized("Error 001. Try to reload page. ")
-        )
+                } // no payload
+              case None => Future.successful(BadRequest("Error 010. No payload."))
+            } // invalid KSID header
+          case None => Future.successful(Unauthorized("Error 009. Invalid Request."))
+        } // no KSID header
+      case None => Future.successful(Unauthorized("Error 008. Try to reload page. "))
     }
   }
-
-
-//    request.headers.get("KSID") match {
-//      case Some(ksid) =>
-//        Future.successful(BadRequest("Logout from current Session and try again. "))
-//      case None =>
-//
-//    }
-
-
-
-//  def signin = Action.async(implicit request => {
-//    fc.logForm.bindFromRequest().fold( // ()(request, formBinding)
-//      formWithErrors => {
-//        // binding failure, you retrieve the form containing errors:
-//        val errors = formWithErrors.errors
-//        val e = errors.foldLeft[String]("")((errors, error) => s"$errors\n${error.message}").trim
-//        Future.successful(BadRequest(s"Error 004. Form validation Error(s):\n$e").withNewSession)
-//      },
-//      loginCredentials => {
-//        // jeśli czas jest zgodny to trzeba sprawdzić czy login odpowiadający userId w sessji
-//        // jest taki sam jak login do którego ktoś chce się zalogować.
-//        Future {
-//          val hash = passwordConverter.convert(loginCredentials.pass) match {
-//            case Left(ex) => ex
-//            case Right(p) => p
-//          }
-//          db.withConnection(implicit connection => {
-//            dbExecutor.findUser(loginCredentials.login, hash) match {
-//              case Left(_) => BadRequest("Error 005. Login or Password not match.").withNewSession
-//              case Right((user, settings)) =>
-//                val sessionId = UUID.randomUUID()
-//                val validityTime = System.currentTimeMillis() / 1000L + settings.sessionDuration
-//                val session = new Session(
-//                  Map(
-//                    "session_id" -> s"${sessionId.toString}",
-//                    "user_id" -> s"${user.userId.toString}",
-//                    "validity_time" -> s"$validityTime"
-//                  )
-//                )
-//                dbExecutor.createSession(sessionId, user.userId, validityTime) match {
-//                  case Left(_) =>
-//                    InternalServerError("Error 006. Cannot Create session in DB.").withNewSession
-//                  case Right(v) =>
-//                    dbExecutor.removeAllExpiredUserSessions(user.userId)
-//                    if (v == 1) {
-//                      Redirect(routes.KessengerController.user(user.userId))
-//                        .withSession(session)
-//                        .withHeaders(("Internal", "true"))
-//                    } else InternalServerError("Error 007. Not matching row affected.").withNewSession
-//                }
-//            }
-//          })
-//        }(ec)
-//      }
-//    )
-//  })
-
-
 
   //signin
 
@@ -228,78 +158,122 @@ class KessengerController @Inject()
   //  )
 
 
-//  def signin2 = Action.async(implicit request => {
-//    fc.logForm.bindFromRequest().fold( // ()(request, formBinding)
-//      formWithErrors => {
-//        // binding failure, you retrieve the form containing errors:
-//        val errors = formWithErrors.errors
-//        val e = errors.foldLeft[String]("")((errors, error) => s"$errors\n${error.message}").trim
-//        Future.successful(BadRequest(s"Error 004. Form validation Error(s):\n$e").withNewSession)
-//      },
-//      loginCredentials => {
-//        // jeśli czas jest zgodny to trzeba sprawdzić czy login odpowiadający userId w sessji
-//        // jest taki sam jak login do którego ktoś chce się zalogować.
-//        Future {
-//          val hash = passwordConverter.convert(loginCredentials.pass) match {
-//            case Left(ex) => ex
-//            case Right(p) => p
-//          }
-//          db.withConnection(implicit connection => {
-//            dbExecutor.findUser(loginCredentials.login, hash) match {
-//              case Left(_) => BadRequest("Error 005. Login or Password not match.").withNewSession
-//              case Right((user,settings)) =>
-//                val sessionId = UUID.randomUUID()
-//                val validityTime = System.currentTimeMillis() / 1000L + settings.sessionDuration
-//                val session = new Session(
-//                  Map(
-//                    "session_id"    -> s"${sessionId.toString}",
-//                    "user_id"       -> s"${user.userId.toString}",
-//                    "validity_time" -> s"$validityTime"
-//                  )
-//                )
-//                dbExecutor.createSession(sessionId, user.userId, validityTime) match {
-//                  case Left(_) =>
-//                    InternalServerError("Error 006. Cannot Create session in DB.").withNewSession
-//                  case Right(v) =>
-//                    dbExecutor.removeAllExpiredUserSessions(user.userId)
-//                    if (v == 1) {
-//                      Redirect(routes.KessengerController.user(user.userId))
-//                        .withSession(session)
-//                        .withHeaders(("Internal", "true"))
-//                    } else InternalServerError("Error 007. Not matching row affected.").withNewSession
-//                }
-//            }
-//          })
-//        }(ec)
-//      }
-//    )
-//  })
+  //  def signin2 = Action.async(implicit request => {
+  //    fc.logForm.bindFromRequest().fold( // ()(request, formBinding)
+  //      formWithErrors => {
+  //        // binding failure, you retrieve the form containing errors:
+  //        val errors = formWithErrors.errors
+  //        val e = errors.foldLeft[String]("")((errors, error) => s"$errors\n${error.message}").trim
+  //        Future.successful(BadRequest(s"Error 004. Form validation Error(s):\n$e").withNewSession)
+  //      },
+  //      loginCredentials => {
+  //        // jeśli czas jest zgodny to trzeba sprawdzić czy login odpowiadający userId w sessji
+  //        // jest taki sam jak login do którego ktoś chce się zalogować.
+  //        Future {
+  //          val hash = passwordConverter.convert(loginCredentials.pass) match {
+  //            case Left(ex) => ex
+  //            case Right(p) => p
+  //          }
+  //          db.withConnection(implicit connection => {
+  //            dbExecutor.findUser(loginCredentials.login, hash) match {
+  //              case Left(_) => BadRequest("Error 005. Login or Password not match.").withNewSession
+  //              case Right((user,settings)) =>
+  //                val sessionId = UUID.randomUUID()
+  //                val validityTime = System.currentTimeMillis() / 1000L + settings.sessionDuration
+  //                val session = new Session(
+  //                  Map(
+  //                    "session_id"    -> s"${sessionId.toString}",
+  //                    "user_id"       -> s"${user.userId.toString}",
+  //                    "validity_time" -> s"$validityTime"
+  //                  )
+  //                )
+  //                dbExecutor.createSession(sessionId, user.userId, validityTime) match {
+  //                  case Left(_) =>
+  //                    InternalServerError("Error 006. Cannot Create session in DB.").withNewSession
+  //                  case Right(v) =>
+  //                    dbExecutor.removeAllExpiredUserSessions(user.userId)
+  //                    if (v == 1) {
+  //                      Redirect(routes.KessengerController.user(user.userId))
+  //                        .withSession(session)
+  //                        .withHeaders(("Internal", "true"))
+  //                    } else InternalServerError("Error 007. Not matching row affected.").withNewSession
+  //                }
+  //            }
+  //          })
+  //        }(ec)
+  //      }
+  //    )
+  //  })
 
 
-
+  /**
+   * sprawdź login i hasło jeśli pasują w db to należy
+   * @return
+   */
+  def signin = Action.async { implicit request =>
+    request.headers.get("KSID") match {
+      case Some(ksid) =>
+        headersParser.parseKSID(ksid) match {
+          case Some(sessionData) =>
+            request.body.asJson.map(json => jsonParser.parseCredentials(json.toString())) match {
+              case Some( parsedJSONbody ) =>
+                parsedJSONbody match {
+                  case Left(_) => Future.successful(BadRequest("Error 011. Cannot parse JSON payload."))
+                  case Right(loginCredentials) =>
+                    passwordConverter.convert(loginCredentials.pass) match {
+                      case Left(_) => Future.successful( InternalServerError("Error 012. Encoding password failed") )
+                      case Right(encodedPass) =>
+                        Future {
+                          db.withConnection(implicit connection => {
+                            dbExecutor.findUser(loginCredentials.login, encodedPass) match {
+                              case Left(_) => BadRequest("Error 013. Login or Password not match.")
+                              case Right((user, settings)) =>
+                                val validityTime = System.currentTimeMillis() + settings.sessionDuration
+                                dbExecutor.createSession(sessionData.sessionId, user.userId, validityTime) match {
+                                  case Left(_) =>
+                                    InternalServerError("Error 014. Cannot Create session in DB.")
+                                  case Right(v) =>
+                                    dbExecutor.removeAllExpiredUserSessions(user.userId)
+                                    if (v == 1) Ok(jsonParser.toJSON((user, settings)))
+                                    else InternalServerError("Error 015. Not matching row affected.")
+                                }
+                            }
+                          })
+                        }(databaseExecutionContext)
+                    }
+                } // no payload
+              case None => Future.successful(BadRequest("Error 010. No payload."))
+            } // invalid KSID header
+          case None => Future.successful(Unauthorized("Error 009. Invalid Request."))
+        } // no KSID header
+      case None => Future.successful(Unauthorized("Error 008. Try to reload page. "))
+    }
+  }
 
 
   def logout = Action.async { implicit request =>
-    val session = request.session
-    if (!session.isEmpty) {
-      sessionConverter.convert(session) match {
-        case Left(res) =>
-          Future.successful(res)
-        case Right(ses) =>
-          Future {
-            db.withConnection(implicit connection => {
-              dbExecutor.removeSession(ses.sessionId, ses.userId, ses.validityTime) match {
-                case Left(_) =>
-                  InternalServerError("Error 008. Db Error. ").withNewSession
-                case Right(v) =>
-                  if (v == 1) Ok("Logout successfully.").withNewSession
-                  else Accepted("Not matching session.").withNewSession
-              }
-            })
-          }(databaseExecutionContext)
-      }
-    } else Future.successful(Accepted("Nothing to work.").withNewSession)
+    request.headers.get("KSID") match {
+      case Some(ksid) =>
+        headersParser.parseKSID(ksid) match {
+          case Some(sessionData) =>
+            Future {
+              db.withConnection(implicit connection => {
+                dbExecutor.removeSession(sessionData.sessionId, sessionData.userId) match {
+                  case Left(_) => InternalServerError("Error 018. Db Error. ")
+                  case Right(v) =>
+                    if (v == 1) Ok("Logout successfully.")
+                    else Accepted("Not matching session.")
+                }
+              })
+            }(databaseExecutionContext)
+          // invalid KSID header
+          case None => Future.successful(Unauthorized("Error 017. Invalid Request."))
+        } // no KSID header
+      case None => Future.successful(Unauthorized("Error 016. Try to reload page. "))
+    }
   }
+
+
 
 
 

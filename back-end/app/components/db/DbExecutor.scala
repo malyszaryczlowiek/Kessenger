@@ -303,12 +303,12 @@ class DbExecutor(val kafkaConfigurator: KafkaConfigurator) {
    * @param userId
    * @return
    */
-  def removeSession(sessionId: UUID, userId: UUID, validityTime: Long)(implicit connection: Connection): DbResponse[Int] = {
-    Using(connection.prepareStatement("DELETE FROM sessions WHERE session_id = ? AND user_id = ? AND validity_time = ? ")) {
+  def removeSession(sessionId: UUID, userId: UUID)(implicit connection: Connection): DbResponse[Int] = {
+    Using(connection.prepareStatement("DELETE FROM sessions WHERE session_id = ? AND user_id = ? ")) {
       (statement: PreparedStatement) =>
         statement.setObject(1, sessionId)
         statement.setObject(2, userId)
-        statement.setLong(3, validityTime)
+        // statement.setLong(3, validityTime)
         statement.executeUpdate()
     } match {
       case Failure(ex) => handleExceptionMessage(ex)
@@ -324,7 +324,7 @@ class DbExecutor(val kafkaConfigurator: KafkaConfigurator) {
     Using(connection.prepareStatement("DELETE FROM sessions WHERE user_id = ? AND validity_time <= ? ")) {
       (statement: PreparedStatement) =>
         statement.setObject(1, userId)
-        statement.setLong(2, System.currentTimeMillis() / 1000L)
+        statement.setLong(2, System.currentTimeMillis() )
         statement.executeUpdate()
     } match {
       case Failure(ex) => handleExceptionMessage(ex)

@@ -7,11 +7,10 @@ import { v4 as uuidv4 } from 'uuid';
 
 import { Chat } from '../models/Chat';
 import { User } from '../models/User';
-import { Ksid } from '../models/Ksid';
 
 import * as SockJS from 'sockjs-client';
 import { Settings } from '../models/Settings';
-import { KsidService } from './ksid.service';
+import { SessionService } from './session.service';
 
 
 
@@ -27,27 +26,49 @@ export class ConnectionService {
 
   constructor(private http: HttpClient, 
               @Inject("API_URL") private api: string,
-              private ksid: KsidService) { }
+              private session: SessionService) { }
   
 
 
-  signUp(login: string, pass: string, userId: string): Observable<HttpResponse<{user: User, settings: Settings}>> {
+  signUp(login: string, pass: string): Observable<HttpResponse<{user: User, settings: Settings}>> {
     // we set cookie.
-    this.ksid.setNewKSID(userId);
+    const fake = uuidv4();
+    this.session.setNewSession(fake); // todo zmienić bo tutuaj nie będziemy jezcze tworzyli id użytkowanika. 
 
     const body = {
       login: login,
       pass: pass,
-      userId: userId
+      userId: ''
     };
 
     return this.http.post<{user: User, settings: Settings}>(this.api + '/signup', body, {
       headers:  new HttpHeaders()
-        .set('KSID', this.ksid.getKSIDvalue()),
+        .set('KSID', this.session.getSessionToken()),
       observe: 'response', 
       responseType: 'json'
     });
   }  
+
+
+
+
+  signIn(login: string, pass: string): Observable<HttpResponse<{user: User, settings: Settings}>> {
+    const fake = uuidv4();
+    this.session.setNewSession(fake); 
+
+    const body = {
+      login: login,
+      pass: pass,
+      userId: ''
+    };
+
+    return this.http.post<{user: User, settings: Settings}>(this.api + '/signin', body, {
+      headers:  new HttpHeaders()
+        .set('KSID', this.session.getSessionToken()),
+      observe: 'response', 
+      responseType: 'json'
+    });
+  }
 
 
 
@@ -57,16 +78,23 @@ export class ConnectionService {
 
 
   // todo zweryfikować
-  getUserData(userId: string): Observable<HttpResponse<Chat[]>> {
-    let token: string = '';
-    if (this.ksid) {
-      token = this.ksid.toString();
+  getUserChats(userId: string): Observable<HttpResponse<Chat[]>> | undefined {
+    if ( this.session.isSessionValid() ) {
       return this.http.get<Chat[]>(this.api + '/user/' + userId,{
         headers:  new HttpHeaders()
-        .set('KSID', token),
+        .set('KSID', this.session.getSessionToken()),
         observe: 'response', 
         responseType: 'json'
-      })
+      });
+    } else return undefined;
+  }
+
+
+
+/*     let token: string = '';
+    if (this.session) {
+      token = this.session.toString();
+      
     } 
     else { // without ksid header request will be rejected
       return this.http.get<Chat[]>(this.api + '/user/' + userId,{
@@ -74,12 +102,35 @@ export class ConnectionService {
         responseType: 'json'
       })
     }    
+ */  
+
+
+
+  logout(): Observable<HttpResponse<any>> | undefined {
+    if ( this.session.isSessionValid() ) {
+      return this.http.get<any>(this.api + '/logout',{
+        headers:  new HttpHeaders()
+        .set('KSID', this.session.getSessionToken()),
+        observe: 'response', 
+        responseType: 'json'
+      });
+    } else return undefined;
   }
 
 
 
+
+
+
+
+
+
+
+
+
+
   getUserId(): string {
-    return this.ksid.getSavedUserId();
+    return this.session.getSavedUserId();
   }
 
 
@@ -92,43 +143,42 @@ export class ConnectionService {
     KSID methods
   */
 
-  hasKSID(): boolean {
-    return this.ksid.isDefined();
+  isSessionValid(): boolean {
+    return this.session.isSessionValid();
+  }  
+
+  updateSession(userId: string) {
+    this.session.updateSession(userId);
   }
+
+
+
+
+
+  
+
+
+
+
 
 
   // w tej metodzie generujemy ciasteczko i zapisujemy je w przeglądarce. 
   setNewKSID(userId: string) {
-    this.ksid.setNewKSID(userId);
+    this.session.setNewSession(userId);
   }
 
 
 
 
   getKSIDvalue(): string {
-    return this.ksid.getKSIDvalue();
+    return this.session.getSessionToken();
   }
 
 
 
 
-  removeKSID() {
-    this.ksid.removeKSID();
-  }
-
-
-
-  updateKSID() {
-    this.ksid.updateKSID();
-  }
-
-
-  
-  
-  
-  
-  signIn(login: string , pass: string) {
-
+  invalidateSession() {
+    this.session.invalidateSession();
   }
 
 
