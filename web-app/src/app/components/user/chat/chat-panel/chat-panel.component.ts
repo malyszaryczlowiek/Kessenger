@@ -1,4 +1,6 @@
 import { Component, OnInit } from '@angular/core';
+import { ActivatedRoute, Router } from '@angular/router';
+import { ChatData } from 'src/app/models/ChatData';
 import { UserService } from 'src/app/services/user.service';
 
 @Component({
@@ -8,9 +10,21 @@ import { UserService } from 'src/app/services/user.service';
 })
 export class ChatPanelComponent implements OnInit {
 
-  constructor(private userService: UserService) { }
+  constructor(private userService: UserService, private router: Router, private activated: ActivatedRoute) { }
+
+  public chatData: ChatData | undefined;
 
   ngOnInit(): void {
+    const chatId = this.activated.snapshot.paramMap.get('chatId');
+    if ( chatId ) {
+      this.chatData = this.userService.chatAndUsers.find((chatData, index, arr) => {
+        return chatData.chat.chatId == chatId;
+      });
+      if (this.chatData) {} // ok
+      else this.router.navigate(['page-not-found']);
+    } else {
+      this.router.navigate(['page-not-found']);
+    }
   }
 
 }

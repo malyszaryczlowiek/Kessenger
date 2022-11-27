@@ -1,6 +1,10 @@
-<div>
-    <app-message-list></app-message-list>
-</div>>
-<div>
-    <app-send-message></app-send-message>
+<div *ngIf="chatData">
+    <div>
+        <app-message-list [messages]="chatData.messages"></app-message-list>
+    </div>
+    <div>
+        <app-send-message [chat]="chatData.chat"></app-send-message> 
+    </div>
 </div>
+
+

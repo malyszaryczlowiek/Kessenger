@@ -1,1 +1,4 @@
-<p>send-message works!</p>
+<div [formGroup]="messageForm" (ngSubmit)="onSubmit()">
+    <input formControlName="messageContent" type="text" placeholder="Your Message">
+    <button [disabled]="!messageForm.valid" type="submit">Send</button>
+</div>

@@ -1,4 +1,5 @@
 Message list
-<div > <!-- *ngFor="let message of messages" -->
-    <app-message-item></app-message-item>    
+<div *ngFor="let m of messages" >           <!-- *ngFor="let message of messages" -->
+    <app-message-item [message]="m"></app-message-item>    
 </div>
+
