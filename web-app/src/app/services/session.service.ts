@@ -5,7 +5,6 @@ import { CookieService } from 'ngx-cookie-service';
 import { UtctimeService } from './utctime.service';
 import { Ksid } from '../models/Ksid';
 import { v4 as uuidv4 } from 'uuid';
-import { setupTestingRouterInternal } from '@angular/router/testing';
 
 
 @Injectable({

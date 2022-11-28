@@ -251,6 +251,8 @@ class KessengerController @Inject()
   }
 
 
+
+
   def logout = Action.async { implicit request =>
     request.headers.get("KSID") match {
       case Some(ksid) =>

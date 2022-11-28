@@ -22,11 +22,16 @@ export class WebsocketComponent implements OnInit, OnDestroy {
     this.socket = new WebSocket("ws://localhost:9000/angular/ws/info");
     this.socket.onopen = function(e) {
       console.log('connected via WebSocket.')
-      //this.socket.send("My name is John");
     };
-    this.socket.onerror = function (error) {
-      console.log('WEBSOCKET ERROR, cannot connect to server', error)
+    
+    this.socket.onerror = (error) => {
+      console.log('WEBSOCKET ERROR, cannot connect to server', error);
+      
     }
+
+    this.socket.onclose = () => {
+      console.log('WEBSOCKET CLOSED.');
+    };
 
    }
 

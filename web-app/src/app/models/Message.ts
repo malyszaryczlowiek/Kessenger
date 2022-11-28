@@ -1,3 +1,10 @@
 export interface Message {
-    messageTime: number
+    content: string;
+    authorId: string;
+    authorLogin: string;
+    utcTime: number;
+    zoneId: string;
+    chatId: string;
+    chatName: string;
+    groupChat: boolean;    
 }

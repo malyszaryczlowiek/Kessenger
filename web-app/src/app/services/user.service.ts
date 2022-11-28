@@ -20,7 +20,7 @@ export class UserService {
   public user: User | undefined;
   public chatAndUsers: Array<ChatData> = new Array();
 
-  
+  public invitationEmitter = this.connection.invitationEmitter
 
 
   constructor(private connection: ConnectionService, private settings: UserSettingsService, private router: Router) { 
@@ -66,7 +66,16 @@ export class UserService {
         })
       }
     }
+    // todo 
+    this.connection.messageEmitter.subscribe(
+      (message: Message) => console.log(`message from emitter: ${message}`),
+      (error) => console.log('Error in invitation emitter: ', error),
+      () => console.log('on invitaion comoplented.')
+    )
+
   }
+
+
 
 
 
@@ -75,8 +84,8 @@ export class UserService {
   clearService() {
     this.user = undefined;
     this.chatAndUsers = new Array();
-    this.connection.invalidateSession();
     this.settings.clearSettings();
+    this.connection.disconnect();
     console.log('UserService clearservice')
   }
 
@@ -150,7 +159,9 @@ export class UserService {
 
 
 
-
+  /*
+    WEBSOCKET methods
+  */
 
 
 
@@ -161,7 +172,7 @@ export class UserService {
   tutaj będzie musiał być parsing i obudowanie treści wiadomości 
   w inne informacje jak chat id user id etc. 
   */
-  sendMessage(msg: string) {
+  sendMessage(msg: Message) {
     this.connection.sendMessage(msg);
   }
 

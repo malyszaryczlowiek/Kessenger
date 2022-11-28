@@ -3,7 +3,7 @@
         <app-message-list [messages]="chatData.messages"></app-message-list>
     </div>
     <div>
-        <app-send-message [chat]="chatData.chat"></app-send-message> 
+        <app-send-message [chat]="chatData.chat"  (sendingMessage)="sendMessage($event)"></app-send-message> 
     </div>
 </div>
 

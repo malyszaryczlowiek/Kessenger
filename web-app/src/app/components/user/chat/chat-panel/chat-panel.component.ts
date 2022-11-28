@@ -1,6 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ChatData } from 'src/app/models/ChatData';
+import { Message } from 'src/app/models/Message';
 import { UserService } from 'src/app/services/user.service';
 
 @Component({
@@ -26,5 +27,11 @@ export class ChatPanelComponent implements OnInit {
       this.router.navigate(['page-not-found']);
     }
   }
+
+
+  sendMessage(m: Message) {
+    this.userService.sendMessage( m );
+  }
+
 
 }
