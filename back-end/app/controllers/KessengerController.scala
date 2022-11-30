@@ -278,10 +278,42 @@ class KessengerController @Inject()
 
 
 
-
-
-
   def user(userId: UUID) =
+    SessionChecker(parse.anyContent, userId)(
+      databaseExecutionContext,
+      db,
+      dbExecutor,
+      headersParser
+    )
+      .andThen(
+        SessionUpdater(parse.anyContent)(
+          databaseExecutionContext,
+          db,
+          dbExecutor,
+          sessionConverter
+        )
+      )
+      .async(implicit request => {
+        Future {
+          db.withConnection(implicit connection => {
+            dbExecutor.findUserWithUUID(userId) match {
+              case Left(value) => InternalServerError("Error 009. You are logged in with SessionChecker and SessionUpdater ")
+              case Right(userAndSettings) => Ok(jsonParser.toJSON(userAndSettings))
+            }
+          })
+        }(databaseExecutionContext)
+      })
+
+
+
+
+
+  /**
+   *
+   * @return returns user's chats
+   */
+
+  def userChats(userId: UUID) =
     SessionChecker(parse.anyContent, userId)(
       databaseExecutionContext,
       db,
@@ -303,14 +335,28 @@ class KessengerController @Inject()
         Future {
           db.withConnection(implicit connection => {
             dbExecutor.findMyChats(userId) match {
-              case Left(value) => InternalServerError("Error 009. You are logged in with SessionChecker and SessionUpdater ").withSession(sessionConverter.updateSession(request))
-              case Right(chats) =>
-                // Ok("You are logged in with SessionChecker and SessionUpdater ").withSession(sessionConverter.updateSession(request))
-                Ok(jsonParser.chatsToJSON(chats)).withSession(sessionConverter.updateSession(request))
+              case Left(value)  => InternalServerError("Error 009. You are logged in with SessionChecker and SessionUpdater ")
+              case Right(chats) => Ok(jsonParser.chatsToJSON(chats))
+
             }
           })
         }(databaseExecutionContext)
       })
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -499,8 +545,8 @@ class KessengerController @Inject()
       Future {
         db.withConnection(implicit connection => {
           dbExecutor.findChatUsers(chatId) match {
-            case Left(_)     => InternalServerError("Error 021. Database Error").withSession(sessionConverter.updateSession(request))
-            case Right(list) => Ok(jsonParser.toJSON(list)).withSession(sessionConverter.updateSession(request))
+            case Left(_)     => InternalServerError("Error 021. Database Error")
+            case Right(list) => Ok(jsonParser.toJSON(list))
           }
         })
       }(databaseExecutionContext)
@@ -595,8 +641,11 @@ class KessengerController @Inject()
 
 
 
+  def changeSettings(userId: UUID) = TODO
 
 
+
+  // TODO wyciągnąć nowy login z body
   def changeMyLogin(userId: UUID, n: String) =
     SessionChecker(parse.anyContent, userId)(
       databaseExecutionContext,

@@ -16,41 +16,32 @@ POST        /signup                                             controllers.Kess
 +nocsrf
 POST        /signin                                             controllers.KessengerController.signin
 GET         /logout                                             controllers.KessengerController.logout
-GET         /user/:userId                                       controllers.KessengerController.user(userId: java.util.UUID)
+GET         /user/:userId/settings                              controllers.KessengerController.user(userId: java.util.UUID)
+PUT         /user/:userId/changeSettings                        controllers.KessengerController.changeSettings(userId: java.util.UUID)
+
+GET         /user/:userId/chats                                 controllers.KessengerController.userChats(userId: java.util.UUID)
 GET         /user/:userId/search                                controllers.KessengerController.searchUsers(userId: java.util.UUID, l: List[String])
 
 
 # chats
-
-
-+nocsrf
 POST         /user/:userId/newchat                              controllers.KessengerController.newChat(userId: java.util.UUID)
-+nocsrf
 POST         /user/:userId/newgroupchat                         controllers.KessengerController.newGroupChat(userId: java.util.UUID)
-
-+nocsrf
 POST         /user/:userId/anytc                                controllers.KessengerController.addUsersToChat(userId: java.util.UUID)
-
-
 GET          /user/:userId/chats/:chatId                        controllers.KessengerController.getChat(userId: java.util.UUID, chatId: String)
-+nocsrf
 DELETE       /user/:userId/chats/:chatId                        controllers.KessengerController.leaveChat(userId: java.util.UUID, chatId: String)
-+nocsrf
 PUT          /user/:userId/chats/:chatId/newChatName            controllers.KessengerController.updateChatName(userId: java.util.UUID, chatId: String)
-+nocsrf
 PUT          /user/:userId/chats/:chatId/addNewUsers            controllers.KessengerController.updateChatName(userId: java.util.UUID, chatId: String)
-
-+nocsrf
 PUT          /user/:userId/changelogin                          controllers.KessengerController.changeMyLogin(userId: java.util.UUID, newlogin: String)
+
 # GET          /user/:userId/ws                                   controllers.KessengerController.ws(userId: java.util.UUID)
 
-
-
 # Angulars endpoints
+GET          /angular/ws                                        controllers.KessengerController.ws
+
 GET          /angular/users                                     controllers.KessengerController.angular
 GET          /angular/users/stream                              controllers.KessengerController.userStreaming
 POST         /angular/post                                      controllers.KessengerController.angularpost
-GET          /angular/ws                                        controllers.KessengerController.ws
+
 
 
 

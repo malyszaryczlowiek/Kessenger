@@ -20,13 +20,53 @@ export class UserService {
   public user: User | undefined;
   public chatAndUsers: Array<ChatData> = new Array();
 
+
+  // this probably may cause problems 
   public invitationEmitter = this.connection.invitationEmitter
+
+
+  /*
+
+   WAŻNE
+        z uwagi na to, że rządania czasami odpowiadają błędem w którym jest 
+        string to muszę zwracać obiekt any i taki dopiero rzutować ???
+
+  */
 
 
   constructor(private connection: ConnectionService, private settings: UserSettingsService, private router: Router) { 
     console.log('UserService constructor called.')
-    if ( this.connection.isSessionValid() ) {
-      const userId = this.connection.getUserId();
+    const userId = this.connection.getUserId();
+    if (userId) {
+      this.connection.updateSession(userId);
+      console.log('KSID exists') 
+      // we get user's settings 
+      const s = this.connection.getSettings(userId)
+      if ( s ) {
+        s.subscribe({
+          next: (response) => {
+            const body = response.body
+            if ( body ){
+              this.user = body.user
+              this.settings.setSettings(body.settings)
+            }
+            else {
+              // print error message
+              console.log(`/user/userId/settings: `)
+            }
+          },
+          error: (error) => {
+            console.log(error) 
+            this.clearService()
+            console.log('redirection to logging page')
+            this.router.navigate([''])
+          },
+          complete: () => {}
+        })
+      }
+
+
+      // we get user's chats
       const c = this.connection.getUserChats(userId);
       if ( c ){
         c.subscribe( {
@@ -44,34 +84,30 @@ export class UserService {
                 };
               });
             }
-  
-            // update session
-            this.connection.updateSession(userId);
-  
             // redirect to /user
             this.router.navigate(['user']);
   
           } ,
           error: (error) => {
             console.log(error) 
-            // jeśli np otrzymamy error, że sesja jest już nieważna to należy 
-            // usunąć niewazne ciasteczko i 
-            
-            // this.connection.invalidateSession();
-            this.clearService();
-            console.log('przekierowanie na stronę logownaia')
-            this.router.navigate(['']);
+            this.clearService()
+            console.log('redirection to logging page')
+            this.router.navigate([''])
           } ,
           complete: () => {}
         })
       }
     }
-    // todo 
+
+
     this.connection.messageEmitter.subscribe(
-      (message: Message) => console.log(`message from emitter: ${message}`),
-      (error) => console.log('Error in invitation emitter: ', error),
-      () => console.log('on invitaion comoplented.')
+      (message: Message) => {
+        console.log(`message from emitter: ${message}`)
+      },
+      (error) => console.log('Error in message emitter: ', error),
+      () => console.log('on message emitter completed.')
     )
+    // the same for invitation and 
 
   }
 
@@ -146,6 +182,12 @@ export class UserService {
   }
 
 
+  changeLogin(newLogin: string): Observable<HttpResponse<string>> | undefined {
+    if ( this.user ) {
+      return this.connection.changeLogin(this.user.userId, newLogin)
+    } else return undefined
+  }
+
 
 
 
@@ -155,6 +197,10 @@ export class UserService {
     this.connection.createChat();
   }
 
+
+  saveSettings(s: Settings): Observable<HttpResponse<any>> | undefined {
+    return this.connection.saveSettings(s)
+  }
 
 
 

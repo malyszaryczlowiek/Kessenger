@@ -6,11 +6,11 @@ import { UserSettingsService } from 'src/app/services/user-settings.service';
 import { UserService } from 'src/app/services/user.service';
 
 @Component({
-  selector: 'app-edit-account',
-  templateUrl: './edit-account.component.html',
-  styleUrls: ['./edit-account.component.css']
+  selector: 'app-test',
+  templateUrl: './test.component.html',
+  styleUrls: ['./test.component.css']
 })
-export class EditAccountComponent implements OnInit {
+export class TestComponent implements OnInit {
 
   settings: Settings | undefined
   defaultZone = 'UTC'
@@ -18,19 +18,18 @@ export class EditAccountComponent implements OnInit {
 
 
   settingsChanged = false
-  settingsErrorMessage: string | undefined
 
   loginSuccessfullChanged = false;
   loginTaken = false;
-  loginErrorMessage: string | undefined
-
   passwordSuccessfullChanged = false;
-  passwordErrorMessage: string | undefined  
+  
 
+  // Controls 
   settingsGroup = new FormGroup({
     sessionControl : new FormControl(15, [Validators.required, Validators.max(15), Validators.min(1)]),
     zoneControl : new FormControl(this.defaultZone, [Validators.required, Validators.max(15), Validators.min(1)])
   })
+
 
   loginFormGroup = new FormGroup({
     loginForm: new FormControl('', [Validators.required, Validators.minLength(8)])
@@ -68,11 +67,7 @@ export class EditAccountComponent implements OnInit {
       const obs = this.userService.saveSettings( body )
       if ( obs ) {
         obs.subscribe({
-          next: (response) => {
-            // todo here check status 
-            this.userSettings.setSettings( body )
-            this.settingsChanged = true
-          },
+          next: (response) => {},
           error: (error) => {
             console.log("ERROR", error)
           },
@@ -81,8 +76,6 @@ export class EditAccountComponent implements OnInit {
           }
         })
       } else {
-        // if undefined this means sesstion expired so we need 
-        // destroy userService and redirect to session timeout
         this.router.navigate(['session-timeout'])
       }
     }
@@ -98,27 +91,7 @@ export class EditAccountComponent implements OnInit {
 
 
   saveLogin() {
-    const newLogin = this.loginFormGroup.controls.loginForm.value
-    if ( newLogin ) {
-      const l = this.userService.changeLogin(newLogin)
-      if ( l ) {
-        l.subscribe({
-          next: (response) => {
-            const b = response.body
-            if ( b ) { 
-              console.log(`new login ${b}`)
-              this.loginSuccessfullChanged = true
-            }
-          },
-          error: (error) => {
-            console.log(error)
-          },
-          complete: () => {},
-        })
-      } else {
-        this.router.navigate(['session-timeout'])
-      }
-    }
+
   }
 
 

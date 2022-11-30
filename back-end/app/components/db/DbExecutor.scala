@@ -197,6 +197,41 @@ class DbExecutor(val kafkaConfigurator: KafkaConfigurator) {
   }
 
 
+  def findUserWithUUID(userId: UserID)(implicit connection: Connection): DbResponse[(User, Settings)] = {
+    val sql =
+      "SELECT users.user_id, users.login, settings.joining_offset, settings.zone_id, settings.session_duration " +
+        "FROM users " +
+        "INNER JOIN settings " +
+        "ON users.user_id = settings.user_id " +
+        "WHERE users.user_id = ? "
+    Using(connection.prepareStatement(sql)) {
+      (statement: PreparedStatement) =>
+        statement.setObject(1, userId)
+        Using(statement.executeQuery()) {
+          (resultSet: ResultSet) =>
+            if (resultSet.next()) {
+              val userId: UserID = resultSet.getObject[UUID]("user_id", classOf[UUID])
+              val login: Login = resultSet.getString("login")
+              val offset: Long = resultSet.getLong("joining_offset")
+              val zoneId: String = resultSet.getString("zone_id")
+              val sessionDur: Long = resultSet.getLong("session_duration")
+              Right((
+                User(userId, login),
+                Settings(offset, sessionDur, ZoneId.of(zoneId))
+              ))
+            }
+            else {
+              Left(QueryError(ERROR, IncorrectLoginOrPassword))
+            }
+        } match {
+          case Failure(ex) => throw ex
+          case Success(either) => either
+        }
+    } match {
+      case Failure(ex) => handleExceptionMessage(ex)
+      case Success(either) => either
+    }
+  }
 
 
 
@@ -251,24 +286,21 @@ class DbExecutor(val kafkaConfigurator: KafkaConfigurator) {
 
 
 
-  def checkUsersSession(sessionId: UUID, userId: UUID, validityTime: Long)(implicit connection: Connection): DbResponse[Int] = {
-    val sql = "SELECT validity_time FROM sessions WHERE session_id = ? AND user_id = ? AND validity_time = ? "
+  def checkUsersSession(sessionId: UUID, userId: UUID, now: Long)(implicit connection: Connection): DbResponse[Boolean] = {
+    val sql = "SELECT validity_time FROM sessions WHERE session_id = ? AND user_id = ? AND validity_time > ? "
     Using(connection.prepareStatement(sql)) {
       (statement: PreparedStatement) =>
         statement.setObject(1, sessionId)
         statement.setObject(2, userId)
-        statement.setLong(3, validityTime)
+        statement.setLong(3, now)
         Using(statement.executeQuery()) {
-          (resultSet: ResultSet) =>
-            var n = 0
-            while (resultSet.next()) n += 1
-            Right(n)
+          (resultSet: ResultSet) => Right(resultSet.next())
         } match {
           case Failure(ex) => throw ex
           case Success(either) => either
         }
     } match {
-      case Failure(ex) => handleExceptionMessage[Int](ex)
+      case Failure(ex) => handleExceptionMessage[Boolean](ex)
       case Success(either) => either
     }
   }
@@ -320,11 +352,11 @@ class DbExecutor(val kafkaConfigurator: KafkaConfigurator) {
 
 
 
-  def removeAllExpiredUserSessions(userId: UUID)(implicit connection: Connection): DbResponse[Int] = {
-    Using(connection.prepareStatement("DELETE FROM sessions WHERE user_id = ? AND validity_time <= ? ")) {
+  def removeAllExpiredUserSessions(userId: UUID, newValidityTime: Long)(implicit connection: Connection): DbResponse[Int] = {
+    Using(connection.prepareStatement("DELETE FROM sessions WHERE user_id = ? AND validity_time < ? ")) {
       (statement: PreparedStatement) =>
         statement.setObject(1, userId)
-        statement.setLong(2, System.currentTimeMillis() )
+        statement.setLong(2, newValidityTime )
         statement.executeUpdate()
     } match {
       case Failure(ex) => handleExceptionMessage(ex)

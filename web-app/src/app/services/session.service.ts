@@ -19,10 +19,10 @@ export class SessionService {
   constructor(private cookieService: CookieService,
               private utcService: UtctimeService,
               private userSettings: UserSettingsService) {
-    this.updateKsid();
+    this.fetchKsid();
   }
 
-  private updateKsid() {
+  private fetchKsid() {
     const k = this.cookieService.get('KSID')
     if (k != '') {
       const arr = k.split('__');
@@ -35,7 +35,7 @@ export class SessionService {
 
 
   isSessionValid(): boolean {
-    this.updateKsid();
+    this.fetchKsid();
     if (this.ksid) return true;
     else return false;
   }
@@ -51,7 +51,7 @@ export class SessionService {
 
 
   updateSession(userId: string) {
-    this.updateKsid();
+    this.fetchKsid();
     if ( this.ksid ) {
       const time: number = this.utcService.getUTCmilliSeconds() + this.userSettings.settings.sessionDuration; // current  time + 15 min
       this.ksid = new Ksid(this.ksid.sessId, userId, time);
@@ -96,9 +96,10 @@ export class SessionService {
   }
 
   
-  getSavedUserId(): string {
+  getSavedUserId(): string | undefined {
+    this.fetchKsid()
     if (this.ksid) return this.ksid.userId;
-    else return '';
+    else return undefined;
   }
 
 

@@ -30,7 +30,7 @@ export class ChatPanelComponent implements OnInit {
 
 
   sendMessage(m: Message) {
-    this.userService.sendMessage( m );
+    this.userService.sendMessage( m )
   }
 
 

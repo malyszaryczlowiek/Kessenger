@@ -87,7 +87,17 @@ export class ConnectionService {
   }
 
 
-
+  getSettings(userId: string): Observable<HttpResponse<{user: User, settings: Settings}>> | undefined {
+    if ( this.session.isSessionValid() ) {
+      return this.http.get<{user: User, settings: Settings}>(this.api + `/user/${userId}/settings`, {
+        headers:  new HttpHeaders()
+        .set('KSID', this.session.getSessionToken()),
+        observe: 'response', 
+        responseType: 'json'
+      });
+    }
+    else return undefined
+  }
 
 
 
@@ -96,7 +106,7 @@ export class ConnectionService {
   // todo zweryfikować
   getUserChats(userId: string): Observable<HttpResponse<Chat[]>> | undefined {
     if ( this.session.isSessionValid() ) {
-      return this.http.get<Chat[]>(this.api + '/user/' + userId,{
+      return this.http.get<Chat[]>(this.api + `/user/${userId}/chats`, {
         headers:  new HttpHeaders()
         .set('KSID', this.session.getSessionToken()),
         observe: 'response', 
@@ -104,21 +114,6 @@ export class ConnectionService {
       });
     } else return undefined;
   }
-
-
-
-/*     let token: string = '';
-    if (this.session) {
-      token = this.session.toString();
-      
-    } 
-    else { // without ksid header request will be rejected
-      return this.http.get<Chat[]>(this.api + '/user/' + userId,{
-        observe: 'response', 
-        responseType: 'json'
-      })
-    }    
- */  
 
 
 
@@ -136,6 +131,29 @@ export class ConnectionService {
 
 
 
+  saveSettings(s: Settings): Observable<HttpResponse<any>> | undefined {
+    if ( this.session.isSessionValid() ) {
+      return this.http.post<any>(this.api + '/user',{ // todo tutaj zmienić ścieżkę
+        headers:  new HttpHeaders()
+          .set('KSID', this.session.getSessionToken()),
+        observe: 'response', 
+        responseType: 'json'
+      });
+    } else return undefined;
+  }
+
+
+
+  changeLogin(userId: string, newLogin: string): Observable<HttpResponse<string>> | undefined {
+    if ( this.session.isSessionValid() ) {
+      return this.http.put<string>(this.api + `/user/${userId}/changeLogin`, newLogin, { 
+        headers:  new HttpHeaders()
+          .set('KSID', this.session.getSessionToken()),
+        observe: 'response'
+//        responseType: 'text'
+      });
+    } else return undefined;
+  }
 
 
 
@@ -145,7 +163,7 @@ export class ConnectionService {
 
 
 
-  getUserId(): string {
+  getUserId(): string | undefined {
     return this.session.getSavedUserId();
   }
 
@@ -201,6 +219,8 @@ export class ConnectionService {
   createChat() {
 
   }
+
+
 
 
 

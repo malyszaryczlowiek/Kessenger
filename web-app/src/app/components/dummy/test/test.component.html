@@ -19,7 +19,6 @@
         
     </div>
     <p *ngIf="settingsChanged">Your Settings Successfully Changed!!!</p>
-    <p *ngIf="settingsErrorMessage">{{ settingsErrorMessage }}</p>
     
     
     
@@ -32,7 +31,6 @@
     </div>
     <p *ngIf="loginSuccessfullChanged">Login Successfully changed!!!</p>
     <p *ngIf="loginTaken">Login Taken, Try With Another One!!!</p>
-    <p *ngIf="loginErrorMessage">{{ loginErrorMessage }}</p>
     <p></p>
 
 
@@ -46,7 +44,6 @@
         </form>
     </div>
     <p *ngIf="passwordSuccessfullChanged">Password Successfully changed!!!</p>
-    <p *ngIf="passwordErrorMessage">{{ passwordErrorMessage }}</p>
     <p> </p>
     <button routerLink="/user" routerLinkActive="active" ariaCurrentWhenActive="page">Back to Chats</button>
 </div>
