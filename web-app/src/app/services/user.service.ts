@@ -6,7 +6,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { Chat } from '../models/Chat';
 import { Message} from '../models/Message';
 import { User } from '../models/User';
-import { ActivatedRoute, Router } from '@angular/router';
+import { Router } from '@angular/router';
 import { ChatData } from '../models/ChatData';
 import { Settings } from '../models/Settings';
 import { HttpResponse } from '@angular/common/http';
@@ -37,11 +37,11 @@ export class UserService {
   constructor(private connection: ConnectionService, private settings: UserSettingsService, private router: Router) { 
     console.log('UserService constructor called.')
     const userId = this.connection.getUserId();
-    if (userId) {
+    if ( userId ) {
       this.connection.updateSession(userId);
       console.log('KSID exists') 
       // we get user's settings 
-      const s = this.connection.getSettings(userId)
+      const s = this.connection.user(userId)
       if ( s ) {
         s.subscribe({
           next: (response) => {
@@ -69,7 +69,7 @@ export class UserService {
       // we get user's chats
       const c = this.connection.getUserChats(userId);
       if ( c ){
-        c.subscribe( {
+        c.subscribe({
           next: (response) => {
             // we need to sort our chats according to messageTime
             const chats = response.body 
@@ -150,14 +150,14 @@ export class UserService {
 
 
 
-  signUp(log: string, pass: string): Observable<HttpResponse<{user: User, settings: Settings}>> {
+  signUp(log: string, pass: string): Observable<HttpResponse<{user: User, settings: Settings}>> | undefined {
     return this.connection.signUp(log, pass);
   }
 
 
 
 
-  signIn(login: string, pass: string): Observable<HttpResponse<{user: User, settings: Settings}>> {
+  signIn(login: string, pass: string): Observable<HttpResponse<{user: User, settings: Settings}>> | undefined {
     return this.connection.signIn(login, pass);
   }
 
@@ -236,9 +236,9 @@ export class UserService {
 
   
 
-  createKSID(): string {
+  createKSID(): string | undefined {
     //this.connection.
-    return this.connection.getKSIDvalue();
+    return this.connection.getSessionToken();
   }
 
   /* getRawKSID() {

@@ -46,7 +46,7 @@ export class ConnectionService {
   
 
 
-  signUp(login: string, pass: string): Observable<HttpResponse<{user: User, settings: Settings}>> {
+  signUp(login: string, pass: string): Observable<HttpResponse<{user: User, settings: Settings}>> | undefined{
     // we set cookie.
     const fake = uuidv4();
     this.session.setNewSession(fake); // todo zmienić bo tutuaj nie będziemy jezcze tworzyli id użytkowanika. 
@@ -57,41 +57,62 @@ export class ConnectionService {
       userId: ''
     };
 
-    return this.http.post<{user: User, settings: Settings}>(this.api + '/signup', body, {
-      headers:  new HttpHeaders()
-        .set('KSID', this.session.getSessionToken()),
-      observe: 'response', 
-      responseType: 'json'
-    });
+    const token = this.session.getSessionToken()
+    if ( token ) {
+      return this.http.post<{user: User, settings: Settings}>(this.api + '/signup', body, {
+        headers:  new HttpHeaders()
+          .set('KSID', token),
+        observe: 'response', 
+        responseType: 'json'
+      });
+    } else return undefined
   }  
 
 
 
 
-  signIn(login: string, pass: string): Observable<HttpResponse<{user: User, settings: Settings}>> {
+  signIn(login: string, pass: string): Observable<HttpResponse<{user: User, settings: Settings}>> | undefined {
     const fake = uuidv4();
     this.session.setNewSession(fake); 
-
     const body = {
       login: login,
       pass: pass,
       userId: ''
     };
-
-    return this.http.post<{user: User, settings: Settings}>(this.api + '/signin', body, {
-      headers:  new HttpHeaders()
-        .set('KSID', this.session.getSessionToken()),
-      observe: 'response', 
-      responseType: 'json'
-    });
+    const token = this.session.getSessionToken()
+    if ( token ) {
+      return this.http.post<{user: User, settings: Settings}>(this.api + '/signin', body, {
+        headers:  new HttpHeaders()
+          .set('KSID', token),
+        observe: 'response', 
+        responseType: 'json'
+      });
+    } else return undefined
   }
 
 
-  getSettings(userId: string): Observable<HttpResponse<{user: User, settings: Settings}>> | undefined {
-    if ( this.session.isSessionValid() ) {
+
+  logout(): Observable<HttpResponse<any>> | undefined {
+    const token = this.session.getSessionToken()
+    if ( this.session.isSessionValid() && token) {
+      return this.http.get<any>(this.api + '/logout',{
+        headers:  new HttpHeaders()
+        .set('KSID', token),
+        observe: 'response', 
+        responseType: 'json'
+      });
+    } else return undefined;
+  }
+
+
+
+
+  user(userId: string): Observable<HttpResponse<{user: User, settings: Settings}>> | undefined {
+    const token = this.session.getSessionToken()
+    if ( this.session.isSessionValid() && token) {
       return this.http.get<{user: User, settings: Settings}>(this.api + `/user/${userId}/settings`, {
         headers:  new HttpHeaders()
-        .set('KSID', this.session.getSessionToken()),
+        .set('KSID', token),
         observe: 'response', 
         responseType: 'json'
       });
@@ -105,10 +126,11 @@ export class ConnectionService {
 
   // todo zweryfikować
   getUserChats(userId: string): Observable<HttpResponse<Chat[]>> | undefined {
-    if ( this.session.isSessionValid() ) {
+    const token = this.session.getSessionToken()
+    if ( this.session.isSessionValid() && token ) {
       return this.http.get<Chat[]>(this.api + `/user/${userId}/chats`, {
         headers:  new HttpHeaders()
-        .set('KSID', this.session.getSessionToken()),
+        .set('KSID', token),
         observe: 'response', 
         responseType: 'json'
       });
@@ -117,25 +139,16 @@ export class ConnectionService {
 
 
 
-  logout(): Observable<HttpResponse<any>> | undefined {
-    if ( this.session.isSessionValid() ) {
-      return this.http.get<any>(this.api + '/logout',{
-        headers:  new HttpHeaders()
-        .set('KSID', this.session.getSessionToken()),
-        observe: 'response', 
-        responseType: 'json'
-      });
-    } else return undefined;
-  }
 
 
 
 
   saveSettings(s: Settings): Observable<HttpResponse<any>> | undefined {
-    if ( this.session.isSessionValid() ) {
+    const token = this.session.getSessionToken()
+    if ( this.session.isSessionValid() && token) {
       return this.http.post<any>(this.api + '/user',{ // todo tutaj zmienić ścieżkę
         headers:  new HttpHeaders()
-          .set('KSID', this.session.getSessionToken()),
+          .set('KSID', token),
         observe: 'response', 
         responseType: 'json'
       });
@@ -145,10 +158,11 @@ export class ConnectionService {
 
 
   changeLogin(userId: string, newLogin: string): Observable<HttpResponse<string>> | undefined {
-    if ( this.session.isSessionValid() ) {
+    const token = this.session.getSessionToken()
+    if ( this.session.isSessionValid() && token) {
       return this.http.put<string>(this.api + `/user/${userId}/changeLogin`, newLogin, { 
         headers:  new HttpHeaders()
-          .set('KSID', this.session.getSessionToken()),
+          .set('KSID', token),
         observe: 'response'
 //        responseType: 'text'
       });
@@ -204,7 +218,7 @@ export class ConnectionService {
 
 
 
-  getKSIDvalue(): string {
+  getSessionToken(): string | undefined {
     return this.session.getSessionToken();
   }
 

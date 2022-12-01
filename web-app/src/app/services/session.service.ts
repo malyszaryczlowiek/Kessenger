@@ -73,12 +73,10 @@ export class SessionService {
   }
  */
 
-  getSessionToken(): string  {
+  getSessionToken(): string | undefined  {
     if (this.ksid) {
       return  this.ksid?.toString();
-    } else  {
-      return '';
-    }    
+    } else  return undefined 
   }
 
 

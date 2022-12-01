@@ -1,7 +1,6 @@
 import { Component, OnInit } from '@angular/core';
 import { FormControl, FormGroup, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
-import { Base64HasherService } from 'src/app/services/base64-hasher.service';
 import { UserService } from 'src/app/services/user.service';
 
 @Component({
@@ -31,31 +30,35 @@ export class SignupComponent implements OnInit {
     const login = this.signUpForm.value.login;
     const pass = this.signUpForm.value.password;
     if (login && pass ) {
-      this.userService.signUp(login, pass).subscribe({
-        next: (response) => {
+      const signup = this.userService.signUp(login, pass)
+      if ( signup ){
+        signup.subscribe({
+          next: (response) => {
+    
+            // we save created user 
+            this.userService.setUserAndSettings(
+              response.body?.user,
+              response.body?.settings
+            );
   
-          // we save created user 
-          this.userService.setUserAndSettings(
-            response.body?.user,
-            response.body?.settings
-          );
-
-          // update ksid
-          this.userService.updateSession();
-          
-          // and redirect to user site
-          this.router.navigate(['user']);
-        },
-        error: (error) => {
-          console.log(error);
-          console.log('clearing UserService.')
-          this.userService.clearService();
-          this.signUpForm.reset();
-          // print message to user.
-          this.returnedError = error;
-        },
-        complete: () => {}
-      })
+            // update ksid
+            this.userService.updateSession();
+            
+            // and redirect to user site
+            this.router.navigate(['user']);
+          },
+          error: (error) => {
+            console.log(error);
+            console.log('clearing UserService.')
+            this.userService.clearService();
+            this.signUpForm.reset();
+            // print message to user.
+            this.returnedError = error;
+          },
+          complete: () => {}
+        })  
+      }
+      
     }    
   }
 
