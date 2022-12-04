@@ -57,64 +57,6 @@ class DbExecutor(val kafkaConfigurator: KafkaConfigurator) {
 
 
 
-  @deprecated("use createUser() instead.")
-  def createUserWithoutBatch(user: User, pass: Password, settings: Settings)(implicit connection: Connection): DbResponse[Int] = {
-    val sql = "INSERT INTO users (user_id, login, pass) VALUES (?, ?, ?)"
-    connection.setAutoCommit(false)
-    val beforeAnyInsertions: Savepoint = connection.setSavepoint()
-    Using(connection.prepareStatement(sql)) {
-      (statement: PreparedStatement) =>
-        statement.setObject(1, user.userId)
-        statement.setString(2, user.login)
-        statement.setString(3, pass)
-        statement.executeUpdate()
-    } match {
-      case Failure(ex) =>
-        connection.rollback(beforeAnyInsertions)
-        connection.setAutoCommit(true)
-        if (ex.getMessage.contains("duplicate key value violates unique constraint")) {
-          Left(QueryError(ERROR, LoginTaken))
-        }
-        else handleExceptionMessage(ex)
-      case Success(a) =>
-        if (a == 1) {
-          val sql2 = "INSERT INTO settings (user_id, zone_id) VALUES (?, ?)"
-          Using(connection.prepareStatement( sql2 )) {
-            (statement: PreparedStatement) =>
-              statement.setObject(1, user.userId)
-              statement.setString(2, settings.zoneId.getId)
-              statement.executeUpdate()
-          } match {
-            case Failure(ex) =>
-              connection.rollback(beforeAnyInsertions)
-              connection.setAutoCommit(true)
-              if (ex.getMessage.contains("duplicate key value violates unique constraint")) {
-                Left(QueryError(ERROR, DataProcessingError))
-              }
-              handleExceptionMessage(ex)
-            case Success(value) =>
-              if (value == 1) {
-                connection.commit()
-                connection.setAutoCommit(true)
-                Right(value)
-              } else {
-                connection.rollback(beforeAnyInsertions)
-                connection.setAutoCommit(true)
-                Left(QueryError(ERROR, DataProcessingError))
-              }
-          }
-        } else {
-          connection.rollback(beforeAnyInsertions)
-          connection.setAutoCommit(true)
-          Left(QueryError(ERROR, DataProcessingError))
-        }
-    }
-  }
-
-
-
-
-
   def updateMyLogin(userId: UUID, newLogin: Login)(implicit connection: Connection): DbResponse[Int] = {
     Using(connection.prepareStatement("UPDATE users SET login = ? WHERE user_id = ? ")) { //    AND login = ?
       (statement: PreparedStatement) =>
@@ -130,8 +72,6 @@ class DbExecutor(val kafkaConfigurator: KafkaConfigurator) {
       case Success(v) => Right(v)
     }
   }
-
-
 
 
 
@@ -158,7 +98,6 @@ class DbExecutor(val kafkaConfigurator: KafkaConfigurator) {
   /**
    *
    */
-    // TODO działa
   def findUser(login: Login, pass: Password)(implicit connection: Connection): DbResponse[(User, Settings)] = {
     val sql =
       "SELECT users.user_id, users.login, settings.joining_offset, settings.zone_id, settings.session_duration " +
@@ -374,12 +313,14 @@ class DbExecutor(val kafkaConfigurator: KafkaConfigurator) {
    * @param connection
    * @return
    */
-  def findUsers(logins: List[Login])(implicit connection: Connection): DbResponse[List[User]] = {
-    val prefix = "SELECT user_id, login FROM users WHERE login IN ( "
-    val list = logins.foldLeft("")((folded, user) => s"$folded, '$user'").substring(2)
-    val postfix = " ) "
-    val sql = s"$prefix$list$postfix"
+  def findUser(u: Login)(implicit connection: Connection): DbResponse[List[User]] = {
+//    val prefix = "SELECT user_id, login FROM users WHERE login IN ( "
+//    val list = logins.foldLeft("")((folded, user) => s"$folded, '$user'").substring(2)
+//    val postfix = " ) "
+//    val sql2 = s"$prefix$list$postfix"
+    val sql = s"SELECT user_id, login FROM users WHERE login ~* ? "
     Using(connection.prepareStatement(sql)) { statement =>
+      statement.setString(1,u)
       Using(statement.executeQuery()) {
         (resultSet: ResultSet) =>
           val buffer = ListBuffer.empty[User]
@@ -494,6 +435,15 @@ class DbExecutor(val kafkaConfigurator: KafkaConfigurator) {
   Chat Creation
    */
 
+  def createChat(me: User, users: List[UUID], chatName: ChatName)(implicit connection: Connection): DbResponse[Chat] = {
+    if (users.length == 1) {
+      val chatId = Domain.generateChatId(me.userId, users.head)
+      createSingleChat(me, users, chatId, chatName)
+    } else {
+      val chatId = Domain.generateChatId(UUID.randomUUID(), UUID.randomUUID())
+      createGroupChat(me, users, chatId, chatName )
+    }
+  }
 
 
   private def checkDuplicatedChat(myID: UUID, otherId: UUID)(implicit connection: Connection): DbResponse[Int] = {
@@ -520,9 +470,8 @@ class DbExecutor(val kafkaConfigurator: KafkaConfigurator) {
   }
 
 
-
-  def createSingleChat(me: User, otherId: UUID, chatId: ChatId, chatName: ChatName)(implicit connection: Connection): DbResponse[Chat] = {
-    checkDuplicatedChat(me.userId, otherId) match {
+  private def createSingleChat(me: User, otherId: List[UUID], chatId: ChatId, chatName: ChatName)(implicit connection: Connection): DbResponse[Chat] = {
+    checkDuplicatedChat(me.userId, otherId.head) match {
       case Left(error) => Left(error)
       case Right(value) =>
         if (value > 0) Left(QueryError(ERROR, UnsupportedOperation))
@@ -565,78 +514,9 @@ class DbExecutor(val kafkaConfigurator: KafkaConfigurator) {
 
 
 
-  @deprecated("use createSingleChat() instead.")
-  def createSingleChatWithoutBatch(me: User, otherId: UUID, chatId: ChatId, chatName: ChatName )(implicit connection: Connection, ec: ExecutionContext): DbResponse[Int] = {
-    checkDuplicatedChat(me.userId, otherId) match {
-      case Left(error) => Left(error)
-      case Right(value) =>
-        if ( value > 0 ) Left(QueryError(ERROR, UnsupportedOperation))
-        else {
-          connection.setAutoCommit(false)
-          val beforeAnyInsertions: Savepoint = connection.setSavepoint()
-
-          val f1 = Future {
-            Using(connection.prepareStatement("INSERT INTO chats(chat_id, group_chat) VALUES (?,?)")) {
-              (statement: PreparedStatement) =>
-                statement.setString(1, chatId)
-                statement.setBoolean(2, false)
-                statement.executeUpdate()
-            } match {
-              case Failure(ex) => throw ex
-              case Success(v) => v
-            }
-          }(ec)
-
-          val ct = System.currentTimeMillis()
-
-          val f2 = Future {
-            Using(connection.prepareStatement("INSERT INTO users_chats (chat_id, chat_name, user_id, message_time) VALUES (?, ?, ?, ?)")) {
-              (statement: PreparedStatement) =>
-                statement.setString(1, chatId)
-                statement.setString(2, chatName)
-                statement.setObject(3, me.userId)
-                statement.setLong(4, ct)
-                statement.executeUpdate()
-            } match {
-              case Failure(exception) => throw exception
-              case Success(value) => value
-            }
-          }(ec)
-
-          val f3 = Future {
-            Using(connection.prepareStatement("INSERT INTO users_chats (chat_id, chat_name, user_id, message_time) VALUES (?, ?, ?, ?)")) {
-              (statement: PreparedStatement) =>
-                statement.setString(1, chatId)
-                statement.setString(2, s"${me.login}")
-                statement.setObject(3, otherId)
-                statement.setLong(4, ct)
-                statement.executeUpdate()
-            } match {
-              case Failure(exception) => throw exception
-              case Success(value) => value
-            }
-          }(ec)
-
-          val zipped = List(f1, f2, f3).reduceLeft((l, r) => l.zipWith(r)(_ + _))
-          val a = Await.result(zipped, Duration.create(5L, SECONDS))
-          if (a == 3) {
-            connection.commit()
-            connection.setAutoCommit(true)
-            Right(3)
-          } else {
-            connection.rollback( beforeAnyInsertions )
-            connection.setAutoCommit(true)
-            Left(QueryError(ERROR, DataProcessingError))
-          }
-        }
-    }
-  }
 
 
-
-
-
-  def createGroupChat(users: List[User], chatName: ChatName, chatId: ChatId)(implicit connection: Connection): DbResponse[Chat] = {
+  def createGroupChat(me: User, users: List[UUID],chatId: ChatId, chatName: ChatName )(implicit connection: Connection): DbResponse[Chat] = {
     val listSize = users.length
     if (listSize < 2)
       Left(QueryError(ERROR, AtLeastTwoUsers))
@@ -649,9 +529,9 @@ class DbExecutor(val kafkaConfigurator: KafkaConfigurator) {
         (statement: Statement) => {
           val sql1 = s"INSERT INTO chats(chat_id, group_chat) VALUES ('$chatId', true ) "
           statement.addBatch(sql1)
-          for (u <- users) {
+          for (u <- me.userId :: users) {
             val sql = s"INSERT INTO users_chats (chat_id, user_id, chat_name, message_time) " +
-              s"VALUES ('$chatId', '${u.userId}', '$chatName', $time )"
+              s"VALUES ('$chatId', '${u.toString}', '$chatName', $time )"
             statement.addBatch(sql)
           }
           (statement.executeBatch().sum, chat)
@@ -680,65 +560,6 @@ class DbExecutor(val kafkaConfigurator: KafkaConfigurator) {
 
 
 
-  @deprecated("use createGroupChat() instead.")
-  def createGroupChatWithoutBatch(users: List[User], chatName: ChatName, chatId: ChatId)(implicit connection: Connection, ex: ExecutionContext): DbResponse[Chat] = {
-    val listSize = users.length
-    if (listSize < 2)
-      Left(QueryError(ERROR, AtLeastTwoUsers))
-    else {
-      connection.setAutoCommit(false)
-      val beforeAnyInsertions: Savepoint = connection.setSavepoint()
-      val time = System.currentTimeMillis()
-      val chat = Chat(chatId, chatName, groupChat = true, time, silent = false)
-
-      Using(connection.prepareStatement("INSERT INTO chats(chat_id, group_chat) VALUES (?,?)")) {
-        (statement: PreparedStatement) =>
-          statement.setString(1, chat.chatId)
-          statement.setBoolean(2, chat.groupChat)
-          statement.executeUpdate()
-      } match {
-        case Failure(ex) =>
-          connection.rollback(beforeAnyInsertions)
-          connection.setAutoCommit(true)
-          handleExceptionMessage(ex)
-        case Success(v) =>
-          if (v == 1) {
-            val affectionList: List[Future[Int]] = users.map(
-              user =>
-                Future {
-                  Using(connection.prepareStatement("INSERT INTO users_chats (chat_id, user_id, chat_name, message_time) VALUES (?, ?, ?, ?)")) {
-                    (statement: PreparedStatement) =>
-                      statement.setString(1, chat.chatId)
-                      statement.setObject(2, user.userId)
-                      statement.setString(3, chatName)
-                      statement.setLong(  4, chat.lastMessageTime)
-                      statement.executeUpdate()
-                  } match {
-                    case Failure(exception) => throw exception
-                    case Success(value) => value
-                  }
-                }(ex)
-            )
-            val zippedFuture = affectionList.reduceLeft((f1, f2) => f1.zipWith(f2)(_ + _)) // we zip all futures when they end and add affected rows.
-            val totalAffectedRows: Int = Await.result(zippedFuture, Duration.create(5L, duration.SECONDS))
-            if (totalAffectedRows == users.length) {
-              connection.commit()
-              connection.setAutoCommit(true)
-              Right(chat)
-            }
-            else {
-              connection.rollback(beforeAnyInsertions)
-              connection.setAutoCommit(true)
-              Left(QueryError(ERROR, DataProcessingError))
-            }
-          } else {
-            connection.rollback(beforeAnyInsertions)
-            connection.setAutoCommit(true)
-            Left(QueryError(ERROR, DataProcessingError))
-          }
-      }
-    }
-  }
 
 
 
@@ -782,51 +603,6 @@ class DbExecutor(val kafkaConfigurator: KafkaConfigurator) {
 
 
 
-
-
-  @deprecated(s"user addNewUsersToChat() instead.")
-  def addNewUsersToChatWithoutBatch(users: List[UUID], chatId: String, chatName: ChatName)(implicit connection: Connection, ec: ExecutionContext): DbResponse[Int] = {
-    if (users.isEmpty) Left(QueryError(ERROR, NoUserSelected))
-    else {
-      var stateBeforeInsertion: Savepoint = null
-      Try {
-        connection.setAutoCommit(false)
-        stateBeforeInsertion = connection.setSavepoint()
-        val futureList = users.map(
-          userId =>
-            Future { // each insertion executed in separate thread
-              Using(connection.prepareStatement("INSERT INTO users_chats (chat_id, user_id, chat_name) VALUES (?, ?, ?)")) {
-                (statement: PreparedStatement) =>
-                  statement.setString(1, chatId)
-                  statement.setObject(2, userId)
-                  statement.setString(3, chatName)
-                  statement.executeUpdate()
-              } match {
-                case Failure(_) => 0
-                case Success(value) => value
-              }
-            }(ec)
-        )
-        val zippedFuture = futureList.reduceLeft((f1, f2) => f1.zipWith(f2)(_ + _))
-        val affected = Await.result(zippedFuture, Duration.create(5L, duration.SECONDS))
-        if (affected == users.length) {
-          connection.commit()
-          connection.setAutoCommit(true)
-          Right(affected)
-        } else {
-          connection.rollback(stateBeforeInsertion)
-          connection.setAutoCommit(true)
-          Left(QueryError(ERROR, DataProcessingError))
-        }
-      } match {
-        case Failure(ex) =>
-          connection.rollback(stateBeforeInsertion) // This connection has been closed
-          connection.setAutoCommit(true)
-          handleExceptionMessage[Int](ex) // returns DataProcessing Error
-        case Success(either) => either
-      }
-    }
-  }
 
 
 
@@ -886,7 +662,7 @@ class DbExecutor(val kafkaConfigurator: KafkaConfigurator) {
             }
           }
       }
-    } else Left(QueryError(ERROR, UnsupportedOperation))
+    } else Left(QueryError(ERROR, UnsupportedOperation)) // cannot leave non group chat
   }
 
 
@@ -1008,6 +784,238 @@ class DbExecutor(val kafkaConfigurator: KafkaConfigurator) {
     }
     else
       Left(QueryError(ERROR, UndefinedError(ex.getMessage)))
+  }
+
+
+  /**
+   * DEPRECATED
+   */
+
+  @deprecated("use createUser() instead.")
+  def createUserWithoutBatch(user: User, pass: Password, settings: Settings)(implicit connection: Connection): DbResponse[Int] = {
+    val sql = "INSERT INTO users (user_id, login, pass) VALUES (?, ?, ?)"
+    connection.setAutoCommit(false)
+    val beforeAnyInsertions: Savepoint = connection.setSavepoint()
+    Using(connection.prepareStatement(sql)) {
+      (statement: PreparedStatement) =>
+        statement.setObject(1, user.userId)
+        statement.setString(2, user.login)
+        statement.setString(3, pass)
+        statement.executeUpdate()
+    } match {
+      case Failure(ex) =>
+        connection.rollback(beforeAnyInsertions)
+        connection.setAutoCommit(true)
+        if (ex.getMessage.contains("duplicate key value violates unique constraint")) {
+          Left(QueryError(ERROR, LoginTaken))
+        }
+        else handleExceptionMessage(ex)
+      case Success(a) =>
+        if (a == 1) {
+          val sql2 = "INSERT INTO settings (user_id, zone_id) VALUES (?, ?)"
+          Using(connection.prepareStatement(sql2)) {
+            (statement: PreparedStatement) =>
+              statement.setObject(1, user.userId)
+              statement.setString(2, settings.zoneId.getId)
+              statement.executeUpdate()
+          } match {
+            case Failure(ex) =>
+              connection.rollback(beforeAnyInsertions)
+              connection.setAutoCommit(true)
+              if (ex.getMessage.contains("duplicate key value violates unique constraint")) {
+                Left(QueryError(ERROR, DataProcessingError))
+              }
+              handleExceptionMessage(ex)
+            case Success(value) =>
+              if (value == 1) {
+                connection.commit()
+                connection.setAutoCommit(true)
+                Right(value)
+              } else {
+                connection.rollback(beforeAnyInsertions)
+                connection.setAutoCommit(true)
+                Left(QueryError(ERROR, DataProcessingError))
+              }
+          }
+        } else {
+          connection.rollback(beforeAnyInsertions)
+          connection.setAutoCommit(true)
+          Left(QueryError(ERROR, DataProcessingError))
+        }
+    }
+  }
+
+  @deprecated("use createGroupChat() instead.")
+  def createGroupChatWithoutBatch(users: List[User], chatName: ChatName, chatId: ChatId)(implicit connection: Connection, ex: ExecutionContext): DbResponse[Chat] = {
+    val listSize = users.length
+    if (listSize < 2)
+      Left(QueryError(ERROR, AtLeastTwoUsers))
+    else {
+      connection.setAutoCommit(false)
+      val beforeAnyInsertions: Savepoint = connection.setSavepoint()
+      val time = System.currentTimeMillis()
+      val chat = Chat(chatId, chatName, groupChat = true, time, silent = false)
+
+      Using(connection.prepareStatement("INSERT INTO chats(chat_id, group_chat) VALUES (?,?)")) {
+        (statement: PreparedStatement) =>
+          statement.setString(1, chat.chatId)
+          statement.setBoolean(2, chat.groupChat)
+          statement.executeUpdate()
+      } match {
+        case Failure(ex) =>
+          connection.rollback(beforeAnyInsertions)
+          connection.setAutoCommit(true)
+          handleExceptionMessage(ex)
+        case Success(v) =>
+          if (v == 1) {
+            val affectionList: List[Future[Int]] = users.map(
+              user =>
+                Future {
+                  Using(connection.prepareStatement("INSERT INTO users_chats (chat_id, user_id, chat_name, message_time) VALUES (?, ?, ?, ?)")) {
+                    (statement: PreparedStatement) =>
+                      statement.setString(1, chat.chatId)
+                      statement.setObject(2, user.userId)
+                      statement.setString(3, chatName)
+                      statement.setLong(4, chat.lastMessageTime)
+                      statement.executeUpdate()
+                  } match {
+                    case Failure(exception) => throw exception
+                    case Success(value) => value
+                  }
+                }(ex)
+            )
+            val zippedFuture = affectionList.reduceLeft((f1, f2) => f1.zipWith(f2)(_ + _)) // we zip all futures when they end and add affected rows.
+            val totalAffectedRows: Int = Await.result(zippedFuture, Duration.create(5L, duration.SECONDS))
+            if (totalAffectedRows == users.length) {
+              connection.commit()
+              connection.setAutoCommit(true)
+              Right(chat)
+            }
+            else {
+              connection.rollback(beforeAnyInsertions)
+              connection.setAutoCommit(true)
+              Left(QueryError(ERROR, DataProcessingError))
+            }
+          } else {
+            connection.rollback(beforeAnyInsertions)
+            connection.setAutoCommit(true)
+            Left(QueryError(ERROR, DataProcessingError))
+          }
+      }
+    }
+  }
+
+
+  @deprecated(s"user addNewUsersToChat() instead.")
+  def addNewUsersToChatWithoutBatch(users: List[UUID], chatId: String, chatName: ChatName)(implicit connection: Connection, ec: ExecutionContext): DbResponse[Int] = {
+    if (users.isEmpty) Left(QueryError(ERROR, NoUserSelected))
+    else {
+      var stateBeforeInsertion: Savepoint = null
+      Try {
+        connection.setAutoCommit(false)
+        stateBeforeInsertion = connection.setSavepoint()
+        val futureList = users.map(
+          userId =>
+            Future { // each insertion executed in separate thread
+              Using(connection.prepareStatement("INSERT INTO users_chats (chat_id, user_id, chat_name) VALUES (?, ?, ?)")) {
+                (statement: PreparedStatement) =>
+                  statement.setString(1, chatId)
+                  statement.setObject(2, userId)
+                  statement.setString(3, chatName)
+                  statement.executeUpdate()
+              } match {
+                case Failure(_) => 0
+                case Success(value) => value
+              }
+            }(ec)
+        )
+        val zippedFuture = futureList.reduceLeft((f1, f2) => f1.zipWith(f2)(_ + _))
+        val affected = Await.result(zippedFuture, Duration.create(5L, duration.SECONDS))
+        if (affected == users.length) {
+          connection.commit()
+          connection.setAutoCommit(true)
+          Right(affected)
+        } else {
+          connection.rollback(stateBeforeInsertion)
+          connection.setAutoCommit(true)
+          Left(QueryError(ERROR, DataProcessingError))
+        }
+      } match {
+        case Failure(ex) =>
+          connection.rollback(stateBeforeInsertion) // This connection has been closed
+          connection.setAutoCommit(true)
+          handleExceptionMessage[Int](ex) // returns DataProcessing Error
+        case Success(either) => either
+      }
+    }
+  }
+
+
+  @deprecated("use createSingleChat() instead.")
+  def createSingleChatWithoutBatch(me: User, otherId: UUID, chatId: ChatId, chatName: ChatName)(implicit connection: Connection, ec: ExecutionContext): DbResponse[Int] = {
+    checkDuplicatedChat(me.userId, otherId) match {
+      case Left(error) => Left(error)
+      case Right(value) =>
+        if (value > 0) Left(QueryError(ERROR, UnsupportedOperation))
+        else {
+          connection.setAutoCommit(false)
+          val beforeAnyInsertions: Savepoint = connection.setSavepoint()
+
+          val f1 = Future {
+            Using(connection.prepareStatement("INSERT INTO chats(chat_id, group_chat) VALUES (?,?)")) {
+              (statement: PreparedStatement) =>
+                statement.setString(1, chatId)
+                statement.setBoolean(2, false)
+                statement.executeUpdate()
+            } match {
+              case Failure(ex) => throw ex
+              case Success(v) => v
+            }
+          }(ec)
+
+          val ct = System.currentTimeMillis()
+
+          val f2 = Future {
+            Using(connection.prepareStatement("INSERT INTO users_chats (chat_id, chat_name, user_id, message_time) VALUES (?, ?, ?, ?)")) {
+              (statement: PreparedStatement) =>
+                statement.setString(1, chatId)
+                statement.setString(2, chatName)
+                statement.setObject(3, me.userId)
+                statement.setLong(4, ct)
+                statement.executeUpdate()
+            } match {
+              case Failure(exception) => throw exception
+              case Success(value) => value
+            }
+          }(ec)
+
+          val f3 = Future {
+            Using(connection.prepareStatement("INSERT INTO users_chats (chat_id, chat_name, user_id, message_time) VALUES (?, ?, ?, ?)")) {
+              (statement: PreparedStatement) =>
+                statement.setString(1, chatId)
+                statement.setString(2, s"${me.login}")
+                statement.setObject(3, otherId)
+                statement.setLong(4, ct)
+                statement.executeUpdate()
+            } match {
+              case Failure(exception) => throw exception
+              case Success(value) => value
+            }
+          }(ec)
+
+          val zipped = List(f1, f2, f3).reduceLeft((l, r) => l.zipWith(r)(_ + _))
+          val a = Await.result(zipped, Duration.create(5L, SECONDS))
+          if (a == 3) {
+            connection.commit()
+            connection.setAutoCommit(true)
+            Right(3)
+          } else {
+            connection.rollback(beforeAnyInsertions)
+            connection.setAutoCommit(true)
+            Left(QueryError(ERROR, DataProcessingError))
+          }
+        }
+    }
   }
 
 }

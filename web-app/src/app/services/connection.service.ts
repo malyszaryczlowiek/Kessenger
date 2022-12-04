@@ -1,4 +1,4 @@
-import { HttpClient, HttpHeaders, HttpResponse } from '@angular/common/http';
+import { HttpClient, HttpHeaders, HttpParams, HttpResponse } from '@angular/common/http';
 import { Injectable, Inject, EventEmitter } from '@angular/core';
 
 import { Observable, of } from 'rxjs';
@@ -13,6 +13,7 @@ import { Settings } from '../models/Settings';
 import { Writing } from '../models/Writing';
 
 import { SessionService } from './session.service';
+import { ChatData } from '../models/ChatData';
 // import * as SockJS from 'sockjs-client';
 
 
@@ -94,10 +95,10 @@ export class ConnectionService {
 
   logout(): Observable<HttpResponse<any>> | undefined {
     const token = this.session.getSessionToken()
-    if ( this.session.isSessionValid() && token) {
+    if ( token ) {
       return this.http.get<any>(this.api + '/logout',{
         headers:  new HttpHeaders()
-        .set('KSID', token),
+          .set('KSID', token),
         observe: 'response', 
         responseType: 'json'
       });
@@ -109,10 +110,10 @@ export class ConnectionService {
 
   user(userId: string): Observable<HttpResponse<{user: User, settings: Settings}>> | undefined {
     const token = this.session.getSessionToken()
-    if ( this.session.isSessionValid() && token) {
-      return this.http.get<{user: User, settings: Settings}>(this.api + `/user/${userId}/settings`, {
-        headers:  new HttpHeaders()
-        .set('KSID', token),
+    if ( token ) {
+      return this.http.get<{user: User, settings: Settings}>(this.api + `/user/${userId}`, {
+        headers: new HttpHeaders()
+          .set('KSID', token),
         observe: 'response', 
         responseType: 'json'
       });
@@ -122,15 +123,14 @@ export class ConnectionService {
 
 
 
-
-
-  // todo zweryfikować
-  getUserChats(userId: string): Observable<HttpResponse<Chat[]>> | undefined {
+  // todo zmienić typy zwracany
+  
+  changeSettings(s: Settings): Observable<HttpResponse<any>> | undefined  {
     const token = this.session.getSessionToken()
-    if ( this.session.isSessionValid() && token ) {
-      return this.http.get<Chat[]>(this.api + `/user/${userId}/chats`, {
+    if ( token ) {
+      return this.http.post<any>(this.api + '/user', s, { 
         headers:  new HttpHeaders()
-        .set('KSID', token),
+          .set('KSID', token),
         observe: 'response', 
         responseType: 'json'
       });
@@ -138,15 +138,67 @@ export class ConnectionService {
   }
 
 
+  // todo zmienić typy zwracany
 
-
-
-
-
-  saveSettings(s: Settings): Observable<HttpResponse<any>> | undefined {
+  changeMyLogin(userId: string, newLogin: string): Observable<HttpResponse<any>> | undefined {
     const token = this.session.getSessionToken()
-    if ( this.session.isSessionValid() && token) {
-      return this.http.post<any>(this.api + '/user',{ // todo tutaj zmienić ścieżkę
+    if ( token ) {
+      return this.http.put<any>(this.api + `/user/${userId}/changeLogin`, newLogin, { 
+        headers:  new HttpHeaders()
+          .set('KSID', token),
+        observe: 'response',
+        responseType: 'json'
+      });
+    } else return undefined;
+  }
+
+
+  changePassword(userId: string, newPassword: string): Observable<HttpResponse<any>> | undefined {
+    const token = this.session.getSessionToken()
+    if ( token ) {
+      return this.http.put<any>(this.api + `/user/${userId}/changePassword`, newPassword, { 
+        headers:  new HttpHeaders()
+          .set('KSID', token),
+        observe: 'response',
+        responseType: 'json'
+      });
+    } else return undefined;
+  }
+
+
+  searchUser(userId: string, search: string) : Observable<HttpResponse<User>> | undefined {
+    const token = this.session.getSessionToken()
+    if ( token ) {
+      return this.http.get<User>(this.api + `/user/${userId}/searchUser`, { 
+        headers:  new HttpHeaders()
+          .set('KSID', token),
+        observe: 'response',
+        responseType: 'json',
+        params: new HttpParams().set('u', search)
+      });
+    } else return undefined;
+  }
+
+
+
+  getChats(userId: string): Observable<HttpResponse<Array<ChatData>>> | undefined {
+    const token = this.session.getSessionToken()
+    if ( token ) {
+      return this.http.get<Array<ChatData>>(this.api + `/user/${userId}/chats`, {
+        headers:  new HttpHeaders()
+          .set('KSID', token),
+        observe: 'response', 
+        responseType: 'json'
+      });
+    } else return undefined;
+  }
+
+
+  // nieużywana
+  getChatUsers(userId: string, chatId: string): Observable<HttpResponse<User[]>> | undefined {
+    const token = this.session.getSessionToken()
+    if ( token ) {
+      return this.http.get<User[]>(this.api + `/user/${userId}/chats/${chatId}`, {
         headers:  new HttpHeaders()
           .set('KSID', token),
         observe: 'response', 
@@ -157,17 +209,94 @@ export class ConnectionService {
 
 
 
-  changeLogin(userId: string, newLogin: string): Observable<HttpResponse<string>> | undefined {
+  
+  // nieużywana
+  leaveChat(userId: string, chatId: string): Observable<HttpResponse<any>> | undefined {
     const token = this.session.getSessionToken()
-    if ( this.session.isSessionValid() && token) {
-      return this.http.put<string>(this.api + `/user/${userId}/changeLogin`, newLogin, { 
-        headers:  new HttpHeaders()
+    if ( token ) {
+      return this.http.delete<any>(this.api + `/user/${userId}/chats/${chatId}`, {
+        headers: new HttpHeaders()
           .set('KSID', token),
-        observe: 'response'
-//        responseType: 'text'
+        observe: 'response', 
+        responseType: 'json'
       });
     } else return undefined;
   }
+
+
+
+
+  // nieużywana
+  updateChatName(userId: string, chatId: string, newChatName: string): Observable<HttpResponse<any>> | undefined {
+    const token = this.session.getSessionToken()
+    if ( token ) {
+      return this.http.put<any>(this.api + `/user/${userId}/chats/${chatId}/newChatName`, newChatName, {
+        headers: new HttpHeaders()
+          .set('KSID', token),
+        observe: 'response', 
+        responseType: 'json'
+      });
+    } else return undefined;
+  }
+
+
+
+  addUsersToChat(userId: string, chatId: string, chatName: string, userIds: string[]): Observable<HttpResponse<any>> | undefined {
+    const token = this.session.getSessionToken()
+    if ( token ) {
+      const body = {
+        chatName: chatName,
+        users: userIds
+      }
+      return this.http.post<any>(this.api + `/user/${userId}/chats/${chatId}/addNewUsers`, body, {
+        headers: new HttpHeaders()
+          .set('KSID', token),
+        observe: 'response', 
+        responseType: 'json'
+      });
+    } else return undefined;
+  }
+
+
+
+  /*
+    OD TEGO ENDPOINTU KONTYNUOWAĆ SPRAWDZANIE
+  */
+  newChat(me: User, chatId: string, chatName: string, users: string[]): Observable<HttpResponse<Chat>> | undefined  {
+    const token = this.session.getSessionToken()
+    if ( token ) {
+      const body = {
+        me: me,
+        users: users,
+        chatName: chatName
+      }
+      return this.http.post<Chat>(this.api + `/user/${me.userId}/chats/${chatId}/newChat`, body, {
+        headers: new HttpHeaders()
+          .set('KSID', token),
+        observe: 'response', 
+        responseType: 'json'
+      });
+    } else return undefined;
+  }
+
+
+  
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
 
 
 

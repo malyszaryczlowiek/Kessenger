@@ -2,19 +2,16 @@ package controllers
 
 import akka.actor.ActorSystem
 import akka.stream.Materializer
-
 import components.actions.{SessionChecker, SessionUpdater}
 import components.actors.WebSocketActor
 import components.db.MyDbExecutor
 import components.executioncontexts.{DatabaseExecutionContext, MyExecutionContext}
 import components.util.converters.{JsonParsers, PasswordConverter, SessionConverter}
-
 import io.github.malyszaryczlowiek.kessengerlibrary.db.queries.{DataProcessingError, LoginTaken, QueryError, UndefinedError, UnsupportedOperation}
-import io.github.malyszaryczlowiek.kessengerlibrary.domain.Domain.ChatId
-import io.github.malyszaryczlowiek.kessengerlibrary.domain.{Chat, Domain,  Settings, User}
+import io.github.malyszaryczlowiek.kessengerlibrary.domain.Domain.{ChatId, DbResponse}
+import io.github.malyszaryczlowiek.kessengerlibrary.domain.{Chat, Domain, Settings, User}
 import io.github.malyszaryczlowiek.kessengerlibrary.domain.Chat.parseChatToJSON
 import io.github.malyszaryczlowiek.kessengerlibrary.domain.User.parseListOfUsersToJSON
-
 import play.api.db.Database
 import play.api.libs.streams.ActorFlow
 import play.api.mvc._
@@ -284,26 +281,96 @@ class KessengerController @Inject()
       db,
       dbExecutor,
       headersParser
-    )
-      .andThen(
-        SessionUpdater(parse.anyContent, userId)(
-          databaseExecutionContext,
-          db,
-          dbExecutor,
-          headersParser
-        )
+    ).andThen(
+      SessionUpdater(parse.anyContent, userId)(
+        databaseExecutionContext,
+        db,
+        dbExecutor,
+        headersParser
       )
-      .async(implicit request => {
+    ).async(implicit request => {
+      Future {
+        db.withConnection(implicit connection => {
+          dbExecutor.findUserWithUUID(userId) match {
+            case Left(value) => InternalServerError("Error 009. You are logged in with SessionChecker and SessionUpdater ")
+            case Right(userAndSettings) => Ok(jsonParser.toJSON(userAndSettings))
+          }
+        })
+      }(databaseExecutionContext)
+    })
+
+
+
+
+
+
+  def changeSettings(userId: UUID) = TODO
+
+
+  def changeMyLogin(userId: UUID) =
+    SessionChecker(parse.anyContent, userId)(
+      databaseExecutionContext,
+      db,
+      dbExecutor,
+      headersParser
+    ).andThen(
+      SessionUpdater(parse.anyContent, userId)(
+        databaseExecutionContext,
+        db,
+        dbExecutor,
+        headersParser
+      )
+    ).async(implicit request => {
+      request.body.asText.map(newLogin => {
         Future {
           db.withConnection(implicit connection => {
-            dbExecutor.findUserWithUUID(userId) match {
-              case Left(value) => InternalServerError("Error 009. You are logged in with SessionChecker and SessionUpdater ")
-              case Right(userAndSettings) => Ok(jsonParser.toJSON(userAndSettings))
+            dbExecutor.updateMyLogin(userId, newLogin) match {
+              case Left(QueryError(_, m)) =>
+                m match {
+                  case LoginTaken => BadRequest("Error 029. Login taken. Try with another one. ")
+                  case _ => InternalServerError("Error 030.")
+                }
+              case Right(i) =>
+                if (i == 1) Ok(newLogin)
+                else Accepted("Warning 031. Nothing to do.")
             }
           })
         }(databaseExecutionContext)
-      })
+      }).getOrElse(Future.successful(InternalServerError(s"Error 028. Cannot parse payload data. ")))
+    })
 
+
+
+  def changePassword(userId: UUID) = TODO
+
+
+
+  def searchUser(userId: UUID, u: String) =
+    SessionChecker(parse.anyContent, userId)(
+      databaseExecutionContext,
+      db,
+      dbExecutor,
+      headersParser
+    ).andThen(
+      SessionUpdater(parse.anyContent, userId)(
+        databaseExecutionContext,
+        db,
+        dbExecutor,
+        headersParser
+      )
+    ).async(implicit request => {
+      Future {
+        db.withConnection(implicit connection => {
+          dbExecutor.findUser(u) match {
+            case Left(_) =>
+              InternalServerError("Error 010.")
+            case Right(found) =>
+              if (found.isEmpty) NoContent
+              else Ok(jsonParser.toJSON(found))
+          }
+        })
+      }(databaseExecutionContext)
+    })
 
 
 
@@ -313,83 +380,164 @@ class KessengerController @Inject()
    * @return returns user's chats
    */
 
-  def userChats(userId: UUID) =
+  def getChats(userId: UUID) =
     SessionChecker(parse.anyContent, userId)(
       databaseExecutionContext,
       db,
       dbExecutor,
       headersParser
-    )
-      .andThen(
-        SessionUpdater(parse.anyContent, userId)(
-          databaseExecutionContext,
-          db,
-          dbExecutor,
-          headersParser
-        )
+    ).andThen(
+      SessionUpdater(parse.anyContent, userId)(
+        databaseExecutionContext,
+        db,
+        dbExecutor,
+        headersParser
       )
-      .async(implicit request => {
-        // tutaj dodać pobieranie danych o wszystkich czatach w któych jest użytkownik
-        // następnie musi (powinno?) nastąpić przekierowanie na endpoint web socketa
-        // odpowiedziealny za komunikację z serwerem
-        Future {
-          db.withConnection(implicit connection => {
-            dbExecutor.findMyChats(userId) match {
-              case Left(value)  => InternalServerError("Error 009. You are logged in with SessionChecker and SessionUpdater ")
-              case Right(chats) => Ok(jsonParser.chatsToJSON(chats))
-            }
+    ).async(implicit request => {
+      // tutaj dodać pobieranie danych o wszystkich czatach w któych jest użytkownik
+      // następnie musi (powinno?) nastąpić przekierowanie na endpoint web socketa
+      // odpowiedziealny za komunikację z serwerem
+      Future {
+        db.withConnection(implicit connection => {
+          dbExecutor.findMyChats(userId) match {
+            case Left(value) => InternalServerError("Error 009. You are logged in with SessionChecker and SessionUpdater ")
+            case Right(chats) => Ok( jsonParser.chatsToJSON(chats) )
+          }
           })
-        }(databaseExecutionContext)
-      })
+      }(databaseExecutionContext)
+    })
 
 
 
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-  // to może być websocketowe
-  // post
-  def searchUsers(userId: UUID, l: List[String]) =
+  def getChatUsers(userId: UUID, chatId: ChatId) =
     SessionChecker(parse.anyContent, userId)(
       databaseExecutionContext,
       db,
       dbExecutor,
       headersParser
-    )
-      .andThen(
-        SessionUpdater(parse.anyContent, userId)(
-          databaseExecutionContext,
-          db,
-          dbExecutor,
-          headersParser
-        )
+    ).andThen(
+      SessionUpdater(parse.anyContent, userId)(
+        databaseExecutionContext,
+        db,
+        dbExecutor,
+        headersParser
       )
-      .async(implicit request => {
+    ).async(implicit request => {
+      Future {
+        db.withConnection( implicit connection => {
+          dbExecutor.findChatUsers(chatId) match {
+            case Left(_) => InternalServerError("Error 021. Database Error")
+            case Right(listOfUser) => Ok(jsonParser.toJSON(listOfUser))
+          }
+        })
+      }(databaseExecutionContext)
+    })
+
+
+
+
+  def leaveChat(userId: UUID, chatId: String) =
+    SessionChecker(parse.anyContent, userId)(
+      databaseExecutionContext,
+      db,
+      dbExecutor,
+      headersParser
+    ).andThen(
+      SessionUpdater(parse.anyContent, userId)(
+        databaseExecutionContext,
+        db,
+        dbExecutor,
+        headersParser
+      )
+    ).async(implicit request =>
+      Future {
+        db.withConnection { implicit connection =>
+          dbExecutor.leaveTheChat(userId, chatId, groupChat = true) match {
+            case Left(QueryError(_, UnsupportedOperation)) =>
+              BadRequest("Error 022. You cannot leave this type of chat.")
+            case Left(QueryError(_, DataProcessingError)) =>
+              InternalServerError(s"Error 023. ${DataProcessingError.toString()}")
+            case Left(_) =>
+              InternalServerError(s"Error 024. ${UndefinedError.toString()}")
+            case Right(value) =>
+              Ok(s"W czacie zostało $value użytkowników.")
+          }
+        }
+      }(databaseExecutionContext)
+    )
+
+
+
+
+
+
+  def updateChatName(userId: UUID, chatId: String) =
+    SessionChecker(parse.anyContent, userId)(
+      databaseExecutionContext,
+      db,
+      dbExecutor,
+      headersParser
+    ).andThen(
+      SessionUpdater(parse.anyContent, userId)(
+        databaseExecutionContext,
+        db,
+        dbExecutor,
+        headersParser
+      )
+    ).async(implicit request =>
+      request.body.asText.map(newName => {
         Future {
-          db.withConnection(implicit connection => {
-            dbExecutor.findUsers(l) match {
-              case Left(_) =>
-                InternalServerError("Error 010.").withSession(sessionConverter.updateSession(request))
-              case Right(found) =>
-                if (found.isEmpty) NoContent.withSession(sessionConverter.updateSession(request))
-                else Ok(jsonParser.toJSON(found)).withSession(sessionConverter.updateSession(request))
+          db.withConnection { implicit connection =>
+            dbExecutor.updateChatName(userId, chatId, newName) match {
+              case Left(queryError) =>
+                InternalServerError(s"Error 026. ${queryError.description.toString()}")
+              case Right(value) =>
+                if (value == 1) Ok("name changed")
+                else BadRequest("Error 027, Cannot change chat name. User is not participant of chat or chat does not exist.")
             }
-          })
+          }
         }(databaseExecutionContext)
-      })
+      }).getOrElse(Future.successful(InternalServerError(s"Error 028. Cannot parse payload data. ")))
+    )
+
+
+
+
+
+
+  def addUsersToChat(userId: UUID, chatId: ChatId) =
+    SessionChecker(parse.anyContent, userId)(
+      databaseExecutionContext,
+      db,
+      dbExecutor,
+      headersParser
+    ).andThen(
+      SessionUpdater(parse.anyContent, userId)(
+        databaseExecutionContext,
+        db,
+        dbExecutor,
+        headersParser
+      )
+    ).async(implicit request =>
+      request.body.asJson.map(newChatUsers => {
+        jsonParser.parseNewChatUsers(newChatUsers.toString()) match {
+          case Left(_) => Future.successful(BadRequest("Error 018, JSON parsing error."))
+          case Right((chatName, users)) =>
+            Future {
+              db.withConnection { implicit connection =>
+                dbExecutor.addNewUsersToChat(users, chatId, chatName) match {
+                  case Left(queryError) => InternalServerError(s"Error 019. ${queryError.description.toString()}")
+                  case Right(value)     => Ok(s"$value users added.")
+                }
+              }
+            }(databaseExecutionContext)
+        }
+      }).getOrElse(Future.successful(InternalServerError(s"Error 020. Cannot parse JSON data.")))
+      )
+
 
 
 
@@ -405,34 +553,30 @@ class KessengerController @Inject()
       db,
       dbExecutor,
       headersParser
-    )
-      .andThen(
-        SessionUpdater(parse.anyContent, userId)(
-          databaseExecutionContext,
-          db,
-          dbExecutor,
-          headersParser
-        )
+    ).andThen(
+      SessionUpdater(parse.anyContent, userId)(
+        databaseExecutionContext,
+        db,
+        dbExecutor,
+        headersParser
       )
-      .async(implicit request => {
-        request.body.asJson.map(json => {
-          jsonParser.newChatJSON(json.toString()) match {
-            case Left(_) => Future.successful(BadRequest("Error 011. Cannot parse JSON payload.").withSession(sessionConverter.updateSession(request)))
-            case Right((me, otherId, chatName)) =>
-              Future {
-                db.withConnection(implicit connection => {
-                  val chatId = Domain.generateChatId(userId, otherId)
-                  dbExecutor.createSingleChat(me, otherId, chatId, chatName) match {
-                    case Left(QueryError(_, UnsupportedOperation)) => BadRequest("Error 012. Chat already exists.").withSession(sessionConverter.updateSession(request))
-                    case Left(queryError) => InternalServerError(s"Error 013. ${queryError.description.toString()}").withSession(sessionConverter.updateSession(request))
-                    case Right(createdChat) => Ok(parseChatToJSON(createdChat)).withSession(sessionConverter.updateSession(request))
-                  }
-                })
-              }(databaseExecutionContext)
-          }
-        })
-          .getOrElse(Future.successful(BadRequest("Error 014, JSON parsing error.").withSession(sessionConverter.updateSession(request))))
-      })
+    ).async(implicit request => {
+      request.body.asJson.map(json => {
+        jsonParser.newChatJSON(json.toString()) match {
+          case Left(_) => Future.successful(BadRequest("Error 011. Cannot parse JSON payload."))
+          case Right((me, users, chatName)) =>
+            Future {
+              db.withConnection( implicit connection => {
+                dbExecutor.createChat(me, users, chatName) match {
+                  case Left(QueryError(_, UnsupportedOperation)) => BadRequest("Error 012. Chat already exists.")
+                  case Left(queryError) => InternalServerError(s"Error 013. ${queryError.description.toString()}")
+                  case Right(createdChat) => Ok(parseChatToJSON(createdChat))
+                }
+              })
+            }(databaseExecutionContext)
+        }
+      }).getOrElse(Future.successful(BadRequest("Error 014, JSON parsing error.")))
+    })
 
 
 
@@ -440,250 +584,63 @@ class KessengerController @Inject()
 
   // jak serwer wyśle odpowiedź, że czat został zapisany w bazie danych
   // to należy we frontendzie wysłać na kafkę powiadomienia o dadaniu do czatu.
-
-  def newGroupChat(userId: UUID) =
-    SessionChecker(parse.anyContent, userId)(
-      databaseExecutionContext,
-      db,
-      dbExecutor,
-      headersParser
-    )
-      .andThen(
-        SessionUpdater(parse.anyContent, userId)(
-          databaseExecutionContext,
-          db,
-          dbExecutor,
-          headersParser
-        )
-      )
-      .async(implicit request => {
-        request.body.asJson.map(json => {
-          jsonParser.newGroupChatJSON(json.toString()) match {
-            case Left(_) => Future.successful(BadRequest("Error 015, JSON parsing error.").withSession(sessionConverter.updateSession(request)))
-            case Right((users, chatName)) =>
-              Future {
-                db.withConnection(implicit connection => {
-                  val chatId = Domain.generateChatId(UUID.randomUUID(), UUID.randomUUID())
-                  dbExecutor.createGroupChat(users, chatName, chatId) match {
-                    case Left(_) => InternalServerError("Error 016. Database Error").withSession(sessionConverter.updateSession(request))
-                    case Right(chat: Chat) =>
-                      Ok(parseChatToJSON(chat)).withSession(sessionConverter.updateSession(request))
-                  }
-                })
-              }(databaseExecutionContext)
-          }
-        })
-          .getOrElse(Future.successful(BadRequest("Error 017, JSON parsing error.").withSession(sessionConverter.updateSession(request))))
-      })
-
-
-
-
-  // TODO write tests for this method
-  def addUsersToChat(userId: UUID) =
-    SessionChecker(parse.anyContent, userId)(
-      databaseExecutionContext,
-      db,
-      dbExecutor,
-      headersParser
-    )
-      .andThen(
-        SessionUpdater(parse.anyContent, userId)(
-          databaseExecutionContext,
-          db,
-          dbExecutor,
-          headersParser
-        )
-      )
-      .async(implicit request =>
-        request.body.asJson.map(newChatUsers => {
-          jsonParser.parsNewChatUsers(newChatUsers.toString()) match {
-            case Left(value) => Future.successful(
-              BadRequest("Error 018, JSON parsing error.")
-                .withSession(sessionConverter.updateSession(request))
-            )
-            case Right((users, chatId, chatName)) =>
-              Future {
-                db.withConnection { implicit connection =>
-                  dbExecutor.addNewUsersToChat(users, chatId, chatName) match {
-                    case Left(queryError) =>
-                      InternalServerError(s"Error 019. ${queryError.description.toString()}")
-                        .withSession(sessionConverter.updateSession(request))
-                    case Right(value) =>
-                      Ok(s"$value users added.")
-                        .withSession(sessionConverter.updateSession(request))
-                  }
-                }
-              }(databaseExecutionContext)
-          }
-        }
-        ).getOrElse(Future.successful(
-          InternalServerError(s"Error 020. Cannot parse JSON data.")
-            .withSession(sessionConverter.updateSession(request))
-        ))
-      )
-
-
-
-
-
-  def getChat(userId: UUID, chatId: ChatId) =
-    SessionChecker(parse.anyContent, userId)(
-      databaseExecutionContext,
-      db,
-      dbExecutor,
-      headersParser
-    )
-      .andThen(
-        SessionUpdater(parse.anyContent, userId)(
-          databaseExecutionContext,
-          db,
-          dbExecutor,
-          headersParser
-        )
-      )
-      .async(implicit request => {
-        Future {
-          db.withConnection(implicit connection => {
-            dbExecutor.findChatUsers(chatId) match {
-              case Left(_)     => InternalServerError("Error 021. Database Error")
-              case Right(list) => Ok(jsonParser.toJSON(list))
-            }
-          })
-        }(databaseExecutionContext)
-      })
+//  @deprecated
+//  def newGroupChat(userId: UUID) =
+//    SessionChecker(parse.anyContent, userId)(
+//      databaseExecutionContext,
+//      db,
+//      dbExecutor,
+//      headersParser
+//    )
+//      .andThen(
+//        SessionUpdater(parse.anyContent, userId)(
+//          databaseExecutionContext,
+//          db,
+//          dbExecutor,
+//          headersParser
+//        )
+//      )
+//      .async(implicit request => {
+//        request.body.asJson.map(json => {
+//          jsonParser.newGroupChatJSON(json.toString()) match {
+//            case Left(_) => Future.successful(BadRequest("Error 015, JSON parsing error.").withSession(sessionConverter.updateSession(request)))
+//            case Right((users, chatName)) =>
+//              Future {
+//                db.withConnection(implicit connection => {
+//                  val chatId = Domain.generateChatId(UUID.randomUUID(), UUID.randomUUID())
+//                  dbExecutor.createGroupChat(users, chatName, chatId) match {
+//                    case Left(_) => InternalServerError("Error 016. Database Error").withSession(sessionConverter.updateSession(request))
+//                    case Right(chat: Chat) =>
+//                      Ok(parseChatToJSON(chat)).withSession(sessionConverter.updateSession(request))
+//                  }
+//                })
+//              }(databaseExecutionContext)
+//          }
+//        })
+//          .getOrElse(Future.successful(BadRequest("Error 017, JSON parsing error.").withSession(sessionConverter.updateSession(request))))
+//      })
 
 
 
 
 
 
-  def leaveChat(userId: UUID, chatId: String) =
-    SessionChecker(parse.anyContent, userId)(
-      databaseExecutionContext,
-      db,
-      dbExecutor,
-      headersParser
-    )
-      .andThen(
-        SessionUpdater(parse.anyContent, userId)(
-          databaseExecutionContext,
-          db,
-          dbExecutor,
-          headersParser
-        )
-      )
-      .async( implicit request =>
-        request.body.asText.map(gc => {
-          val groupChat = gc.toBoolean
-          if (groupChat) {
-            Future {
-              db.withConnection { implicit connection =>
-                dbExecutor.leaveTheChat(userId, chatId, groupChat) match {
-                  case Left(QueryError(_, UnsupportedOperation)) =>
-                    BadRequest("Error 022. You cannot leave this type of chat.").withSession(sessionConverter.updateSession(request))
-                  case Left(QueryError(_, DataProcessingError)) =>
-                    InternalServerError(s"Error 023. ${DataProcessingError.toString()}").withSession(sessionConverter.updateSession(request))
-                  case Left(_) =>
-                    InternalServerError(s"Error 024. ${UndefinedError.toString()}").withSession(sessionConverter.updateSession(request))
-                  case Right(value) =>
-                    Ok(s"W czacie zostało $value użytkowników.")
-                      .withSession(sessionConverter.updateSession(request))
-                }
-              }
-            }(databaseExecutionContext)
-          } else
-            Future.successful(BadRequest("Error 025. Cannot leave single chat.").withSession(sessionConverter.updateSession(request)))
-        }
-        ).getOrElse(Future.successful(InternalServerError("Error 026. Cannot parse payload data. ").withSession(sessionConverter.updateSession(request))))
-      )
 
 
 
 
 
 
-  // metoda put
-  def updateChatName(userId: UUID, chatId: String) =
-    SessionChecker(parse.anyContent, userId)(
-      databaseExecutionContext,
-      db,
-      dbExecutor,
-      headersParser
-    )
-      .andThen(
-        SessionUpdater(parse.anyContent, userId)(
-          databaseExecutionContext,
-          db,
-          dbExecutor,
-          headersParser
-        )
-      )
-      .async(implicit request =>
-        request.body.asText.map(newName => {
-          Future {
-            db.withConnection { implicit connection =>
-              dbExecutor.updateChatName(userId, chatId, newName) match {
-                case Left(queryError) =>
-                  InternalServerError(s"Error 026. ${queryError.description.toString()}").withSession(sessionConverter.updateSession(request))
-                case Right(value) =>
-                  if (value == 1) {
-                    Ok("name changed")
-                      .withSession(sessionConverter.updateSession(request))
-                  } else {
-                    BadRequest("Error 027, Cannot change chat name. User is not participant of chat or chat does not exist.")
-                      .withSession(sessionConverter.updateSession(request))
-                  }
-
-              }
-            }
-          }(databaseExecutionContext)
-        }
-        ).getOrElse(Future.successful(InternalServerError(s"Error 028. Cannot parse payload data. ").withSession(sessionConverter.updateSession(request))))
-      )
 
 
 
 
 
-  def changeSettings(userId: UUID) = TODO
 
 
 
-  // TODO wyciągnąć nowy login z body
-  def changeMyLogin(userId: UUID, n: String) =
-    SessionChecker(parse.anyContent, userId)(
-      databaseExecutionContext,
-      db,
-      dbExecutor,
-      headersParser
-    )
-      .andThen(
-        SessionUpdater(parse.anyContent, userId)(
-          databaseExecutionContext,
-          db,
-          dbExecutor,
-          headersParser
-        )
-      )
-      .async(implicit request => {
-        Future {
-          db.withConnection(implicit connection => {
-            dbExecutor.updateMyLogin(userId, n) match {
-              case Left(QueryError(_, m)) =>
-                m match {
-                  case LoginTaken =>
-                    BadRequest("Error 029. Login taken. Try with another one. ")
-                      .withSession(sessionConverter.updateSession(request))
-                  case _ => InternalServerError("Error 030.").withSession(sessionConverter.updateSession(request))
-                }
-              case Right(i) =>
-                if (i == 1) Ok(n).withSession(sessionConverter.updateSession(request))
-                else Accepted("Warning 031. Nothing to do.").withSession(sessionConverter.updateSession(request))
-            }
-          })
-        }(databaseExecutionContext)
-      })
+
+
 
 
 

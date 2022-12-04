@@ -18,7 +18,8 @@ class HeadersParser {
         val validityTime = splitted(2).toLong
         Option( SessionInfo(sessionId , userId , validityTime ) )
       } catch {
-        case e: _ => None
+        case e: Exception => None
+        case _ => None
       }
     } else None
   }

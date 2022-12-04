@@ -74,6 +74,7 @@ export class SessionService {
  */
 
   getSessionToken(): string | undefined  {
+    this.fetchKsid();
     if (this.ksid) {
       return  this.ksid?.toString();
     } else  return undefined 

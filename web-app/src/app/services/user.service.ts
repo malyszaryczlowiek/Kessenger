@@ -67,7 +67,7 @@ export class UserService {
 
 
       // we get user's chats
-      const c = this.connection.getUserChats(userId);
+      const c = this.connection.getChats(userId);
       if ( c ){
         c.subscribe({
           next: (response) => {
@@ -75,12 +75,13 @@ export class UserService {
             const chats = response.body 
             // we sort newest (larger lastMessageTime) first.
             if (chats) {
-              this.chatAndUsers = chats.sort((a,b) => -(a.lastMessageTime - b.lastMessageTime))
-              .map((chat, i, array) => {
+              this.chatAndUsers = chats.sort((a,b) => -(a.chat.lastMessageTime - b.chat.lastMessageTime))
+              .map((item, i, array) => {
                 return {
-                  chat: chat,
-                  users: new Array<User>(),
-                  messages: new Array<Message>()
+                  chat: item.chat,
+                  partitionOffsets: item.partitionOffsets,
+                  users: item.users,
+                  messages: item.messages
                 };
               });
             }
@@ -146,7 +147,7 @@ export class UserService {
 
 
 
-
+  // Server calls 
 
 
 
@@ -170,23 +171,37 @@ export class UserService {
   }
 
 
-
-
-  getChats(): Observable<HttpResponse<Chat[]>> | undefined {
-    if ( this.user ) {
-      return this.connection.getUserChats(this.user?.userId);
-    } else {
-      this.clearService();
-      return undefined;
-    } 
+  changeSettings(s: Settings): Observable<HttpResponse<any>> | undefined {
+    return this.connection.changeSettings(s)
   }
 
 
-  changeLogin(newLogin: string): Observable<HttpResponse<string>> | undefined {
+  changeMyLogin(newLogin: string): Observable<HttpResponse<string>> | undefined {
     if ( this.user ) {
-      return this.connection.changeLogin(this.user.userId, newLogin)
+      return this.connection.changeMyLogin(this.user.userId, newLogin)
     } else return undefined
   }
+
+
+  changePassword(newPassword: string): Observable<HttpResponse<any>> | undefined {
+    if (this.user)
+      return this.connection.changePassword(this.user.userId, newPassword);
+    else return undefined;  
+  }
+
+
+
+
+
+
+  userChats(): Observable<HttpResponse<ChatData[]>> | undefined {
+    if ( this.user ) {
+      return this.connection.getChats(this.user.userId);
+    } else return undefined;
+  }
+
+
+
 
 
 
@@ -198,9 +213,7 @@ export class UserService {
   }
 
 
-  saveSettings(s: Settings): Observable<HttpResponse<any>> | undefined {
-    return this.connection.saveSettings(s)
-  }
+
 
 
 

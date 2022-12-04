@@ -64,7 +64,7 @@ export class TestComponent implements OnInit {
         sessionDuration: time,
         zoneId:  zone
       }
-      const obs = this.userService.saveSettings( body )
+      const obs = this.userService.changeSettings( body )
       if ( obs ) {
         obs.subscribe({
           next: (response) => {},

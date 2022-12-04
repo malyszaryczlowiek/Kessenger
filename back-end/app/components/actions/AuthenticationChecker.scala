@@ -24,7 +24,7 @@ class AuthenticationChecker @Inject()(parserr: BodyParser[AnyContent])
     request.headers.get("Authorization") match {
       case Some(value) =>
         headerParser.parseAuthorization(value) match {
-          case Some((login, pass)) =>
+          case Some((login, pass)) => ???
 
           case None => Future.successful(Unauthorized)
         }

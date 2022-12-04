@@ -65,7 +65,7 @@ export class EditAccountComponent implements OnInit {
         sessionDuration: time,
         zoneId:  zone
       }
-      const obs = this.userService.saveSettings( body )
+      const obs = this.userService.changeSettings( body )
       if ( obs ) {
         obs.subscribe({
           next: (response) => {
@@ -100,7 +100,7 @@ export class EditAccountComponent implements OnInit {
   saveLogin() {
     const newLogin = this.loginFormGroup.controls.loginForm.value
     if ( newLogin ) {
-      const l = this.userService.changeLogin(newLogin)
+      const l = this.userService.changeMyLogin(newLogin)
       if ( l ) {
         l.subscribe({
           next: (response) => {
