@@ -1,15 +1,14 @@
 package components.util.converters
 
 import components.util.LoginCredentials.LoginCredentials
-
 import io.circe.Decoder.Result
 import io.circe.{Decoder, Encoder, Error, HCursor, Json}
 import io.circe.syntax._
 import io.circe.parser.decode
-
 import io.github.malyszaryczlowiek.kessengerlibrary.domain.{Chat, Settings, User}
 import io.github.malyszaryczlowiek.kessengerlibrary.domain.Domain.{Offset, Partition}
 
+import java.time.ZoneId
 import java.util.UUID
 import scala.collection.mutable.ListBuffer
 
@@ -74,6 +73,29 @@ class JsonParsers {
   }
 
 
+  private implicit object settingsDecoder extends Decoder[Settings] {
+    override def apply(c: HCursor): Result[Settings] = {
+      for {
+        joiningOffset   <- c.downField("joiningOffset")  .as[Long]
+        sessionDuration <- c.downField("sessionDuration").as[Long]
+        zoneId          <- c.downField("zoneId")         .as[String]
+      } yield {
+        Settings(joiningOffset , sessionDuration , ZoneId.of(zoneId) )
+      }
+    }
+  }
+
+
+  private implicit object newPassDecoder extends Decoder[(String, String)] {
+    override def apply(c: HCursor): Result[(String, String)] = {
+      for {
+        oldP <- c.downField("oldPass").as[String]
+        newP <- c.downField("newPass").as[String]
+      } yield {
+        (oldP, newP)
+      }
+    }
+  }
 
 
   private implicit object usersChatsEncoder extends Encoder[Map[Chat, Map[Partition, Offset]]] {
@@ -112,12 +134,16 @@ class JsonParsers {
 
 
 
-  def toListOfUsers(json: String): Either[Error, List[User]] = decode[List[User]](json)
-  def toUser(json: String): Either[Error, User] = decode[User](json)
+  def parseListOfUsers(json: String): Either[Error, List[User]] = decode[List[User]](json)
+  def parseUser(json: String): Either[Error, User] = decode[User](json)
 //   def newChatJSON(json: String): Either[Error, (User, UUID, String)] = decode[(User, UUID, String)](json)
-  def newChatJSON(json: String): Either[Error,(User, List[UUID], String)] = decode[(User, List[UUID], String)](json)
+  def parseNewChat(json: String): Either[Error,(User, List[UUID], String)] = decode[(User, List[UUID], String)](json)(newChatJSONDecoder)
   def parseCredentials(json: String): Either[Error, LoginCredentials] = decode[LoginCredentials](json)
   def parseNewChatUsers(json: String): Either[Error, (String, List[UUID])] = decode[(String, List[UUID])](json)(newChatUsersJSONDecoder)
+
+  def parseSettings(json: String):  Either[Error, Settings] = decode[Settings](json)(settingsDecoder)
+
+  def parseNewPass(json: String): Either[Error, (String, String)] = decode[(String, String)](json)(newPassDecoder)
 
 
 }

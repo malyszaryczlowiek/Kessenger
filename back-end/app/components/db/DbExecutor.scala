@@ -76,14 +76,14 @@ class DbExecutor(val kafkaConfigurator: KafkaConfigurator) {
 
 
 
-  def updateUsersPassword(user: User, oldPass: Password, newPass: Password)(implicit connection: Connection): DbResponse[Int] = {
-    val sql = "UPDATE users SET pass = ? WHERE user_id = ? AND login = ? AND pass = ?"
+  def updateUsersPassword(userId: UserID, oldPass: Password, newPass: Password)(implicit connection: Connection): DbResponse[Int] = {
+    val sql = "UPDATE users SET pass = ? WHERE user_id = ? AND pass = ?"
     Using(connection.prepareStatement(sql)) {
       (statement: PreparedStatement) =>
         statement.setString(1, newPass)
-        statement.setObject(2, user.userId)
-        statement.setString(3, user.login)
-        statement.setString(4, oldPass)
+        statement.setObject(2, userId)
+        // statement.setString(3, user.login)
+        statement.setString(3, oldPass)
         statement.executeUpdate()
     } match {
       case Failure(ex) => handleExceptionMessage(ex)
@@ -262,6 +262,28 @@ class DbExecutor(val kafkaConfigurator: KafkaConfigurator) {
     } match {
       case Failure(ex) => handleExceptionMessage(ex)
       case Success(v) => Right(v)
+    }
+  }
+
+
+  def getNumOfValidUserSessions(userId: UserID)(implicit connection: Connection): DbResponse[Int] = {
+    val sql = s"SELECT session_id FROM sessions WHERE user_id = ? AND validity_time > ? "
+    Using(connection.prepareStatement(sql)) {
+      (statement: PreparedStatement) =>
+        statement.setObject(1, userId)
+        statement.setLong(2, System.currentTimeMillis())
+        Using(statement.executeQuery()) {
+          (resultSet: ResultSet) =>
+            var n = 0
+            while (resultSet.next()) n += 1
+            n
+        } match {
+          case Failure(ex) => throw ex
+          case Success(either) => either
+        }
+    } match {
+      case Failure(ex) => handleExceptionMessage[Int](ex)
+      case Success(either) => Right(either)
     }
   }
 
@@ -667,7 +689,20 @@ class DbExecutor(val kafkaConfigurator: KafkaConfigurator) {
 
 
 
-
+  def updateSettings(userId: UserID, settings: Settings )(implicit connection: Connection) = {
+    val sql = "UPDATE settings SET joining_offset = ? , session_duration = ? , zone_id = ? WHERE user_id = ? "
+    Using(connection.prepareStatement(sql)) {
+      (statement: PreparedStatement) =>
+        statement.setLong(1, settings.joiningOffset)
+        statement.setLong(2, settings.sessionDuration)
+        statement.setString(3, settings.zoneId.getId)
+        statement.setObject(4, userId)
+        statement.executeUpdate()
+    } match {
+      case Failure(ex) => handleExceptionMessage(ex)
+      case Success(value) => Right(value)
+    }
+  }
 
 
   /*

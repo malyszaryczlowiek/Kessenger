@@ -32,12 +32,12 @@ object LoginCredentials {
   implicit object decoder extends Decoder[LoginCredentials] {
     override def apply(c: HCursor): Result[LoginCredentials] = {
       for {
-        login <- c.downField("login").as[String]
-        pass <- c.downField("pass").as[String]
+        login  <- c.downField("login") .as[String]
+        pass   <- c.downField("pass")  .as[String]
         userId <- c.downField("userId").as[String]
       } yield {
         if (userId.isEmpty) LoginCredentials(login, pass, None)
-        else LoginCredentials(login, pass, Option(UUID.fromString( userId)))
+        else LoginCredentials(login, pass, Option(UUID.fromString(userId)))
       }
     }
 

@@ -21,7 +21,8 @@ import scala.util.Random
 import java.nio.charset.Charset
 import java.util.UUID
 import javax.inject._
-import scala.concurrent.Future
+import scala.concurrent.duration.{Duration, SECONDS}
+import scala.concurrent.{Await, Future}
 
 
 
@@ -304,7 +305,37 @@ class KessengerController @Inject()
 
 
 
-  def changeSettings(userId: UUID) = TODO
+  def changeSettings(userId: UUID) =
+    SessionChecker(parse.anyContent, userId)(
+      databaseExecutionContext,
+      db,
+      dbExecutor,
+      headersParser
+    ).andThen(
+      SessionUpdater(parse.anyContent, userId)(
+        databaseExecutionContext,
+        db,
+        dbExecutor,
+        headersParser
+      )
+    ).async( implicit request => {
+      request.body.asJson.map( s => {
+        jsonParser.parseSettings(s.toString()) match {
+          case Left(_) => Future.successful(InternalServerError(s"Error 028. Cannot parse payload data. "))
+          case Right(settings) =>
+            Future {
+              db.withConnection( implicit connection => {
+                dbExecutor.updateSettings(userId, settings) match {
+                  case Left(_) => InternalServerError(s"Error XXX")
+                  case Right(v) =>
+                    if (v == 1) Ok(s"New Settings Saved.")
+                    else Accepted(s"Nothing to updated.") // something bad
+                }
+              })
+            }(databaseExecutionContext)
+        }
+      }).getOrElse(Future.successful(InternalServerError(s"Error 028. Cannot parse payload data. ")))
+    })
 
 
   def changeMyLogin(userId: UUID) =
@@ -341,7 +372,63 @@ class KessengerController @Inject()
 
 
 
-  def changePassword(userId: UUID) = TODO
+  def changePassword(userId: UUID) =
+    SessionChecker(parse.anyContent, userId)(
+      databaseExecutionContext,
+      db,
+      dbExecutor,
+      headersParser
+    ).andThen(
+      SessionUpdater(parse.anyContent, userId)(
+        databaseExecutionContext,
+        db,
+        dbExecutor,
+        headersParser
+      )
+    ).async(implicit request => {
+      request.body.asJson.map( json => {
+        jsonParser.parseNewPass(json.toString()) match {
+          case Left(_) => Future.successful(InternalServerError(s"Error 028. Cannot parse payload data. "))
+          case Right((oldP, newP)) =>
+            val (o,n) = (
+              passwordConverter.convert(oldP),
+              passwordConverter.convert(newP)
+            )
+            (o,n) match {
+              case (Right(old), Right(neww)) =>
+                Future {
+                  db.withConnection(implicit connection => {
+                    dbExecutor.updateUsersPassword(userId,old, neww) match {
+                      case Left(_) => InternalServerError(s"Error XXX")
+                      case Right(v) =>
+                        if (v == 1) Ok(s"New Password Saved.")
+                        else Accepted(s"Nothing to updated.") // something bad
+                    }
+                  })
+                }(databaseExecutionContext)
+              case _ => Future.successful(InternalServerError(s"Error XXX. Conversion Error."))
+            }
+        }
+    }).getOrElse(Future.successful(InternalServerError(s"Error 028. Cannot parse payload data. ")))
+
+
+//  jsonParser.parseSettings(s.toString()) match {
+//          case Left(_) => Future.successful(InternalServerError(s"Error 028. Cannot parse payload data. "))
+//          case Right(settings) =>
+//            Future {
+//              db.withConnection(implicit connection => {
+//                dbExecutor.updateSettings(userId, settings) match {
+//                  case Left(_) => InternalServerError(s"Error XXX")
+//                  case Right(v) =>
+//                    if (v == 1) Ok(s"New Settings Saved.")
+//                    else Accepted(s"Nothing to updated.") // something bad
+//                }
+//              })
+//            }(databaseExecutionContext)
+//        }
+//      }).getOrElse(Future.successful(InternalServerError(s"Error 028. Cannot parse payload data. ")))
+
+    })
 
 
 
@@ -562,7 +649,7 @@ class KessengerController @Inject()
       )
     ).async(implicit request => {
       request.body.asJson.map(json => {
-        jsonParser.newChatJSON(json.toString()) match {
+        jsonParser.parseNewChat(json.toString()) match {
           case Left(_) => Future.successful(BadRequest("Error 011. Cannot parse JSON payload."))
           case Right((me, users, chatName)) =>
             Future {
@@ -621,53 +708,55 @@ class KessengerController @Inject()
 //      })
 
 
+  // TODO tutaj należy sprawdzić header (nagłówek) Origin z rządania
+  //  jeśli będzie zgody z localhost:4200 to nie odrzucać.
+  //  oraz sprawdzić czy dany userId ma w bazie danych ważną sesję
+  //  jeśli tak to uruchomić Actora
+  //  jeśli nie to odrzućić
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-  // TODO dokończyć definiowanie websocketa
+  // dokończyć definiowanie websocketa
   //  https://www.playframework.com/documentation/2.8.x/ScalaWebSockets
   def ws(userId: UUID) =
-    WebSocket.accept[String, String] { request =>
-      // TODO tutaj należy sprawdzić header (nagłówek) Origin z rządania
-      //  jeśli będzie zgody z localhost:4200 to nie odrzucać.
-      // TODO tutaj przekopiiować kod z session checkera
-      //  tak aby wiedzieć czy użytkownik jest uwierzytelniony
-
-
-      //      sprawdźSesje match {
-//        case Left(_) =>
-//        case Right =>
-      println(s"odebrałem rządanie HTTP.")
-      ActorFlow.actorRef { out =>
-        println(s"wszedłem w ActorFlow.")
-        WebSocketActor.props(out)
-      }
-//      }
+    WebSocket.acceptOrResult[String, String] { request =>
+      Future.successful(
+        request.headers.get("Origin") match {
+          case Some(value) =>
+            if (value == "localhost:4200") {
+              val f = Future {
+                db.withConnection( implicit connection => {
+                  dbExecutor.getNumOfValidUserSessions(userId)
+                })
+              }(databaseExecutionContext)
+              try {
+                val result = Await.result(f, Duration.create(2L, SECONDS))
+                result match {
+                  case Left(_) => Left(InternalServerError("Error XXX."))
+                  case Right(value) =>
+                    // this means we have one valid session at leased
+                    if (value > 0 ) {
+                      println(s"odebrałem rządanie HTTP.")
+                      Right(
+                        ActorFlow.actorRef { out =>
+                          println(s"wszedłem w ActorFlow.")
+                          WebSocketActor.props(out)
+                        }
+                      )
+                    } else Left(Unauthorized("Error XXX. No valid session."))
+                }
+              } catch {
+                case e: Throwable => Left(InternalServerError("Error XXX."))
+              }
+            } else Left(BadRequest("Error XXX."))
+          case None => Left(BadRequest("Error XXX."))
+        }
+      )
   }
 
+
+
+
+  @deprecated
   def ws =
     WebSocket.accept[String, String] { request =>
 
@@ -677,27 +766,23 @@ class KessengerController @Inject()
 
       // Headers.create().add("Access-Control-Allow-Origin" -> "http://localhost:4200").get("Access-Control-Allow-Origin") match {
 
-      // TODO tutaj należy sprawdzić header (nagłówek) Origin z rządania
-      //  jeśli będzie zgody z localhost:4200 to nie odrzucać.
+
       //WebSocket.acceptOrResult[String, String] { request =>
-      // TODO tutaj przekopiiować kod z session checkera
-      //  tak aby wiedzieć czy użytkownik jest uwierzytelniony
-      //      sprawdźSesje match {
-      //        case Left(_) =>
-      //        case Right =>
       println(s"odebrałem rządanie HTTP.")
       ActorFlow.actorRef { out =>
         println(s"wszedłem w ActorFlow.")
         WebSocketActor.props(out)
       }
-      //      }
     }
 
 
 
 
+
+
+
   /*
-  TODO zbudować 4 endpointy
+  zbudować 4 endpointy
     1. GET zwracający obiekt User
     2. POST wysyłający dane do logowania z tokenem CSRF.
     3. POST obsługujący CSRF wysyłający w body stringa
@@ -787,7 +872,7 @@ class KessengerController @Inject()
       println()
       println(s"posted user $str")
       println()
-      jsonParser.toUser(str) match {
+      jsonParser.parseUser(str) match {
         case Left(_) => Future.successful(BadRequest("Cannot parse JSON payload."))
         case Right(u) => Future.successful(Ok(u.toString))
       }
@@ -806,7 +891,7 @@ class KessengerController @Inject()
   // post to get user back
   def jsonarraypost = Action.async { implicit request =>
     request.body.asJson.map(jsv => {
-      jsonParser.toListOfUsers(jsv.toString()) match {
+      jsonParser.parseListOfUsers(jsv.toString()) match {
         case Left(_) => Future.successful(BadRequest("Cannot parse JSON payload."))
         case Right(u) => Future.successful(Ok(u.toString))
       }

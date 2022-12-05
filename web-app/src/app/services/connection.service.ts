@@ -123,12 +123,12 @@ export class ConnectionService {
 
 
 
-  // todo zmienić typy zwracany
   
+  // WAŻNE napisać w backendzie
   changeSettings(s: Settings): Observable<HttpResponse<any>> | undefined  {
     const token = this.session.getSessionToken()
     if ( token ) {
-      return this.http.post<any>(this.api + '/user', s, { 
+      return this.http.put<any>(this.api + '/user', s, { 
         headers:  new HttpHeaders()
           .set('KSID', token),
         observe: 'response', 
@@ -137,8 +137,6 @@ export class ConnectionService {
     } else return undefined;
   }
 
-
-  // todo zmienić typy zwracany
 
   changeMyLogin(userId: string, newLogin: string): Observable<HttpResponse<any>> | undefined {
     const token = this.session.getSessionToken()
@@ -152,11 +150,15 @@ export class ConnectionService {
     } else return undefined;
   }
 
-
-  changePassword(userId: string, newPassword: string): Observable<HttpResponse<any>> | undefined {
+  // WAŻNE napisać w backendzie
+  changePassword(userId: string, oldPassword: string, newPassword: string): Observable<HttpResponse<any>> | undefined {
     const token = this.session.getSessionToken()
     if ( token ) {
-      return this.http.put<any>(this.api + `/user/${userId}/changePassword`, newPassword, { 
+      const body = {
+        oldPass: oldPassword,
+        newPass: newPassword
+      }
+      return this.http.put<any>(this.api + `/user/${userId}/changePassword`, body, { 
         headers:  new HttpHeaders()
           .set('KSID', token),
         observe: 'response',

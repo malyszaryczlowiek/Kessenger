@@ -183,9 +183,9 @@ export class UserService {
   }
 
 
-  changePassword(newPassword: string): Observable<HttpResponse<any>> | undefined {
+  changePassword(oldPassword: string, newPassword: string): Observable<HttpResponse<any>> | undefined {
     if (this.user)
-      return this.connection.changePassword(this.user.userId, newPassword);
+      return this.connection.changePassword(this.user.userId, oldPassword, newPassword);
     else return undefined;  
   }
 

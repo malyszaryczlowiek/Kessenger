@@ -22,11 +22,11 @@ CREATE TABLE IF NOT EXISTS users_chats (
   user_id uuid REFERENCES users(user_id) ON DELETE CASCADE,
   chat_id varchar(255) REFERENCES chats(chat_id) ON DELETE CASCADE,
   chat_name varchar(255) NOT NULL,
-  message_time   BIGINT DEFAULT 0 NOT NULL,
-  silent boolean DEFAULT false NOT NULL,
-  users_offset_0 BIGINT DEFAULT 0 NOT NULL, --ON DELETE CASCADE,
-  users_offset_1 BIGINT DEFAULT 0 NOT NULL,
-  users_offset_2 BIGINT DEFAULT 0 NOT NULL,
+  message_time   BIGINT  DEFAULT 0 NOT NULL,
+  silent         boolean DEFAULT false NOT NULL,
+  users_offset_0 BIGINT  DEFAULT 0 NOT NULL, --ON DELETE CASCADE,
+  users_offset_1 BIGINT  DEFAULT 0 NOT NULL,
+  users_offset_2 BIGINT  DEFAULT 0 NOT NULL,
   PRIMARY KEY (chat_id, user_id)
 );
 
