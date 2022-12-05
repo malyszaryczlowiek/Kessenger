@@ -1,82 +1,88 @@
 *.class
 *.log
 TODO
-./.idea
-./ClientCliApp/.bsp
-./ClientCliApp/.idea
-./ClientCliApp/project
-./ClientCliApp/target
-./ClientCliApp/createClientImage
-./ClientCliApp/logs
+/.idea
+/.bsp
+/project
+/target
 
-./KafkaStreamsChatAnalyser/.bsp
-./KafkaStreamsChatAnalyser/.idea
-./KafkaStreamsChatAnalyser/project
-./KafkaStreamsChatAnalyser/target
 
-./SparkStreamingAnalyser/.bsp
-./SparkStreamingAnalyser/.idea
-./SparkStreamingAnalyser/project
-./SparkStreamingAnalyser/target
 
-./kafka-broker/kafka-volume
+/ClientCliApp/.bsp
+/ClientCliApp/.idea
+/ClientCliApp/project
+/ClientCliApp/target
+/ClientCliApp/createClientImage
+/ClientCliApp/logs
+
+/KafkaStreamsChatAnalyser/.bsp
+/KafkaStreamsChatAnalyser/.idea
+/KafkaStreamsChatAnalyser/project
+/KafkaStreamsChatAnalyser/target
+
+/SparkStreamingAnalyser/.bsp
+/SparkStreamingAnalyser/.idea
+/SparkStreamingAnalyser/project
+/SparkStreamingAnalyser/target
+
+/kafka-broker/kafka-volume
 
 
 # copied from play .gitignore
-./back-end/logs
-./back-end/target
-./back-end/.bsp
-./back-end/.idea
-./back-end/.idea_modules
-./back-end/.classpath
-./back-end/.project
-./back-end/.settings
-./back-end/RUNNING_PID
-./back-end/TODO
-./back-end/.gitignore
+/back-end/logs
+/back-end/target
+/back-end/.bsp
+/back-end/.idea
+/back-end/.idea_modules
+/back-end/.classpath
+/back-end/.project
+/back-end/.settings
+/back-end/RUNNING_PID
+/back-end/TODO
+/back-end/.gitignore
 
 
 
 # copied from angular vscode project
 
 # Compiled output
-./web-app/dist
-./web-app/tmp
-./web-app/out-tsc
-./web-app/bazel-out
+/web-app/dist
+/web-app/tmp
+/web-app/out-tsc
+/web-app/bazel-out
 
 # Node
-./web-app/node_modules
-./web-app/npm-debug.log
-./web-app/yarn-error.log
+/web-app/node_modules
+/web-app/npm-debug.log
+/web-app/yarn-error.log
 
 # IDEs and editors
-./web-app/.idea/
-./web-app/.project
-./web-app/.classpath
-./web-app/.c9/
-./web-app/*.launch
-./web-app/.settings/
-./web-app/*.sublime-workspace
+/web-app/.idea/
+/web-app/.project
+/web-app/.classpath
+/web-app/.c9/
+/web-app/*.launch
+/web-app/.settings/
+/web-app/*.sublime-workspace
 
 # Visual Studio Code
-./web-app/.vscode/*
-./web-app/!.vscode/settings.json
-./web-app/!.vscode/tasks.json
-./web-app/!.vscode/launch.json
-./web-app/!.vscode/extensions.json
-./web-app/.history/*
+/web-app/.vscode/*
+/web-app/!.vscode/settings.json
+/web-app/!.vscode/tasks.json
+/web-app/!.vscode/launch.json
+/web-app/!.vscode/extensions.json
+/web-app/.history/*
 
 # Miscellaneous
-./web-app/.angular/cache
-./web-app/.sass-cache/
-./web-app/connect.lock
-./web-app/coverage
-./web-app/libpeerconnection.log
-./web-app/testem.log
-./web-app/typings
-./web-app/.gitignore
+/web-app/.angular/cache
+/web-app/.sass-cache/
+/web-app/connect.lock
+/web-app/coverage
+/web-app/libpeerconnection.log
+/web-app/testem.log
+/web-app/typings
+/web-app/.gitignore
 
 # System files
-./web-app/.DS_Store
-./web-app/Thumbs.db
+/web-app/.DS_Store
+/web-app/Thumbs.db
