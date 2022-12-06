@@ -25,12 +25,14 @@ class WebSocketActor(out: ActorRef) extends Actor {
   def receive: Receive = {
     case msg: String =>
       println(s"1. Przetwarzam wiadomość. ")
-      if (msg == "exit") {
+      if (msg == "PoisonPill") {
         out ! ("4. Wyłączam czat.")
         self ! PoisonPill
       }
-      else
-        out ! ("2. Odesłana wiadomość: " + msg)
+      else {
+        // wysyłanie wiadomości z powrotem
+        out ! (msg)
+      }
     case _ =>
       println(s"3a. Nieczytelna wiadomość. ")
       out ! ("3b. Dostałem nieczytelną wiadomość.")

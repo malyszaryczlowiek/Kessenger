@@ -11,7 +11,7 @@ import { UserService } from 'src/app/services/user.service';
 export class SigninComponent implements OnInit {
  
   signInForm = new FormGroup({
-    login: new FormControl('', [Validators.required, Validators.minLength(6)]),
+    login: new FormControl('', [Validators.required, Validators.minLength(4)]),
     password: new FormControl('', [Validators.required, Validators.minLength(6)])  //  todo dodać walidatory
   });
   
@@ -31,30 +31,28 @@ export class SigninComponent implements OnInit {
       if ( signin ){
         signin.subscribe({
           next: (response) => {
-    
-            // we save created user 
-            this.userService.setUserAndSettings(
-              response.body?.user,
-              response.body?.settings
-            );
-  
-            // after successfull request we should update KSID cookie.
-            // this.userService.
-            
-            // and redirect to user site
-            this.router.navigate(['user']);
+            if (response.status === 200) {
+              this.userService.setUserAndSettings(
+                response.body?.user,
+                response.body?.settings
+              );
+              // after successfull request we should update KSID cookie 
+              // to have correct userId
+              this.userService.updateCookie()
+              // and redirect to user site
+              this.router.navigate(['user']);
+            } else {
+
+            }            
           },
           error: (error) => {
-            console.log(error);
+            if (error.status) console.log('sibadabada')
+            console.log(error)
             console.log('clearing UserService.')
             this.userService.clearService();
-  
             this.signInForm.reset();
-            // this.signInForm.value.login. = '';
-            ////this.signInForm.value.password = '';
-  
             // print message to user.
-            this.returnedError = error;
+            this.returnedError = error.error;
           },
           complete: () => {}
         })
@@ -62,8 +60,9 @@ export class SigninComponent implements OnInit {
     }  
   }
 
-
-
+  clearError() {
+    this.returnedError = undefined
+  }
 
 
 }

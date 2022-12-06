@@ -40,7 +40,6 @@ object LoginCredentials {
         else LoginCredentials(login, pass, Option(UUID.fromString(userId)))
       }
     }
-
   }
 
 }

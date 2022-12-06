@@ -96,7 +96,7 @@ class DbExecutor(val kafkaConfigurator: KafkaConfigurator) {
 
 
   /**
-   *
+   * TODO works
    */
   def findUser(login: Login, pass: Password)(implicit connection: Connection): DbResponse[(User, Settings)] = {
     val sql =
@@ -174,7 +174,7 @@ class DbExecutor(val kafkaConfigurator: KafkaConfigurator) {
 
 
 
-
+  // todo works
   def createSession(sessionId: UUID, userId: UUID, validityTime: Long)(implicit connection: Connection): DbResponse[Int] = {
     val sql = "INSERT INTO sessions (session_id, user_id, validity_time)  VALUES (?, ?, ?)"
     Using(connection.prepareStatement(sql)) {
@@ -290,7 +290,7 @@ class DbExecutor(val kafkaConfigurator: KafkaConfigurator) {
 
 
 
-
+  // TODO works
   /**
    * @param sessionId
    * @param userId

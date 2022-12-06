@@ -3,6 +3,6 @@
         <input formControlName="login" type="text" id="signin-login" placeholder="Login">
         <input formControlName="password" type="password" id="signin-pass" placeholder="Password">
         <button [disabled]="!signInForm.valid" type="submit" >Sign In</button>
-        <p *ngIf="returnedError">Error Status: {{ returnedError.status }} Error Description: {{ returnedError.statusText }} </p>
+        <p *ngIf="returnedError" (click)="clearError()">Error Code: {{ returnedError.num }} Error Description: {{ returnedError.message }} </p>
     </form>
 </div>

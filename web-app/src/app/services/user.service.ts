@@ -49,13 +49,16 @@ export class UserService {
             if ( body ){
               this.user = body.user
               this.settings.setSettings(body.settings)
+              // this.connectViaWebsocket()
             }
             else {
               // print error message
-              console.log(`/user/userId/settings: `)
+              console.log(`ERROR /user/userId/settings: `)
             }
           },
           error: (error) => {
+            
+
             console.log(error) 
             this.clearService()
             console.log('redirection to logging page')
@@ -165,7 +168,15 @@ export class UserService {
 
   logout() {
     const l = this.connection.logout();
-    if ( l ) l.subscribe();
+    if ( l ) l.subscribe({
+      next: (response) => {
+        console.log('successfull logout from server')
+      },
+      error: (error) => console.error(error),
+      complete: () => {
+        console.log('logout() completed.')
+      }
+    });
     this.clearService();
     this.router.navigate(['']);
   }
@@ -208,13 +219,6 @@ export class UserService {
 
 
 
-  createChat() {
-    this.connection.createChat();
-  }
-
-
-
-
 
 
 
@@ -225,7 +229,8 @@ export class UserService {
 
 
   connectViaWebsocket() {
-    this.connection.connectViaWS();
+    if (this.user)
+      this.connection.connectViaWS(this.user.userId);
   }
   /*
   tutaj będzie musiał być parsing i obudowanie treści wiadomości 
@@ -241,12 +246,24 @@ export class UserService {
 
 
 
+
+
+
+
+
+
+
+
   
   callAngular() {
     this.connection.callAngular();
   }
 
 
+  updateCookie() {
+    if (this.user?.userId)
+      this.connection.updateSession(this.user.userId)
+  }
   
 
   createKSID(): string | undefined {

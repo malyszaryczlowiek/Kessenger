@@ -7,6 +7,7 @@ import io.circe.syntax._
 import io.circe.parser.decode
 import io.github.malyszaryczlowiek.kessengerlibrary.domain.{Chat, Settings, User}
 import io.github.malyszaryczlowiek.kessengerlibrary.domain.Domain.{Offset, Partition}
+import models.ResponseErrorBody
 
 import java.time.ZoneId
 import java.util.UUID
@@ -130,6 +131,8 @@ class JsonParsers {
   def toJSON(us: Iterable[User]): String = us.asJson.noSpaces
   def toJSON(u: (User, Settings)): String = u.asJson.noSpaces
   def toJSON(u: User): String = u.asJson.noSpaces
+  def toJSON(e: ResponseErrorBody): String = e.asJson.noSpaces
+
   def chatsToJSON(map: Map[Chat, Map[Partition, Offset]]): String = map.asJson.noSpaces
 
 

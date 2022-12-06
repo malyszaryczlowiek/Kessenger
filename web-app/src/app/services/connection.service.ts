@@ -73,8 +73,8 @@ export class ConnectionService {
 
 
   signIn(login: string, pass: string): Observable<HttpResponse<{user: User, settings: Settings}>> | undefined {
-    const fake = uuidv4();
-    this.session.setNewSession(fake); 
+    const fakeUserId = uuidv4();
+    this.session.setNewSession(fakeUserId); 
     const body = {
       login: login,
       pass: pass,
@@ -93,10 +93,10 @@ export class ConnectionService {
 
 
 
-  logout(): Observable<HttpResponse<any>> | undefined {
+  logout(): Observable<HttpResponse<string>> | undefined {
     const token = this.session.getSessionToken()
     if ( token ) {
-      return this.http.get<any>(this.api + '/logout',{
+      return this.http.get<string>(this.api + '/logout',{
         headers:  new HttpHeaders()
           .set('KSID', token),
         observe: 'response', 
@@ -283,10 +283,107 @@ export class ConnectionService {
 
 
   
+  // start_here
+  /* 
+  todo teraz sprawdzić czy wszystko z websocket jest ok 
+  a następnie w userService przepisać te metody wyżej które mają 
+  używać tych endpointów.  
+  */
 
 
 
+  /*
+  WEBSOCKET
+  */
 
+
+  connectViaWS(userId: string) {
+    if (this.wsConnection === undefined) {
+      console.log('Initializing Connection via WebSocket.')
+      this.wsConnection = new WebSocket(`ws://localhost:9000/user/${userId}/ws`);
+      this.wsConnection.onopen = () => {
+        console.log('WebSocket connection opened.');
+        // todo tutaj trzeba wysłać widaomość z konfiguracją 
+        // czyli wszystkie chaty (dokładniej chatId)
+        // jak ma być skonfigurowany actor żeby pobierał
+        // właściwe dane
+        this.wsConnection?.send('configuration')
+      };
+      this.wsConnection.onmessage = (msg: any) => {
+        console.log('Got Message', msg)
+        const body = JSON.parse(msg)
+        //const writing = this.parseTo<Writing>( body )
+        //if (writing) this.writingEmitter.emit(writing)
+        const message = this.parseTo<Message>( body )
+        if (message) this.messageEmitter.emit( message )
+        //const invitation = this.parseTo<Invitation>( body )
+        //if (invitation) this.invitationEmitter.emit(invitation)
+      }
+      this.wsConnection.onclose = () => {
+        console.log('WebSocket connection closed.');
+      };
+      this.wsConnection.onerror = (error) => {
+        console.error('error from web socket', error)
+        // tutaj nie wiem czy nie powiiniśmy użyć kolejnego emittera
+        // i jak tylko pojawia się error to 
+        // zamknąć połączenie i pobnownie otworzyć. 
+      };
+      console.log('Tworzenie WebSocket skończone')
+    }
+  }
+
+
+  parseTo<T>(m: any): T | undefined {
+    try {
+      const p: T = m
+      return p
+    } catch (error){
+      console.log(`cannot parse to selected type`, error)
+      return undefined
+    }
+  }
+
+
+  // method closes 
+  sendPoisonPill() {
+    if (this.wsConnection) {
+      console.log('sending PoisonPill to server.');
+      this.wsConnection.send('PoisonPill');
+    } else {
+      console.error('Did not send data, open a connection first');
+    }
+  }
+
+
+  sendMessage(msg: any) {
+    if (this.wsConnection) {
+      console.log('sending data to server.');
+      this.wsConnection.send(JSON.stringify( msg ));
+    } else {
+      console.error('Did not send data, open a connection first');
+    }
+  }
+
+
+  // not necessary
+  /* sendInvitation(msg: Invitaiton) {
+    if (this.wsConnection) {
+      console.log('sending data to server.');
+      this.wsConnection.send(JSON.stringify( msg ));
+    } else {
+      console.error('Did not send data, open a connection first');
+    }
+  } */
+
+
+  closeWebSocket() {
+    if (this.wsConnection) {
+      this.sendPoisonPill()
+      this.wsConnection.close()
+      console.log('connection deeactivated.');
+      this.wsConnection = undefined;
+    }
+  }
 
 
 
@@ -361,110 +458,13 @@ export class ConnectionService {
   }
 
 
-  createChat() {
-
-  }
 
 
 
 
 
 
-  /*
-  WEBSOCKET
-  */
-
-
-  connectViaWS() {
-    if (this.wsConnection === undefined) {
-      console.log('Initializing Connection via WebSocket.')
-      this.wsConnection = new WebSocket("ws://localhost:9000/angular/ws");
-      this.wsConnection.onopen = () => {
-        console.log('WebSocket connection opened.');
-
-
-        // todo tutaj trzeba wysłać widaomość z konfiguracją 
-        // czyli wszystkie chaty (dokładniej chatId)
-        // jak ma być skonfigurowany actor żeby pobierał
-        // właściwe dane
-
-
-      };
-      this.wsConnection.onmessage = (msg: any) => {
-        console.log('Got Message', msg)
-        
-        const body = JSON.parse(msg)
-        
-        //const writing = this.parseTo<Writing>( body )
-        //if (writing) this.writingEmitter.emit(writing)
-        
-        const message = this.parseTo<Message>( body )
-        if (message) this.messageEmitter.emit(message)
-        
-        //const invitation = this.parseTo<Invitation>( body )
-        //if (invitation) this.invitationEmitter.emit(invitation)
-      }
-      this.wsConnection.onclose = () => {
-        console.log('WebSocket connection closed.');
-      };
-
-      this.wsConnection.onerror = (error) => {
-        console.error('error from web socket', error)
-
-
-        // tutaj nie wiem czy nie powiiniśmy użyć kolejnego emittera
-        // i jak tylko pojawia się error to 
-        // zamknąć połączenie i pobnownie otworzyć. 
-
-      };
-
-
-
-      console.log('Tworzenie WebSocket skończone')
-    }
-  }
-
-
-  parseTo<T>(m: any): T | undefined {
-    try {
-      const p: T = m
-      return p
-    } catch (error){
-      console.log(`cannot parse to selected type`, error)
-      return undefined
-    }
-  }
-
-
-
-  sendMessage(msg: any) {
-    if (this.wsConnection) {
-      console.log('sending data to server.');
-      this.wsConnection.send(JSON.stringify( msg ));
-    } else {
-      console.error('Did not send data, open a connection first');
-    }
-  }
-
-
-  // not necessary
-  /* sendInvitation(msg: Invitaiton) {
-    if (this.wsConnection) {
-      console.log('sending data to server.');
-      this.wsConnection.send(JSON.stringify( msg ));
-    } else {
-      console.error('Did not send data, open a connection first');
-    }
-  } */
-
-
-  closeWebSocket() {
-    if (this.wsConnection) {
-      this.wsConnection.close()
-      console.log('connection deeactivated.');
-      this.wsConnection = undefined;
-    }
-  }
+  
 
 
 

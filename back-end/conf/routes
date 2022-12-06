@@ -29,14 +29,6 @@ PUT          /user/:userId/chats/:chatId/newChatName             controllers.Kes
 POST         /user/:userId/chats/:chatId/addNewUsers             controllers.KessengerController.addUsersToChat(userId: java.util.UUID, chatId: String)
 POST         /user/:userId/newChat                               controllers.KessengerController.newChat(userId: java.util.UUID)
 
-
-
-
-
-
-
-
-
 ####   WEBSOCKET
 # GET          /user/:userId/ws                                   controllers.KessengerController.ws(userId: java.util.UUID)
 

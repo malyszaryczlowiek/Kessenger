@@ -12,6 +12,7 @@ import io.github.malyszaryczlowiek.kessengerlibrary.domain.Domain.{ChatId, DbRes
 import io.github.malyszaryczlowiek.kessengerlibrary.domain.{Chat, Domain, Settings, User}
 import io.github.malyszaryczlowiek.kessengerlibrary.domain.Chat.parseChatToJSON
 import io.github.malyszaryczlowiek.kessengerlibrary.domain.User.parseListOfUsersToJSON
+import models.ResponseErrorBody
 import play.api.db.Database
 import play.api.libs.streams.ActorFlow
 import play.api.mvc._
@@ -204,6 +205,7 @@ class KessengerController @Inject()
   //  })
 
 
+  // TODO this works
   /**
    * sprawdź login i hasło jeśli pasują w db to należy
    * @return
@@ -224,7 +226,7 @@ class KessengerController @Inject()
                         Future {
                           db.withConnection(implicit connection => {
                             dbExecutor.findUser(loginCredentials.login, encodedPass) match {
-                              case Left(_) => BadRequest("Error 013. Login or Password not match.")
+                              case Left(_) => BadRequest(ResponseErrorBody(13, "Login or Password not match.").toString)
                               case Right((user, settings)) =>
                                 val validityTime = System.currentTimeMillis() + settings.sessionDuration
                                 dbExecutor.createSession(sessionData.sessionId, user.userId, validityTime) match {
@@ -258,11 +260,12 @@ class KessengerController @Inject()
           case Some(sessionData) =>
             Future {
               db.withConnection(implicit connection => {
+                println(s"sessionid: ${sessionData.sessionId}, userId: ${sessionData.userId}")
                 dbExecutor.removeSession(sessionData.sessionId, sessionData.userId) match {
                   case Left(_) => InternalServerError("Error 018. Db Error. ")
                   case Right(v) =>
-                    if (v == 1) Ok("Logout successfully.")
-                    else Accepted("Not matching session.")
+                    if (v == 1) Ok(jsonParser.toJSON(ResponseErrorBody(0, "Logout successfully."))) //
+                    else Accepted(jsonParser.toJSON(ResponseErrorBody(0, "Not matching session.")))
                 }
               })
             }(databaseExecutionContext)
