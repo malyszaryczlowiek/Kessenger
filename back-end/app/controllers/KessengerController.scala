@@ -331,7 +331,7 @@ class KessengerController @Inject()
                 dbExecutor.updateSettings(userId, settings) match {
                   case Left(_) => InternalServerError(s"Error XXX")
                   case Right(v) =>
-                    if (v == 1) Ok(s"New Settings Saved.")
+                    if (v == 1) Ok(ResponseErrorBody(0, s"New Settings Saved.").toString)
                     else Accepted(s"Nothing to updated.") // something bad
                 }
               })
@@ -341,7 +341,7 @@ class KessengerController @Inject()
     })
 
 
-  def changeMyLogin(userId: UUID) =
+  def changeLogin(userId: UUID) =
     SessionChecker(parse.anyContent, userId)(
       databaseExecutionContext,
       db,
@@ -361,11 +361,11 @@ class KessengerController @Inject()
             dbExecutor.updateMyLogin(userId, newLogin) match {
               case Left(QueryError(_, m)) =>
                 m match {
-                  case LoginTaken => BadRequest("Error 029. Login taken. Try with another one. ")
+                  case LoginTaken => BadRequest(ResponseErrorBody(29, "Login taken. Try with another one.").toString  )
                   case _ => InternalServerError("Error 030.")
                 }
               case Right(i) =>
-                if (i == 1) Ok(newLogin)
+                if (i == 1) Ok(ResponseErrorBody(0, newLogin).toString)
                 else Accepted("Warning 031. Nothing to do.")
             }
           })
@@ -755,6 +755,51 @@ class KessengerController @Inject()
         }
       )
   }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

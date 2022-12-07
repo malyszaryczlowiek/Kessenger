@@ -27,13 +27,15 @@ export class EditAccountComponent implements OnInit {
   passwordSuccessfullChanged = false;
   passwordErrorMessage: string | undefined  
 
+  returnedError: any | undefined
+
   settingsGroup = new FormGroup({
-    sessionControl : new FormControl(15, [Validators.required, Validators.max(15), Validators.min(1)]),
-    zoneControl : new FormControl(this.defaultZone, [Validators.required, Validators.max(15), Validators.min(1)])
+    sessionControl : new FormControl(this.userSettings.settings.sessionDuration / (60000), [Validators.required, Validators.max(15), Validators.min(1)]),
+    zoneControl : new FormControl(this.userSettings.settings.zoneId, [Validators.required, Validators.max(15), Validators.min(1)])
   })
 
   loginFormGroup = new FormGroup({
-    loginForm: new FormControl('', [Validators.required, Validators.minLength(8)])
+    loginForm: new FormControl('', [Validators.required, Validators.minLength(4)])
   });
 
   // TODO dostawić powtórzenie hasła i sprawdzić czy są takie same
@@ -51,6 +53,8 @@ export class EditAccountComponent implements OnInit {
   ngOnInit(): void {
     this.zones = this.userSettings.zones
     this.settings = this.userSettings.settings
+    this.settingsGroup.controls.zoneControl.setValue( this.settings.zoneId )
+    this.settingsGroup.controls.sessionControl.setValue( this.settings.sessionDuration / (60000) )
   }
 
 
@@ -61,38 +65,41 @@ export class EditAccountComponent implements OnInit {
     const zone = this.settingsGroup.controls.zoneControl.value
     if (this.settings && time && zone) {
       const body: Settings = {
-        joiningOffset: this.settings?.joiningOffset,
-        sessionDuration: time,
-        zoneId:  zone
+        joiningOffset: this.userSettings.settings.joiningOffset,
+        sessionDuration: time * 60 * 1000,
+        zoneId: zone
       }
+      const oldSett = this.userSettings.settings
+      this.userSettings.setSettings( body )
       const obs = this.userService.changeSettings( body )
       if ( obs ) {
         obs.subscribe({
           next: (response) => {
-            // todo here check status 
-            this.userSettings.setSettings( body )
+            
+            // this.userService.updateSession()
             this.settingsChanged = true
           },
           error: (error) => {
             console.log("ERROR", error)
+            this.userSettings.setSettings( oldSett )
+            if (error.status == 401){
+              console.log('Session is out.')
+              this.userService.clearService()
+              this.router.navigate(['session-timeout'])
+            }
+            else {
+              this.returnedError = error.error
+            }
           },
           complete: () => {
             console.log("completed")
           }
         })
       } else {
-        // if undefined this means sesstion expired so we need 
-        // destroy userService and redirect to session timeout
         this.router.navigate(['session-timeout'])
       }
     }
   }
-
-
-
-
-
-
 
 
 
@@ -100,24 +107,37 @@ export class EditAccountComponent implements OnInit {
   saveLogin() {
     const newLogin = this.loginFormGroup.controls.loginForm.value
     if ( newLogin ) {
-      const l = this.userService.changeMyLogin(newLogin)
+      const l = this.userService.changeLogin(newLogin)
       if ( l ) {
         l.subscribe({
           next: (response) => {
             const b = response.body
             if ( b ) { 
+              this.userService.updateLogin(newLogin)
               console.log(`new login ${b}`)
               this.loginSuccessfullChanged = true
             }
           },
           error: (error) => {
-            console.log(error)
+            console.log("ERROR", error)
+            if (error.status == 401){
+              console.log('Session is out.')
+              this.userService.clearService()
+              this.router.navigate(['session-timeout'])
+            }
+            if (error.status == 400) {
+              if (error.error.message == 'Login taken. Try with another one.') {
+                this.loginTaken = true
+              }
+            }
+            else {
+              this.returnedError = error.error
+            }
           },
           complete: () => {},
         })
-      } else {
+      } else 
         this.router.navigate(['session-timeout'])
-      }
     }
   }
 
@@ -125,7 +145,34 @@ export class EditAccountComponent implements OnInit {
 
 
   changePassword() {
+    const oldPass = this.passGroup.controls.old.value
+    const newPass = this.passGroup.controls.neww.value
+    if (oldPass && newPass) {
+      const p = this.userService.changePassword(oldPass, newPass)
+      if ( p ) {
+        tutuaj kontynuować
+        p.subscribe({
+          next: (response) => {},
+          error: (err) => {},
+          complete: () => {}
+        })
+      } 
+      else 
+        this.router.navigate(['session-timeout'])
+    }
+  }
 
+  clearSettingsNotification() {
+    this.settingsChanged = false
+  }
+
+  clearLoginNotification() {
+    this.loginSuccessfullChanged = false
+    this.loginTaken = false
+  }
+
+  clearError() {
+    this.returnedError = undefined
   }
 
 

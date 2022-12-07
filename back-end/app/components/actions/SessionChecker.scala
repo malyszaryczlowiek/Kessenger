@@ -2,6 +2,7 @@ package components.actions
 
 import components.db.MyDbExecutor
 import components.util.converters.SessionConverter
+import models.ResponseErrorBody
 import play.api.db.Database
 import play.api.mvc.Results._
 import play.api.mvc._
@@ -44,7 +45,7 @@ case class SessionChecker @Inject()(parserr: BodyParser[AnyContent], userId: UUI
             case Left(error) => Future.successful(error)
             case Right(b) =>
               if (b) block(req)
-              else Future.successful(InternalServerError("Error 019. Other internal Server Error."))
+              else Future.successful(Unauthorized(ResponseErrorBody(19, "Session timeout").toString))
           }
         } catch {
           case e: concurrent.TimeoutException =>

@@ -18,7 +18,7 @@
         </form>
         
     </div>
-    <p *ngIf="settingsChanged">Your Settings Successfully Changed!!!</p>
+    <p *ngIf="settingsChanged" (click)="clearSettingsNotification()">Your Settings Successfully Changed!!!</p>
     <p *ngIf="settingsErrorMessage">{{ settingsErrorMessage }}</p>
     
     
@@ -30,8 +30,8 @@
             <button type="submit" [disabled]="!loginFormGroup.valid">Change</button>
         </form>
     </div>
-    <p *ngIf="loginSuccessfullChanged">Login Successfully changed!!!</p>
-    <p *ngIf="loginTaken">Login Taken, Try With Another One!!!</p>
+    <p *ngIf="loginSuccessfullChanged" (click)="clearLoginNotification()">Login Successfully changed!!!</p>
+    <p *ngIf="loginTaken" (click)="clearLoginNotification()">Login Taken, Try With Another One!!!</p>
     <p *ngIf="loginErrorMessage">{{ loginErrorMessage }}</p>
     <p></p>
 
@@ -49,4 +49,7 @@
     <p *ngIf="passwordErrorMessage">{{ passwordErrorMessage }}</p>
     <p> </p>
     <button routerLink="/user" routerLinkActive="active" ariaCurrentWhenActive="page">Back to Chats</button>
+</div>
+<div>
+    <p *ngIf="returnedError" (click)="clearError()">Error Code: {{ returnedError.num }} Error Description: {{ returnedError.message }} </p>
 </div>

@@ -46,7 +46,7 @@ export class SessionService {
     //   unless user will actualize  session making some request. 
     const time: number = this.utcService.getUTCmilliSeconds() + this.userSettings.settings.sessionDuration; // current  time + 15 min
     this.ksid = new Ksid(uuidv4(), userId , time);
-    this.cookieService.set('KSID', this.ksid.toString(), this.getExpirationTime());
+    this.cookieService.set('KSID', this.ksid.toString(), this.getExpirationTime(), '/');
   }
 
 
@@ -55,7 +55,7 @@ export class SessionService {
     if ( this.ksid ) {
       const time: number = this.utcService.getUTCmilliSeconds() + this.userSettings.settings.sessionDuration; // current  time + 15 min
       this.ksid = new Ksid(this.ksid.sessId, userId, time);
-      this.cookieService.set('KSID', this.ksid.toString(), this.getExpirationTime());
+      this.cookieService.set('KSID', this.ksid.toString(), this.getExpirationTime(), '/');
     }    
   }
 

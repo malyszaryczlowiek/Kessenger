@@ -17,7 +17,7 @@ POST         /signin                                             controllers.Kes
 GET          /logout                                             controllers.KessengerController.logout
 GET          /user/:userId                                       controllers.KessengerController.user(userId: java.util.UUID)
 PUT          /user/:userId/changeSettings                        controllers.KessengerController.changeSettings(userId: java.util.UUID)
-PUT          /user/:userId/changeLogin                           controllers.KessengerController.changeMyLogin(userId: java.util.UUID)
+PUT          /user/:userId/changeLogin                           controllers.KessengerController.changeLogin(userId: java.util.UUID)
 PUT          /user/:userId/changePassword                        controllers.KessengerController.changePassword(userId: java.util.UUID)
 GET          /user/:userId/searchUser                            controllers.KessengerController.searchUser(userId: java.util.UUID, u: String)
 

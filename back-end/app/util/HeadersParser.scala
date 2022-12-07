@@ -40,7 +40,7 @@ class HeadersParser {
     }
   }
 
-
+  @deprecated
   def parseAuthorization(a: String): Option[(String, String)] = {
     val arr = a.split("\\s") // split with white space
     if ( arr.length != 2) None

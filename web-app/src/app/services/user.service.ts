@@ -11,6 +11,7 @@ import { ChatData } from '../models/ChatData';
 import { Settings } from '../models/Settings';
 import { HttpResponse } from '@angular/common/http';
 import { UserSettingsService } from './user-settings.service';
+import { Invitation } from '../models/Invitation';
 
 @Injectable({
   providedIn: 'root'
@@ -23,15 +24,6 @@ export class UserService {
 
   // this probably may cause problems 
   public invitationEmitter = this.connection.invitationEmitter
-
-
-  /*
-
-   WAŻNE
-        z uwagi na to, że rządania czasami odpowiadają błędem w którym jest 
-        string to muszę zwracać obiekt any i taki dopiero rzutować ???
-
-  */
 
 
   constructor(private connection: ConnectionService, private settings: UserSettingsService, private router: Router) { 
@@ -182,51 +174,115 @@ export class UserService {
   }
 
 
+
+  getUser(): Observable<HttpResponse<{user: User, settings: Settings}>> | undefined {
+    if (this.user){ 
+      this.connection.updateSession(this.user.userId)
+      return this.connection.user(this.user.userId)
+    }
+    else 
+      return undefined
+  }
+
+
   changeSettings(s: Settings): Observable<HttpResponse<any>> | undefined {
-    return this.connection.changeSettings(s)
+    if (this.user)  {
+      this.connection.updateSession(this.user.userId)
+      return this.connection.changeSettings(this.user.userId, s)
+    }      
+    else 
+      return undefined
   }
 
 
-  changeMyLogin(newLogin: string): Observable<HttpResponse<string>> | undefined {
-    if ( this.user ) {
-      return this.connection.changeMyLogin(this.user.userId, newLogin)
-    } else return undefined
+  changeLogin(newLogin: string): Observable<HttpResponse<any>> | undefined {
+    if (this.user) {
+      this.connection.updateSession(this.user.userId)
+      return this.connection.changeLogin(this.user.userId, newLogin)
+    }
+    else
+      return undefined
   }
+
 
 
   changePassword(oldPassword: string, newPassword: string): Observable<HttpResponse<any>> | undefined {
-    if (this.user)
+    if (this.user) {
+      this.connection.updateSession(this.user.userId)
       return this.connection.changePassword(this.user.userId, oldPassword, newPassword);
+    }
     else return undefined;  
   }
 
 
+  searchUser(search: string): Observable<HttpResponse<User[]>> | undefined {
+    if (this.user) {
+      this.connection.updateSession(this.user.userId)
+      return this.connection.searchUser(this.user.userId, search);
+    }
+    else return undefined;
+  }
 
+  // chats
+  
 
-
-
-  userChats(): Observable<HttpResponse<ChatData[]>> | undefined {
+  getChats(): Observable<HttpResponse<ChatData[]>> | undefined {
     if ( this.user ) {
+      this.connection.updateSession(this.user.userId)      
       return this.connection.getChats(this.user.userId);
-    } else return undefined;
+    }
+    else return undefined;
   }
 
 
+  getChatUsers(chatId: string): Observable<HttpResponse<User[]>> | undefined {
+    if (this.user) {
+      this.connection.updateSession(this.user.userId)      
+      return this.connection.getChatUsers(this.user.userId, chatId);
+    }
+    else return undefined;
+  }
 
 
+  leaveChat(chatId: string): Observable<HttpResponse<any>> | undefined {
+    if (this.user) {
+      this.connection.updateSession(this.user.userId)      
+      return this.connection.leaveChat(this.user.userId, chatId);
+    }
+    else return undefined;
+  }
 
 
+  updateChatName(chatId: string, newName: string): Observable<HttpResponse<any>> | undefined {
+    if (this.user) {
+      this.connection.updateSession(this.user.userId)      
+      return this.connection.updateChatName(this.user.userId, chatId, newName);
+    } 
+    else return undefined;
+  }
 
 
+  addUsersToChat(chatId: string, chatName: string, usersIds: string[]) {
+    if (this.user)  {
+      this.connection.updateSession(this.user.userId)      
+      return this.connection.addUsersToChat(this.user.userId, chatId, chatName, usersIds);
+    }    
+    else return undefined;    
+  }
 
+  newChat(chatName: string, usersIds: string[]) {
+    if (this.user) {
+      this.connection.updateSession(this.user.userId)      
+      return this.connection.newChat(this.user, chatName, usersIds);
+    } 
+    else return undefined;    
+  }
 
 
 
   /*
     WEBSOCKET methods
   */
-
-
 
   connectViaWebsocket() {
     if (this.user)
@@ -240,9 +296,29 @@ export class UserService {
     this.connection.sendMessage(msg);
   }
 
+  sendInvitation(inv: Invitation) {
+    this.connection.sendInvitation(inv)
+  }
+
   closeWS() {
     this.connection.closeWebSocket();
   }
+
+
+  updateLogin(newLogin: string) {
+    if (this.user) this.user.login = newLogin
+  }
+
+
+
+
+
+
+
+
+
+
+
 
 
 

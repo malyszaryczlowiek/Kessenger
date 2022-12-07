@@ -25,9 +25,21 @@ export class UserComponent implements OnInit {
     }    
   }
 
-  przepisać wyszstkie metody z ConnectionService do UserService tak aby można było wykonywać rządania
+  // przepisać wyszstkie metody z ConnectionService do UserService tak aby można było wykonywać rządania
+  
+  // a  następnie tutaj zaimplementować fetchowanie danych z servera jesli nie 
+  // ma ich jeszcze w userSerivece
 
-  fetch() {
+  // oraz  napisać pętlę sprawdzającą czy dalej jest ciasko 
+  // a jak już nie będzie to należy wylogować użytkownika i p
+  // przenieść go do strony logoawania 
+
+
+
+
+
+
+  /* fetch() {
     if ( userId ) {
       this.connection.updateSession(userId);
       console.log('KSID exists') 
@@ -91,6 +103,9 @@ export class UserComponent implements OnInit {
         })
       }
     }
-  }
+  } */
+
+
+
 
 }

@@ -124,11 +124,10 @@ export class ConnectionService {
 
 
   
-  // WAŻNE napisać w backendzie
-  changeSettings(s: Settings): Observable<HttpResponse<any>> | undefined  {
+  changeSettings(userId: string, s: Settings): Observable<HttpResponse<any>> | undefined  {
     const token = this.session.getSessionToken()
     if ( token ) {
-      return this.http.put<any>(this.api + '/user', s, { 
+      return this.http.put<any>(this.api + `/user/${userId}/changeSettings`, s, { 
         headers:  new HttpHeaders()
           .set('KSID', token),
         observe: 'response', 
@@ -138,7 +137,7 @@ export class ConnectionService {
   }
 
 
-  changeMyLogin(userId: string, newLogin: string): Observable<HttpResponse<any>> | undefined {
+  changeLogin(userId: string, newLogin: string): Observable<HttpResponse<any>> | undefined {
     const token = this.session.getSessionToken()
     if ( token ) {
       return this.http.put<any>(this.api + `/user/${userId}/changeLogin`, newLogin, { 
@@ -149,6 +148,7 @@ export class ConnectionService {
       });
     } else return undefined;
   }
+
 
   // WAŻNE napisać w backendzie
   changePassword(userId: string, oldPassword: string, newPassword: string): Observable<HttpResponse<any>> | undefined {
@@ -168,10 +168,10 @@ export class ConnectionService {
   }
 
 
-  searchUser(userId: string, search: string) : Observable<HttpResponse<User>> | undefined {
+  searchUser(userId: string, search: string) : Observable<HttpResponse<User[]>> | undefined {
     const token = this.session.getSessionToken()
     if ( token ) {
-      return this.http.get<User>(this.api + `/user/${userId}/searchUser`, { 
+      return this.http.get<User[]>(this.api + `/user/${userId}/searchUser`, { 
         headers:  new HttpHeaders()
           .set('KSID', token),
         observe: 'response',
@@ -264,7 +264,7 @@ export class ConnectionService {
   /*
     OD TEGO ENDPOINTU KONTYNUOWAĆ SPRAWDZANIE
   */
-  newChat(me: User, chatId: string, chatName: string, users: string[]): Observable<HttpResponse<Chat>> | undefined  {
+  newChat(me: User, chatName: string, users: string[]): Observable<HttpResponse<Chat>> | undefined  {
     const token = this.session.getSessionToken()
     if ( token ) {
       const body = {
@@ -272,7 +272,7 @@ export class ConnectionService {
         users: users,
         chatName: chatName
       }
-      return this.http.post<Chat>(this.api + `/user/${me.userId}/chats/${chatId}/newChat`, body, {
+      return this.http.post<Chat>(this.api + `/user/${me.userId}/newChat`, body, {
         headers: new HttpHeaders()
           .set('KSID', token),
         observe: 'response', 
@@ -366,14 +366,23 @@ export class ConnectionService {
 
 
   // not necessary
-  /* sendInvitation(msg: Invitaiton) {
+  sendInvitation(msg: Invitation) {
     if (this.wsConnection) {
-      console.log('sending data to server.');
+      console.log('sending invitation to server.');
       this.wsConnection.send(JSON.stringify( msg ));
     } else {
       console.error('Did not send data, open a connection first');
     }
-  } */
+  } 
+
+  sendWriting(w: Writing) {
+    if (this.wsConnection) {
+      console.log('sending invitation to server.');
+      this.wsConnection.send(JSON.stringify( w ));
+    } else {
+      console.error('Did not send data, open a connection first');
+    }
+  }
 
 
   closeWebSocket() {

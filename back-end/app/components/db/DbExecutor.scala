@@ -68,7 +68,7 @@ class DbExecutor(val kafkaConfigurator: KafkaConfigurator) {
         if (ex.getMessage.contains("duplicate key value violates unique constraint")) {
           Left(QueryError(ERROR, LoginTaken))
         }
-        handleExceptionMessage(ex)
+        else handleExceptionMessage(ex)
       case Success(v) => Right(v)
     }
   }
@@ -688,8 +688,8 @@ class DbExecutor(val kafkaConfigurator: KafkaConfigurator) {
   }
 
 
-
-  def updateSettings(userId: UserID, settings: Settings )(implicit connection: Connection) = {
+  // todo works
+  def updateSettings(userId: UserID, settings: Settings )(implicit connection: Connection): DbResponse[Int] = {
     val sql = "UPDATE settings SET joining_offset = ? , session_duration = ? , zone_id = ? WHERE user_id = ? "
     Using(connection.prepareStatement(sql)) {
       (statement: PreparedStatement) =>
