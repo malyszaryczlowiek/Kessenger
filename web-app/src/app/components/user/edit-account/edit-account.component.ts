@@ -15,19 +15,15 @@ export class EditAccountComponent implements OnInit {
   settings: Settings | undefined
   defaultZone = 'UTC'
   zones: string[] = []
+  seconds: number = 0
 
 
-  settingsChanged = false
-  settingsErrorMessage: string | undefined
-
-  loginSuccessfullChanged = false;
-  loginTaken = false;
-  loginErrorMessage: string | undefined
-
-  passwordSuccessfullChanged = false;
-  passwordErrorMessage: string | undefined  
-
+  settingsResponse: any | undefined
+  loginResponse: any | undefined
+  passwordResponse: any | undefined  
   returnedError: any | undefined
+
+
 
   settingsGroup = new FormGroup({
     sessionControl : new FormControl(this.userSettings.settings.sessionDuration / (60000), [Validators.required, Validators.max(15), Validators.min(1)]),
@@ -55,6 +51,7 @@ export class EditAccountComponent implements OnInit {
     this.settings = this.userSettings.settings
     this.settingsGroup.controls.zoneControl.setValue( this.settings.zoneId )
     this.settingsGroup.controls.sessionControl.setValue( this.settings.sessionDuration / (60000) )
+    this.seconds = this.userService.logoutSeconds
   }
 
 
@@ -75,9 +72,9 @@ export class EditAccountComponent implements OnInit {
       if ( obs ) {
         obs.subscribe({
           next: (response) => {
-            
-            // this.userService.updateSession()
-            this.settingsChanged = true
+            this.settingsResponse = response.body
+            this.userService.changeLogoutTimer() 
+            this.userService.updateSession()
           },
           error: (error) => {
             console.log("ERROR", error)
@@ -115,7 +112,7 @@ export class EditAccountComponent implements OnInit {
             if ( b ) { 
               this.userService.updateLogin(newLogin)
               console.log(`new login ${b}`)
-              this.loginSuccessfullChanged = true
+              this.loginResponse = b
             }
           },
           error: (error) => {
@@ -126,9 +123,11 @@ export class EditAccountComponent implements OnInit {
               this.router.navigate(['session-timeout'])
             }
             if (error.status == 400) {
-              if (error.error.message == 'Login taken. Try with another one.') {
+              this.loginResponse = error.error
+              /* if (error.error.message == 'Login taken. Try with another one.') {
                 this.loginTaken = true
               }
+               */
             }
             else {
               this.returnedError = error.error
@@ -150,10 +149,23 @@ export class EditAccountComponent implements OnInit {
     if (oldPass && newPass) {
       const p = this.userService.changePassword(oldPass, newPass)
       if ( p ) {
-        tutuaj kontynuować
+        //tutuaj kontynuowaća
         p.subscribe({
-          next: (response) => {},
-          error: (err) => {},
+          next: (response) => {
+            if (response.status == 200) {
+              this.passwordResponse = response.body
+            }
+          },
+          error: (err) => {
+            if (err.status == 400) {
+              this.passwordResponse = err.error
+            }
+            if (err.status == 401){
+              console.log('Session is out.')
+              this.userService.clearService()
+              this.router.navigate(['session-timeout'])
+            }
+          },
           complete: () => {}
         })
       } 
@@ -163,12 +175,15 @@ export class EditAccountComponent implements OnInit {
   }
 
   clearSettingsNotification() {
-    this.settingsChanged = false
+    this.settingsResponse = undefined
   }
 
   clearLoginNotification() {
-    this.loginSuccessfullChanged = false
-    this.loginTaken = false
+    this.loginResponse = undefined
+  }
+
+  clearPasswordNotification() {
+    this.passwordResponse = undefined
   }
 
   clearError() {

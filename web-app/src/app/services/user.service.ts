@@ -1,9 +1,7 @@
-import { Injectable } from '@angular/core';
+import { EventEmitter, Injectable } from '@angular/core';
 import { Observable, of } from 'rxjs';
 import { ConnectionService } from './connection.service';
 import { v4 as uuidv4 } from 'uuid';
-
-import { Chat } from '../models/Chat';
 import { Message} from '../models/Message';
 import { User } from '../models/User';
 import { Router } from '@angular/router';
@@ -12,6 +10,7 @@ import { Settings } from '../models/Settings';
 import { HttpResponse } from '@angular/common/http';
 import { UserSettingsService } from './user-settings.service';
 import { Invitation } from '../models/Invitation';
+// import { clearInterval } from 'stompjs';
 
 @Injectable({
   providedIn: 'root'
@@ -22,15 +21,36 @@ export class UserService {
   public chatAndUsers: Array<ChatData> = new Array();
 
 
+  zmienić logout timer na setInterval tak aby odliczał sekundy do 
+  końca sesji a gdy czas upłynie żeby wywoływał wylogowanie. 
+
+  logoutTimer: NodeJS.Timeout | undefined;
+  logoutSecondsTimer: NodeJS.Timeout | undefined;
+
+
+  każdy element powinien brać sobie ten emiter i 
+  subskrybować go aby odbierać nową ilość sekund 
+  // do logoutu 
+  logoutSecondsEmitter: EventEmitter<number> = new EventEmitter()
+
+
   // this probably may cause problems 
   public invitationEmitter = this.connection.invitationEmitter
 
 
-  constructor(private connection: ConnectionService, private settings: UserSettingsService, private router: Router) { 
+  constructor(private connection: ConnectionService, private settingsService: UserSettingsService, private router: Router) { 
     console.log('UserService constructor called.')
+    this.connection.messageEmitter.subscribe(
+      (message: Message) => {
+        console.log(`message from emitter: ${message}`)
+      },
+      (error) => console.log('Error in message emitter: ', error),
+      () => console.log('on message emitter completed.')
+    )
     const userId = this.connection.getUserId();
     if ( userId ) {
-      this.connection.updateSession(userId);
+      // this.connection.updateSession(userId);
+      this.updateSession()
       console.log('KSID exists') 
       // we get user's settings 
       const s = this.connection.user(userId)
@@ -40,8 +60,9 @@ export class UserService {
             const body = response.body
             if ( body ){
               this.user = body.user
-              this.settings.setSettings(body.settings)
+              this.settingsService.setSettings(body.settings)
               // this.connectViaWebsocket()
+              this.changeLogoutTimer()
             }
             else {
               // print error message
@@ -49,7 +70,6 @@ export class UserService {
             }
           },
           error: (error) => {
-            
 
             console.log(error) 
             this.clearService()
@@ -93,19 +113,67 @@ export class UserService {
           complete: () => {}
         })
       }
-    }
+    } else this.router.navigate([''])
 
 
-    this.connection.messageEmitter.subscribe(
-      (message: Message) => {
-        console.log(`message from emitter: ${message}`)
-      },
-      (error) => console.log('Error in message emitter: ', error),
-      () => console.log('on message emitter completed.')
-    )
+    
     // the same for invitation and 
 
   }
+
+
+  changeLogoutTimer() {
+    if (this.logoutTimer) {
+      clearInterval(this.logoutTimer)
+    }
+    if (this.settingsService) {
+      this.logoutTimer = setTimeout(() => {
+        console.log('LogoutTimer called!!!')
+        this.clearService()
+        this.router.navigate([''])
+      }, this.settingsService.settings.sessionDuration)
+      console.log('LogoutTimer created!!!')
+    }
+  }
+
+  restartLogoutTimer() {
+    if (this.logoutTimer) this.logoutTimer.refresh
+    else {
+      if (this.settingsService) {
+        this.logoutTimer = setTimeout(() => {
+          console.log('LogoutTimer called!!!')
+          this.clearService()
+          this.router.navigate([''])
+        }, this.settingsService.settings.sessionDuration)
+        console.log('LogoutTimer created!!!')
+      }      
+    }
+  }
+
+
+
+
+
+
+
+
+  logoutSeconds: number = 3600 
+
+  setLogoutSeconds(sec: number) {
+    this.logoutSeconds = sec
+  }
+
+
+
+  setLogoutTimer() {
+    this.logoutSecondsTimer = setInterval(() => {
+      this.logoutSeconds = this.logoutSeconds - 1
+      console.log('logoutSecondsTimer is running')
+      if (this.logoutSeconds <= 0) clearInterval(this.logoutSecondsTimer)
+    }, 1000)
+  }
+
+
 
 
 
@@ -116,20 +184,25 @@ export class UserService {
   clearService() {
     this.user = undefined;
     this.chatAndUsers = new Array();
-    this.settings.clearSettings();
+    this.settingsService.clearSettings();
     this.connection.disconnect();
+    // if (this.logoutTimer) this.logoutTimer.unref()
+    this.logoutTimer = undefined
     console.log('UserService clearservice')
   }
 
 
   setUserAndSettings(u: User | undefined, s: Settings | undefined) {
     this.user = u;
-    if (s) this.settings.setSettings(s);
+    if (s) this.settingsService.setSettings(s);
   }
 
   updateSession() {
     if (this.user) {
       this.connection.updateSession(this.user.userId);
+      this.restartLogoutTimer()
+      this.logoutSeconds = this.settingsService.settings.sessionDuration / 1000 // in seconds
+      // if (!this.logoutSecondsTimer) this.logoutSecondsTimer = this.countOffTimer()
     }
   }
 
@@ -177,7 +250,7 @@ export class UserService {
 
   getUser(): Observable<HttpResponse<{user: User, settings: Settings}>> | undefined {
     if (this.user){ 
-      this.connection.updateSession(this.user.userId)
+      this.updateSession()
       return this.connection.user(this.user.userId)
     }
     else 
@@ -187,7 +260,7 @@ export class UserService {
 
   changeSettings(s: Settings): Observable<HttpResponse<any>> | undefined {
     if (this.user)  {
-      this.connection.updateSession(this.user.userId)
+      this.updateSession()
       return this.connection.changeSettings(this.user.userId, s)
     }      
     else 
@@ -197,7 +270,7 @@ export class UserService {
 
   changeLogin(newLogin: string): Observable<HttpResponse<any>> | undefined {
     if (this.user) {
-      this.connection.updateSession(this.user.userId)
+      this.updateSession()
       return this.connection.changeLogin(this.user.userId, newLogin)
     }
     else
@@ -208,7 +281,7 @@ export class UserService {
 
   changePassword(oldPassword: string, newPassword: string): Observable<HttpResponse<any>> | undefined {
     if (this.user) {
-      this.connection.updateSession(this.user.userId)
+      this.updateSession()
       return this.connection.changePassword(this.user.userId, oldPassword, newPassword);
     }
     else return undefined;  
@@ -217,7 +290,7 @@ export class UserService {
 
   searchUser(search: string): Observable<HttpResponse<User[]>> | undefined {
     if (this.user) {
-      this.connection.updateSession(this.user.userId)
+      this.updateSession()
       return this.connection.searchUser(this.user.userId, search);
     }
     else return undefined;
@@ -228,7 +301,7 @@ export class UserService {
 
   getChats(): Observable<HttpResponse<ChatData[]>> | undefined {
     if ( this.user ) {
-      this.connection.updateSession(this.user.userId)      
+      this.updateSession()
       return this.connection.getChats(this.user.userId);
     }
     else return undefined;
@@ -237,7 +310,7 @@ export class UserService {
 
   getChatUsers(chatId: string): Observable<HttpResponse<User[]>> | undefined {
     if (this.user) {
-      this.connection.updateSession(this.user.userId)      
+      this.updateSession()
       return this.connection.getChatUsers(this.user.userId, chatId);
     }
     else return undefined;
@@ -246,7 +319,7 @@ export class UserService {
 
   leaveChat(chatId: string): Observable<HttpResponse<any>> | undefined {
     if (this.user) {
-      this.connection.updateSession(this.user.userId)      
+      this.updateSession()
       return this.connection.leaveChat(this.user.userId, chatId);
     }
     else return undefined;
@@ -255,7 +328,7 @@ export class UserService {
 
   updateChatName(chatId: string, newName: string): Observable<HttpResponse<any>> | undefined {
     if (this.user) {
-      this.connection.updateSession(this.user.userId)      
+      this.updateSession()
       return this.connection.updateChatName(this.user.userId, chatId, newName);
     } 
     else return undefined;
@@ -264,7 +337,7 @@ export class UserService {
 
   addUsersToChat(chatId: string, chatName: string, usersIds: string[]) {
     if (this.user)  {
-      this.connection.updateSession(this.user.userId)      
+      this.updateSession()
       return this.connection.addUsersToChat(this.user.userId, chatId, chatName, usersIds);
     }    
     else return undefined;    
@@ -272,7 +345,7 @@ export class UserService {
 
   newChat(chatName: string, usersIds: string[]) {
     if (this.user) {
-      this.connection.updateSession(this.user.userId)      
+      this.updateSession()
       return this.connection.newChat(this.user, chatName, usersIds);
     } 
     else return undefined;    
@@ -337,7 +410,7 @@ export class UserService {
 
 
   updateCookie() {
-    if (this.user?.userId)
+    if (this.user)
       this.connection.updateSession(this.user.userId)
   }
   

@@ -18,8 +18,8 @@
         </form>
         
     </div>
-    <p *ngIf="settingsChanged" (click)="clearSettingsNotification()">Your Settings Successfully Changed!!!</p>
-    <p *ngIf="settingsErrorMessage">{{ settingsErrorMessage }}</p>
+    <p *ngIf="settingsResponse" (click)="clearSettingsNotification()">{{ settingsResponse.message }}</p>
+
     
     
     
@@ -30,9 +30,7 @@
             <button type="submit" [disabled]="!loginFormGroup.valid">Change</button>
         </form>
     </div>
-    <p *ngIf="loginSuccessfullChanged" (click)="clearLoginNotification()">Login Successfully changed!!!</p>
-    <p *ngIf="loginTaken" (click)="clearLoginNotification()">Login Taken, Try With Another One!!!</p>
-    <p *ngIf="loginErrorMessage">{{ loginErrorMessage }}</p>
+    <p *ngIf="loginResponse" (click)="clearLoginNotification()">{{ loginResponse.message }}</p>
     <p></p>
 
 
@@ -40,16 +38,20 @@
     <h4>Change Password</h4>
     <div>
         <form [formGroup]="passGroup" (ngSubmit)="changePassword()">
-            <input formControlName="old" placeholder="Your Old Password"><br>
-            <input formControlName="neww" placeholder="Your New Password"><br>
+            <input type="password" formControlName="old" placeholder="Your Old Password"><br>
+            <input type="password" formControlName="neww" placeholder="Your New Password"><br>
             <button type="submit" [disabled]="!passGroup.valid" >Change</button>
         </form>
     </div>
-    <p *ngIf="passwordSuccessfullChanged">Password Successfully changed!!!</p>
-    <p *ngIf="passwordErrorMessage">{{ passwordErrorMessage }}</p>
+    <p *ngIf="passwordResponse" (click)="clearPasswordNotification()">{{ passwordResponse.message }}</p>
     <p> </p>
     <button routerLink="/user" routerLinkActive="active" ariaCurrentWhenActive="page">Back to Chats</button>
 </div>
 <div>
     <p *ngIf="returnedError" (click)="clearError()">Error Code: {{ returnedError.num }} Error Description: {{ returnedError.message }} </p>
+</div>
+
+
+<div>
+    Seconds to logout: {{ seconds }}
 </div>

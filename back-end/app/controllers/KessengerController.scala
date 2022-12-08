@@ -306,8 +306,7 @@ class KessengerController @Inject()
 
 
 
-
-
+  // todo works
   def changeSettings(userId: UUID) =
     SessionChecker(parse.anyContent, userId)(
       databaseExecutionContext,
@@ -341,6 +340,9 @@ class KessengerController @Inject()
     })
 
 
+
+
+  // todo works
   def changeLogin(userId: UUID) =
     SessionChecker(parse.anyContent, userId)(
       databaseExecutionContext,
@@ -365,8 +367,8 @@ class KessengerController @Inject()
                   case _ => InternalServerError("Error 030.")
                 }
               case Right(i) =>
-                if (i == 1) Ok(ResponseErrorBody(0, newLogin).toString)
-                else Accepted("Warning 031. Nothing to do.")
+                if (i == 1) Ok(ResponseErrorBody(0, "Login successfully changed!!!").toString)
+                else BadRequest(ResponseErrorBody(31, "Oppsss, User not found???").toString)
             }
           })
         }(databaseExecutionContext)
@@ -375,6 +377,9 @@ class KessengerController @Inject()
 
 
 
+
+
+  // todo works
   def changePassword(userId: UUID) =
     SessionChecker(parse.anyContent, userId)(
       databaseExecutionContext,
@@ -401,11 +406,11 @@ class KessengerController @Inject()
               case (Right(old), Right(neww)) =>
                 Future {
                   db.withConnection(implicit connection => {
-                    dbExecutor.updateUsersPassword(userId,old, neww) match {
+                    dbExecutor.updateUsersPassword(userId, old, neww) match {
                       case Left(_) => InternalServerError(s"Error XXX")
                       case Right(v) =>
-                        if (v == 1) Ok(s"New Password Saved.")
-                        else Accepted(s"Nothing to updated.") // something bad
+                        if (v == 1) Ok(ResponseErrorBody(0,s"New Password Saved.").toString)
+                        else BadRequest(ResponseErrorBody(22,  s"Old Password does not match.").toString)
                     }
                   })
                 }(databaseExecutionContext)

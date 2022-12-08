@@ -49,8 +49,8 @@ export class ConnectionService {
 
   signUp(login: string, pass: string): Observable<HttpResponse<{user: User, settings: Settings}>> | undefined{
     // we set cookie.
-    const fake = uuidv4();
-    this.session.setNewSession(fake); // todo zmienić bo tutuaj nie będziemy jezcze tworzyli id użytkowanika. 
+    const fakeUserId = uuidv4();
+    this.session.setNewSession(fakeUserId); // todo zmienić bo tutuaj nie będziemy jezcze tworzyli id użytkowanika. 
 
     const body = {
       login: login,
