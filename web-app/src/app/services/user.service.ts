@@ -21,21 +21,14 @@ export class UserService {
   public chatAndUsers: Array<ChatData> = new Array();
 
 
-  zmienić logout timer na setInterval tak aby odliczał sekundy do 
-  końca sesji a gdy czas upłynie żeby wywoływał wylogowanie. 
-
   logoutTimer: NodeJS.Timeout | undefined;
-  logoutSecondsTimer: NodeJS.Timeout | undefined;
-
-
-  każdy element powinien brać sobie ten emiter i 
-  subskrybować go aby odbierać nową ilość sekund 
-  // do logoutu 
+  logoutSeconds: number = this.settingsService.settings.sessionDuration / 1000    // number of seconds to logout
   logoutSecondsEmitter: EventEmitter<number> = new EventEmitter()
 
 
+
   // this probably may cause problems 
-  public invitationEmitter = this.connection.invitationEmitter
+  invitationEmitter = this.connection.invitationEmitter
 
 
   constructor(private connection: ConnectionService, private settingsService: UserSettingsService, private router: Router) { 
@@ -62,7 +55,8 @@ export class UserService {
               this.user = body.user
               this.settingsService.setSettings(body.settings)
               // this.connectViaWebsocket()
-              this.changeLogoutTimer()
+              this.logoutSeconds = this.settingsService.settings.sessionDuration / 1000
+              this.restartLogoutTimer()
             }
             else {
               // print error message
@@ -115,14 +109,14 @@ export class UserService {
       }
     } else this.router.navigate([''])
 
-
-    
     // the same for invitation and 
 
   }
 
 
-  changeLogoutTimer() {
+
+  /* 
+  changeLogoutTimer2() {
     if (this.logoutTimer) {
       clearInterval(this.logoutTimer)
     }
@@ -136,7 +130,9 @@ export class UserService {
     }
   }
 
-  restartLogoutTimer() {
+
+
+  restartLogoutTimer2() {
     if (this.logoutTimer) this.logoutTimer.refresh
     else {
       if (this.settingsService) {
@@ -150,21 +146,42 @@ export class UserService {
     }
   }
 
+ */
 
 
 
 
 
 
-
-  logoutSeconds: number = 3600 
-
-  setLogoutSeconds(sec: number) {
-    this.logoutSeconds = sec
+    // zmienić nazwę
+  restartLogoutTimer() {
+    this.logoutSeconds = this.settingsService.settings.sessionDuration / 1000
+    if (this.logoutTimer) {}
+    else {
+      this.logoutTimer = setInterval(() => {
+        this.logoutSeconds = this.logoutSeconds - 1
+        console.log(`logoutSecondsTimer is running. Seconds: ${this.logoutSeconds}`)
+        this.logoutSecondsEmitter.emit(this.logoutSeconds)
+        if (this.logoutSeconds < 1) {
+          console.log('LogoutTimer called!!!')
+          clearInterval(this.logoutTimer)
+          this.clearService()
+          this.router.navigate([''])
+        }
+      }, 1000)
+    }
   }
 
 
 
+
+/* 
+  setLogoutSeconds(sec: number) {
+    this.logoutSeconds = sec
+  }
+ */
+
+/* 
   setLogoutTimer() {
     this.logoutSecondsTimer = setInterval(() => {
       this.logoutSeconds = this.logoutSeconds - 1
@@ -173,7 +190,7 @@ export class UserService {
     }, 1000)
   }
 
-
+ */
 
 
 
@@ -186,8 +203,9 @@ export class UserService {
     this.chatAndUsers = new Array();
     this.settingsService.clearSettings();
     this.connection.disconnect();
-    // if (this.logoutTimer) this.logoutTimer.unref()
+    if (this.logoutTimer) clearInterval(this.logoutTimer)
     this.logoutTimer = undefined
+    this.logoutSeconds = this.settingsService.settings.sessionDuration / 1000
     console.log('UserService clearservice')
   }
 
@@ -201,7 +219,7 @@ export class UserService {
     if (this.user) {
       this.connection.updateSession(this.user.userId);
       this.restartLogoutTimer()
-      this.logoutSeconds = this.settingsService.settings.sessionDuration / 1000 // in seconds
+      // this.logoutSeconds = this.settingsService.settings.sessionDuration / 1000 // in seconds
       // if (!this.logoutSecondsTimer) this.logoutSecondsTimer = this.countOffTimer()
     }
   }

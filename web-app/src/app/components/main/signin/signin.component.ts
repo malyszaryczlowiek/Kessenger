@@ -43,11 +43,10 @@ export class SigninComponent implements OnInit {
               // and redirect to user site
               this.router.navigate(['user']);
             } else {
-
+              console.log('sign in status other than 200.')
             }            
           },
           error: (error) => {
-            if (error.status) console.log('sibadabada')
             console.log(error)
             console.log('clearing UserService.')
             this.userService.clearService();

@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, EventEmitter, OnDestroy, OnInit } from '@angular/core';
 import { FormControl, FormGroup, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
 import { Settings } from 'src/app/models/Settings';
@@ -10,7 +10,7 @@ import { UserService } from 'src/app/services/user.service';
   templateUrl: './edit-account.component.html',
   styleUrls: ['./edit-account.component.css']
 })
-export class EditAccountComponent implements OnInit {
+export class EditAccountComponent implements OnInit, OnDestroy {
 
   settings: Settings | undefined
   defaultZone = 'UTC'
@@ -26,8 +26,8 @@ export class EditAccountComponent implements OnInit {
 
 
   settingsGroup = new FormGroup({
-    sessionControl : new FormControl(this.userSettings.settings.sessionDuration / (60000), [Validators.required, Validators.max(15), Validators.min(1)]),
-    zoneControl : new FormControl(this.userSettings.settings.zoneId, [Validators.required, Validators.max(15), Validators.min(1)])
+    sessionControl : new FormControl(this.settingsService.settings.sessionDuration / (60000), [Validators.required, Validators.max(15), Validators.min(1)]),
+    zoneControl : new FormControl(this.settingsService.settings.zoneId, [Validators.required, Validators.max(15), Validators.min(1)])
   })
 
   loginFormGroup = new FormGroup({
@@ -40,18 +40,26 @@ export class EditAccountComponent implements OnInit {
     neww: new FormControl('', [Validators.required, Validators.minLength(8)])
   });
 
-
+  logoutSecondsEmitter: EventEmitter<number> = this.userService.logoutSecondsEmitter
   
 
 
-  constructor(private userService: UserService, private userSettings: UserSettingsService, private router: Router) { }
+  constructor(private userService: UserService, private settingsService: UserSettingsService, private router: Router) { }
 
   ngOnInit(): void {
-    this.zones = this.userSettings.zones
-    this.settings = this.userSettings.settings
+    this.zones = this.settingsService.zones
+    this.settings = this.settingsService.settings
     this.settingsGroup.controls.zoneControl.setValue( this.settings.zoneId )
     this.settingsGroup.controls.sessionControl.setValue( this.settings.sessionDuration / (60000) )
-    this.seconds = this.userService.logoutSeconds
+    this.seconds = this.settingsService.settings.sessionDuration / 1000
+    this.logoutSecondsEmitter.subscribe(
+      (seconds: number) => this.seconds = seconds
+    )
+  }
+
+
+  ngOnDestroy(): void {
+    // this.logoutSecondsEmitter.unsubscribe()
   }
 
 
@@ -62,23 +70,23 @@ export class EditAccountComponent implements OnInit {
     const zone = this.settingsGroup.controls.zoneControl.value
     if (this.settings && time && zone) {
       const body: Settings = {
-        joiningOffset: this.userSettings.settings.joiningOffset,
+        joiningOffset: this.settingsService.settings.joiningOffset,
         sessionDuration: time * 60 * 1000,
         zoneId: zone
       }
-      const oldSett = this.userSettings.settings
-      this.userSettings.setSettings( body )
+      const oldSett = this.settingsService.settings
+      this.settingsService.setSettings( body )
       const obs = this.userService.changeSettings( body )
       if ( obs ) {
         obs.subscribe({
           next: (response) => {
             this.settingsResponse = response.body
-            this.userService.changeLogoutTimer() 
+            // this.userService.restartLogoutTimer() 
             this.userService.updateSession()
           },
           error: (error) => {
             console.log("ERROR", error)
-            this.userSettings.setSettings( oldSett )
+            this.settingsService.setSettings( oldSett )
             if (error.status == 401){
               console.log('Session is out.')
               this.userService.clearService()

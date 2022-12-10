@@ -11,6 +11,7 @@ import { MainComponent } from './components/main/main/main.component';
 import { PagenotfoundComponent } from './components/pagenotfound/pagenotfound.component';
 import { SessionTimeoutComponent } from './components/session-timeout/session-timeout.component';
 import { ChatPanelComponent } from './components/user/chat/chat-panel/chat-panel.component';
+import { ChatComponent } from './components/user/chat/chat/chat.component';
 import { SelectChatComponent } from './components/user/chat/select-chat/select-chat.component';
 import { EditAccountComponent } from './components/user/edit-account/edit-account.component';
 import { EditChatSettingsComponent } from './components/user/edit-chat-settings/edit-chat-settings.component';
@@ -29,16 +30,24 @@ const routes: Routes = [
     path: 'user', 
     component: UserComponent,
     children: [
-      {path: '', component: SelectChatComponent},
-      {path: 'chat/:chatId', component: ChatPanelComponent},
-      {path: 'editChat/:chatId', component: EditChatSettingsComponent}
+      {path: '', 
+      component: ChatComponent,
+      children: [
+        {path: '', component: SelectChatComponent},
+        {path: 'chat/:chatId', component: ChatPanelComponent},
+        {path: 'editChat/:chatId', component: EditChatSettingsComponent}
+        ]
+      },
+      {path: 'settings',   component: EditAccountComponent},
+      {path: 'createChat', component: CreateChatComponent}
     ]
   },
-  {path: 'user/settings',   component: EditAccountComponent},
-  {path: 'user/createChat', component: CreateChatComponent},
   {path: 'session-timeout', component: SessionTimeoutComponent},
   {path: 'test', component: TestComponent},
   {path: '**', component: PagenotfoundComponent},
+
+
+
 
 
   {path: 'first-component', component: FirstComponent },

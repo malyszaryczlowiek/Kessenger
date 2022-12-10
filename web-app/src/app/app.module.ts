@@ -32,6 +32,7 @@ import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { SelectChatComponent } from './components/user/chat/select-chat/select-chat.component';
 import { SessionTimeoutComponent } from './components/session-timeout/session-timeout.component';
 import { TestComponent } from './components/dummy/test/test.component';
+import { ChatComponent } from './components/user/chat/chat/chat.component';
 
 @NgModule({
   declarations: [
@@ -60,7 +61,8 @@ import { TestComponent } from './components/dummy/test/test.component';
     WebsocketComponent,
     SelectChatComponent,
     SessionTimeoutComponent,
-    TestComponent
+    TestComponent,
+    ChatComponent
   ],
   imports: [
     BrowserModule,
