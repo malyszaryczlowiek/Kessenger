@@ -1,6 +1,7 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnDestroy, OnInit } from '@angular/core';
 import { FormControl, FormGroup, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
+import { debounce, debounceTime, distinctUntilChanged, of, share, startWith, Subject, switchMap } from 'rxjs';
 import { User } from 'src/app/models/User';
 import { UserService } from 'src/app/services/user.service';
 
@@ -9,11 +10,19 @@ import { UserService } from 'src/app/services/user.service';
   templateUrl: './create-chat.component.html',
   styleUrls: ['./create-chat.component.css']
 })
-export class CreateChatComponent implements OnInit {
+export class CreateChatComponent implements OnInit, OnDestroy {
 
-  // tutaj form z danymi do chatu.
   
-  public foundUsers = [
+
+  searchUserForm = new FormGroup({
+    login: new FormControl('',[Validators.required, Validators.minLength(4)])
+  });
+  foundUsers: User[] = new Array<User>();
+  searchTerm: Subject<string> = new Subject()
+
+
+  /*
+[
     {
       login: "log1",
       userId: "uuid1"
@@ -22,21 +31,36 @@ export class CreateChatComponent implements OnInit {
       login: "log2",
       userId: "uuid2"
     }
-  ];//new Array<User>();
+  ];  
+  */
+  
   public selectedUsers = new Array<User>();
 
-  form = new FormGroup({
+  chatForm = new FormGroup({
     chatName: new FormControl('',[Validators.required, Validators.minLength(3)])
     //groupChat: new FormControl(false),
   });
 
   public disableSubmitting: boolean = true;
   
-  constructor(private userService: UserService) { }
+  returnedError: any | undefined
+
+
+
+
+
+
+
+  constructor(private userService: UserService, private router: Router) { }
+
 
   ngOnInit(): void {
-    
+    console.log('CreateChatComponent.ngOnInit()')
+    this.userService.updateSession()  
+  }
 
+  ngOnDestroy(): void {
+    console.log('CreateChatComponent.ngOnDestroy()')
   }
 
 
@@ -45,11 +69,30 @@ export class CreateChatComponent implements OnInit {
   // jeśli w odpowiedzi dostaniwmy dane z chatem to 
   // w userService należy zaktualizować listę czatów
   create() {
-    // tutaj musimy utworzyć obiekt do wysłania na server
-    //objectToSend: ;
-    //this.userService.createChat()
-    // albo createGroupChat() sprawdzić w backendzie
+    const chatName = this.chatForm.controls.chatName.value
+    const me = this.userService.user
+    if ( chatName && this.selectedUsers.length >= 1 && me) {
+      this.selectedUsers.push(me)
+      const c = this.userService.newChat(chatName, this.selectedUsers.map(u => u.userId))
+      if ( c ) {
+        c.subscribe({
+          next: (response) => {
 
+
+
+            // tutaj teraz impelementować
+            // todo implement this
+
+
+
+          }, 
+          error: (e) => {},
+          complete: () => {}
+        })
+      } else {
+        this.router.navigate(['session-timeout'])
+      }
+    }
   }
 
 
@@ -57,19 +100,77 @@ export class CreateChatComponent implements OnInit {
 
 
   // metoda do szukania użytkownika w bazie danych 
-  search(login: string) {
-    // make array empty
-    this.foundUsers = new Array<User>();
-
-    // and fill it with new found one
-
+  search() {
+    this.userService.updateSession()
+    this.foundUsers = new Array<User>()
+    this.foundUsers.find
+    const searchLogin = this.searchUserForm.controls.login.value
+    if ( this.searchUserForm.controls.login.valid && searchLogin ) {
+      const s = this.searchTerm.pipe(
+        startWith( searchLogin ),
+        debounceTime(900),
+        distinctUntilChanged(),
+        switchMap( (login) => {
+          const c = this.userService.searchUser(login)
+          console.log('search login key pressed. Login:  '+ login)
+          if (c) return c
+          else return of()
+        }),
+        share()
+      )
+      if ( s ) {
+        console.log('returned observable is valid')
+        s.subscribe({
+          next: (response) => {
+            if (response.status == 200) {
+              const users = response.body
+              if ( users ) {
+                this.foundUsers = new Array<User>(); 
+                users.forEach((user, index, array) => {
+                  const exists = this.selectedUsers.find( (u, index,arr) => {
+                    return u.userId == user.userId
+                  })
+                  if (! exists) {
+                    this.foundUsers.push( user )
+                  }
+                })
+              }
+            }
+            if (response.status == 204){
+              this.foundUsers = new Array<User>(); 
+              console.log('No User found')
+            }            
+          },
+          error: (error) => {
+            console.log("ERROR", error)
+            if (error.status == 401){
+              console.log('Session is out.')
+              this.router.navigate(['session-timeout'])
+            }
+            else {
+              this.returnedError = error.error
+            }
+          },
+          complete: () => {}
+        })
+      } else {
+        this.router.navigate(['session-timeout'])
+      }
+    } else {
+      console.log('Search User form is not valid')
+    }
   }
   
+
+
+
+  // https://www.youtube.com/shorts/Z6ZQc_Fm42k
   
   
+
+
   addToSelected(u: User) {
     this.selectedUsers.push(u);
-    // and remove from found
     this.foundUsers = this.foundUsers.filter( (user, index, array) => {
       return user.userId != u.userId;
     });
@@ -88,7 +189,8 @@ export class CreateChatComponent implements OnInit {
   }
 
   validateForm() {
-    this.disableSubmitting = !( this.form.valid && this.selectedUsers.length > 0 );
+    this.disableSubmitting = !( this.chatForm.valid && this.selectedUsers.length > 0 );
+    this.userService.updateSession()
   }
 
 

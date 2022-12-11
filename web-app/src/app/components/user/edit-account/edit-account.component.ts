@@ -52,6 +52,7 @@ export class EditAccountComponent implements OnInit, OnDestroy {
     this.settingsGroup.controls.zoneControl.setValue( this.settings.zoneId )
     this.settingsGroup.controls.sessionControl.setValue( this.settings.sessionDuration / (60000) )
     this.seconds = this.settingsService.settings.sessionDuration / 1000
+    this.userService.updateSession()
     this.logoutSecondsEmitter.subscribe(
       (seconds: number) => this.seconds = seconds
     )
@@ -85,8 +86,8 @@ export class EditAccountComponent implements OnInit, OnDestroy {
             this.userService.updateSession()
           },
           error: (error) => {
-            console.log("ERROR", error)
             this.settingsService.setSettings( oldSett )
+            console.log("ERROR", error)
             if (error.status == 401){
               console.log('Session is out.')
               this.userService.clearService()

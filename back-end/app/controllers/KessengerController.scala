@@ -102,7 +102,7 @@ class KessengerController @Inject()
 //  }
 
 
-
+  // tutaj kontynuować
 
 
   // TODO write validator for json data login length and so one
@@ -117,14 +117,14 @@ class KessengerController @Inject()
                   case Left(_) => Future.successful(BadRequest("Error 004. Cannot parse JSON payload."))
                   case Right( loginCredentials ) =>
                     val login = loginCredentials.login
-                    val userId = UUID.randomUUID()
+                    val userId = UUID.randomUUID() // here we create another userId
                     passwordConverter.convert(loginCredentials.pass) match {
                       case Left(_) =>
                         Future.successful(
                           InternalServerError("Error 005. Encoding password failed")
                         )
                       case Right( encodedPass ) =>
-                        val settings = Settings()
+                        val settings = Settings(sessionDuration = 900000L) // todo change in kessenger-lib from 900L to 900000L
                         val user = User(userId, login)
                         Future {
                           db.withConnection(implicit connection => {
@@ -133,7 +133,7 @@ class KessengerController @Inject()
                                 InternalServerError(s"Error 006. ${queryError.description.toString()}")
                               case Right(value) =>
                                 if (value == 3) Ok(jsonParser.toJSON((user, settings)))
-                                else InternalServerError("Error 007. User Creation Error. ")
+                                else InternalServerError(ResponseErrorBody(7, "Error 007. User Creation Error. ").toString)
                             }
                           })
                         }(databaseExecutionContext)

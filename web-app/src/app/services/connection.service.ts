@@ -50,7 +50,7 @@ export class ConnectionService {
   signUp(login: string, pass: string): Observable<HttpResponse<{user: User, settings: Settings}>> | undefined{
     // we set cookie.
     const fakeUserId = uuidv4();
-    this.session.setNewSession(fakeUserId); // todo zmienić bo tutuaj nie będziemy jezcze tworzyli id użytkowanika. 
+    this.session.setNewSession(fakeUserId); 
 
     const body = {
       login: login,

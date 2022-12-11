@@ -1,5 +1,5 @@
 import { EventEmitter, Injectable } from '@angular/core';
-import { Observable, of } from 'rxjs';
+import { map, Observable, of } from 'rxjs';
 import { ConnectionService } from './connection.service';
 import { v4 as uuidv4 } from 'uuid';
 import { Message} from '../models/Message';
@@ -19,6 +19,9 @@ export class UserService {
 
   public user: User | undefined;
   public chatAndUsers: Array<ChatData> = new Array();
+  userFetched = false
+  chatFetched = false
+  fetchingUserDataFinishedEmmiter = new EventEmitter<boolean>()
 
 
   logoutTimer: NodeJS.Timeout | undefined;
@@ -26,8 +29,11 @@ export class UserService {
   logoutSecondsEmitter: EventEmitter<number> = new EventEmitter()
 
 
+  testString = 'empty string'
+  testObservable: Observable<string> = of('empty observable')
 
-  // this probably may cause problems 
+
+  // not implemented yet -> this probably may cause problems 
   invitationEmitter = this.connection.invitationEmitter
 
 
@@ -42,9 +48,8 @@ export class UserService {
     )
     const userId = this.connection.getUserId();
     if ( userId ) {
-      // this.connection.updateSession(userId);
       this.updateSession()
-      console.log('KSID exists') 
+      console.log('Session is valid.') 
       // we get user's settings 
       const s = this.connection.user(userId)
       if ( s ) {
@@ -52,19 +57,29 @@ export class UserService {
           next: (response) => {
             const body = response.body
             if ( body ){
+              console.log('UserSerivice.constructor() fetching user login and settings' )
               this.user = body.user
               this.settingsService.setSettings(body.settings)
+
               // this.connectViaWebsocket()
+              
               this.logoutSeconds = this.settingsService.settings.sessionDuration / 1000
               this.restartLogoutTimer()
+              this.userFetched = true
+              this.dataFetched()
+
+
+              this.testString = 'new value'
+              this.testObservable = this.testObservable.pipe(
+                map(s => 'new value observable')
+              )
+              this.testObservable.subscribe()
             }
             else {
               // print error message
-              console.log(`ERROR /user/userId/settings: `)
             }
           },
           error: (error) => {
-
             console.log(error) 
             this.clearService()
             console.log('redirection to logging page')
@@ -73,8 +88,6 @@ export class UserService {
           complete: () => {}
         })
       }
-
-
       // we get user's chats
       const c = this.connection.getChats(userId);
       if ( c ){
@@ -84,19 +97,19 @@ export class UserService {
             const chats = response.body 
             // we sort newest (larger lastMessageTime) first.
             if (chats) {
+              console.log('UserSerivice.constructor() fetching chats' )
               this.chatAndUsers = chats.sort((a,b) => -(a.chat.lastMessageTime - b.chat.lastMessageTime))
-              .map((item, i, array) => {
-                return {
-                  chat: item.chat,
-                  partitionOffsets: item.partitionOffsets,
-                  users: item.users,
-                  messages: item.messages
-                };
-              });
+                .map((item, i, array) => {
+                  return {
+                    chat: item.chat,
+                    partitionOffsets: item.partitionOffsets,
+                    users: item.users,
+                    messages: item.messages
+                  };
+                });
             }
-            // redirect to /user
-            this.router.navigate(['user']);
-  
+            this.chatFetched = true
+            this.dataFetched()
           } ,
           error: (error) => {
             console.log(error) 
@@ -109,91 +122,7 @@ export class UserService {
       }
     } else this.router.navigate([''])
 
-    // the same for invitation and 
-
   }
-
-
-
-  /* 
-  changeLogoutTimer2() {
-    if (this.logoutTimer) {
-      clearInterval(this.logoutTimer)
-    }
-    if (this.settingsService) {
-      this.logoutTimer = setTimeout(() => {
-        console.log('LogoutTimer called!!!')
-        this.clearService()
-        this.router.navigate([''])
-      }, this.settingsService.settings.sessionDuration)
-      console.log('LogoutTimer created!!!')
-    }
-  }
-
-
-
-  restartLogoutTimer2() {
-    if (this.logoutTimer) this.logoutTimer.refresh
-    else {
-      if (this.settingsService) {
-        this.logoutTimer = setTimeout(() => {
-          console.log('LogoutTimer called!!!')
-          this.clearService()
-          this.router.navigate([''])
-        }, this.settingsService.settings.sessionDuration)
-        console.log('LogoutTimer created!!!')
-      }      
-    }
-  }
-
- */
-
-
-
-
-
-
-    // zmienić nazwę
-  restartLogoutTimer() {
-    this.logoutSeconds = this.settingsService.settings.sessionDuration / 1000
-    if (this.logoutTimer) {}
-    else {
-      this.logoutTimer = setInterval(() => {
-        this.logoutSeconds = this.logoutSeconds - 1
-        console.log(`logoutSecondsTimer is running. Seconds: ${this.logoutSeconds}`)
-        this.logoutSecondsEmitter.emit(this.logoutSeconds)
-        if (this.logoutSeconds < 1) {
-          console.log('LogoutTimer called!!!')
-          clearInterval(this.logoutTimer)
-          this.clearService()
-          this.router.navigate([''])
-        }
-      }, 1000)
-    }
-  }
-
-
-
-
-/* 
-  setLogoutSeconds(sec: number) {
-    this.logoutSeconds = sec
-  }
- */
-
-/* 
-  setLogoutTimer() {
-    this.logoutSecondsTimer = setInterval(() => {
-      this.logoutSeconds = this.logoutSeconds - 1
-      console.log('logoutSecondsTimer is running')
-      if (this.logoutSeconds <= 0) clearInterval(this.logoutSecondsTimer)
-    }, 1000)
-  }
-
- */
-
-
-
 
 
 
@@ -215,17 +144,44 @@ export class UserService {
     if (s) this.settingsService.setSettings(s);
   }
 
+  setChats(chats: ChatData[]) {
+    this.chatAndUsers = chats
+    console.log('chats sets correctly')
+  }
+
+
+  restartLogoutTimer() {
+    this.logoutSeconds = this.settingsService.settings.sessionDuration / 1000
+    if (this.logoutTimer) {}
+    else {
+      this.logoutTimer = setInterval(() => {
+        this.logoutSeconds = this.logoutSeconds - 1
+        // console.log(`logoutSecondsTimer is running. Seconds: ${this.logoutSeconds}`)
+        this.logoutSecondsEmitter.emit(this.logoutSeconds)
+        if (this.logoutSeconds < 1) {
+          console.log('LogoutTimer called!!!')
+          clearInterval(this.logoutTimer)
+          this.clearService()
+          this.router.navigate([''])
+        }
+      }, 1000)
+    }
+  }
+
+
   updateSession() {
     if (this.user) {
       this.connection.updateSession(this.user.userId);
       this.restartLogoutTimer()
-      // this.logoutSeconds = this.settingsService.settings.sessionDuration / 1000 // in seconds
-      // if (!this.logoutSecondsTimer) this.logoutSecondsTimer = this.countOffTimer()
     }
   }
 
   isSessionValid(): boolean {
     return this.connection.isSessionValid();
+  }
+
+  dataFetched() {
+    this.fetchingUserDataFinishedEmmiter.emit(this.userFetched && this.chatFetched)
   }
 
 
@@ -319,6 +275,7 @@ export class UserService {
 
   getChats(): Observable<HttpResponse<ChatData[]>> | undefined {
     if ( this.user ) {
+      console.log('here i am')
       this.updateSession()
       return this.connection.getChats(this.user.userId);
     }
@@ -434,13 +391,8 @@ export class UserService {
   
 
   createKSID(): string | undefined {
-    //this.connection.
     return this.connection.getSessionToken();
   }
-
-  /* getRawKSID() {
-    return this.connection.();
-  } */
 
 
   getUsers() { 

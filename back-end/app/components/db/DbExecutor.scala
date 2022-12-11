@@ -31,8 +31,7 @@ class DbExecutor(val kafkaConfigurator: KafkaConfigurator) {
         statement.addBatch(sql1)
         statement.addBatch(sql2)
         statement.addBatch(sql3)
-        val arr = statement.executeBatch()
-        arr.sum
+        statement.executeBatch().sum
     } match {
       case Failure(ex) =>
         connection.rollback( beforeAnyInsertions )
@@ -336,10 +335,10 @@ class DbExecutor(val kafkaConfigurator: KafkaConfigurator) {
    * @return
    */
   def findUser(u: Login)(implicit connection: Connection): DbResponse[List[User]] = {
-//    val prefix = "SELECT user_id, login FROM users WHERE login IN ( "
-//    val list = logins.foldLeft("")((folded, user) => s"$folded, '$user'").substring(2)
-//    val postfix = " ) "
-//    val sql2 = s"$prefix$list$postfix"
+    //    val prefix = "SELECT user_id, login FROM users WHERE login IN ( "
+    //    val list = logins.foldLeft("")((folded, user) => s"$folded, '$user'").substring(2)
+    //    val postfix = " ) "
+    //    val sql2 = s"$prefix$list$postfix"
     val sql = s"SELECT user_id, login FROM users WHERE login ~* ? "
     Using(connection.prepareStatement(sql)) { statement =>
       statement.setString(1,u)

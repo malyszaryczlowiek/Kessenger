@@ -18,9 +18,6 @@ export class SignupComponent implements OnInit {
 
   public returnedError: any | undefined;
 
-
-
-
   constructor(private userService: UserService, private router: Router) { }
 
   ngOnInit(): void {
@@ -34,18 +31,20 @@ export class SignupComponent implements OnInit {
       if ( signup ){
         signup.subscribe({
           next: (response) => {
-    
-            // we save created user 
-            this.userService.setUserAndSettings(
-              response.body?.user,
-              response.body?.settings
-            );
-  
-            // update ksid
-            this.userService.updateSession();
-            
-            // and redirect to user site
-            this.router.navigate(['user']);
+            if (response.status === 200) {
+              this.userService.setUserAndSettings(
+                response.body?.user,
+                response.body?.settings
+              );
+              // after successfull request we should update KSID cookie 
+              // to have correct userId
+              this.userService.updateSession()
+              // this.userService.setLogoutTimer()
+              // and redirect to user site
+              this.router.navigate(['user']);
+            } else {
+              console.log('sign in status other than 200.')
+            }
           },
           error: (error) => {
             console.log(error);
@@ -60,6 +59,11 @@ export class SignupComponent implements OnInit {
       }
       
     }    
+  }
+
+
+  clearError() {
+    this.returnedError = undefined
   }
 
 }

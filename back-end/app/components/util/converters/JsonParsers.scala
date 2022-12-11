@@ -7,6 +7,7 @@ import io.circe.syntax._
 import io.circe.parser.decode
 import io.github.malyszaryczlowiek.kessengerlibrary.domain.{Chat, Settings, User}
 import io.github.malyszaryczlowiek.kessengerlibrary.domain.Domain.{Offset, Partition}
+import io.github.malyszaryczlowiek.kessengerlibrary.messages.Message
 import models.ResponseErrorBody
 
 import java.time.ZoneId
@@ -109,8 +110,8 @@ class JsonParsers {
               ("partition", Json.fromInt(tup._1)),
               ("offset", Json.fromLong(tup._2))
             )}).asJson),
-          ("users", List.empty[String].asJson),
-          ("messages", List.empty[String].asJson)
+          ("users", List.empty[User].asJson),
+          ("messages", List.empty[Message].asJson)
         )
       }).asJson
     }

@@ -5,6 +5,7 @@ import { CookieService } from 'ngx-cookie-service';
 import { UtctimeService } from './utctime.service';
 import { Ksid } from '../models/Ksid';
 import { v4 as uuidv4 } from 'uuid';
+import { Router } from '@angular/router';
 
 
 @Injectable({
@@ -18,7 +19,8 @@ export class SessionService {
 
   constructor(private cookieService: CookieService,
               private utcService: UtctimeService,
-              private userSettings: UserSettingsService) {
+              private userSettings: UserSettingsService,
+              private router: Router) {
     this.fetchKsid();
   }
 
@@ -56,7 +58,9 @@ export class SessionService {
       const time: number = this.utcService.getUTCmilliSeconds() + this.userSettings.settings.sessionDuration; // current  time + 15 min
       this.ksid = new Ksid(this.ksid.sessId, userId, time);
       this.cookieService.set('KSID', this.ksid.toString(), this.getExpirationTime(), '/');
-    }    
+    } else {
+      this.router.navigate(['session-timeout'])
+    }   
   }
 
 

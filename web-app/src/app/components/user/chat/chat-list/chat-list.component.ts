@@ -19,7 +19,7 @@ export class ChatListComponent implements OnInit {
 
   onClick(c: ChatData) {
     const chatId = c.chat.chatId;
-    this.router.navigate(['user', 'chat', chatId]) // , {relativeTo: } dodać to jeszcze 
+    this.router.navigate(['user', 'chat', chatId]) 
   }
 
 }
