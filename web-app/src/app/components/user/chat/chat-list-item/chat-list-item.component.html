@@ -1,11 +1,8 @@
 <!-- w tym componentcie przetwarzamy podstawewe informacje oc zacie-->
 <!-- w zależności od tego czy jest przeczytana czy nie to styl powinien być inny. -->
-<div>
-    <h3>Chat name</h3>
-    <br>
+<div *ngIf="chatData" >
+    <h3>{{ chatData.chat.chatName }}</h3>
     <div>
-         who send 
-         40 first message characters
-         when send
+       Last Message: {{ chatData.chat.lastMessageTime }}  
     </div>
 </div>

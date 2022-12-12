@@ -33,13 +33,13 @@ export class ChatComponent implements OnInit, OnDestroy {
     if ( this.userService.chatAndUsers.length == 0 ) {
       const c = this.userService.getChats()
       if ( c ) {
-        console.log('ChatComponent.ngOnInit() 2')
+        console.log('ChatComponent.ngOnInit() Reading chats from server...')
         c.subscribe({
           next: (response) => {
             if (response.status == 200) {
               const body = response.body
               if (body) {
-                console.log('ChatComponent.ngOnInit() chats saved.  ')
+                console.log('ChatComponent.ngOnInit() chats from server saved.  ') 
                 this.userService.setChats(body)
               }
               else {
@@ -56,7 +56,7 @@ export class ChatComponent implements OnInit, OnDestroy {
           complete: () => {}
         })
       } else {
-        console.log('ChatComponent.ngOnInit() cannot send request for chats')
+        console.log('ChatComponent.ngOnInit() cannot send request to server for chats, Invalid session ???')
       }
     } else {
       this.chats = this.userService.chatAndUsers
@@ -73,6 +73,7 @@ export class ChatComponent implements OnInit, OnDestroy {
 
   clearError() {
     this.responseError = undefined
+    this.userService.updateSession()
   }
 
 }

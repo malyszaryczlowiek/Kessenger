@@ -2,18 +2,16 @@ import { HttpClient, HttpHeaders, HttpParams, HttpResponse } from '@angular/comm
 import { Injectable, Inject, EventEmitter } from '@angular/core';
 
 import { Observable, of } from 'rxjs';
-
 import { v4 as uuidv4 } from 'uuid';
 
-import { Chat } from '../models/Chat';
 import { Invitation } from '../models/Invitation';
 import { Message } from '../models/Message';
 import { User } from '../models/User';
 import { Settings } from '../models/Settings';
-import { Writing } from '../models/Writing';
-
-import { SessionService } from './session.service';
+import { Writing } from '../models/Writing'; 
 import { ChatData } from '../models/ChatData';
+import { SessionService } from './session.service';
+
 // import * as SockJS from 'sockjs-client';
 
 
@@ -264,7 +262,7 @@ export class ConnectionService {
   /*
     OD TEGO ENDPOINTU KONTYNUOWAĆ SPRAWDZANIE
   */
-  newChat(me: User, chatName: string, users: string[]): Observable<HttpResponse<Chat>> | undefined  {
+  newChat(me: User, chatName: string, users: string[]): Observable<HttpResponse<ChatData[]>> | undefined  {
     const token = this.session.getSessionToken()
     if ( token ) {
       const body = {
@@ -272,7 +270,7 @@ export class ConnectionService {
         users: users,
         chatName: chatName
       }
-      return this.http.post<Chat>(this.api + `/user/${me.userId}/newChat`, body, {
+      return this.http.post<ChatData[]>(this.api + `/user/${me.userId}/newChat`, body, {
         headers: new HttpHeaders()
           .set('KSID', token),
         observe: 'response', 
@@ -491,6 +489,11 @@ export class ConnectionService {
 
 
 
+  /*
+
+     Methods to delete
+
+  */
 
 
 

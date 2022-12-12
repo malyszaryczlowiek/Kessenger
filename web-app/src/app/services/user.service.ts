@@ -39,19 +39,49 @@ export class UserService {
 
   constructor(private connection: ConnectionService, private settingsService: UserSettingsService, private router: Router) { 
     console.log('UserService constructor called.')
+
+    const t = 1670877960692
+    const date = new Intl.DateTimeFormat("en", {
+      timeZone: "Europe/Warsaw",
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      weekday: "long",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+      second: "2-digit",
+      timeZoneName: "short",
+      hourCycle: "h23"
+    }).format( t )  //.format( d );
+              
+    
+    console.log( date )
+
+
+
+
+
+
+
+
+
     this.connection.messageEmitter.subscribe(
       (message: Message) => {
         console.log(`message from emitter: ${message}`)
       },
-      (error) => console.log('Error in message emitter: ', error),
+      (error) => {
+        console.log('Error in message emitter: ', error)
+        console.log(error)
+      },
       () => console.log('on message emitter completed.')
     )
     const userId = this.connection.getUserId();
     if ( userId ) {
-      this.updateSession()
+      this.updateSession2( userId )
       console.log('Session is valid.') 
       // we get user's settings 
-      const s = this.connection.user(userId)
+      const s = this.connection.user( userId )
       if ( s ) {
         s.subscribe({
           next: (response) => {
@@ -98,15 +128,10 @@ export class UserService {
             // we sort newest (larger lastMessageTime) first.
             if (chats) {
               console.log('UserSerivice.constructor() fetching chats' )
+              // this.chatAndUsers = 
+              // sorting is mutaing so we do not need reassign it
               this.chatAndUsers = chats.sort((a,b) => -(a.chat.lastMessageTime - b.chat.lastMessageTime))
-                .map((item, i, array) => {
-                  return {
-                    chat: item.chat,
-                    partitionOffsets: item.partitionOffsets,
-                    users: item.users,
-                    messages: item.messages
-                  };
-                });
+
             }
             this.chatFetched = true
             this.dataFetched()
@@ -142,11 +167,14 @@ export class UserService {
   setUserAndSettings(u: User | undefined, s: Settings | undefined) {
     this.user = u;
     if (s) this.settingsService.setSettings(s);
+    this.userFetched = true
+    this.dataFetched()
   }
 
   setChats(chats: ChatData[]) {
     this.chatAndUsers = chats
-    console.log('chats sets correctly')
+    this.chatFetched = true
+    this.dataFetched()
   }
 
 
@@ -176,12 +204,21 @@ export class UserService {
     }
   }
 
+  updateSession2(userId: string) {
+    this.connection.updateSession(userId);
+    this.restartLogoutTimer()
+  }
+
   isSessionValid(): boolean {
     return this.connection.isSessionValid();
   }
 
   dataFetched() {
     this.fetchingUserDataFinishedEmmiter.emit(this.userFetched && this.chatFetched)
+  }
+
+  addNewChat(c: ChatData) {
+
   }
 
 
@@ -275,7 +312,6 @@ export class UserService {
 
   getChats(): Observable<HttpResponse<ChatData[]>> | undefined {
     if ( this.user ) {
-      console.log('here i am')
       this.updateSession()
       return this.connection.getChats(this.user.userId);
     }
@@ -318,7 +354,7 @@ export class UserService {
     else return undefined;    
   }
 
-  newChat(chatName: string, usersIds: string[]) {
+  newChat(chatName: string, usersIds: string[]): Observable<HttpResponse<ChatData[]>> | undefined {
     if (this.user) {
       this.updateSession()
       return this.connection.newChat(this.user, chatName, usersIds);

@@ -184,20 +184,26 @@ export class EditAccountComponent implements OnInit, OnDestroy {
   }
 
   clearSettingsNotification() {
+    this.userService.updateSession()
     this.settingsResponse = undefined
   }
 
   clearLoginNotification() {
+    this.userService.updateSession()
     this.loginResponse = undefined
   }
 
   clearPasswordNotification() {
+    this.userService.updateSession()
     this.passwordResponse = undefined
   }
 
   clearError() {
+    this.userService.updateSession()
     this.returnedError = undefined
   }
+
+  
 
 
 

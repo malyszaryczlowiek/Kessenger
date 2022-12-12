@@ -57,6 +57,7 @@ export class SessionService {
     if ( this.ksid ) {
       const time: number = this.utcService.getUTCmilliSeconds() + this.userSettings.settings.sessionDuration; // current  time + 15 min
       this.ksid = new Ksid(this.ksid.sessId, userId, time);
+      // this.cookieService.delete('KSID')
       this.cookieService.set('KSID', this.ksid.toString(), this.getExpirationTime(), '/');
     } else {
       this.router.navigate(['session-timeout'])

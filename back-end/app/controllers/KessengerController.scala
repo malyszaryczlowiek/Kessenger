@@ -665,7 +665,7 @@ class KessengerController @Inject()
                 dbExecutor.createChat(me, users, chatName) match {
                   case Left(QueryError(_, UnsupportedOperation)) => BadRequest("Error 012. Chat already exists.")
                   case Left(queryError) => InternalServerError(s"Error 013. ${queryError.description.toString()}")
-                  case Right(createdChat) => Ok(parseChatToJSON(createdChat))
+                  case Right(createdChat) => Ok( jsonParser.chatsToJSON(createdChat) )
                 }
               })
             }(databaseExecutionContext)

@@ -1,7 +1,7 @@
 <h1>Create Chat</h1>
 <div>
-    <form [formGroup]="chatForm">
-        <input formControlName="chatName" type="text" id="chat-name" placeholder="Chat Name">
+    <form [formGroup]="chatForm" (ngSubmit)="create()" >
+        <input (keyup)="validateForm()" formControlName="chatName" type="text" id="chat-name" placeholder="Chat Name">
         <br>
         <!-- <label>Group Chat</label>
         <input formControlName="groupChat" type="checkbox" id="group-chat" value="false">
@@ -16,7 +16,7 @@
             </div>
         </div>
         <p></p>
-        <button [disabled]="disableSubmitting" type="submit">Create Chat</button>
+        <button type="submit" [disabled]="disableSubmitting" type="submit">Create Chat</button>
     </form>
     <button routerLink="/user" routerLinkActive="active" ariaCurrentWhenActive="page">Cancel</button>
 </div>
@@ -39,4 +39,8 @@
         </div>
     </div>
 </div>
-
+<p></p>
+CreateMessage: 
+<div *ngIf="createMessage">
+    {{ createMessage }}
+</div>

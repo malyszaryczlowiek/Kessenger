@@ -456,10 +456,10 @@ class DbExecutor(val kafkaConfigurator: KafkaConfigurator) {
   Chat Creation
    */
 
-  def createChat(me: User, users: List[UUID], chatName: ChatName)(implicit connection: Connection): DbResponse[Chat] = {
+  def createChat(me: User, users: List[UUID], chatName: ChatName)(implicit connection: Connection): DbResponse[Map[Chat,Map[Int, Long]]] = {
     if (users.length == 1) {
       val chatId = Domain.generateChatId(me.userId, users.head)
-      createSingleChat(me, users, chatId, chatName)
+      createSingleChat(me, users.head, chatId, chatName)
     } else {
       val chatId = Domain.generateChatId(UUID.randomUUID(), UUID.randomUUID())
       createGroupChat(me, users, chatId, chatName )
@@ -491,8 +491,8 @@ class DbExecutor(val kafkaConfigurator: KafkaConfigurator) {
   }
 
 
-  private def createSingleChat(me: User, otherId: List[UUID], chatId: ChatId, chatName: ChatName)(implicit connection: Connection): DbResponse[Chat] = {
-    checkDuplicatedChat(me.userId, otherId.head) match {
+  private def createSingleChat(me: User, otherId: UUID, chatId: ChatId, chatName: ChatName)(implicit connection: Connection): DbResponse[Map[Chat,Map[Int, Long]]] = {
+    checkDuplicatedChat(me.userId, otherId) match {
       case Left(error) => Left(error)
       case Right(value) =>
         if (value > 0) Left(QueryError(ERROR, UnsupportedOperation))
@@ -522,7 +522,8 @@ class DbExecutor(val kafkaConfigurator: KafkaConfigurator) {
               if (n == 3) {
                 connection.commit()
                 connection.setAutoCommit(true)
-                Right(chat)
+                val map = (0 until kafkaConfigurator.CHAT_TOPIC_PARTITIONS_NUMBER).map(p => p -> 0L).toMap
+                Right( Map(chat -> map) )
               } else {
                 connection.rollback(beforeAnyInsertions)
                 connection.setAutoCommit(true)
@@ -537,7 +538,7 @@ class DbExecutor(val kafkaConfigurator: KafkaConfigurator) {
 
 
 
-  def createGroupChat(me: User, users: List[UUID],chatId: ChatId, chatName: ChatName )(implicit connection: Connection): DbResponse[Chat] = {
+  def createGroupChat(me: User, users: List[UUID],chatId: ChatId, chatName: ChatName )(implicit connection: Connection): DbResponse[Map[Chat,Map[Int, Long]]] = {
     val listSize = users.length
     if (listSize < 2)
       Left(QueryError(ERROR, AtLeastTwoUsers))
@@ -566,7 +567,8 @@ class DbExecutor(val kafkaConfigurator: KafkaConfigurator) {
           if (n == (users.length + 1)) {
             connection.commit()
             connection.setAutoCommit(true)
-            Right(chat)
+            val map = (0 until kafkaConfigurator.CHAT_TOPIC_PARTITIONS_NUMBER).map(p => p -> 0L).toMap
+            Right(Map(chat -> map))
           } else {
             connection.rollback(beforeAnyInsertions)
             connection.setAutoCommit(true)

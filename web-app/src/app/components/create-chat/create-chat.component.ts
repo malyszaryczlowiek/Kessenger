@@ -2,6 +2,7 @@ import { Component, OnDestroy, OnInit } from '@angular/core';
 import { FormControl, FormGroup, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { debounce, debounceTime, distinctUntilChanged, of, share, startWith, Subject, switchMap } from 'rxjs';
+import { ChatData } from 'src/app/models/ChatData';
 import { User } from 'src/app/models/User';
 import { UserService } from 'src/app/services/user.service';
 
@@ -44,8 +45,7 @@ export class CreateChatComponent implements OnInit, OnDestroy {
   public disableSubmitting: boolean = true;
   
   returnedError: any | undefined
-
-
+  createMessage: string | undefined
 
 
 
@@ -72,21 +72,46 @@ export class CreateChatComponent implements OnInit, OnDestroy {
     const chatName = this.chatForm.controls.chatName.value
     const me = this.userService.user
     if ( chatName && this.selectedUsers.length >= 1 && me) {
-      this.selectedUsers.push(me)
       const c = this.userService.newChat(chatName, this.selectedUsers.map(u => u.userId))
       if ( c ) {
+        this.createMessage = 'Creating Chat... Wait a few seconds.'
         c.subscribe({
           next: (response) => {
-
-
-
-            // tutaj teraz impelementować
-            // todo implement this
-
-
-
+            if (response.status == 200) {
+              const body = response.body?.at(0)
+              const me = this.userService.user
+              if ( body && me ) {
+                this.selectedUsers.push( me )
+                const chatData: ChatData = {
+                  chat: body.chat,
+                  users: this.selectedUsers,                   
+                  partitionOffsets: body.partitionOffsets,
+                  messages: new Array()
+                }
+                this.userService.addNewChat( chatData ) // todo implement this method
+                // inform chat created
+                this.createMessage = 'Chat created, Redirecting to it.'    
+                
+                // and we set redirection
+                setTimeout(() => {
+                  this.createMessage = undefined
+                  this.router.navigate(['user', 'chat', `${body.chat.chatId}`])
+                }, 1500 )
+              }
+            } else {
+              console.log('Chat creation status != 200')
+            }
           }, 
-          error: (e) => {},
+          error: (error) => {
+            console.log("ERROR", error)
+            if (error.status == 401){
+              console.log('Session is out.')
+              this.router.navigate(['session-timeout'])
+            }
+            else {
+              this.returnedError = error.error
+            }
+          },
           complete: () => {}
         })
       } else {

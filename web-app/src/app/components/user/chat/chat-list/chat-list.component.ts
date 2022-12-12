@@ -10,16 +10,26 @@ import { UserService } from 'src/app/services/user.service';
 })
 export class ChatListComponent implements OnInit {
 
-  @Input() chats: Array<ChatData> = new Array<ChatData>();
+  @Input() chats: Array<ChatData> = new Array<ChatData>(); 
 
-  constructor(private router: Router) { }
+  constructor(private userService: UserService, private router: Router) { }
 
   ngOnInit(): void {
+    console.log('ChatListComponent.ngOnInit() ')
+    this.userService.fetchingUserDataFinishedEmmiter.subscribe(
+      (b) => {
+        console.log('')
+        if ( b ) {
+          console.log('Chats loaded to ChatList')
+          this.chats = this.userService.chatAndUsers
+          console.log('List has size ' + this.chats.length)
+        }
+      }
+    )
   }
 
   onClick(c: ChatData) {
-    const chatId = c.chat.chatId;
-    this.router.navigate(['user', 'chat', chatId]) 
+    this.router.navigate(['user', 'chat', c.chat.chatId]) 
   }
 
 }
