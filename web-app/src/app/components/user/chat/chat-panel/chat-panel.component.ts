@@ -45,7 +45,13 @@ export class ChatPanelComponent implements OnInit {
 
   sendMessage(m: Message) {
     console.log('sending message', m)
+    this.userService.updateSession()
     this.userService.sendMessage( m )
+  }
+
+  goToChatSettings() {
+    this.userService.updateSession()
+    this.router.navigate(['user', 'editChat', `${this.chatData?.chat.chatId}`])
   }
 
 

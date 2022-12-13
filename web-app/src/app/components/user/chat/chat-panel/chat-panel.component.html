@@ -1,7 +1,7 @@
 <div *ngIf="chatData">
     <div>
         Welcome in chat "{{chatData.chat.chatName}}"
-        <button>Chat Settings</button>
+        <button (click)="goToChatSettings()">Chat Settings</button>
     </div>  
     <div>
         <app-message-list [messages]="chatData.messages"></app-message-list>

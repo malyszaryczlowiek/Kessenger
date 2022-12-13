@@ -19,9 +19,7 @@ export class ChatListComponent implements OnInit, OnDestroy {
     console.log('ChatListComponent.ngOnInit() ')
     this.userService.fetchingUserDataFinishedEmmiter.subscribe(
       (b) => {
-        console.log('')
         if ( b ) {
-          console.log('Chats loaded to ChatList')
           this.chats = this.userService.chatAndUsers
           console.log('List has size ' + this.chats.length)
         }

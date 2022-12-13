@@ -22,14 +22,39 @@ export class EditChatSettingsComponent implements OnInit {
   
   constructor(
     private router: Router, 
-    private activatedRoute: ActivatedRoute,
+    private activated: ActivatedRoute,
     private userService: UserService) { }
 
 
 
   ngOnInit(): void {
-    const chatId = this.activatedRoute.snapshot.paramMap.get('chatId')
-    if (chatId) {
+    this.userService.fetchingUserDataFinishedEmmiter.subscribe(
+      (b) => {
+        if (b) {
+          const chatId = this.activated.snapshot.paramMap.get('chatId');
+          if ( chatId ) {
+            this.chatData = this.userService.chatAndUsers.find((chatData, index, arr) => {
+              return chatData.chat.chatId == chatId;
+            });
+            if (this.chatData) {} // ok
+            else this.router.navigate(['page-not-found']);
+          } else {
+            this.router.navigate(['page-not-found']);
+          }
+        }
+      }
+    )
+    this.userService.dataFetched()
+  }
+
+
+
+
+
+
+
+
+    /* if (chatId) {
       this.chatData = this.userService.chatAndUsers.find( (chatData, index, arr) =>{
         return chatData.chat.chatId == chatId;
       });
@@ -46,8 +71,8 @@ export class EditChatSettingsComponent implements OnInit {
     } else {
       // if chat not found we redirect to page not found.
       this.router.navigate(['pageNotFound']);
-    }
-  }
+    } */
+  
 
 
   // here we save changed name or silence
@@ -67,6 +92,16 @@ export class EditChatSettingsComponent implements OnInit {
   // if we do not want change data we can navigate back to chat side
   onCancel() {
     if (this.chatData){
+      this.userService.updateSession()
+      this.router.navigate(['user', 'chat', `${this.chatData.chat.chatId}`]);
+    } else {
+      this.router.navigate(['user']);
+    }    
+  }
+
+  backToChat() {
+    if (this.chatData){
+      this.userService.updateSession()
       this.router.navigate(['user', 'chat', `${this.chatData.chat.chatId}`]);
     } else {
       this.router.navigate(['user']);
