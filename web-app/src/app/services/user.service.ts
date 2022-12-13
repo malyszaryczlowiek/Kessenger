@@ -37,10 +37,22 @@ export class UserService {
   invitationEmitter = this.connection.invitationEmitter
 
 
+  selectedChatEmitter: EventEmitter<ChatData> = new EventEmitter<ChatData>()
+
+
+  /* ISSUES
+
+  
+  */
+  
+
+
+
+
   constructor(private connection: ConnectionService, private settingsService: UserSettingsService, private router: Router) { 
     console.log('UserService constructor called.')
 
-    const t = 1670877960692
+    const t = 1670948812530
     const date = new Intl.DateTimeFormat("en", {
       timeZone: "Europe/Warsaw",
       day: "2-digit",
@@ -49,7 +61,7 @@ export class UserService {
       weekday: "long",
       hour: "2-digit",
       minute: "2-digit",
-      hour12: false,
+      hour12: false, 
       second: "2-digit",
       timeZoneName: "short",
       hourCycle: "h23"
@@ -372,10 +384,8 @@ export class UserService {
     if (this.user)
       this.connection.connectViaWS(this.user.userId);
   }
-  /*
-  tutaj będzie musiał być parsing i obudowanie treści wiadomości 
-  w inne informacje jak chat id user id etc. 
-  */
+
+
   sendMessage(msg: Message) {
     this.connection.sendMessage(msg);
   }

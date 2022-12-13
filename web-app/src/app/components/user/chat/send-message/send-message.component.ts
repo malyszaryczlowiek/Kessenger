@@ -28,6 +28,7 @@ export class SendMessageComponent implements OnInit {
   constructor(private userService: UserService, private utc: UtctimeService, private settings: UserSettingsService) { }
 
   ngOnInit(): void {
+    console.log('SendMessageComponent.ngOnInit()')
   }
 
   onSubmit() {
@@ -35,10 +36,6 @@ export class SendMessageComponent implements OnInit {
     const user = this.userService.user
     const settings = this.settings.settings
     if (messageContent && this.chat && user) {
-      // TODO tutaj stworzyć obiekt Message, który zostanie wysłany dalej
-      // następnie dodać w chat-panel obsługę takiego eventa tak aby został on
-      // wysłany przez web socket. 
-
       const m: Message = {
         content: messageContent,
         authorId: user.userId,
@@ -49,9 +46,8 @@ export class SendMessageComponent implements OnInit {
         chatName: this.chat.chatName,
         groupChat: this.chat.groupChat
       }
-
       this.sendingMessage.emit( m );
-    }
+    } 
   }
 
 }

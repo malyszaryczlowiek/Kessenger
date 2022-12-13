@@ -16,20 +16,35 @@ export class ChatPanelComponent implements OnInit {
   public chatData: ChatData | undefined;
 
   ngOnInit(): void {
-    const chatId = this.activated.snapshot.paramMap.get('chatId');
-    if ( chatId ) {
-      this.chatData = this.userService.chatAndUsers.find((chatData, index, arr) => {
-        return chatData.chat.chatId == chatId;
-      });
-      if (this.chatData) {} // ok
-      else this.router.navigate(['page-not-found']);
-    } else {
-      this.router.navigate(['page-not-found']);
-    }
+    console.log('ChatPanelComponent.ngOnInit')
+
+    this.userService.fetchingUserDataFinishedEmmiter.subscribe(
+      (b) => {
+        if (b) {
+          const chatId = this.activated.snapshot.paramMap.get('chatId');
+          if ( chatId ) {
+            this.chatData = this.userService.chatAndUsers.find((chatData, index, arr) => {
+              return chatData.chat.chatId == chatId;
+            });
+            if (this.chatData) {} // ok
+            else this.router.navigate(['page-not-found']);
+          } else {
+            this.router.navigate(['page-not-found']);
+          }
+        }
+      }
+    )
+
+    this.userService.selectedChatEmitter.subscribe(
+      (cd) => this.chatData = cd
+    )
+
+    this.userService.dataFetched()
   }
 
 
   sendMessage(m: Message) {
+    console.log('sending message', m)
     this.userService.sendMessage( m )
   }
 

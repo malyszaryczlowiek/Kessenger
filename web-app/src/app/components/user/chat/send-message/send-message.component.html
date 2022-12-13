@@ -1,4 +1,6 @@
-<div [formGroup]="messageForm" (ngSubmit)="onSubmit()">
-    <input formControlName="messageContent" type="text" placeholder="Your Message">
-    <button [disabled]="!messageForm.valid" type="submit">Send</button>
+<div>
+    <form  [formGroup]="messageForm" (ngSubmit)="onSubmit()">
+        <input formControlName="messageContent" type="text" placeholder="Your Message">
+        <button [disabled]="!messageForm.valid" type="submit">Send</button>
+    </form>    
 </div>
