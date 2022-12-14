@@ -149,6 +149,7 @@ class JsonParsers {
 
   def parseNewPass(json: String): Either[Error, (String, String)] = decode[(String, String)](json)(newPassDecoder)
 
+  def parseChat(json: String): Either[Error, Chat] = decode[Chat](json)
 
 }
 

@@ -22,12 +22,13 @@ PUT          /user/:userId/changePassword                        controllers.Kes
 GET          /user/:userId/searchUser                            controllers.KessengerController.searchUser(userId: java.util.UUID, u: String)
 
 # chats
+POST         /user/:userId/newChat                               controllers.KessengerController.newChat(userId: java.util.UUID)
 GET          /user/:userId/chats                                 controllers.KessengerController.getChats(userId: java.util.UUID)
 GET          /user/:userId/chats/:chatId                         controllers.KessengerController.getChatUsers(userId: java.util.UUID, chatId: String)
 DELETE       /user/:userId/chats/:chatId                         controllers.KessengerController.leaveChat(userId: java.util.UUID, chatId: String)
-PUT          /user/:userId/chats/:chatId/newChatName             controllers.KessengerController.updateChatName(userId: java.util.UUID, chatId: String)
+PUT          /user/:userId/chats/:chatId/chatSettings            controllers.KessengerController.setChatSettings(userId: java.util.UUID, chatId: String)
 POST         /user/:userId/chats/:chatId/addNewUsers             controllers.KessengerController.addUsersToChat(userId: java.util.UUID, chatId: String)
-POST         /user/:userId/newChat                               controllers.KessengerController.newChat(userId: java.util.UUID)
+
 
 ####   WEBSOCKET
 # GET          /user/:userId/ws                                    controllers.KessengerController.ws(userId: java.util.UUID)

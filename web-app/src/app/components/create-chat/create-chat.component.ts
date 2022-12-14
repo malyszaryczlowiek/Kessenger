@@ -88,7 +88,7 @@ export class CreateChatComponent implements OnInit, OnDestroy {
                   partitionOffsets: body.partitionOffsets,
                   messages: new Array()
                 }
-                this.userService.addNewChat( chatData ) // todo implement this method
+                this.userService.addNewChat( chatData ) 
                 // inform chat created
                 this.createMessage = 'Chat created, Redirecting to it.'    
                 
@@ -103,11 +103,17 @@ export class CreateChatComponent implements OnInit, OnDestroy {
             }
           }, 
           error: (error) => {
+            this.createMessage = undefined
             console.log("ERROR", error)
             if (error.status == 401){
               console.log('Session is out.')
               this.router.navigate(['session-timeout'])
             }
+            /* if (error.status == 400) {
+              if () {
+
+              }
+            } */
             else {
               this.returnedError = error.error
             }
@@ -124,7 +130,6 @@ export class CreateChatComponent implements OnInit, OnDestroy {
 
 
 
-  // metoda do szukania użytkownika w bazie danych 
   search() {
     this.userService.updateSession()
     this.foundUsers = new Array<User>()
@@ -153,9 +158,9 @@ export class CreateChatComponent implements OnInit, OnDestroy {
                 this.foundUsers = new Array<User>(); 
                 users.forEach((user, index, array) => {
                   const exists = this.selectedUsers.find( (u, index,arr) => {
-                    return u.userId == user.userId
+                    return u.userId == user.userId 
                   })
-                  if (! exists) {
+                  if (!exists && this.userService.user?.userId != user.userId) {
                     this.foundUsers.push( user )
                   }
                 })
@@ -164,7 +169,7 @@ export class CreateChatComponent implements OnInit, OnDestroy {
             if (response.status == 204){
               this.foundUsers = new Array<User>(); 
               console.log('No User found')
-            }            
+            }
           },
           error: (error) => {
             console.log("ERROR", error)
@@ -189,7 +194,7 @@ export class CreateChatComponent implements OnInit, OnDestroy {
 
 
 
-  // https://www.youtube.com/shorts/Z6ZQc_Fm42k
+
   
   
 
@@ -216,6 +221,11 @@ export class CreateChatComponent implements OnInit, OnDestroy {
   validateForm() {
     this.disableSubmitting = !( this.chatForm.valid && this.selectedUsers.length > 0 );
     this.userService.updateSession()
+  }
+
+  clearError() {
+    this.userService.updateSession()
+    this.returnedError = undefined
   }
 
 

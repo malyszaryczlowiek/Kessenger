@@ -13,9 +13,8 @@ import { UserService } from 'src/app/services/user.service';
 export class EditAccountComponent implements OnInit, OnDestroy {
 
   settings: Settings | undefined
-  defaultZone = 'UTC'
   zones: string[] = []
-  seconds: number = 0
+  
 
 
   settingsResponse: any | undefined
@@ -47,15 +46,19 @@ export class EditAccountComponent implements OnInit, OnDestroy {
   constructor(private userService: UserService, private settingsService: UserSettingsService, private router: Router) { }
 
   ngOnInit(): void {
-    this.zones = this.settingsService.zones
-    this.settings = this.settingsService.settings
-    this.settingsGroup.controls.zoneControl.setValue( this.settings.zoneId )
-    this.settingsGroup.controls.sessionControl.setValue( this.settings.sessionDuration / (60000) )
-    this.seconds = this.settingsService.settings.sessionDuration / 1000
+  //  this.seconds = this.settingsService.settings.sessionDuration / 1000
     this.userService.updateSession()
-    this.logoutSecondsEmitter.subscribe(
-      (seconds: number) => this.seconds = seconds
+    this.userService.fetchingUserDataFinishedEmmiter.subscribe(
+      ( b ) => {
+        if ( b ){
+          this.zones = this.settingsService.zones
+          this.settings = this.settingsService.settings
+          this.settingsGroup.controls.zoneControl.setValue( this.settings.zoneId )
+          this.settingsGroup.controls.sessionControl.setValue( this.settings.sessionDuration / (60000) )
+        }
+      }
     )
+    this.userService.dataFetched() 
   }
 
 

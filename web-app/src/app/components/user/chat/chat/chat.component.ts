@@ -39,7 +39,7 @@ export class ChatComponent implements OnInit, OnDestroy {
             if (response.status == 200) {
               const body = response.body
               if (body) {
-                console.log('ChatComponent.ngOnInit() chats from server saved.  ') 
+                console.log('ChatComponent.ngOnInit() chats from server saved.') 
                 this.userService.setChats(body)
               }
               else {

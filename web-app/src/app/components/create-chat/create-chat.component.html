@@ -40,7 +40,12 @@
     </div>
 </div>
 <p></p>
-CreateMessage: 
+
 <div *ngIf="createMessage">
-    {{ createMessage }}
+    <p>CreateMessage:  {{ createMessage }}</p>
 </div>
+<p></p>
+<div *ngIf="returnedError" (click)="clearError()">
+    Error: {{ returnedError.num }} Message: {{ returnedError.message }} 
+</div>
+

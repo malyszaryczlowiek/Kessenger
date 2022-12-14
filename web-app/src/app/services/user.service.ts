@@ -10,6 +10,8 @@ import { Settings } from '../models/Settings';
 import { HttpResponse } from '@angular/common/http';
 import { UserSettingsService } from './user-settings.service';
 import { Invitation } from '../models/Invitation';
+import { Chat } from '../models/Chat';
+import { UtctimeService } from './utctime.service';
 // import { clearInterval } from 'stompjs';
 
 @Injectable({
@@ -49,26 +51,13 @@ export class UserService {
 
 
 
-  constructor(private connection: ConnectionService, private settingsService: UserSettingsService, private router: Router) { 
+  constructor(private connection: ConnectionService, 
+    private settingsService: UserSettingsService, 
+    private timeService: UtctimeService,
+    private router: Router) { 
     console.log('UserService constructor called.')
 
-    const t = 1670948812530
-    const date = new Intl.DateTimeFormat("en", {
-      timeZone: "Europe/Warsaw",
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-      weekday: "long",
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: false, 
-      second: "2-digit",
-      timeZoneName: "short",
-      hourCycle: "h23"
-    }).format( t )  //.format( d );
-              
     
-    console.log( date )
 
 
 
@@ -109,6 +98,29 @@ export class UserService {
               this.restartLogoutTimer()
               this.userFetched = true
               this.dataFetched()
+
+
+
+
+
+
+              const t = this.timeService.getUTCmilliSeconds()
+              const date = new Intl.DateTimeFormat("en", {
+                timeZone: body.settings.zoneId,
+                day: "2-digit",
+                month: "2-digit",
+                year: "numeric",
+                weekday: "long",
+                hour: "2-digit",
+                minute: "2-digit",
+                hour12: false, 
+                second: "2-digit",
+                timeZoneName: "short",
+                hourCycle: "h23"
+              }).format( t )  //.format( d );
+                        
+              console.log(`zone: ${body.settings.zoneId}`)
+              console.log( date )
 
 
               this.testString = 'new value'
@@ -230,7 +242,14 @@ export class UserService {
   }
 
   addNewChat(c: ChatData) {
+    this.changeChat(c)
+  }
 
+  changeChat(chatD: ChatData) {
+    const filtered = this.chatAndUsers.filter((cd, i, arr) => {return cd.chat.chatId != chatD.chat.chatId})
+    filtered.push(chatD)
+    this.chatAndUsers = filtered.sort((a,b) => -(a.chat.lastMessageTime - b.chat.lastMessageTime))
+    this.dataFetched()
   }
 
 
@@ -320,6 +339,15 @@ export class UserService {
   }
 
   // chats
+
+
+  newChat(chatName: string, usersIds: string[]): Observable<HttpResponse<ChatData[]>> | undefined {
+    if (this.user) {
+      this.updateSession()
+      return this.connection.newChat(this.user, chatName, usersIds);
+    } 
+    else return undefined;    
+  }
   
 
   getChats(): Observable<HttpResponse<ChatData[]>> | undefined {
@@ -349,10 +377,10 @@ export class UserService {
   }
 
 
-  updateChatName(chatId: string, newName: string): Observable<HttpResponse<any>> | undefined {
+  setChatSettings(chat: Chat): Observable<HttpResponse<any>> | undefined {
     if (this.user) {
       this.updateSession()
-      return this.connection.updateChatName(this.user.userId, chatId, newName);
+      return this.connection.setChatSettings(this.user.userId, chat);
     } 
     else return undefined;
   }
@@ -366,13 +394,13 @@ export class UserService {
     else return undefined;    
   }
 
-  newChat(chatName: string, usersIds: string[]): Observable<HttpResponse<ChatData[]>> | undefined {
-    if (this.user) {
-      this.updateSession()
-      return this.connection.newChat(this.user, chatName, usersIds);
-    } 
-    else return undefined;    
-  }
+ 
+
+
+
+
+
+
 
 
 

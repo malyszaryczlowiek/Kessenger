@@ -1,5 +1,5 @@
 <div>
-    Edit chat
+    <h3>Edit chat</h3>
     <p></p>
     <form [formGroup]="chatSettings" (ngSubmit)="saveChanges()">
         Set new chat name:
@@ -11,15 +11,17 @@
         <button type="submit">Save Changes</button>
     </form>
 </div>
+<p *ngIf="responseMessage" (click)="clearNotification()"> {{ responseMessage }}</p>
+
 
 <p></p>
 
-<div>
-    Watch out! This operation you cannot undo.
+<div *ngIf="chatData && chatData.chat.groupChat">
+    <p >Watch out! This operation cannot be undo.</p>
     <br>
-    <button (click)="leaveChat()">Leave Chat</button>
+    <button  (click)="leaveChat()">Leave Chat</button>
 </div>
-
+<p></p>
 <div>
     <button (click)="backToChat()">Back to Chat</button>
 </div>

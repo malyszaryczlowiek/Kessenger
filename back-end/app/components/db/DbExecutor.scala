@@ -27,7 +27,7 @@ class DbExecutor(val kafkaConfigurator: KafkaConfigurator) {
         val sql1 = s"INSERT INTO users (user_id, login, pass) VALUES ('${user.userId.toString}', '${user.login}', '$pass') "
         val sql2 = s"INSERT INTO settings (user_id, zone_id) VALUES ('${user.userId.toString}', '${settings.zoneId.getId}' ) "
         val sql3 = s"INSERT INTO sessions (session_id, user_id, validity_time) " +
-          s"VALUES ('${sessionData.sessionId.toString}', '${sessionData.userId.toString}',  ${sessionData.validityTime})"
+          s"VALUES ('${sessionData.sessionId.toString}', '${user.userId.toString}',  ${sessionData.validityTime})"
         statement.addBatch(sql1)
         statement.addBatch(sql2)
         statement.addBatch(sql3)
@@ -698,6 +698,22 @@ class DbExecutor(val kafkaConfigurator: KafkaConfigurator) {
         statement.setLong(2, settings.sessionDuration)
         statement.setString(3, settings.zoneId.getId)
         statement.setObject(4, userId)
+        statement.executeUpdate()
+    } match {
+      case Failure(ex) => handleExceptionMessage(ex)
+      case Success(value) => Right(value)
+    }
+  }
+
+
+  def updateChat(userId: UserID, chat: Chat)(implicit connection: Connection): DbResponse[Int] = {
+    val sql = "UPDATE users_chats SET chat_name = ?, silent = ? WHERE chat_id = ? AND user_id = ? "
+    Using(connection.prepareStatement(sql)) {
+      (statement: PreparedStatement) =>
+        statement.setString(1,  chat.chatName)
+        statement.setBoolean(2, chat.silent)
+        statement.setString(3,  chat.chatId)
+        statement.setObject(4,  userId)
         statement.executeUpdate()
     } match {
       case Failure(ex) => handleExceptionMessage(ex)

@@ -46,7 +46,7 @@ export class ChatPanelComponent implements OnInit {
   sendMessage(m: Message) {
     console.log('sending message', m)
     this.userService.updateSession()
-    this.userService.sendMessage( m )
+    this.userService.sendMessage( m )                         // todo continue here
   }
 
   goToChatSettings() {

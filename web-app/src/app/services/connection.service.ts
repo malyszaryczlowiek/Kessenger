@@ -11,6 +11,7 @@ import { Settings } from '../models/Settings';
 import { Writing } from '../models/Writing'; 
 import { ChatData } from '../models/ChatData';
 import { SessionService } from './session.service';
+import { Chat } from '../models/Chat';
 
 // import * as SockJS from 'sockjs-client';
 
@@ -180,6 +181,26 @@ export class ConnectionService {
   }
 
 
+    /*
+    OD TEGO ENDPOINTU KONTYNUOWAĆ SPRAWDZANIE
+  */
+  newChat(me: User, chatName: string, users: string[]): Observable<HttpResponse<ChatData[]>> | undefined  {
+    const token = this.session.getSessionToken()
+    if ( token ) {
+      const body = {
+        me: me,
+        users: users,
+        chatName: chatName
+      }
+      return this.http.post<ChatData[]>(this.api + `/user/${me.userId}/newChat`, body, {
+        headers: new HttpHeaders()
+          .set('KSID', token),
+        observe: 'response', 
+        responseType: 'json'
+      });
+    } else return undefined;
+  }
+
 
   getChats(userId: string): Observable<HttpResponse<Array<ChatData>>> | undefined {
     const token = this.session.getSessionToken()
@@ -210,7 +231,6 @@ export class ConnectionService {
 
 
   
-  // nieużywana
   leaveChat(userId: string, chatId: string): Observable<HttpResponse<any>> | undefined {
     const token = this.session.getSessionToken()
     if ( token ) {
@@ -224,10 +244,21 @@ export class ConnectionService {
   }
 
 
+  setChatSettings(userId: string, chat: Chat): Observable<HttpResponse<any>> | undefined {
+    const token = this.session.getSessionToken()
+    if ( token ) {
+      return this.http.put<any>(this.api + `/user/${userId}/chats/${chat.chatId}/chatSettings`, chat, {
+        headers: new HttpHeaders()
+          .set('KSID', token),
+        observe: 'response', 
+        responseType: 'json'
+      });
+    } else return undefined;
+  }
 
 
   // nieużywana
-  updateChatName(userId: string, chatId: string, newChatName: string): Observable<HttpResponse<any>> | undefined {
+  /* updateChatName(userId: string, chatId: string, newChatName: string): Observable<HttpResponse<any>> | undefined {
     const token = this.session.getSessionToken()
     if ( token ) {
       return this.http.put<any>(this.api + `/user/${userId}/chats/${chatId}/newChatName`, newChatName, {
@@ -237,7 +268,7 @@ export class ConnectionService {
         responseType: 'json'
       });
     } else return undefined;
-  }
+  } */
 
 
 
@@ -259,25 +290,7 @@ export class ConnectionService {
 
 
 
-  /*
-    OD TEGO ENDPOINTU KONTYNUOWAĆ SPRAWDZANIE
-  */
-  newChat(me: User, chatName: string, users: string[]): Observable<HttpResponse<ChatData[]>> | undefined  {
-    const token = this.session.getSessionToken()
-    if ( token ) {
-      const body = {
-        me: me,
-        users: users,
-        chatName: chatName
-      }
-      return this.http.post<ChatData[]>(this.api + `/user/${me.userId}/newChat`, body, {
-        headers: new HttpHeaders()
-          .set('KSID', token),
-        observe: 'response', 
-        responseType: 'json'
-      });
-    } else return undefined;
-  }
+
 
 
   
@@ -393,9 +406,6 @@ export class ConnectionService {
   }
 
 
-
-
-  
 
 
 

@@ -468,6 +468,41 @@ class KessengerController @Inject()
     })
 
 
+  // tworzenie pojedyńczego czatu
+  // jak metoda zwróci wynik to należy
+  // we front endzie wysłać info do kafki do wszystkich użytkowników
+  // tod powininec zwracać informacje o chatcie.
+  def newChat(userId: UUID) =
+    SessionChecker(parse.anyContent, userId)(
+      databaseExecutionContext,
+      db,
+      dbExecutor,
+      headersParser
+    ).andThen(
+      SessionUpdater(parse.anyContent, userId)(
+        databaseExecutionContext,
+        db,
+        dbExecutor,
+        headersParser
+      )
+    ).async(implicit request => {
+      request.body.asJson.map(json => {
+        jsonParser.parseNewChat(json.toString()) match {
+          case Left(_) => Future.successful(BadRequest("Error 011. Cannot parse JSON payload."))
+          case Right((me, users, chatName)) =>
+            Future {
+              db.withConnection(implicit connection => {
+                dbExecutor.createChat(me, users, chatName) match {
+                  case Left(QueryError(_, UnsupportedOperation)) => BadRequest(ResponseErrorBody(12, "Chat already exists.").toString  )
+                  case Left(queryError) => InternalServerError(s"Error 013. ${queryError.description.toString()}")
+                  case Right(createdChat) => Ok(jsonParser.chatsToJSON(createdChat))
+                }
+              })
+            }(databaseExecutionContext)
+        }
+      }).getOrElse(Future.successful(BadRequest("Error 014, JSON parsing error.")))
+    })
+
 
 
   /**
@@ -534,6 +569,7 @@ class KessengerController @Inject()
 
 
 
+  // todo check this method
   def leaveChat(userId: UUID, chatId: String) =
     SessionChecker(parse.anyContent, userId)(
       databaseExecutionContext,
@@ -569,7 +605,7 @@ class KessengerController @Inject()
 
 
 
-  def updateChatName(userId: UUID, chatId: String) =
+  def setChatSettings(userId: UUID, chatId: String) =
     SessionChecker(parse.anyContent, userId)(
       databaseExecutionContext,
       db,
@@ -583,18 +619,24 @@ class KessengerController @Inject()
         headersParser
       )
     ).async(implicit request =>
-      request.body.asText.map(newName => {
-        Future {
-          db.withConnection { implicit connection =>
-            dbExecutor.updateChatName(userId, chatId, newName) match {
-              case Left(queryError) =>
-                InternalServerError(s"Error 026. ${queryError.description.toString()}")
-              case Right(value) =>
-                if (value == 1) Ok("name changed")
-                else BadRequest("Error 027, Cannot change chat name. User is not participant of chat or chat does not exist.")
-            }
-          }
-        }(databaseExecutionContext)
+      request.body.asJson.map(payload => {
+        jsonParser.parseChat(payload.toString()) match {
+          case Left(_) =>
+            Future.successful(InternalServerError(s"Error 028. Cannot parse payload data. "))
+          case Right(chat: Chat) =>
+            Future {
+              db.withConnection { implicit connection =>
+                dbExecutor.updateChat(userId, chat) match {
+                  case Left(queryError) =>
+                    InternalServerError(s"Error 026. ${queryError.description.toString()}")
+                  case Right(value) =>
+                    if (value == 1) Ok(ResponseErrorBody(0, "Settings saved").toString)
+                    else BadRequest(ResponseErrorBody(27, "Cannot change chat settings. ").toString)
+                    // User is not participant of chat or chat does not exist.
+                }
+              }
+            }(databaseExecutionContext)
+        }
       }).getOrElse(Future.successful(InternalServerError(s"Error 028. Cannot parse payload data. ")))
     )
 
@@ -603,6 +645,7 @@ class KessengerController @Inject()
 
 
 
+  // todo not tested
   def addUsersToChat(userId: UUID, chatId: ChatId) =
     SessionChecker(parse.anyContent, userId)(
       databaseExecutionContext,
@@ -638,40 +681,6 @@ class KessengerController @Inject()
 
 
 
-  // tworzenie pojedyńczego czatu
-  // jak metoda zwróci wynik to należy
-  // we front endzie wysłać info do kafki do wszystkich użytkowników
-  // tod powininec zwracać informacje o chatcie.
-  def newChat(userId: UUID) =
-    SessionChecker(parse.anyContent, userId)(
-      databaseExecutionContext,
-      db,
-      dbExecutor,
-      headersParser
-    ).andThen(
-      SessionUpdater(parse.anyContent, userId)(
-        databaseExecutionContext,
-        db,
-        dbExecutor,
-        headersParser
-      )
-    ).async(implicit request => {
-      request.body.asJson.map(json => {
-        jsonParser.parseNewChat(json.toString()) match {
-          case Left(_) => Future.successful(BadRequest("Error 011. Cannot parse JSON payload."))
-          case Right((me, users, chatName)) =>
-            Future {
-              db.withConnection( implicit connection => {
-                dbExecutor.createChat(me, users, chatName) match {
-                  case Left(QueryError(_, UnsupportedOperation)) => BadRequest("Error 012. Chat already exists.")
-                  case Left(queryError) => InternalServerError(s"Error 013. ${queryError.description.toString()}")
-                  case Right(createdChat) => Ok( jsonParser.chatsToJSON(createdChat) )
-                }
-              })
-            }(databaseExecutionContext)
-        }
-      }).getOrElse(Future.successful(BadRequest("Error 014, JSON parsing error.")))
-    })
 
 
 

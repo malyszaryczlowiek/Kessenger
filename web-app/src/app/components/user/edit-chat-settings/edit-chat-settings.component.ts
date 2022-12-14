@@ -1,6 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import { FormControl, FormGroup, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
+import { Chat } from 'src/app/models/Chat';
 import { ChatData } from 'src/app/models/ChatData';
 import { UserService } from 'src/app/services/user.service';
 
@@ -11,14 +12,14 @@ import { UserService } from 'src/app/services/user.service';
 })
 export class EditChatSettingsComponent implements OnInit {
 
-  public chatSettings = new FormGroup({
+  chatSettings = new FormGroup({
     newChatName: new FormControl(''),
     silent: new FormControl(false) 
   });
 
-  // zmieniamy silent i nazwę czatu
-  // oraz ewentualnie opuszczamy chat
-  public chatData?: ChatData;
+  chatData?: ChatData;
+
+  responseMessage: any | undefined
   
   constructor(
     private router: Router, 
@@ -36,7 +37,9 @@ export class EditChatSettingsComponent implements OnInit {
             this.chatData = this.userService.chatAndUsers.find((chatData, index, arr) => {
               return chatData.chat.chatId == chatId;
             });
-            if (this.chatData) {} // ok
+            if (this.chatData) {
+              this.chatSettings.controls.silent.setValue(this.chatData.chat.silent)
+            } // ok
             else this.router.navigate(['page-not-found']);
           } else {
             this.router.navigate(['page-not-found']);
@@ -47,44 +50,69 @@ export class EditChatSettingsComponent implements OnInit {
     this.userService.dataFetched()
   }
 
-
-
-
-
-
-
-
-    /* if (chatId) {
-      this.chatData = this.userService.chatAndUsers.find( (chatData, index, arr) =>{
-        return chatData.chat.chatId == chatId;
-      });
-      if (this.chatData) {
-        // initialize form with data
-        this.chatSettings.setValue({
-          newChatName : this.chatData.chat.chatName,
-          silent : this.chatData.chat.silent
-        })
-      } else {
-        // if chat is not found in chats we need to go to page not found
-        this.router.navigate(['pageNotFound'])
-      }
-    } else {
-      // if chat not found we redirect to page not found.
-      this.router.navigate(['pageNotFound']);
-    } */
+  ngOnDelete() {
+    console.log('EditChatSettingsComponent.ngOnDelete() called.')
+  }
   
 
 
   // here we save changed name or silence
-  saveChanges() {
-    console.log('saveChanges was called.')
-    
-    // extract data from form
-    this.chatSettings.value.newChatName
-    this.chatSettings.value.silent
 
-    // save data to server
-    // this.userService.
+  
+  saveChanges() {
+    
+    // console.log(`wartość silent jest ${newSilent} a chat data ${this.chatData}`)
+    
+    if (this.chatData){
+      let body: Chat = this.chatData.chat
+      const newName  = this.chatSettings.value.newChatName
+      let newSilent: boolean = false 
+      if (this.chatSettings.value.silent) newSilent = true
+      if (newName) {
+        body = {
+          chatId:          this.chatData.chat.chatId,
+          chatName:        newName,
+          groupChat:       this.chatData.chat.groupChat,
+          lastMessageTime: this.chatData.chat.lastMessageTime,
+          silent:          newSilent
+        }
+      } else {
+        body = {
+          chatId:          this.chatData.chat.chatId,
+          chatName:        this.chatData.chat.chatName,
+          groupChat:       this.chatData.chat.groupChat,
+          lastMessageTime: this.chatData.chat.lastMessageTime,
+          silent:          newSilent
+        }
+      }
+      const c = this.userService.setChatSettings(body)
+      if ( c ) {
+        c.subscribe({
+          next: (response) => {
+            if (response.ok) {
+              if (this.chatData) {
+                this.responseMessage = response.body.message
+                const newChatData: ChatData = {
+                  chat: body,
+                  messages: this.chatData.messages,
+                  partitionOffsets:  this.chatData.partitionOffsets,
+                  users:  this.chatData.users
+                  
+                }
+                this.userService.changeChat(newChatData)
+              }
+            } else {
+              console.log('Changing chat settings has gone wrong')
+            }
+          },
+          error: (err) => {
+            console.log(err)
+            this.responseMessage = err.error            
+          },
+          complete: () => {},
+        })
+      }   
+    }
   }
 
 
@@ -113,6 +141,11 @@ export class EditChatSettingsComponent implements OnInit {
   // here we handle request to leave chat. 
   leaveChat() {
     console.log('onDelete was called.')
+  }
+
+  clearNotification() {
+    this.userService.updateSession()
+    this.responseMessage = undefined
   }
 
 }

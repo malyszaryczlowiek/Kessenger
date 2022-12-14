@@ -13,6 +13,7 @@ export class ChatListItemComponent implements OnInit {
   constructor() { }
 
   ngOnInit(): void {
+    // here impelement
   }
 
 }
