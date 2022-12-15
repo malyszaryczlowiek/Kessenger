@@ -27,4 +27,22 @@ export class UtctimeService {
   }
 
 
+  getDate(millis: number, zoneId: string): string {
+    const date = new Intl.DateTimeFormat("en", {
+      timeZone: zoneId,
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      weekday: "long",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false, 
+      second: "2-digit",
+      timeZoneName: "short",
+      hourCycle: "h23"
+    }).format( millis )
+    return date
+  }
+
+
 }

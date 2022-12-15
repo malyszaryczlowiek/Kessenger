@@ -1,7 +1,9 @@
 import { Component, Input, OnDestroy, OnInit } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ChatData } from 'src/app/models/ChatData';
+import { UserSettingsService } from 'src/app/services/user-settings.service';
 import { UserService } from 'src/app/services/user.service';
+import { UtctimeService } from 'src/app/services/utctime.service';
 
 @Component({
   selector: 'app-chat-list',
@@ -11,8 +13,16 @@ import { UserService } from 'src/app/services/user.service';
 export class ChatListComponent implements OnInit, OnDestroy {
 
   @Input() chats: Array<ChatData> = new Array<ChatData>(); 
+  chats2: Array<{cd:ChatData,date:string}> = new Array<{cd:ChatData,date:string}>();  // nie używane
+  // uwaga tutaj ponieważ nie jest to @input to nie jest automatycznie aktualizowany
+  
 
-  constructor(private userService: UserService, private router: Router, private route: ActivatedRoute) { }
+
+
+  constructor(private userService: UserService, 
+    private userSettingsService: UserSettingsService,
+    private utcService: UtctimeService,
+    private router: Router, private route: ActivatedRoute) { }
   
 
   ngOnInit(): void {
@@ -21,6 +31,17 @@ export class ChatListComponent implements OnInit, OnDestroy {
       (b) => {
         if ( b ) {
           this.chats = this.userService.chatAndUsers
+
+
+          // poniżej nie używane
+          this.chats2 = this.userService.chatAndUsers.map( // tu przed mapą się kończyło
+            (c,i,arr) => {
+              return {
+                cd: c,
+                date: this.utcService.getDate(c.chat.lastMessageTime, this.userSettingsService.settings.zoneId)
+              }
+            }
+          )
           console.log('List has size ' + this.chats.length)
         }
       }

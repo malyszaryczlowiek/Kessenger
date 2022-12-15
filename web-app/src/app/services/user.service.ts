@@ -98,36 +98,6 @@ export class UserService {
               this.restartLogoutTimer()
               this.userFetched = true
               this.dataFetched()
-
-
-
-
-
-
-              const t = this.timeService.getUTCmilliSeconds()
-              const date = new Intl.DateTimeFormat("en", {
-                timeZone: body.settings.zoneId,
-                day: "2-digit",
-                month: "2-digit",
-                year: "numeric",
-                weekday: "long",
-                hour: "2-digit",
-                minute: "2-digit",
-                hour12: false, 
-                second: "2-digit",
-                timeZoneName: "short",
-                hourCycle: "h23"
-              }).format( t )  //.format( d );
-                        
-              console.log(`zone: ${body.settings.zoneId}`)
-              console.log( date )
-
-
-              this.testString = 'new value'
-              this.testObservable = this.testObservable.pipe(
-                map(s => 'new value observable')
-              )
-              this.testObservable.subscribe()
             }
             else {
               // print error message

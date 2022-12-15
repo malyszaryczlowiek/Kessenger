@@ -1,2 +1,5 @@
 <app-chat-list-item *ngFor="let c of chats; let i = index" [chatData]="c" (click)="onClick(c)"></app-chat-list-item>
+
+
 <!-- <app-chat-list-item *ngFor="let c of chats; let i = index" [chatData]="c"  routerLink="/user/chat/{{c.chat.chatId}}"></app-chat-list-item> -->
+<!-- <app-chat-list-item *ngFor="let c of chats2; let i = index" [chatData]="c.cd" (click)="onClick(c.cd)" [messageDate]="c.date"></app-chat-list-item> -->

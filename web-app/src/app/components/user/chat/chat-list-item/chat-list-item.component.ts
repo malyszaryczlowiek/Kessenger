@@ -1,5 +1,7 @@
 import { Component, Input, OnInit } from '@angular/core';
 import { ChatData } from 'src/app/models/ChatData';
+import { UserSettingsService } from 'src/app/services/user-settings.service';
+import { UtctimeService } from 'src/app/services/utctime.service';
 
 @Component({
   selector: 'app-chat-list-item',
@@ -9,11 +11,22 @@ import { ChatData } from 'src/app/models/ChatData';
 export class ChatListItemComponent implements OnInit {
 
   @Input() chatData?: ChatData;
+  // @Input() messageDate?: string
 
-  constructor() { }
+  constructor(private userSettingsService: UserSettingsService, private utc: UtctimeService) { }
 
   ngOnInit(): void {
     // here impelement
+    /*
+      sprawdzić czy jest jakaś możliwość użyć observera
+    */
+   
   }
+
+  calculateDate(n: number) {
+    return this.utc.getDate(n, this.userSettingsService.settings.zoneId)
+  }
+
+
 
 }

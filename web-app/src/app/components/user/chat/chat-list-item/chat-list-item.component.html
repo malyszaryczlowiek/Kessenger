@@ -2,7 +2,12 @@
 <!-- w zależności od tego czy jest przeczytana czy nie to styl powinien być inny. -->
 <div *ngIf="chatData" >
     <h3>{{ chatData.chat.chatName }}</h3>
+    <!-- <div>
+        Last Message: {{ chatData.chat.lastMessageTime }}   
+       Last Message: {{ messageDate }}  
+    </div> -->
     <div>
-       Last Message: {{ chatData.chat.lastMessageTime }}  
-    </div>
+        <!-- Last Message: {{ chatData.chat.lastMessageTime }}   -->
+        Last Message: {{ calculateDate(chatData.chat.lastMessageTime) }}  
+     </div>
 </div>
