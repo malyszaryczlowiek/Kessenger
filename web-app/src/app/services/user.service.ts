@@ -12,6 +12,7 @@ import { UserSettingsService } from './user-settings.service';
 import { Invitation } from '../models/Invitation';
 import { Chat } from '../models/Chat';
 import { UtctimeService } from './utctime.service';
+import { DomElementSchemaRegistry } from '@angular/compiler';
 // import { clearInterval } from 'stompjs';
 
 @Injectable({
@@ -38,15 +39,8 @@ export class UserService {
   // not implemented yet -> this probably may cause problems 
   invitationEmitter = this.connection.invitationEmitter
 
-
+  // need to unsubscribe
   selectedChatEmitter: EventEmitter<ChatData> = new EventEmitter<ChatData>()
-
-
-  /* ISSUES
-
-  
-  */
-  
 
 
 
@@ -155,7 +149,7 @@ export class UserService {
   }
 
   setChats(chats: ChatData[]) {
-    this.chatAndUsers = chats
+    this.chatAndUsers = chats.sort((a,b) => -(a.chat.lastMessageTime - b.chat.lastMessageTime))
     this.chatFetched = true
     this.dataFetched()
   }
@@ -167,7 +161,6 @@ export class UserService {
     else {
       this.logoutTimer = setInterval(() => {
         this.logoutSeconds = this.logoutSeconds - 1
-        // console.log(`logoutSecondsTimer is running. Seconds: ${this.logoutSeconds}`)
         this.logoutSecondsEmitter.emit(this.logoutSeconds)
         if (this.logoutSeconds < 1) {
           console.log('LogoutTimer called!!!')
@@ -187,6 +180,7 @@ export class UserService {
     }
   }
 
+  // not used
   updateSession2(userId: string) {
     this.connection.updateSession(userId);
     this.restartLogoutTimer()
@@ -208,6 +202,12 @@ export class UserService {
     const filtered = this.chatAndUsers.filter((cd, i, arr) => {return cd.chat.chatId != chatD.chat.chatId})
     filtered.push(chatD)
     this.chatAndUsers = filtered.sort((a,b) => -(a.chat.lastMessageTime - b.chat.lastMessageTime))
+    this.dataFetched()
+  }
+
+  deleteChat(c: ChatData){
+    this.chatAndUsers = this.chatAndUsers.filter((cd, i, arr) => {return cd.chat.chatId != c.chat.chatId})
+      .sort((a,b) => -(a.chat.lastMessageTime - b.chat.lastMessageTime))
     this.dataFetched()
   }
 

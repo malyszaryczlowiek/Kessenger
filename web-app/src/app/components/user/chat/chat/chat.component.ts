@@ -1,4 +1,5 @@
 import { Component, OnDestroy, OnInit } from '@angular/core';
+import { Subscription } from 'rxjs';
 import { ChatData } from 'src/app/models/ChatData';
 import { UserService } from 'src/app/services/user.service';
 
@@ -12,24 +13,20 @@ export class ChatComponent implements OnInit, OnDestroy {
   chats: ChatData[] = new Array<ChatData>()
   testString = this.userService.testString
   testObservable = this.userService.testObservable
-
-  fetchDataEmitter = this.userService.fetchingUserDataFinishedEmmiter
-
+  fetchingSubscription: Subscription | undefined
   responseError: any | undefined
+
 
   constructor(private userService: UserService) { }
 
   ngOnInit(): void {
-
-    this.fetchDataEmitter.subscribe( (b) => {
+    this.fetchingSubscription = this.userService.fetchingUserDataFinishedEmmiter.subscribe( (b) => {
         if (b) {
           console.log('ChatComponent fetched data from UserService via fetchEmmiter.')
           this.chats = this.userService.chatAndUsers
         }
       }
     )
-
-    // fech data only when chats in userService is empty
     if ( this.userService.chatAndUsers.length == 0 ) {
       const c = this.userService.getChats()
       if ( c ) {
@@ -59,6 +56,7 @@ export class ChatComponent implements OnInit, OnDestroy {
         console.log('ChatComponent.ngOnInit() cannot send request to server for chats, Invalid session ???')
       }
     } else {
+      console.log('ChatComponent.constructor() chat data read from UserService directly')
       this.chats = this.userService.chatAndUsers
     }
   }
@@ -66,6 +64,7 @@ export class ChatComponent implements OnInit, OnDestroy {
 
 
   ngOnDestroy() {
+    if (this.fetchingSubscription ) this.fetchingSubscription.unsubscribe()
     console.log('ChatComponent.ngOnDestroy()')
   }
 

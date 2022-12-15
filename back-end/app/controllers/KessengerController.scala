@@ -594,7 +594,7 @@ class KessengerController @Inject()
             case Left(_) =>
               InternalServerError(s"Error 024. ${UndefinedError.toString()}")
             case Right(value) =>
-              Ok(s"W czacie zostało $value użytkowników.")
+              Ok
           }
         }
       }(databaseExecutionContext)

@@ -1,6 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import { FormControl, FormGroup, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
+import { Subscription } from 'rxjs';
 import { Chat } from 'src/app/models/Chat';
 import { ChatData } from 'src/app/models/ChatData';
 import { UserService } from 'src/app/services/user.service';
@@ -16,10 +17,12 @@ export class EditChatSettingsComponent implements OnInit {
     newChatName: new FormControl(''),
     silent: new FormControl(false) 
   });
-
   chatData?: ChatData;
-
   responseMessage: any | undefined
+  fetchingSubscription: Subscription | undefined
+
+
+
   
   constructor(
     private router: Router, 
@@ -29,7 +32,7 @@ export class EditChatSettingsComponent implements OnInit {
 
 
   ngOnInit(): void {
-    this.userService.fetchingUserDataFinishedEmmiter.subscribe(
+    this.fetchingSubscription = this.userService.fetchingUserDataFinishedEmmiter.subscribe(
       (b) => {
         if (b) {
           const chatId = this.activated.snapshot.paramMap.get('chatId');
@@ -39,11 +42,8 @@ export class EditChatSettingsComponent implements OnInit {
             });
             if (this.chatData) {
               this.chatSettings.controls.silent.setValue(this.chatData.chat.silent)
-            } // ok
-            else this.router.navigate(['page-not-found']);
-          } else {
-            this.router.navigate(['page-not-found']);
-          }
+            } 
+          } 
         }
       }
     )
@@ -51,6 +51,7 @@ export class EditChatSettingsComponent implements OnInit {
   }
 
   ngOnDelete() {
+    if (this.fetchingSubscription) this.fetchingSubscription.unsubscribe
     console.log('EditChatSettingsComponent.ngOnDelete() called.')
   }
   
@@ -137,8 +138,40 @@ export class EditChatSettingsComponent implements OnInit {
 
   // here we handle request to leave chat. 
   leaveChat() {
-    
     console.log('onDelete was called.')
+    const cid = this.chatData?.chat.chatId
+    if ( cid )  {
+      const c = this.userService.leaveChat(cid)
+      if ( c ) {
+        c.subscribe({
+          next: (response) => {
+            if (response.ok) {
+              if (this.chatData)
+                this.userService.deleteChat(this.chatData)
+                this.router.navigate(['user'])
+            }
+          },
+          error: (err) => {
+            console.log("ERROR", err)
+            if (err.status == 401){
+              console.log('Session is out.')
+              this.userService.clearService()
+              this.router.navigate(['session-timeout'])
+            }
+            else {
+              this.responseMessage = err.error
+            }
+          },
+          complete: () => {},
+        }) 
+      } else {
+        console.log('Session is out.')
+        this.userService.clearService()
+        this.router.navigate(['session-timeout'])
+      }
+    } else {
+      console.log('chatId not defined.')
+    }    
   }
 
   clearNotification() {

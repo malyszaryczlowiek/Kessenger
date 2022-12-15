@@ -1,6 +1,7 @@
 import { Component, EventEmitter, OnDestroy, OnInit } from '@angular/core';
 import { FormControl, FormGroup, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
+import { Subscription } from 'rxjs';
 import { Settings } from 'src/app/models/Settings';
 import { UserSettingsService } from 'src/app/services/user-settings.service';
 import { UserService } from 'src/app/services/user.service';
@@ -14,14 +15,11 @@ export class EditAccountComponent implements OnInit, OnDestroy {
 
   settings: Settings | undefined
   zones: string[] = []
-  
-
-
   settingsResponse: any | undefined
   loginResponse: any | undefined
   passwordResponse: any | undefined  
   returnedError: any | undefined
-
+  fechingSubscription: Subscription | undefined
 
 
   settingsGroup = new FormGroup({
@@ -33,22 +31,21 @@ export class EditAccountComponent implements OnInit, OnDestroy {
     loginForm: new FormControl('', [Validators.required, Validators.minLength(4)])
   });
 
-  // TODO dostawić powtórzenie hasła i sprawdzić czy są takie same
+  // TODO write validators
   passGroup = new FormGroup({
     old: new FormControl('', [Validators.required, Validators.minLength(8)]),
     neww: new FormControl('', [Validators.required, Validators.minLength(8)])
   });
 
-  logoutSecondsEmitter: EventEmitter<number> = this.userService.logoutSecondsEmitter
+
   
 
 
   constructor(private userService: UserService, private settingsService: UserSettingsService, private router: Router) { }
 
   ngOnInit(): void {
-  //  this.seconds = this.settingsService.settings.sessionDuration / 1000
     this.userService.updateSession()
-    this.userService.fetchingUserDataFinishedEmmiter.subscribe(
+    this.fechingSubscription = this.userService.fetchingUserDataFinishedEmmiter.subscribe(
       ( b ) => {
         if ( b ){
           this.zones = this.settingsService.zones
@@ -63,7 +60,7 @@ export class EditAccountComponent implements OnInit, OnDestroy {
 
 
   ngOnDestroy(): void {
-    // this.logoutSecondsEmitter.unsubscribe()
+    if (this.fechingSubscription) this.fechingSubscription.unsubscribe()
   }
 
 

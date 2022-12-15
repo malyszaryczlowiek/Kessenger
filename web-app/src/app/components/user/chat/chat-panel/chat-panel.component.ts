@@ -1,5 +1,6 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnDestroy, OnInit } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
+import { Subscription } from 'rxjs';
 import { ChatData } from 'src/app/models/ChatData';
 import { Message } from 'src/app/models/Message';
 import { UserService } from 'src/app/services/user.service';
@@ -9,16 +10,19 @@ import { UserService } from 'src/app/services/user.service';
   templateUrl: './chat-panel.component.html',
   styleUrls: ['./chat-panel.component.css']
 })
-export class ChatPanelComponent implements OnInit {
+export class ChatPanelComponent implements OnInit, OnDestroy {
 
   constructor(private userService: UserService, private router: Router, private activated: ActivatedRoute) { }
 
   public chatData: ChatData | undefined;
 
+  fetchingSubscription: Subscription | undefined
+  selectedChatSubscription: Subscription | undefined
+
   ngOnInit(): void {
     console.log('ChatPanelComponent.ngOnInit')
 
-    this.userService.fetchingUserDataFinishedEmmiter.subscribe(
+    this.fetchingSubscription = this.userService.fetchingUserDataFinishedEmmiter.subscribe(
       (b) => {
         if (b) {
           const chatId = this.activated.snapshot.paramMap.get('chatId');
@@ -34,12 +38,13 @@ export class ChatPanelComponent implements OnInit {
         }
       }
     )
-
-    this.userService.selectedChatEmitter.subscribe(
-      (cd) => this.chatData = cd
-    )
-
+    this.selectedChatSubscription = this.userService.selectedChatEmitter.subscribe( (cd) => this.chatData = cd )
     this.userService.dataFetched()
+  }
+
+  ngOnDestroy(): void {
+    if ( this.fetchingSubscription ) this.fetchingSubscription.unsubscribe()
+    if ( this.selectedChatSubscription ) this.selectedChatSubscription.unsubscribe()
   }
 
 

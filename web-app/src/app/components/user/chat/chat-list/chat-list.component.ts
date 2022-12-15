@@ -13,40 +13,27 @@ import { UtctimeService } from 'src/app/services/utctime.service';
 export class ChatListComponent implements OnInit, OnDestroy {
 
   @Input() chats: Array<ChatData> = new Array<ChatData>(); 
-  // chats2: Array<{cd:ChatData,date:string}> = new Array<{cd:ChatData,date:string}>();  // nie używane
-  // uwaga tutaj ponieważ nie jest to @input to nie jest automatycznie aktualizowany
-  
 
 
+  constructor(private userService: UserService, private router: Router ) {}
+    //private userSettingsService: UserSettingsService,
+    //private utcService: UtctimeService,
+    //private route: ActivatedRoute
 
-  constructor(private userService: UserService, 
-    private userSettingsService: UserSettingsService,
-    private utcService: UtctimeService,
-    private router: Router, private route: ActivatedRoute) { }
   
 
   ngOnInit(): void {
     console.log('ChatListComponent.ngOnInit() ')
-    this.userService.fetchingUserDataFinishedEmmiter.subscribe(
+  }
+/*     this.userService.fetchingUserDataFinishedEmmiter.subscribe(
       (b) => {
         if ( b ) {
           this.chats = this.userService.chatAndUsers
-
-
-          // poniżej nie używane
-     /*      this.chats2 = this.userService.chatAndUsers.map( // tu przed mapą się kończyło
-            (c,i,arr) => {
-              return {
-                cd: c,
-                date: this.utcService.getDate(c.chat.lastMessageTime, this.userSettingsService.settings.zoneId)
-              }
-            }
-          ) */
           console.log('List has size ' + this.chats.length)
         }
       }
     )
-  }
+ */  
 
 
 
