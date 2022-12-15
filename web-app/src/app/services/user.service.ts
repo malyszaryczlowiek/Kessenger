@@ -1,7 +1,7 @@
 import { EventEmitter, Injectable } from '@angular/core';
 import { map, Observable, of } from 'rxjs';
 import { ConnectionService } from './connection.service';
-import { v4 as uuidv4 } from 'uuid';
+// import { v4 as uuidv4 } from 'uuid';
 import { Message} from '../models/Message';
 import { User } from '../models/User';
 import { Router } from '@angular/router';
@@ -11,8 +11,6 @@ import { HttpResponse } from '@angular/common/http';
 import { UserSettingsService } from './user-settings.service';
 import { Invitation } from '../models/Invitation';
 import { Chat } from '../models/Chat';
-import { UtctimeService } from './utctime.service';
-import { DomElementSchemaRegistry } from '@angular/compiler';
 // import { clearInterval } from 'stompjs';
 
 @Injectable({
@@ -46,9 +44,7 @@ export class UserService {
 
 
   constructor(private connection: ConnectionService, 
-    private settingsService: UserSettingsService, 
-    private timeService: UtctimeService,
-    private router: Router) { 
+    private settingsService: UserSettingsService, private router: Router) { 
     console.log('UserService constructor called.')
     this.connection.messageEmitter.subscribe(
       (message: Message) => {
@@ -62,7 +58,7 @@ export class UserService {
     )
     const userId = this.connection.getUserId();
     if ( userId ) {
-      this.updateSession2( userId )
+      this.updateSessionViaUserId( userId )
       console.log('Session is valid.') 
       // we get user's settings 
       const s = this.connection.user( userId )
@@ -148,11 +144,7 @@ export class UserService {
     this.dataFetched()
   }
 
-  setChats(chats: ChatData[]) {
-    this.chatAndUsers = chats.sort((a,b) => -(a.chat.lastMessageTime - b.chat.lastMessageTime))
-    this.chatFetched = true
-    this.dataFetched()
-  }
+  
 
 
   restartLogoutTimer() {
@@ -180,8 +172,8 @@ export class UserService {
     }
   }
 
-  // not used
-  updateSession2(userId: string) {
+  
+  updateSessionViaUserId(userId: string) {
     this.connection.updateSession(userId);
     this.restartLogoutTimer()
   }
@@ -198,6 +190,12 @@ export class UserService {
     this.changeChat(c)
   }
 
+  setChats(chats: ChatData[]) {
+    this.chatAndUsers = chats.sort((a,b) => -(a.chat.lastMessageTime - b.chat.lastMessageTime))
+    this.chatFetched = true
+    this.dataFetched()
+  }
+
   changeChat(chatD: ChatData) {
     const filtered = this.chatAndUsers.filter((cd, i, arr) => {return cd.chat.chatId != chatD.chat.chatId})
     filtered.push(chatD)
@@ -209,6 +207,10 @@ export class UserService {
     this.chatAndUsers = this.chatAndUsers.filter((cd, i, arr) => {return cd.chat.chatId != c.chat.chatId})
       .sort((a,b) => -(a.chat.lastMessageTime - b.chat.lastMessageTime))
     this.dataFetched()
+  }
+
+  updateLogin(newLogin: string) {
+    if (this.user) this.user.login = newLogin
   }
 
 
@@ -386,9 +388,7 @@ export class UserService {
   }
 
 
-  updateLogin(newLogin: string) {
-    if (this.user) this.user.login = newLogin
-  }
+  
 
 
 

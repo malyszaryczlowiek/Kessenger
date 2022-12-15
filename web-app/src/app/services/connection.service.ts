@@ -47,16 +47,13 @@ export class ConnectionService {
 
 
   signUp(login: string, pass: string): Observable<HttpResponse<{user: User, settings: Settings}>> | undefined{
-    // we set cookie.
     const fakeUserId = uuidv4();
     this.session.setNewSession(fakeUserId); 
-
     const body = {
       login: login,
       pass: pass,
       userId: ''
     };
-
     const token = this.session.getSessionToken()
     if ( token ) {
       return this.http.post<{user: User, settings: Settings}>(this.api + '/signup', body, {
@@ -149,7 +146,7 @@ export class ConnectionService {
   }
 
 
-  // WAŻNE napisać w backendzie
+  
   changePassword(userId: string, oldPassword: string, newPassword: string): Observable<HttpResponse<any>> | undefined {
     const token = this.session.getSessionToken()
     if ( token ) {
@@ -181,9 +178,7 @@ export class ConnectionService {
   }
 
 
-    /*
-    OD TEGO ENDPOINTU KONTYNUOWAĆ SPRAWDZANIE
-  */
+    
   newChat(me: User, chatName: string, users: string[]): Observable<HttpResponse<ChatData[]>> | undefined  {
     const token = this.session.getSessionToken()
     if ( token ) {
@@ -214,8 +209,10 @@ export class ConnectionService {
     } else return undefined;
   }
 
+  // trzeba zimplementować, że przy wybraniu chatu pobiernae są dane o użytkownikach chatu
+  // ale czy aby na pewno jest to potrzebne ???lkjsadflj
+  nieużywana
 
-  // nieużywana
   getChatUsers(userId: string, chatId: string): Observable<HttpResponse<User[]>> | undefined {
     const token = this.session.getSessionToken()
     if ( token ) {
@@ -271,6 +268,8 @@ export class ConnectionService {
   } */
 
 
+  // trzeba dodać możliwość dodwania ludzi do czatu grupowego. 
+  nieużywana
 
   addUsersToChat(userId: string, chatId: string, chatName: string, userIds: string[]): Observable<HttpResponse<any>> | undefined {
     const token = this.session.getSessionToken()
@@ -307,6 +306,9 @@ export class ConnectionService {
   WEBSOCKET
   */
 
+
+  // nalezy zimplemenować używanie websocketu
+  nieużywana
 
   connectViaWS(userId: string) {
     if (this.wsConnection === undefined) {
