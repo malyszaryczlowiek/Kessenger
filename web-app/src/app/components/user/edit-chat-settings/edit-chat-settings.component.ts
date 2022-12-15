@@ -60,9 +60,6 @@ export class EditChatSettingsComponent implements OnInit {
 
   
   saveChanges() {
-    
-    // console.log(`wartość silent jest ${newSilent} a chat data ${this.chatData}`)
-    
     if (this.chatData){
       let body: Chat = this.chatData.chat
       const newName  = this.chatSettings.value.newChatName
@@ -140,6 +137,7 @@ export class EditChatSettingsComponent implements OnInit {
 
   // here we handle request to leave chat. 
   leaveChat() {
+    
     console.log('onDelete was called.')
   }
 

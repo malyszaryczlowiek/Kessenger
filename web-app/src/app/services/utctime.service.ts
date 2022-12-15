@@ -5,13 +5,8 @@ import { Injectable } from '@angular/core';
 })
 export class UtctimeService {
 
-  /* private epochTime 
-  g = 
-  = new Date(1970,1,1,0,0,0,0) */
-
   constructor() { 
     console.log('utc time: ' + `${this.getUTCmilliSeconds()}`)
-    // console.log('utc time: ' + `${this.g}`)
   }
 
   getUTCmilliSeconds(): number {

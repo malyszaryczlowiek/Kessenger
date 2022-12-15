@@ -56,17 +56,6 @@ export class UserService {
     private timeService: UtctimeService,
     private router: Router) { 
     console.log('UserService constructor called.')
-
-    
-
-
-
-
-
-
-
-
-
     this.connection.messageEmitter.subscribe(
       (message: Message) => {
         console.log(`message from emitter: ${message}`)

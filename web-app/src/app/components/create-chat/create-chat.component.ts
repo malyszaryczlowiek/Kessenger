@@ -173,6 +173,7 @@ export class CreateChatComponent implements OnInit, OnDestroy {
           },
           error: (error) => {
             console.log("ERROR", error)
+            this.foundUsers = new Array()  // todo to skasować CHYBA można
             if (error.status == 401){
               console.log('Session is out.')
               this.router.navigate(['session-timeout'])

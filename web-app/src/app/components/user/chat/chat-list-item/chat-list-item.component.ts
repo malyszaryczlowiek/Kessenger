@@ -11,16 +11,10 @@ import { UtctimeService } from 'src/app/services/utctime.service';
 export class ChatListItemComponent implements OnInit {
 
   @Input() chatData?: ChatData;
-  // @Input() messageDate?: string
 
   constructor(private userSettingsService: UserSettingsService, private utc: UtctimeService) { }
 
   ngOnInit(): void {
-    // here impelement
-    /*
-      sprawdzić czy jest jakaś możliwość użyć observera
-    */
-   
   }
 
   calculateDate(n: number) {

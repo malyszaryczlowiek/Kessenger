@@ -329,7 +329,8 @@ class DbExecutor(val kafkaConfigurator: KafkaConfigurator) {
 
 
   /**
-   * For small (<10) list of users
+   * Searching user's maching logins via regex, Frontend sends requests
+   * only when 'u' argument is longer than four characters.
    * @param logins
    * @param connection
    * @return
@@ -461,7 +462,9 @@ class DbExecutor(val kafkaConfigurator: KafkaConfigurator) {
       val chatId = Domain.generateChatId(me.userId, users.head)
       createSingleChat(me, users.head, chatId, chatName)
     } else {
-      val chatId = Domain.generateChatId(UUID.randomUUID(), UUID.randomUUID())
+      val u1 = UUID.randomUUID()
+      val u2 = UUID.randomUUID()
+      val chatId = Domain.generateChatId(u1, u2)
       createGroupChat(me, users, chatId, chatName )
     }
   }
@@ -538,7 +541,7 @@ class DbExecutor(val kafkaConfigurator: KafkaConfigurator) {
 
 
 
-  def createGroupChat(me: User, users: List[UUID],chatId: ChatId, chatName: ChatName )(implicit connection: Connection): DbResponse[Map[Chat,Map[Int, Long]]] = {
+  def createGroupChat(me: User, users: List[UUID], chatId: ChatId, chatName: ChatName )(implicit connection: Connection): DbResponse[Map[Chat,Map[Int, Long]]] = {
     val listSize = users.length
     if (listSize < 2)
       Left(QueryError(ERROR, AtLeastTwoUsers))
@@ -553,7 +556,7 @@ class DbExecutor(val kafkaConfigurator: KafkaConfigurator) {
           statement.addBatch(sql1)
           for (u <- me.userId :: users) {
             val sql = s"INSERT INTO users_chats (chat_id, user_id, chat_name, message_time) " +
-              s"VALUES ('$chatId', '${u.toString}', '$chatName', $time )"
+              s"VALUES ('$chatId', '${u.toString}', '$chatName', $time ) "
             statement.addBatch(sql)
           }
           (statement.executeBatch().sum, chat)
@@ -564,7 +567,7 @@ class DbExecutor(val kafkaConfigurator: KafkaConfigurator) {
           connection.setAutoCommit(true)
           handleExceptionMessage(ex)
         case Success((n, chat)) =>
-          if (n == (users.length + 1)) {
+          if (n == (users.length + 2)) {
             connection.commit()
             connection.setAutoCommit(true)
             val map = (0 until kafkaConfigurator.CHAT_TOPIC_PARTITIONS_NUMBER).map(p => p -> 0L).toMap
