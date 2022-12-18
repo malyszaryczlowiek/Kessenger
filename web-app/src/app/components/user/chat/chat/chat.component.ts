@@ -1,4 +1,4 @@
-import { Component, OnDestroy, OnInit } from '@angular/core';
+import { Component, EventEmitter, OnDestroy, OnInit } from '@angular/core';
 import { Subscription } from 'rxjs';
 import { ChatData } from 'src/app/models/ChatData';
 import { UserService } from 'src/app/services/user.service';
@@ -36,16 +36,18 @@ export class ChatComponent implements OnInit, OnDestroy {
             if (response.status == 200) {
               const body = response.body
               if (body) {
-                console.log('ChatComponent.ngOnInit() chats from server saved.') 
-                this.userService.setChats(body)
+                console.log('ChatComponent.ngOnInit() chats from server saved.')
+                const body2 = body.map(
+                  (cd) => {
+                    cd.emitter = new EventEmitter<ChatData>()
+                    return cd
+                  }
+                ) 
+                this.userService.setChats(body2)
               }
-              else {
-                console.log('ChatComponent.ngOnInit() empty body')
-              }
+              else console.log('ChatComponent.ngOnInit() empty body')
             }
-            else {
-              console.log(`getChat() got status ${response.status}`)
-            }
+            else console.log(`getChat() got status ${response.status}`)
           },
           error: (e) => {
             this.responseError = e.error

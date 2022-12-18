@@ -31,7 +31,7 @@ export class MainComponent implements OnInit {
   }
 
   ngOnInit(): void {
-    if ( this.userService.isSessionValid() ) 
+    if ( this.userService.user ) 
       this.router.navigate(['user'])
   }
 

@@ -11,6 +11,32 @@
         <button type="submit">Save Changes</button>
     </form>
 </div>
+<p></p>
+<div *ngIf="chatData && chatData.chat.groupChat">
+    <form [formGroup]="searchUserForm" >
+        <input formControlName="login" (keyup)="searchUser()" type="text" id="find-user" placeholder="Find User">
+        <!-- [disabled]="selectedUsers.length == 1" -->
+        <!-- <button (click)="search()"></button> -->
+    </form>
+    <p></p>
+    <p *ngIf="selectedUsers.length > 0">Selected Users:</p>
+        <div *ngFor="let selected of selectedUsers">
+            <div  >
+                {{ selected.login + '    ' }}
+                <button (click)="unselect(selected)">Unselect</button>
+            </div>
+        </div>
+    <button [disabled]="!(selectedUsers.length > 0)" (click)="addUsers()">Add</button>
+    <div>
+        Select found user:
+        <p *ngIf="foundUsers.length == 0"> No User Found.</p>
+        <div *ngFor="let found of foundUsers"  (click)="addToSelected(found)">
+            <div  >
+                {{ found.login }}
+            </div>
+        </div>
+    </div>
+</div>
 <p *ngIf="responseMessage" (click)="clearNotification()"> {{ responseMessage }}</p>
 
 

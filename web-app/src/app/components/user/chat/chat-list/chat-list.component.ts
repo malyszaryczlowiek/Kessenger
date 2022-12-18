@@ -18,13 +18,23 @@ export class ChatListComponent implements OnInit, OnDestroy {
   constructor(private userService: UserService, private router: Router ) {}
     //private userSettingsService: UserSettingsService,
     //private utcService: UtctimeService,
-    //private route: ActivatedRoute
 
   
 
   ngOnInit(): void {
     console.log('ChatListComponent.ngOnInit() ')
   }
+
+
+/* 
+  tutaj należy dodać jednak tego subskrybenta tak aby aktualizować listę czatów
+
+  o ile @Input nie aktualizuje jej automatycznie.  <-- !!!!!!!!  sprawdzić
+
+
+  jeśli np zostanie do któregoś z nich dodana wiadomość to lista musi być
+  ponownie zaktualizowana
+ */
 /*     this.userService.fetchingUserDataFinishedEmmiter.subscribe(
       (b) => {
         if ( b ) {

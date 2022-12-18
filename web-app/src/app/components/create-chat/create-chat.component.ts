@@ -1,4 +1,4 @@
-import { Component, OnDestroy, OnInit } from '@angular/core';
+import { Component, EventEmitter, OnDestroy, OnInit } from '@angular/core';
 import { FormControl, FormGroup, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { debounce, debounceTime, distinctUntilChanged, of, share, startWith, Subject, switchMap } from 'rxjs';
@@ -86,7 +86,8 @@ export class CreateChatComponent implements OnInit, OnDestroy {
                   chat: body.chat,
                   users: this.selectedUsers,                   
                   partitionOffsets: body.partitionOffsets,
-                  messages: new Array()
+                  messages: new Array(),
+                  emitter: new EventEmitter<ChatData>
                 }
                 this.userService.addNewChat( chatData ) 
                 // inform chat created

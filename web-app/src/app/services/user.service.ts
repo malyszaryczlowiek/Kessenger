@@ -22,7 +22,7 @@ export class UserService {
   public chatAndUsers: Array<ChatData> = new Array();
   userFetched = false
   chatFetched = false
-  fetchingUserDataFinishedEmmiter = new EventEmitter<boolean>()
+  fetchingUserDataFinishedEmmiter = new EventEmitter<boolean>() // called during page reload
 
 
   logoutTimer: NodeJS.Timeout | undefined;
@@ -103,7 +103,15 @@ export class UserService {
               console.log('UserSerivice.constructor() fetching chats' )
               // this.chatAndUsers = 
               // sorting is mutaing so we do not need reassign it
-              this.chatAndUsers = chats.sort((a,b) => -(a.chat.lastMessageTime - b.chat.lastMessageTime))
+              this.chatAndUsers = chats.sort(
+                (a,b) => -(a.chat.lastMessageTime - b.chat.lastMessageTime)
+              )
+              .map(
+                (cd) => {
+                  cd.emitter = new EventEmitter<ChatData>()
+                  return cd
+                }
+              )
 
             }
             this.chatFetched = true
@@ -208,6 +216,27 @@ export class UserService {
       .sort((a,b) => -(a.chat.lastMessageTime - b.chat.lastMessageTime))
     this.dataFetched()
   }
+
+  insertChatUsers(chatD: ChatData, u: User[]) {
+    this.chatAndUsers = this.chatAndUsers.map((cd, i , arr) => {
+      if (cd.chat.chatId == chatD.chat.chatId) {
+        const newCD: ChatData = {
+          chat: cd.chat,
+          messages: cd.messages, 
+          partitionOffsets: cd.partitionOffsets,
+          users: u, // users are added
+          emitter: cd.emitter
+        }
+        return newCD
+      } else {
+        return cd // otherwise return not changed
+      }
+    })
+    // this.dataFetched() 
+    // dodanie użytkowników nie powinno powodować reloadu całej tablicy czatów
+  }
+
+
 
   updateLogin(newLogin: string) {
     if (this.user) this.user.login = newLogin

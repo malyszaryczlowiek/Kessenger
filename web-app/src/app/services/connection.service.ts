@@ -209,9 +209,6 @@ export class ConnectionService {
     } else return undefined;
   }
 
-  // trzeba zimplementować, że przy wybraniu chatu pobiernae są dane o użytkownikach chatu
-  // ale czy aby na pewno jest to potrzebne ???lkjsadflj
-  nieużywana
 
   getChatUsers(userId: string, chatId: string): Observable<HttpResponse<User[]>> | undefined {
     const token = this.session.getSessionToken()
@@ -269,7 +266,7 @@ export class ConnectionService {
 
 
   // trzeba dodać możliwość dodwania ludzi do czatu grupowego. 
-  nieużywana
+  // nieużywana
 
   addUsersToChat(userId: string, chatId: string, chatName: string, userIds: string[]): Observable<HttpResponse<any>> | undefined {
     const token = this.session.getSessionToken()
@@ -308,7 +305,7 @@ export class ConnectionService {
 
 
   // nalezy zimplemenować używanie websocketu
-  nieużywana
+   // nieużywana
 
   connectViaWS(userId: string) {
     if (this.wsConnection === undefined) {
