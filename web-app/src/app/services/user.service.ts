@@ -29,18 +29,8 @@ export class UserService {
   logoutSeconds: number = this.settingsService.settings.sessionDuration / 1000    // number of seconds to logout
   logoutSecondsEmitter: EventEmitter<number> = new EventEmitter()
 
-
-  testString = 'empty string'
-  testObservable: Observable<string> = of('empty observable')
-
-
-  // not implemented yet -> this probably may cause problems 
   invitationEmitter = this.connection.invitationEmitter
-
-  // need to unsubscribe
   selectedChatEmitter: EventEmitter<ChatData> = new EventEmitter<ChatData>()
-
-
 
 
   constructor(private connection: ConnectionService, 
@@ -70,9 +60,6 @@ export class UserService {
               console.log('UserSerivice.constructor() fetching user login and settings' )
               this.user = body.user
               this.settingsService.setSettings(body.settings)
-
-              // this.connectViaWebsocket()
-              
               this.logoutSeconds = this.settingsService.settings.sessionDuration / 1000
               this.restartLogoutTimer()
               this.userFetched = true
@@ -100,8 +87,7 @@ export class UserService {
             const chats = response.body 
             // we sort newest (larger lastMessageTime) first.
             if (chats) {
-              console.log('UserSerivice.constructor() fetching chats' )
-              // this.chatAndUsers = 
+              console.log('UserSerivice.constructor() fetching chats')
               // sorting is mutaing so we do not need reassign it
               this.chatAndUsers = chats.sort(
                 (a,b) => -(a.chat.lastMessageTime - b.chat.lastMessageTime)
@@ -116,6 +102,7 @@ export class UserService {
             }
             this.chatFetched = true
             this.dataFetched()
+            this.connectViaWebsocket() // run websocket connection
           } ,
           error: (error) => {
             console.log(error) 

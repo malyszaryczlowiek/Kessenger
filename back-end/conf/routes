@@ -31,7 +31,7 @@ POST         /user/:userId/chats/:chatId/addNewUsers             controllers.Kes
 
 
 ####   WEBSOCKET
-# GET          /user/:userId/ws                                    controllers.KessengerController.ws(userId: java.util.UUID)
+GET          /user/:userId/ws                                    controllers.KessengerController.ws(userId: java.util.UUID)
 
 
 
@@ -43,7 +43,7 @@ POST         /user/:userId/chats/:chatId/addNewUsers             controllers.Kes
 # POST         /user/:userId/anytc                                controllers.KessengerController.addUsersToChat(userId: java.util.UUID)
 
 # Angulars endpoints
-GET          /angular/ws                                        controllers.KessengerController.ws
+# GET          /angular/ws                                        controllers.KessengerController.ws
 
 GET          /angular/users                                     controllers.KessengerController.angular
 GET          /angular/users/stream                              controllers.KessengerController.userStreaming

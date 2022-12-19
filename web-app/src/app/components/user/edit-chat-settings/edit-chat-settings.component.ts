@@ -116,8 +116,6 @@ export class EditChatSettingsComponent implements OnInit {
 
 
   // here we save changed name or silence
-
-  
   saveChanges() {
     if (this.chatData){
       let body: Chat = this.chatData.chat
@@ -183,6 +181,8 @@ export class EditChatSettingsComponent implements OnInit {
     }    
   }
 
+
+
   backToChat() {
     if (this.chatData){
       this.userService.updateSession()
@@ -232,20 +232,48 @@ export class EditChatSettingsComponent implements OnInit {
     }    
   }
 
+
+  
   clearNotification() {
     this.userService.updateSession()
     this.responseMessage = undefined
   }
 
+
+
+  /*
   todo
   1. zaimplementować pobieranie listy użytkowników czatu
   2. przy wyszukiwaniu użytkownika, którego będziemy chcieli dodać trzeba
      odjąć tych użytkowników którzy są już w czacie
   3. zaimplementować dodawanie użytkowników do czatu.   
-
+  */
 
   addUsers() {
-    here
+    if (this.chatData) {
+      const c = this.userService.addUsersToChat(this.chatData.chat.chatId, this.chatData.chat.chatName, this.selectedUsers.map(u => u.userId))
+      if ( c ) {
+        c.subscribe({
+          next: (response) => {
+            console.log(response.body)
+            this.responseMessage = response.body
+          },
+          error: (err) => {
+            console.log("ERROR", err)
+            if (err.status == 401){
+              console.log('Session is out.')
+              this.userService.clearService()
+              this.router.navigate(['session-timeout'])
+            }
+            else {
+              this.responseMessage = err.error
+            }
+          },
+          complete: () => {}
+        })
+      } else 
+        this.router.navigate(['session-timeout'])
+    }
   }
 
 
@@ -325,13 +353,13 @@ export class EditChatSettingsComponent implements OnInit {
       return u.userId != user.userId
     })
     this.foundUsers.push(u);
-    this.validateForm();
+    // this.validateForm();
   }
 
-  validateForm() {
+  /* validateForm() {
     // this.disableSubmitting = !( this.chatForm.valid && this.selectedUsers.length > 0 );
     this.userService.updateSession()
-  }
+  } */
 
 
 }

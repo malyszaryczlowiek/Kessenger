@@ -584,25 +584,17 @@ class DbExecutor(val kafkaConfigurator: KafkaConfigurator) {
 
 
 
-
-
-
-
-
-
-
-
-
   def addNewUsersToChat(users: List[UUID], chatId: String, chatName: ChatName)(implicit connection: Connection): DbResponse[Int] = {
     if (users.isEmpty) Left(QueryError(ERROR, NoUserSelected))
     else {
-      val beforeAnyInsertions: Savepoint = connection.setSavepoint()
       connection.setAutoCommit(false)
+      val beforeAnyInsertions: Savepoint = connection.setSavepoint()
       Using(connection.createStatement()) {
         (statement: Statement) => {
+          val ct = System.currentTimeMillis()
           users.foreach(uuid => {
-            val sql = s"INSERT INTO users_chats (chat_id, user_id, chat_name) " +
-              s"VALUES ( '$chatId', '${uuid.toString}' , '$chatName' ) "
+            val sql = s"INSERT INTO users_chats (chat_id, user_id, chat_name, message_time) " +
+              s"VALUES ( '$chatId', '${uuid.toString}' , '$chatName' , $ct ) "
             statement.addBatch( sql )
           })
           statement.executeBatch().sum

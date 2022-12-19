@@ -260,7 +260,6 @@ class KessengerController @Inject()
           case Some(sessionData) =>
             Future {
               db.withConnection(implicit connection => {
-                println(s"sessionid: ${sessionData.sessionId}, userId: ${sessionData.userId}")
                 dbExecutor.removeSession(sessionData.sessionId, sessionData.userId) match {
                   case Left(_) => InternalServerError("Error 018. Db Error. ")
                   case Right(v) =>
@@ -668,7 +667,7 @@ class KessengerController @Inject()
               db.withConnection { implicit connection =>
                 dbExecutor.addNewUsersToChat(users, chatId, chatName) match {
                   case Left(queryError) => InternalServerError(s"Error 019. ${queryError.description.toString()}")
-                  case Right(value)     => Ok(s"$value users added.")
+                  case Right(value)     => Ok(ResponseErrorBody(0,s"$value users added.").toString)
                 }
               }
             }(databaseExecutionContext)
@@ -739,7 +738,8 @@ class KessengerController @Inject()
       Future.successful(
         request.headers.get("Origin") match {
           case Some(value) =>
-            if (value == "localhost:4200") {
+            println("Rządanie ma Origin header")
+            if (value == "http://localhost:4200") {  // todo change hardcoded origin value
               val f = Future {
                 db.withConnection( implicit connection => {
                   dbExecutor.getNumOfValidUserSessions(userId)
@@ -751,8 +751,8 @@ class KessengerController @Inject()
                   case Left(_) => Left(InternalServerError("Error XXX."))
                   case Right(value) =>
                     // this means we have one valid session at leased
+                    println(s"Rządanie ma $value ważnych sesji.")
                     if (value > 0 ) {
-                      println(s"odebrałem rządanie HTTP.")
                       Right(
                         ActorFlow.actorRef { out =>
                           println(s"wszedłem w ActorFlow.")
@@ -818,24 +818,24 @@ class KessengerController @Inject()
 
 
 
-  @deprecated
-  def ws =
-    WebSocket.accept[String, String] { request =>
-
-      println()
-      println(s"websocket HEADERS")
-      request.headers.headers.foreach(println)
-
-      // Headers.create().add("Access-Control-Allow-Origin" -> "http://localhost:4200").get("Access-Control-Allow-Origin") match {
-
-
-      //WebSocket.acceptOrResult[String, String] { request =>
-      println(s"odebrałem rządanie HTTP.")
-      ActorFlow.actorRef { out =>
-        println(s"wszedłem w ActorFlow.")
-        WebSocketActor.props(out)
-      }
-    }
+  //@deprecated
+//  def ws =
+//    WebSocket.accept[String, String] { request =>
+//
+//      println()
+//      println(s"websocket HEADERS")
+//      request.headers.headers.foreach(println)
+//
+//      // Headers.create().add("Access-Control-Allow-Origin" -> "http://localhost:4200").get("Access-Control-Allow-Origin") match {
+//
+//
+//      //WebSocket.acceptOrResult[String, String] { request =>
+//      println(s"odebrałem rządanie HTTP.")
+//      ActorFlow.actorRef { out =>
+//        println(s"wszedłem w ActorFlow.")
+//        WebSocketActor.props(out)
+//      }
+//    }
 
 
 

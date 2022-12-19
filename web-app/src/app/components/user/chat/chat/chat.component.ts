@@ -11,8 +11,6 @@ import { UserService } from 'src/app/services/user.service';
 export class ChatComponent implements OnInit, OnDestroy {
 
   chats: ChatData[] = new Array<ChatData>()
-  testString = this.userService.testString
-  testObservable = this.userService.testObservable
   fetchingSubscription: Subscription | undefined
   responseError: any | undefined
 
@@ -44,6 +42,7 @@ export class ChatComponent implements OnInit, OnDestroy {
                   }
                 ) 
                 this.userService.setChats(body2)
+                this.userService.connectViaWebsocket() // run websocket connection
               }
               else console.log('ChatComponent.ngOnInit() empty body')
             }

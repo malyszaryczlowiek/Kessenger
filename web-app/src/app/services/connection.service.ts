@@ -251,22 +251,6 @@ export class ConnectionService {
   }
 
 
-  // nieużywana
-  /* updateChatName(userId: string, chatId: string, newChatName: string): Observable<HttpResponse<any>> | undefined {
-    const token = this.session.getSessionToken()
-    if ( token ) {
-      return this.http.put<any>(this.api + `/user/${userId}/chats/${chatId}/newChatName`, newChatName, {
-        headers: new HttpHeaders()
-          .set('KSID', token),
-        observe: 'response', 
-        responseType: 'json'
-      });
-    } else return undefined;
-  } */
-
-
-  // trzeba dodać możliwość dodwania ludzi do czatu grupowego. 
-  // nieużywana
 
   addUsersToChat(userId: string, chatId: string, chatName: string, userIds: string[]): Observable<HttpResponse<any>> | undefined {
     const token = this.session.getSessionToken()
@@ -318,14 +302,39 @@ export class ConnectionService {
         // jak ma być skonfigurowany actor żeby pobierał
         // właściwe dane
         this.wsConnection?.send('configuration')
+
+        w konfiguracji należy przesłać również informacje o sesji ???
+        tak aby server był w stanie sprawdzić czy user ma ważną sesję
+
       };
       this.wsConnection.onmessage = (msg: any) => {
-        console.log('Got Message', msg)
-        const body = JSON.parse(msg)
+        const body = msg.data
+        // console.log('Got WS Message', body)
+        // const body = JSON.parse(msg)
+        
         //const writing = this.parseTo<Writing>( body )
         //if (writing) this.writingEmitter.emit(writing)
+
+        // to odkasować 
+
         const message = this.parseTo<Message>( body )
-        if (message) this.messageEmitter.emit( message )
+        if (message) console.log('sukces, mam wiadomość: ', message)
+        // if (message) this.messageEmitter.emit( message )
+        
+        // następnie subskrybent w userService musi przechwycić taką wiadomość
+        // dodać ją do odpowiedniego czatu a następnie musimy fetchować 
+        // całą listę czatów na nowo ponieważ mogła się zmienić 
+        // kolejność czatów na liscie 
+
+
+
+        przygotować interfejsy w aktorze tak aby przetwarzał wszystkie rodzaje przychodzących wiadomości
+        
+
+
+
+
+        // console.log(`wiadomość przetworzona: '${msg}'`)
         //const invitation = this.parseTo<Invitation>( body )
         //if (invitation) this.invitationEmitter.emit(invitation)
       }
@@ -354,7 +363,7 @@ export class ConnectionService {
   }
 
 
-  // method closes 
+  // method closes akka actor and ws connection
   sendPoisonPill() {
     if (this.wsConnection) {
       console.log('sending PoisonPill to server.');
@@ -397,7 +406,9 @@ export class ConnectionService {
 
   closeWebSocket() {
     if (this.wsConnection) {
-      this.sendPoisonPill()
+      console.log('sending PoisonPill to server.');
+      this.wsConnection.send('PoisonPill')
+      //this.sendPoisonPill()
       this.wsConnection.close()
       console.log('connection deeactivated.');
       this.wsConnection = undefined;

@@ -47,6 +47,7 @@ export class SendMessageComponent implements OnInit {
         groupChat: this.chat.groupChat
       }
       this.sendingMessage.emit( m );
+      this.messageForm.controls.messageContent.setValue('')
     } 
   }
 

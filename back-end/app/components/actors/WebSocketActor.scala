@@ -18,18 +18,20 @@ class WebSocketActor(out: ActorRef) extends Actor {
   override def postStop(): Unit = {
     println(s"5. Wyłączyłem actora.")
 
-    // TODO tutaj zamykamy wszystkie resources, których używaliśmy w aktorze.
+    // TODO here we cloase all resources used in actor
     // someResource.close()
   }
 
   def receive: Receive = {
     case msg: String =>
-      println(s"1. Przetwarzam wiadomość. ")
-      if (msg == "PoisonPill") {
+      println(s"1. Przetwarzam wiadomość. $msg")
+      if (msg.equals("PoisonPill")) {
+        println(s"4. Otrzymałem PoisonPill $msg")
         out ! ("4. Wyłączam czat.")
         self ! PoisonPill
       }
       else {
+
         // wysyłanie wiadomości z powrotem
         out ! (msg)
       }
