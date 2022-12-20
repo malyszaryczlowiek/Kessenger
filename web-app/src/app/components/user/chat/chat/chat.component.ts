@@ -21,11 +21,11 @@ export class ChatComponent implements OnInit, OnDestroy {
     this.fetchingSubscription = this.userService.fetchingUserDataFinishedEmmiter.subscribe( (b) => {
         if (b) {
           console.log('ChatComponent fetched data from UserService via fetchEmmiter.')
-          this.chats = this.userService.chatAndUsers
+          this.chats = this.userService.getAllChats()
         }
       }
     )
-    if ( this.userService.chatAndUsers.length == 0 ) {
+    if ( this.userService.getAllChats().length == 0 ) {
       const c = this.userService.getChats()
       if ( c ) {
         console.log('ChatComponent.ngOnInit() Reading chats from server...')
@@ -58,7 +58,7 @@ export class ChatComponent implements OnInit, OnDestroy {
       }
     } else {
       console.log('ChatComponent.constructor() chat data read from UserService directly')
-      this.chats = this.userService.chatAndUsers
+      this.chats = this.userService.getAllChats()
     }
   }
 

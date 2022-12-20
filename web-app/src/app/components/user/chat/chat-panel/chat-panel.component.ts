@@ -31,7 +31,7 @@ export class ChatPanelComponent implements OnInit, OnDestroy {
           const chatId = this.activated.snapshot.paramMap.get('chatId');
           if ( chatId ) { // && (chatId != this.chatData?.chat.chatId)
             console.log('ChatPanelComponent fetchingSubscription fetched data from UserService via fetchEmmiter.')
-            this.chatData = this.userService.chatAndUsers.find((chatData, index, arr) => {
+            this.chatData = this.userService.getAllChats().find((chatData, index, arr) => {
               return chatData.chat.chatId == chatId;
             })
             if (this.chatData) {
@@ -54,7 +54,7 @@ export class ChatPanelComponent implements OnInit, OnDestroy {
         if (cd.chat.chatId != this.chatData?.chat.chatId) {
           console.log('ChatPanelComponent selectedChatSubscription fetched data from UserService.')
           if (this.chatModificationSubscription) this.chatModificationSubscription.unsubscribe()
-          this.chatData = this.userService.chatAndUsers.find((chatData, index, arr) => {
+          this.chatData = this.userService.getAllChats().find((chatData, index, arr) => {
             return chatData.chat.chatId == cd.chat.chatId;
           })
           if (this.chatData) {

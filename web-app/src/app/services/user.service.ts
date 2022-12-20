@@ -1,5 +1,5 @@
 import { EventEmitter, Injectable } from '@angular/core';
-import { map, Observable, of } from 'rxjs';
+import { map, Observable, of, Subscription } from 'rxjs';
 import { ConnectionService } from './connection.service';
 // import { v4 as uuidv4 } from 'uuid';
 import { Message} from '../models/Message';
@@ -11,6 +11,7 @@ import { HttpResponse } from '@angular/common/http';
 import { UserSettingsService } from './user-settings.service';
 import { Invitation } from '../models/Invitation';
 import { Chat } from '../models/Chat';
+import { ChatsDataService } from './chats-data.service';
 // import { clearInterval } from 'stompjs';
 
 @Injectable({
@@ -18,8 +19,7 @@ import { Chat } from '../models/Chat';
 })
 export class UserService {
 
-  public user: User | undefined;
-  public chatAndUsers: Array<ChatData> = new Array();
+  user: User | undefined;
   userFetched = false
   chatFetched = false
   fetchingUserDataFinishedEmmiter = new EventEmitter<boolean>() // called during page reload
@@ -29,16 +29,23 @@ export class UserService {
   logoutSeconds: number = this.settingsService.settings.sessionDuration / 1000    // number of seconds to logout
   logoutSecondsEmitter: EventEmitter<number> = new EventEmitter()
 
-  invitationEmitter = this.connection.invitationEmitter
   selectedChatEmitter: EventEmitter<ChatData> = new EventEmitter<ChatData>()
+  messageSubscription: Subscription | undefined
+  invitationSubscription: Subscription | undefined
 
 
   constructor(private connection: ConnectionService, 
-    private settingsService: UserSettingsService, private router: Router) { 
+    private chats: ChatsDataService,
+    private settingsService: UserSettingsService, 
+    private router: Router) { 
     console.log('UserService constructor called.')
-    this.connection.messageEmitter.subscribe(
+    
+
+    this.messageSubscription = this.connection.messageEmitter.subscribe(
       (message: Message) => {
         console.log(`message from emitter: ${message}`)
+        this.chats.insertMessage( message )
+        this.dataFetched()
       },
       (error) => {
         console.log('Error in message emitter: ', error)
@@ -46,6 +53,16 @@ export class UserService {
       },
       () => console.log('on message emitter completed.')
     )
+
+
+    this.invitationSubscription = this.connection.invitationEmitter.subscribe(
+      (invitation: Invitation) => {
+        console.log('Got new invitaion', invitation)
+      }
+    )
+
+
+    // fetching user data from server
     const userId = this.connection.getUserId();
     if ( userId ) {
       this.updateSessionViaUserId( userId )
@@ -88,17 +105,7 @@ export class UserService {
             // we sort newest (larger lastMessageTime) first.
             if (chats) {
               console.log('UserSerivice.constructor() fetching chats')
-              // sorting is mutaing so we do not need reassign it
-              this.chatAndUsers = chats.sort(
-                (a,b) => -(a.chat.lastMessageTime - b.chat.lastMessageTime)
-              )
-              .map(
-                (cd) => {
-                  cd.emitter = new EventEmitter<ChatData>()
-                  return cd
-                }
-              )
-
+              this.chats.initialize( chats )
             }
             this.chatFetched = true
             this.dataFetched()
@@ -122,10 +129,12 @@ export class UserService {
   // method called when session expires
   clearService() {
     this.user = undefined;
-    this.chatAndUsers = new Array();
+    this.chats.clear()
     this.settingsService.clearSettings();
     this.connection.disconnect();
     if (this.logoutTimer) clearInterval(this.logoutTimer)
+    if (this.messageSubscription) this.messageSubscription.unsubscribe()
+    if (this.invitationSubscription) this.invitationSubscription.unsubscribe()
     this.logoutTimer = undefined
     this.logoutSeconds = this.settingsService.settings.sessionDuration / 1000
     console.log('UserService clearservice')
@@ -181,46 +190,42 @@ export class UserService {
     this.fetchingUserDataFinishedEmmiter.emit(this.userFetched && this.chatFetched)
   }
 
-  addNewChat(c: ChatData) {
-    this.changeChat(c)
+  getAllChats() {
+    return this.chats.chatAndUsers
   }
 
+
+  
+  addNewChat(c: ChatData) {
+    this.chats.addNewChat(c)
+  }
+
+
+
   setChats(chats: ChatData[]) {
-    this.chatAndUsers = chats.sort((a,b) => -(a.chat.lastMessageTime - b.chat.lastMessageTime))
+    this.chats.initialize( chats )
     this.chatFetched = true
     this.dataFetched()
   }
 
+
+
   changeChat(chatD: ChatData) {
-    const filtered = this.chatAndUsers.filter((cd, i, arr) => {return cd.chat.chatId != chatD.chat.chatId})
-    filtered.push(chatD)
-    this.chatAndUsers = filtered.sort((a,b) => -(a.chat.lastMessageTime - b.chat.lastMessageTime))
+    this.chats.changeChat(chatD)
     this.dataFetched()
   }
+
+
 
   deleteChat(c: ChatData){
-    this.chatAndUsers = this.chatAndUsers.filter((cd, i, arr) => {return cd.chat.chatId != c.chat.chatId})
-      .sort((a,b) => -(a.chat.lastMessageTime - b.chat.lastMessageTime))
+    this.chats.deleteChat(c)
     this.dataFetched()
   }
 
+
+
   insertChatUsers(chatD: ChatData, u: User[]) {
-    this.chatAndUsers = this.chatAndUsers.map((cd, i , arr) => {
-      if (cd.chat.chatId == chatD.chat.chatId) {
-        const newCD: ChatData = {
-          chat: cd.chat,
-          messages: cd.messages, 
-          partitionOffsets: cd.partitionOffsets,
-          users: u, // users are added
-          emitter: cd.emitter
-        }
-        return newCD
-      } else {
-        return cd // otherwise return not changed
-      }
-    })
-    // this.dataFetched() 
-    // dodanie użytkowników nie powinno powodować reloadu całej tablicy czatów
+    this.chats.insertChatUsers(chatD, u)
   }
 
 
@@ -373,14 +378,6 @@ export class UserService {
 
  
 
-
-
-
-
-
-
-
-
   /*
     WEBSOCKET methods
   */
@@ -395,12 +392,9 @@ export class UserService {
     this.connection.sendMessage(msg);
   }
 
+
   sendInvitation(inv: Invitation) {
     this.connection.sendInvitation(inv)
-  }
-
-  closeWS() {
-    this.connection.closeWebSocket();
   }
 
 

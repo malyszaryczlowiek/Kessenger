@@ -24,7 +24,7 @@ import { Chat } from '../models/Chat';
 export class ConnectionService {
 
   
-  private wsConnection: WebSocket | undefined
+  private wsConnection:     WebSocket | undefined
   public messageEmitter:    EventEmitter<Message>    = new EventEmitter<Message>()
   public invitationEmitter: EventEmitter<Invitation> = new EventEmitter<Invitation>()
   public writingEmitter:    EventEmitter<Writing>    = new EventEmitter<Writing>()
@@ -308,17 +308,21 @@ export class ConnectionService {
 
       };
       this.wsConnection.onmessage = (msg: any) => {
+
         const body = msg.data
-        // console.log('Got WS Message', body)
-        // const body = JSON.parse(msg)
-        
-        //const writing = this.parseTo<Writing>( body )
-        //if (writing) this.writingEmitter.emit(writing)
-
-        // to odkasować 
-
         const message = this.parseTo<Message>( body )
-        if (message) console.log('sukces, mam wiadomość: ', message)
+        if (message) {
+          console.log('Got WS Message', message)
+          // this.messageEmitter.emit( message )
+        }
+        const invitation = this.parseTo<Invitation>( body )
+        if (invitation) {
+          console.log('Got WS Message', invitation)
+          //this.invitationEmitter.emit(invitation)
+        } 
+
+
+
         // if (message) this.messageEmitter.emit( message )
         
         // następnie subskrybent w userService musi przechwycić taką wiadomość
@@ -334,20 +338,17 @@ export class ConnectionService {
 
 
 
-        // console.log(`wiadomość przetworzona: '${msg}'`)
-        //const invitation = this.parseTo<Invitation>( body )
-        //if (invitation) this.invitationEmitter.emit(invitation)
+
       }
       this.wsConnection.onclose = () => {
         console.log('WebSocket connection closed.');
       };
       this.wsConnection.onerror = (error) => {
-        console.error('error from web socket', error)
+        console.error('error from web socket connection', error)
         // tutaj nie wiem czy nie powiiniśmy użyć kolejnego emittera
         // i jak tylko pojawia się error to 
         // zamknąć połączenie i pobnownie otworzyć. 
       };
-      console.log('Tworzenie WebSocket skończone')
     }
   }
 
