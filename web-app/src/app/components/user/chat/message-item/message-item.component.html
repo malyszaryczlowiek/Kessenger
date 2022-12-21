@@ -1,1 +1,8 @@
-<p>message-item works!</p>
+<div *ngIf="message">
+    <div>
+        {{ message.authorLogin }} > {{ message.content }}
+    </div>
+    <div>
+        Date: {{ parseDate(message.utcTime) }}
+    </div>
+</div>

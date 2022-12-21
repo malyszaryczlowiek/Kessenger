@@ -195,7 +195,7 @@ export class UserService {
   }
 
 
-  
+
   addNewChat(c: ChatData) {
     this.chats.addNewChat(c)
   }
@@ -224,8 +224,8 @@ export class UserService {
 
 
 
-  insertChatUsers(chatD: ChatData, u: User[]) {
-    this.chats.insertChatUsers(chatD, u)
+  insertChatUsers(chatId: string, u: User[]) {
+    this.chats.insertChatUsers(chatId, u)
   }
 
 

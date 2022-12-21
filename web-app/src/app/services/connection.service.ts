@@ -301,47 +301,52 @@ export class ConnectionService {
         // czyli wszystkie chaty (dokładniej chatId)
         // jak ma być skonfigurowany actor żeby pobierał
         // właściwe dane
-        this.wsConnection?.send('configuration')
+        const configuration = {
+          conf: "simple configuration"
+        }
+        this.wsConnection?.send( JSON.stringify(configuration) )
 
-        w konfiguracji należy przesłać również informacje o sesji ???
-        tak aby server był w stanie sprawdzić czy user ma ważną sesję
+        //w konfiguracji należy przesłać również informacje o sesji ???
+        //tak aby server był w stanie sprawdzić czy user ma ważną sesję
 
       };
       this.wsConnection.onmessage = (msg: any) => {
 
-        const body = msg.data
-        const message = this.parseTo<Message>( body )
-        if (message) {
+        const body = JSON.parse( msg.data )
+
+        if ( body.conf )
+          console.log('got config: ', body.conf)
+        if ( body.msg ) {
+          console.log('got message: ', body.msg)
+          this.messageEmitter.emit( body.msg )
+        }          
+        if ( body.inv )
+          console.log('got invitation: ', body.inv)
+
+
+
+/*         const message = this.parseToMessage( msg.data )
+        if ( message ) {
           console.log('Got WS Message', message)
           // this.messageEmitter.emit( message )
         }
-        const invitation = this.parseTo<Invitation>( body )
+        const invitation = this.parseToInvitation( body )
         if (invitation) {
-          console.log('Got WS Message', invitation)
+          console.log('Got WS Invitation', invitation)
           //this.invitationEmitter.emit(invitation)
         } 
-
-
-
-        // if (message) this.messageEmitter.emit( message )
-        
+ */
         // następnie subskrybent w userService musi przechwycić taką wiadomość
         // dodać ją do odpowiedniego czatu a następnie musimy fetchować 
         // całą listę czatów na nowo ponieważ mogła się zmienić 
         // kolejność czatów na liscie 
 
-
-
-        przygotować interfejsy w aktorze tak aby przetwarzał wszystkie rodzaje przychodzących wiadomości
-        
-
-
-
-
+        // przygotować interfejsy w aktorze tak aby przetwarzał wszystkie rodzaje przychodzących wiadomości
 
       }
       this.wsConnection.onclose = () => {
         console.log('WebSocket connection closed.');
+        if ( this.wsConnection ) this.wsConnection = undefined
       };
       this.wsConnection.onerror = (error) => {
         console.error('error from web socket connection', error)
@@ -353,15 +358,76 @@ export class ConnectionService {
   }
 
 
-  parseTo<T>(m: any): T | undefined {
+  parseToMessage(m: any): Message | undefined {
+    /*
+export interface Message {
+    content: string;
+    authorId: string;
+    authorLogin: string;
+    chatId: string;
+    chatName: string;
+    groupChat: boolean;    
+    utcTime: number;
+    zoneId: string;
+}
+    */
+
     try {
-      const p: T = m
-      return p
+      const body = JSON.parse( m )
+      
+      const content: string | null     = body.content;
+      const authorId: string | null    = body.authorId;
+      const authorLogin: string | null = body.authorLogin;
+      const chatId: string | null     = body.chatId;
+      const chatName: string   | null = body.chatName;
+      const groupChat: boolean | null = body.groupChat;    
+      const utcTime: number | null    = body.utcTime;
+      const zoneId: string | null     = body.zoneId;
+      
+      const isValid: boolean = (content != null) && 
+        (authorId != null) && 
+        (authorLogin != null) &&
+        (chatId != null) && 
+        (chatName != null) && 
+        (groupChat != null) &&
+        (utcTime != null) &&
+        (zoneId != null)
+      if ( isValid ) 
+        console.log('Message is valid')
+      else
+        console.log('Message is NOT valid')
+
+
+
+
+
+      const p: Message | undefined = <Message> JSON.parse( m ) as Message | undefined
+      return m 
     } catch (error){
       console.log(`cannot parse to selected type`, error)
       return undefined
     }
   }
+
+  parseToInvitation(m: any): Invitation | undefined {
+    try {
+      const p: Invitation | undefined =  <Invitation>  m  as Invitation | undefined
+      return m 
+    } catch (error){
+      console.log(`cannot parse to selected type`, error)
+      return undefined
+    }
+  }
+
+   parseTo<T>(m: any): T | undefined {
+    try {
+      const p: T | undefined = <T> m as T | undefined  // m as T
+      return p
+    } catch (error){
+      console.log(`cannot parse to selected type`, error)
+      return undefined
+    }
+  } 
 
 
   // method closes akka actor and ws connection
@@ -375,10 +441,10 @@ export class ConnectionService {
   }
 
 
-  sendMessage(msg: any) {
+  sendMessage(message: Message) {
     if (this.wsConnection) {
       console.log('sending data to server.');
-      this.wsConnection.send(JSON.stringify( msg ));
+      this.wsConnection.send(JSON.stringify( message ));
     } else {
       console.error('Did not send data, open a connection first');
     }

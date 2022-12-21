@@ -2,15 +2,16 @@ package components.actors
 
 import akka.actor._
 import akka.actor.PoisonPill
+import components.util.converters.JsonParsers
 
 import scala.concurrent.Future
 
 
 object WebSocketActor {
-  def props(out: ActorRef) = Props(new WebSocketActor(out))
+  def props(out: ActorRef, jsonParser: JsonParsers) = Props(new WebSocketActor(out, jsonParser))
 }
 
-class WebSocketActor(out: ActorRef) extends Actor {
+class WebSocketActor(out: ActorRef, jsonParser: JsonParsers) extends Actor {
 
 
 
@@ -19,12 +20,27 @@ class WebSocketActor(out: ActorRef) extends Actor {
     println(s"5. Wyłączyłem actora.")
 
     // TODO here we cloase all resources used in actor
+    // tutaj będzie trzeba zpisywać wszystkie dane o tym która
+    // wiadomość (która partycja którego czatu jaki ma offset) została przeczytana
+    // i to będę zpisywał w db
+
     // someResource.close()
   }
 
   def receive: Receive = {
     case msg: String =>
       println(s"1. Przetwarzam wiadomość. $msg")
+
+      jsonParser.parseMessage(msg) match {
+        case Left(_) =>
+          println(s"CANNOT PARSE MESSAGE")
+        case Right(message) =>
+          println(s"Message processed normally")
+          out ! jsonParser.toJSON( message )
+      }
+
+
+
       if (msg.equals("PoisonPill")) {
         println(s"4. Otrzymałem PoisonPill $msg")
         out ! ("4. Wyłączam czat.")

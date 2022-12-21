@@ -88,6 +88,8 @@ class JsonParsers {
   }
 
 
+
+
   private implicit object newPassDecoder extends Decoder[(String, String)] {
     override def apply(c: HCursor): Result[(String, String)] = {
       for {
@@ -126,6 +128,13 @@ class JsonParsers {
       )
   }
 
+  private implicit object webSocketMessageEncoder extends Encoder[Message] {
+    override def apply(a: Message): Json =
+      Json.obj(
+        ("msg", a.asJson(Message.encoder))
+      )
+  }
+
 
 
   def toJson(l: List[String]): String = l.asJson.noSpaces
@@ -133,6 +142,8 @@ class JsonParsers {
   def toJSON(u: (User, Settings)): String = u.asJson.noSpaces
   def toJSON(u: User): String = u.asJson.noSpaces
   def toJSON(e: ResponseErrorBody): String = e.asJson.noSpaces
+
+  def toJSON(m: Message): String = m.asJson(webSocketMessageEncoder).noSpaces
 
   def chatsToJSON(map: Map[Chat, Map[Partition, Offset]]): String = map.asJson.noSpaces
 
@@ -150,6 +161,9 @@ class JsonParsers {
   def parseNewPass(json: String): Either[Error, (String, String)] = decode[(String, String)](json)(newPassDecoder)
 
   def parseChat(json: String): Either[Error, Chat] = decode[Chat](json)
+
+  // def parseWriting(json: String): Either[Error, Writing] = decode[Chat](json)
+  def parseMessage(json: String): Either[Error, Message] = decode[Message](json)
 
 }
 

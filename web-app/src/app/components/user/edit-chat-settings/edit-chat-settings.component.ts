@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, EventEmitter, OnInit } from '@angular/core';
 import { FormControl, FormGroup, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { debounceTime, distinctUntilChanged, of, share, startWith, Subject, Subscription, switchMap } from 'rxjs';
@@ -17,10 +17,12 @@ export class EditChatSettingsComponent implements OnInit {
   chatSettings = new FormGroup({
     newChatName: new FormControl(''),
     silent: new FormControl(false) 
-  });
+  })
+
   searchUserForm = new FormGroup({
     login: new FormControl('',[Validators.required, Validators.minLength(4)])
-  });
+  })
+
   chatData?: ChatData;
   responseMessage: any | undefined
   fetchingSubscription: Subscription | undefined
@@ -28,6 +30,8 @@ export class EditChatSettingsComponent implements OnInit {
   selectedUsers = new Array<User>();
   searchTerm: Subject<string> = new Subject()
 
+  fetchingUserEmmiter:  EventEmitter<any> = new  EventEmitter<any>() 
+  fetchingUserSubscription: Subscription | undefined
 
 
   
@@ -37,55 +41,51 @@ export class EditChatSettingsComponent implements OnInit {
     private userService: UserService) { }
 
 
-    // tutaj 
-    /*
-    tutaj trzeba zimplementować:
-    1. pobieranie użytkowników tak aby w chatdata była ich lista 
-       
-       taka lista może być wykorzysana jako dane do szukania 
-       nowych użytkowników do czatu. 
 
-    2. dodawanie nowych użytkowników do chatu jeśli jest on grupowy
-       
-       skopiować wyszukiwanie użytkownika z create chat. 
-
-    */
 
 
   ngOnInit(): void {
 
-
-        /* const c = this.userService.getChatUsers(cd.chat.chatId)
-    if ( c ) {
-      c.subscribe({
-        next: (response) => {
-          const body = response.body
-          if (response.ok && body) {
-            console.log('inserting users to chat.')
-            this.userService.insertChatUsers(cd, body)
-          }
-          if (response.ok && ! body) {
-            console.log(response.ok, body)
-          }
-        },
-        error: (err) => {
-          console.log("ERROR", err)
-          if (err.status == 401){
-            console.log('Session is out.')
-            this.userService.clearService()
-            this.router.navigate(['session-timeout'])
-          }
-          else {
-            this.errorBody = err.error
-          }
-        },
-        complete: () => {
-          // this.userService.dataFetched()
-        },
-      })
-    } else {
-      this.router.navigate(['session-timeout']) // may cause troubles?
-    } */
+    this.fetchingUserSubscription = this.fetchingUserEmmiter.subscribe(
+      () => {
+        if ( this.chatData ) {
+          const c = this.userService.getChatUsers(this.chatData.chat.chatId)
+          if ( c ) {
+            c.subscribe({
+              next: (response) => {
+                const body = response.body
+                if (response.ok && body && this.chatData) {
+                  console.log('inserting users to chat.')
+                  console.log(body)
+                  this.userService.insertChatUsers(this.chatData.chat.chatId, body)
+                  this.chatData.users = body
+                }
+                if (response.ok && ! body) {
+                  console.log(response.ok, body)
+                }
+              },
+              error: (err) => {
+                console.log("ERROR", err)
+                if (err.status == 401){
+                  console.log('Session is out.')
+                  this.userService.clearService()
+                  this.router.navigate(['session-timeout'])
+                }
+                else {
+                  this.responseMessage = err.error
+                }
+              },
+              complete: () => {
+                
+              },
+            })
+          } else {
+            this.router.navigate(['session-timeout']) 
+          } 
+        }
+      }
+    )
+    
 
 
 
@@ -95,12 +95,15 @@ export class EditChatSettingsComponent implements OnInit {
         if (b) {
           const chatId = this.activated.snapshot.paramMap.get('chatId');
           if ( chatId ) {
-            this.chatData = this.userService.chatAndUsers.find((chatData, index, arr) => {
+            this.chatData = this.userService.getAllChats().find((chatData, index, arr) => {
               return chatData.chat.chatId == chatId;
             });
             if (this.chatData) {
               this.chatSettings.controls.silent.setValue(this.chatData.chat.silent)
-            } 
+              this.fetchingUserEmmiter.emit()
+            } else {
+              this.router.navigate(['page-not-found']) 
+            }
           } 
         }
       }
@@ -109,7 +112,8 @@ export class EditChatSettingsComponent implements OnInit {
   }
 
   ngOnDelete() {
-    if (this.fetchingSubscription) this.fetchingSubscription.unsubscribe
+    if (this.fetchingSubscription) this.fetchingSubscription.unsubscribe()
+    if (this.fetchingUserSubscription) this.fetchingUserSubscription.unsubscribe()
     console.log('EditChatSettingsComponent.ngOnDelete() called.')
   }
   
@@ -302,15 +306,37 @@ export class EditChatSettingsComponent implements OnInit {
             if (response.status == 200) {
               const users = response.body
               if ( users ) {
+                console.log('users in chat', this.chatData?.users)
+                this.foundUsers = users.filter(
+                  (user,i,arr) => {
+                    const alreadySelected = this.selectedUsers.filter( (u, index,arr) => {
+                      return u.userId == user.userId 
+                    })
+                    const otherThanMe = this.userService.user?.userId != user.userId
+                    const alreadyInChat = this.chatData?.users.filter((u,i,arr) => {
+                      return u.login == user.login
+                    })
+                    console.log(alreadySelected?.length == 0 && otherThanMe && alreadyInChat?.length == 0)
+                    return alreadySelected?.length == 0 && otherThanMe && alreadyInChat?.length == 0
+                  }
+                )
+
+
+
+/*
                 this.foundUsers = new Array<User>(); 
                 users.forEach((user, index, array) => {
                   const exists = this.selectedUsers.find( (u, index,arr) => {
                     return u.userId == user.userId 
                   })
-                  if (!exists && this.userService.user?.userId != user.userId) {
+                  const isDifferent = this.userService.user?.userId != user.userId
+                  const alreadyInChat = this.chatData?.users.filter((u,i,arr) => {
+                    return u.login == user.login
+                  })
+                  if (!exists && isDifferent && alreadyInChat?.length == 0 ) {
                     this.foundUsers.push( user )
                   }
-                })
+                }) */
               }
             }
             if (response.status == 204){

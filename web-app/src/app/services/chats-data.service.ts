@@ -31,17 +31,14 @@ export class ChatsDataService {
 
 
   insertMessage(m: Message) {
-    // here we add message to message in chat data. 
     const cd = this.chatAndUsers.find((cd, i , arr) => {
       return cd.chat.chatId == m.chatId
     })
     if ( cd ) {
-      // trzeba jeszcze posortować wiadomości  
-      // i zmienić last message tak aby poprawnie zostało
-      // to posortowane
-      cd.messages.push(m)
-
-
+      const mess = cd.messages
+      mess.push(m)
+      cd.messages = mess.sort((a,b) => { return a.utcTime - b.utcTime })
+      cd.chat.lastMessageTime = m.utcTime
       this.changeChat( cd )
     }
   }
@@ -57,9 +54,9 @@ export class ChatsDataService {
 
 
 
-  insertChatUsers(chatD: ChatData, u: User[]) {
+  insertChatUsers(chatId: string, u: User[]) {
     this.chatAndUsers = this.chatAndUsers.map((cd, i , arr) => {
-      if (cd.chat.chatId == chatD.chat.chatId) {
+      if (cd.chat.chatId == chatId) {
         const newCD: ChatData = {
           chat: cd.chat,
           messages: cd.messages, 

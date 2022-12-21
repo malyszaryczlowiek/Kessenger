@@ -34,7 +34,7 @@ CREATE TABLE IF NOT EXISTS users_chats (
 
 CREATE TABLE IF NOT EXISTS sessions (
   session_id uuid UNIQUE,
-  user_id uuid , --REFERENCES users(user_id) ON DELETE CASCADE,
+  user_id uuid REFERENCES users(user_id) ON DELETE CASCADE,
   validity_time BIGINT DEFAULT 0 NOT NULL,
   PRIMARY KEY (session_id)
 );
@@ -42,7 +42,7 @@ CREATE TABLE IF NOT EXISTS sessions (
 
 
 CREATE TABLE IF NOT EXISTS settings (
-  user_id uuid UNIQUE,
+  user_id uuid REFERENCES users(user_id) ON DELETE CASCADE,  --UNIQUE,
   joining_offset BIGINT DEFAULT -1 NOT NULL, -- if user has set to -1 this means that he has not running joining topic in kafka broker, and we must create it
   session_duration BIGINT DEFAULT 900000 NOT NULL,
   zone_id varchar(255) DEFAULT 'UTC' NOT NULL,

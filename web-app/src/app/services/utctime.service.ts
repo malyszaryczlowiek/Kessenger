@@ -6,7 +6,7 @@ import { Injectable } from '@angular/core';
 export class UtctimeService {
 
   constructor() { 
-    console.log('utc time: ' + `${this.getUTCmilliSeconds()}`)
+    console.log('utc time: ' + `${this.getDate(this.getUTCmilliSeconds(), 'Europe/Warsaw')}`)
   }
 
   getUTCmilliSeconds(): number {
@@ -23,7 +23,7 @@ export class UtctimeService {
 
 
   getDate(millis: number, zoneId: string): string {
-    const date = new Intl.DateTimeFormat("en", {
+    const date = new Intl.DateTimeFormat( "en-gb", {
       timeZone: zoneId,
       day: "2-digit",
       month: "2-digit",

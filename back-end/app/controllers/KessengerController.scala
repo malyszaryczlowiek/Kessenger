@@ -756,7 +756,7 @@ class KessengerController @Inject()
                       Right(
                         ActorFlow.actorRef { out =>
                           println(s"wszedłem w ActorFlow.")
-                          WebSocketActor.props(out)
+                          WebSocketActor.props(out, jsonParser)
                         }
                       )
                     } else Left(Unauthorized("Error XXX. No valid session."))

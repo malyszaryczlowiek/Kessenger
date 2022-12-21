@@ -38,7 +38,7 @@ export class SignupComponent implements OnInit {
               );
               // after successfull request we should update KSID cookie 
               // to have correct userId
-              this.userService.updateSession()
+              // this.userService.updateSession()
               // this.userService.setLogoutTimer()
               // and redirect to user site
               this.router.navigate(['user']);
