@@ -30,34 +30,10 @@ PUT          /user/:userId/chats/:chatId/chatSettings            controllers.Kes
 POST         /user/:userId/chats/:chatId/addNewUsers             controllers.KessengerController.addUsersToChat(userId: java.util.UUID, chatId: String)
 
 
-####   WEBSOCKET
+#   WEBSOCKET
 GET          /user/:userId/ws                                    controllers.KessengerController.ws(userId: java.util.UUID)
 
 
 
 
-
-
-
-
-# POST         /user/:userId/anytc                                controllers.KessengerController.addUsersToChat(userId: java.util.UUID)
-
-# Angulars endpoints
-# GET          /angular/ws                                        controllers.KessengerController.ws
-
-GET          /angular/users                                     controllers.KessengerController.angular
-GET          /angular/users/stream                              controllers.KessengerController.userStreaming
-POST         /angular/post                                      controllers.KessengerController.angularpost
-
-
-
-
-
-GET     /json                             controllers.KessengerController.json
-GET     /jsonarray                        controllers.KessengerController.jsonarray
-+nocsrf
-POST    /jsonpost                         controllers.KessengerController.jsonpost
-+nocsrf
-POST    /jsonarraypost                    controllers.KessengerController.jsonarraypost
-GET     /user/test/usersNewSession        controllers.KessengerController.usersNewSession
 

@@ -1,6 +1,6 @@
 package components.util.converters
 
-import io.github.malyszaryczlowiek.kessengerlibrary.domain.SessionInfo
+import io.github.malyszaryczlowiek.kessengerlibrary.model.SessionInfo
 
 import play.api.mvc.{AnyContent, Request, Result, Session}
 import play.api.mvc.Results._

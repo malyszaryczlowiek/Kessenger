@@ -7,19 +7,19 @@ import components.actors.WebSocketActor
 import components.db.MyDbExecutor
 import components.executioncontexts.{DatabaseExecutionContext, MyExecutionContext}
 import components.util.converters.{JsonParsers, PasswordConverter, SessionConverter}
+
 import io.github.malyszaryczlowiek.kessengerlibrary.db.queries.{DataProcessingError, LoginTaken, QueryError, UndefinedError, UnsupportedOperation}
-import io.github.malyszaryczlowiek.kessengerlibrary.domain.Domain.{ChatId, DbResponse}
-import io.github.malyszaryczlowiek.kessengerlibrary.domain.{Chat, Domain, Settings, User}
-import io.github.malyszaryczlowiek.kessengerlibrary.domain.Chat.parseChatToJSON
-import io.github.malyszaryczlowiek.kessengerlibrary.domain.User.parseListOfUsersToJSON
-import models.ResponseErrorBody
+import io.github.malyszaryczlowiek.kessengerlibrary.domain.Domain.ChatId
+import io.github.malyszaryczlowiek.kessengerlibrary.model.{Chat, Settings, User, ResponseBody}
+import io.github.malyszaryczlowiek.kessengerlibrary.model.Settings.parseJSONtoSettings
+import io.github.malyszaryczlowiek.kessengerlibrary.model.Chat.parseJSONtoChat
+import io.github.malyszaryczlowiek.kessengerlibrary.model.User.toJSON
+
 import play.api.db.Database
 import play.api.libs.streams.ActorFlow
 import play.api.mvc._
 import util.HeadersParser
 
-import scala.util.Random
-import java.nio.charset.Charset
 import java.util.UUID
 import javax.inject._
 import scala.concurrent.duration.{Duration, SECONDS}
@@ -45,64 +45,6 @@ class KessengerController @Inject()
     mat: Materializer
   ) extends BaseController {
 
-
-
-
-  /**
-   * Create new Account
-   *
-   * @return
-   */
-//  @deprecated("old method")
-//  def signup2 = Action.async { implicit request =>
-//    if (!request.session.isEmpty) {
-//      Future.successful(BadRequest("Logout from current Session and try again. "))
-//    }
-//    else {
-//      fc.signupForm.bindFromRequest().fold(
-//        formWithErrors => {
-//          // binding failure, you retrieve the form containing errors:
-//          val errors = formWithErrors.errors
-//          val e = errors.foldLeft[String]("")((errors, error) => s"$errors\n${error.message}").trim
-//          Future.successful(BadRequest(e).withNewSession) // .discardingCookies(DiscardingCookie("sid"))
-//        },
-//        loginCredentials => {
-//          Future {
-//            db.withConnection(implicit connection => {
-//              val userId = UUID.randomUUID()
-//              val login = loginCredentials.login
-//              passwordConverter.convert(loginCredentials.pass) match {
-//                case Left(_) =>
-//                  InternalServerError("Error 001. Encoding password failed").withNewSession
-//                case Right(encoded) =>
-//                  val settings = Settings()
-//                  val validityTime = System.currentTimeMillis() / 1000L + settings.sessionDuration // in seconds+ 900
-//                  val sessionData = SessionInfo(UUID.randomUUID(), userId, validityTime)
-//                  dbExecutor.createUser(User( userId, login), encoded, settings, sessionData) match {
-//                    case Left(queryError) =>
-//                      InternalServerError(s"Error 002. ${queryError.description.toString()}").withNewSession
-//                    case Right(value) =>
-//                      if (value == 3) {
-//                        val session = new Session(
-//                          Map(
-//                            "session_id"    -> s"${sessionData.sessionId.toString}",
-//                            "user_id"       -> s"${userId.toString}",
-//                            "validity_time" -> s"$validityTime"
-//                          )
-//                        )
-//                        Ok(userId.toString).withSession(session)
-//                      } else InternalServerError("Error 003. User Creation Error. ").withNewSession
-//                  }
-//              }
-//            })
-//          }(databaseExecutionContext)
-//        }
-//      )
-//    }
-//  }
-
-
-  // tutaj kontynuować
 
 
   // TODO write validator for json data login length and so one
@@ -133,7 +75,7 @@ class KessengerController @Inject()
                                 InternalServerError(s"Error 006. ${queryError.description.toString()}")
                               case Right(value) =>
                                 if (value == 3) Ok(jsonParser.toJSON((user, settings)))
-                                else InternalServerError(ResponseErrorBody(7, "Error 007. User Creation Error. ").toString)
+                                else InternalServerError(ResponseBody(7, "Error 007. User Creation Error. ").toString)
                             }
                           })
                         }(databaseExecutionContext)
@@ -147,62 +89,6 @@ class KessengerController @Inject()
     }
   }
 
-  //signin
-
-  //  private val logForm = Form(
-  //    mapping(
-  //      "login" -> nonEmptyText.verifying(loginCheckConstraint),
-  //      "pass" -> nonEmptyText.verifying(passwordCheckConstraint)
-  //    )(LoginCredentials.apply)(LoginCredentials.unapply)
-  //  )
-
-
-  //  def signin2 = Action.async(implicit request => {
-  //    fc.logForm.bindFromRequest().fold( // ()(request, formBinding)
-  //      formWithErrors => {
-  //        // binding failure, you retrieve the form containing errors:
-  //        val errors = formWithErrors.errors
-  //        val e = errors.foldLeft[String]("")((errors, error) => s"$errors\n${error.message}").trim
-  //        Future.successful(BadRequest(s"Error 004. Form validation Error(s):\n$e").withNewSession)
-  //      },
-  //      loginCredentials => {
-  //        // jeśli czas jest zgodny to trzeba sprawdzić czy login odpowiadający userId w sessji
-  //        // jest taki sam jak login do którego ktoś chce się zalogować.
-  //        Future {
-  //          val hash = passwordConverter.convert(loginCredentials.pass) match {
-  //            case Left(ex) => ex
-  //            case Right(p) => p
-  //          }
-  //          db.withConnection(implicit connection => {
-  //            dbExecutor.findUser(loginCredentials.login, hash) match {
-  //              case Left(_) => BadRequest("Error 005. Login or Password not match.").withNewSession
-  //              case Right((user,settings)) =>
-  //                val sessionId = UUID.randomUUID()
-  //                val validityTime = System.currentTimeMillis() / 1000L + settings.sessionDuration
-  //                val session = new Session(
-  //                  Map(
-  //                    "session_id"    -> s"${sessionId.toString}",
-  //                    "user_id"       -> s"${user.userId.toString}",
-  //                    "validity_time" -> s"$validityTime"
-  //                  )
-  //                )
-  //                dbExecutor.createSession(sessionId, user.userId, validityTime) match {
-  //                  case Left(_) =>
-  //                    InternalServerError("Error 006. Cannot Create session in DB.").withNewSession
-  //                  case Right(v) =>
-  //                    dbExecutor.removeAllExpiredUserSessions(user.userId)
-  //                    if (v == 1) {
-  //                      Redirect(routes.KessengerController.user(user.userId))
-  //                        .withSession(session)
-  //                        .withHeaders(("Internal", "true"))
-  //                    } else InternalServerError("Error 007. Not matching row affected.").withNewSession
-  //                }
-  //            }
-  //          })
-  //        }(ec)
-  //      }
-  //    )
-  //  })
 
 
   // TODO this works
@@ -226,7 +112,7 @@ class KessengerController @Inject()
                         Future {
                           db.withConnection(implicit connection => {
                             dbExecutor.findUser(loginCredentials.login, encodedPass) match {
-                              case Left(_) => BadRequest(ResponseErrorBody(13, "Login or Password not match.").toString)
+                              case Left(_) => BadRequest(ResponseBody(13, "Login or Password not match.").toString)
                               case Right((user, settings)) =>
                                 val validityTime = System.currentTimeMillis() + settings.sessionDuration
                                 dbExecutor.createSession(sessionData.sessionId, user.userId, validityTime) match {
@@ -263,8 +149,8 @@ class KessengerController @Inject()
                 dbExecutor.removeSession(sessionData.sessionId, sessionData.userId) match {
                   case Left(_) => InternalServerError("Error 018. Db Error. ")
                   case Right(v) =>
-                    if (v == 1) Ok(jsonParser.toJSON(ResponseErrorBody(0, "Logout successfully."))) //
-                    else Accepted(jsonParser.toJSON(ResponseErrorBody(0, "Not matching session.")))
+                    if (v == 1) Ok(ResponseBody(0, "Logout successfully.").toString)
+                    else Accepted(ResponseBody(0, "Not matching session.").toString)
                 }
               })
             }(databaseExecutionContext)
@@ -321,7 +207,7 @@ class KessengerController @Inject()
       )
     ).async( implicit request => {
       request.body.asJson.map( s => {
-        jsonParser.parseSettings(s.toString()) match {
+        parseJSONtoSettings(s.toString()) match {
           case Left(_) => Future.successful(InternalServerError(s"Error 028. Cannot parse payload data. "))
           case Right(settings) =>
             Future {
@@ -329,7 +215,7 @@ class KessengerController @Inject()
                 dbExecutor.updateSettings(userId, settings) match {
                   case Left(_) => InternalServerError(s"Error XXX")
                   case Right(v) =>
-                    if (v == 1) Ok(ResponseErrorBody(0, s"New Settings Saved.").toString)
+                    if (v == 1) Ok(ResponseBody(0, s"New Settings Saved.").toString)
                     else Accepted(s"Nothing to updated.") // something bad
                 }
               })
@@ -362,12 +248,12 @@ class KessengerController @Inject()
             dbExecutor.updateMyLogin(userId, newLogin) match {
               case Left(QueryError(_, m)) =>
                 m match {
-                  case LoginTaken => BadRequest(ResponseErrorBody(29, "Login taken. Try with another one.").toString  )
+                  case LoginTaken => BadRequest(ResponseBody(29, "Login taken. Try with another one.").toString  )
                   case _ => InternalServerError("Error 030.")
                 }
               case Right(i) =>
-                if (i == 1) Ok(ResponseErrorBody(0, "Login successfully changed!!!").toString)
-                else BadRequest(ResponseErrorBody(31, "Oppsss, User not found???").toString)
+                if (i == 1) Ok(ResponseBody(0, "Login successfully changed!!!").toString)
+                else BadRequest(ResponseBody(31, "Oppsss, User not found???").toString)
             }
           })
         }(databaseExecutionContext)
@@ -408,33 +294,15 @@ class KessengerController @Inject()
                     dbExecutor.updateUsersPassword(userId, old, neww) match {
                       case Left(_) => InternalServerError(s"Error XXX")
                       case Right(v) =>
-                        if (v == 1) Ok(ResponseErrorBody(0,s"New Password Saved.").toString)
-                        else BadRequest(ResponseErrorBody(22,  s"Old Password does not match.").toString)
+                        if (v == 1) Ok(ResponseBody(0,s"New Password Saved.").toString)
+                        else BadRequest(ResponseBody(22,  s"Old Password does not match.").toString)
                     }
                   })
                 }(databaseExecutionContext)
               case _ => Future.successful(InternalServerError(s"Error XXX. Conversion Error."))
             }
         }
-    }).getOrElse(Future.successful(InternalServerError(s"Error 028. Cannot parse payload data. ")))
-
-
-//  jsonParser.parseSettings(s.toString()) match {
-//          case Left(_) => Future.successful(InternalServerError(s"Error 028. Cannot parse payload data. "))
-//          case Right(settings) =>
-//            Future {
-//              db.withConnection(implicit connection => {
-//                dbExecutor.updateSettings(userId, settings) match {
-//                  case Left(_) => InternalServerError(s"Error XXX")
-//                  case Right(v) =>
-//                    if (v == 1) Ok(s"New Settings Saved.")
-//                    else Accepted(s"Nothing to updated.") // something bad
-//                }
-//              })
-//            }(databaseExecutionContext)
-//        }
-//      }).getOrElse(Future.successful(InternalServerError(s"Error 028. Cannot parse payload data. ")))
-
+      }).getOrElse(Future.successful(InternalServerError(s"Error 028. Cannot parse payload data. ")))
     })
 
 
@@ -460,7 +328,7 @@ class KessengerController @Inject()
               InternalServerError("Error 010.")
             case Right(found) =>
               if (found.isEmpty) NoContent
-              else Ok(jsonParser.toJSON(found))
+              else Ok(toJSON(found))
           }
         })
       }(databaseExecutionContext)
@@ -492,9 +360,14 @@ class KessengerController @Inject()
             Future {
               db.withConnection(implicit connection => {
                 dbExecutor.createChat(me, users, chatName) match {
-                  case Left(QueryError(_, UnsupportedOperation)) => BadRequest(ResponseErrorBody(12, "Chat already exists.").toString  )
+                  case Left(QueryError(_, UnsupportedOperation)) => BadRequest(ResponseBody(12, "Chat already exists.").toString  )
                   case Left(queryError) => InternalServerError(s"Error 013. ${queryError.description.toString()}")
-                  case Right(createdChat) => Ok(jsonParser.chatsToJSON(createdChat))
+                  case Right(createdChat) =>
+                    // todo tutaj utworzyć jeszcze chat w kafce. i dopiero jak otrzymamy potwierdzenie
+                    //  z  kafki można wysłać odpiwiedź, że czat został utworzony.
+
+
+                    Ok(jsonParser.chatsToJSON(createdChat))
                 }
               })
             }(databaseExecutionContext)
@@ -559,7 +432,7 @@ class KessengerController @Inject()
         db.withConnection( implicit connection => {
           dbExecutor.findChatUsers(chatId) match {
             case Left(_) => InternalServerError("Error 021. Database Error")
-            case Right(listOfUser) => Ok(jsonParser.toJSON(listOfUser))
+            case Right(listOfUser) => Ok(toJSON(listOfUser))
           }
         })
       }(databaseExecutionContext)
@@ -619,7 +492,7 @@ class KessengerController @Inject()
       )
     ).async(implicit request =>
       request.body.asJson.map(payload => {
-        jsonParser.parseChat(payload.toString()) match {
+        parseJSONtoChat(payload.toString()) match {
           case Left(_) =>
             Future.successful(InternalServerError(s"Error 028. Cannot parse payload data. "))
           case Right(chat: Chat) =>
@@ -629,8 +502,8 @@ class KessengerController @Inject()
                   case Left(queryError) =>
                     InternalServerError(s"Error 026. ${queryError.description.toString()}")
                   case Right(value) =>
-                    if (value == 1) Ok(ResponseErrorBody(0, "Settings saved").toString)
-                    else BadRequest(ResponseErrorBody(27, "Cannot change chat settings. ").toString)
+                    if (value == 1) Ok(ResponseBody(0, "Settings saved").toString)
+                    else BadRequest(ResponseBody(27, "Cannot change chat settings. ").toString)
                     // User is not participant of chat or chat does not exist.
                 }
               }
@@ -667,7 +540,7 @@ class KessengerController @Inject()
               db.withConnection { implicit connection =>
                 dbExecutor.addNewUsersToChat(users, chatId, chatName) match {
                   case Left(queryError) => InternalServerError(s"Error 019. ${queryError.description.toString()}")
-                  case Right(value)     => Ok(ResponseErrorBody(0,s"$value users added.").toString)
+                  case Right(value)     => Ok(ResponseBody(0,s"$value users added.").toString)
                 }
               }
             }(databaseExecutionContext)
@@ -680,48 +553,6 @@ class KessengerController @Inject()
 
 
 
-
-
-
-
-
-  // jak serwer wyśle odpowiedź, że czat został zapisany w bazie danych
-  // to należy we frontendzie wysłać na kafkę powiadomienia o dadaniu do czatu.
-//  @deprecated
-//  def newGroupChat(userId: UUID) =
-//    SessionChecker(parse.anyContent, userId)(
-//      databaseExecutionContext,
-//      db,
-//      dbExecutor,
-//      headersParser
-//    )
-//      .andThen(
-//        SessionUpdater(parse.anyContent, userId)(
-//          databaseExecutionContext,
-//          db,
-//          dbExecutor,
-//          headersParser
-//        )
-//      )
-//      .async(implicit request => {
-//        request.body.asJson.map(json => {
-//          jsonParser.newGroupChatJSON(json.toString()) match {
-//            case Left(_) => Future.successful(BadRequest("Error 015, JSON parsing error.").withSession(sessionConverter.updateSession(request)))
-//            case Right((users, chatName)) =>
-//              Future {
-//                db.withConnection(implicit connection => {
-//                  val chatId = Domain.generateChatId(UUID.randomUUID(), UUID.randomUUID())
-//                  dbExecutor.createGroupChat(users, chatName, chatId) match {
-//                    case Left(_) => InternalServerError("Error 016. Database Error").withSession(sessionConverter.updateSession(request))
-//                    case Right(chat: Chat) =>
-//                      Ok(parseChatToJSON(chat)).withSession(sessionConverter.updateSession(request))
-//                  }
-//                })
-//              }(databaseExecutionContext)
-//          }
-//        })
-//          .getOrElse(Future.successful(BadRequest("Error 017, JSON parsing error.").withSession(sessionConverter.updateSession(request))))
-//      })
 
 
   // TODO tutaj należy sprawdzić header (nagłówek) Origin z rządania
@@ -756,7 +587,7 @@ class KessengerController @Inject()
                       Right(
                         ActorFlow.actorRef { out =>
                           println(s"wszedłem w ActorFlow.")
-                          WebSocketActor.props(out, jsonParser)
+                          WebSocketActor.props(out, jsonParser, databaseExecutionContext)
                         }
                       )
                     } else Left(Unauthorized("Error XXX. No valid session."))
@@ -770,202 +601,6 @@ class KessengerController @Inject()
       )
   }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-  //@deprecated
-//  def ws =
-//    WebSocket.accept[String, String] { request =>
-//
-//      println()
-//      println(s"websocket HEADERS")
-//      request.headers.headers.foreach(println)
-//
-//      // Headers.create().add("Access-Control-Allow-Origin" -> "http://localhost:4200").get("Access-Control-Allow-Origin") match {
-//
-//
-//      //WebSocket.acceptOrResult[String, String] { request =>
-//      println(s"odebrałem rządanie HTTP.")
-//      ActorFlow.actorRef { out =>
-//        println(s"wszedłem w ActorFlow.")
-//        WebSocketActor.props(out)
-//      }
-//    }
-
-
-
-
-
-
-
-  /*
-  zbudować 4 endpointy
-    1. GET zwracający obiekt User
-    2. POST wysyłający dane do logowania z tokenem CSRF.
-    3. POST obsługujący CSRF wysyłający w body stringa
-    4. websocket gdzie wysyłając get na odpowiedni endpoint uruchamiamy aktora i tak dalej
-    5. soprawdzić czy obsługiwane będzie LazyList
-   */
-
-
-  def angular() = Action.async { implicit request =>
-    val headers = request.headers.headers
-
-    println()
-    println()
-    if (request.session.isEmpty) println(s"Sesja jest pusta")
-    else {
-      request.session.data.foreach(println)
-    }
-
-
-    headers.foreach(println)
-
-    val cookies = request.cookies.toList
-    cookies.foreach(println)
-
-    val u1 = User(UUID.randomUUID(), "user1")
-    val u2 = User(UUID.randomUUID(), "user2")
-
-    val users = List(u1,u2)
-
-    val session = new Session(
-      Map(
-        "session_id" -> s"${UUID.randomUUID().toString}",
-        "user_id" -> s"${UUID.randomUUID().toString}",
-        "validity_time" -> s"${Random.nextLong()}"
-      )
-    )
-    val cookie = new Cookie("KESSENGER_SID", "wartosc-sid", httpOnly = false, domain = Option("localhost:4200")  ) // , sameSite = Option(Cookie.SameSite.Lax))
-    request.headers.get("MY_KESSENGER_HEADER") match {
-      case Some(value) =>
-        Future.successful(Ok(jsonParser.toJSON(users)).withSession(session).withCookies(cookie).withHeaders(("MY_KESSENGER_HEADER", value)))
-      case None => Future.successful(Ok(jsonParser.toJSON(users)).withSession(session).withCookies(cookie))
-    }
-
-    // Future.successful(Ok(jsonParser.toJSON(users)).withSession(session).withCookies(cookie))
-  }
-
-
-  def userStreaming = Action.async { implicit request =>
-    val u1 = User(UUID.randomUUID(), "user1")
-    val u2 = User(UUID.randomUUID(), "user2")
-    val u3 = User(UUID.randomUUID(), "user3")
-    lazy val list = u1 #:: u2 #:: u3 #:: LazyList.empty
-    // lazy val source = Source.apply(list.toList.map(parseUserToJSON))
-    val session = new Session(
-      Map(
-        "session_id" -> s"${UUID.randomUUID()}",
-        "user_id" -> s"${UUID.randomUUID()}",
-        "validity_time" -> s"${System.currentTimeMillis()}"
-      )
-    )
-    Future.successful(Ok(parseListOfUsersToJSON(list.toList)).withSession(session))
-  }
-
-  def angularpost = Action.async { implicit request =>
-    request.body.asText
-    println("przetwarzam post")
-    Future.successful(Ok("przerobiono rządanie."))
-  }
-
-
-
-
-  // TODO ważne -> zawsze należy przy końcowym wysyłaniu response dodać      .withSession( sessionConverter.updateSession(request) )
-  //  żeby zawsze spisał wartość nowej daty ważności z header'a
-
-
-
-
-  def json = Action.async { implicit request =>
-    val u = User(UUID.randomUUID(), "Marik")
-    Future.successful(Ok(jsonParser.toJSON(u)))
-  }
-
-  def jsonpost = Action.async { implicit request =>
-    request.body.asJson.map(jsv => {
-      val str = jsv.toString()
-      println()
-      println(s"posted user $str")
-      println()
-      jsonParser.parseUser(str) match {
-        case Left(_) => Future.successful(BadRequest("Cannot parse JSON payload."))
-        case Right(u) => Future.successful(Ok(u.toString))
-      }
-    }).getOrElse(Future.successful(NotAcceptable("Sorry Buddy. ")))
-  }
-
-
-  def jsonarray = Action.async { implicit request =>
-    val u1 = User(UUID.randomUUID(), "1")
-    val u2 = User(UUID.randomUUID(), "2")
-    Future.successful(
-      Ok(jsonParser.toJSON(List(u1, u2)))
-    )
-  }
-
-  // post to get user back
-  def jsonarraypost = Action.async { implicit request =>
-    request.body.asJson.map(jsv => {
-      jsonParser.parseListOfUsers(jsv.toString()) match {
-        case Left(_) => Future.successful(BadRequest("Cannot parse JSON payload."))
-        case Right(u) => Future.successful(Ok(u.toString))
-      }
-    }).getOrElse(Future.successful(NotAcceptable("Sorry Buddy. ")))
-  }
-
-
-  def usersNewSession = Action {
-
-    val byteArray =  "zakodowana wiadomość".getBytes(Charset.defaultCharset())
-    Ok(byteArray).withNewSession
-  }
 
 
 }

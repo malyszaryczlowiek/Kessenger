@@ -1,6 +1,6 @@
 package util
 
-import io.github.malyszaryczlowiek.kessengerlibrary.domain.SessionInfo
+import io.github.malyszaryczlowiek.kessengerlibrary.model.SessionInfo
 import play.api.mvc.Results.Unauthorized
 import play.api.mvc.{Request, Result}
 
@@ -19,7 +19,7 @@ class HeadersParser {
         Option( SessionInfo(sessionId , userId , validityTime ) )
       } catch {
         case e: Exception => None
-        case _ => None
+        case _: Throwable => None
       }
     } else None
   }

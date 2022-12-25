@@ -2,7 +2,7 @@ package filters
 
 import akka.stream.Materializer
 import components.util.converters.JsonParsers
-import models.ResponseErrorBody
+import io.github.malyszaryczlowiek.kessengerlibrary.model.ResponseBody
 import play.api.http.HttpEntity
 import play.api.mvc.{Filter, RequestHeader, ResponseHeader, Result}
 
@@ -23,7 +23,7 @@ class KsidFilter @Inject() (implicit val mat: Materializer, ec: ExecutionContext
       case Some(_) => nextFilter(requestHeader)
       case None =>
         Future.successful(
-          new Result(ResponseHeader.apply(401, reasonPhrase = Option(ResponseErrorBody(1, "Sorry... Request rejected.").toString  )), HttpEntity.NoEntity)
+          new Result(ResponseHeader.apply(401, reasonPhrase = Option(ResponseBody(1, "Sorry... Request rejected.").toString  )), HttpEntity.NoEntity)
         )
     }
   }

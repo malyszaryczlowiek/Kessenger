@@ -1,8 +1,9 @@
 package components.actions
 
 import components.db.MyDbExecutor
-import components.util.converters.SessionConverter
+
 import io.github.malyszaryczlowiek.kessengerlibrary.domain.Domain.UserID
+
 import play.api.db.Database
 import play.api.mvc._
 import util.HeadersParser

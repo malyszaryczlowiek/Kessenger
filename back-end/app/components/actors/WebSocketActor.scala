@@ -1,22 +1,43 @@
 package components.actors
 
-import akka.actor._
-import akka.actor.PoisonPill
+
+import io.github.malyszaryczlowiek.kessengerlibrary.kafka.configurators.KafkaProductionConfigurator
+import io.github.malyszaryczlowiek.kessengerlibrary.model.Invitation
+import io.github.malyszaryczlowiek.kessengerlibrary.model.Message
+import io.github.malyszaryczlowiek.kessengerlibrary.model.Configuration.parseConfiguration
+import io.github.malyszaryczlowiek.kessengerlibrary.model.Invitation.parseInvitation
+import io.github.malyszaryczlowiek.kessengerlibrary.model.Message.parseMessage
+
 import components.util.converters.JsonParsers
 
-import scala.concurrent.Future
 
+import util.BrokerExecutor
+import akka.actor._
+import akka.actor.PoisonPill
+
+
+import scala.concurrent.{ExecutionContext, Future}
+import scala.collection.mutable.ListBuffer
 
 object WebSocketActor {
-  def props(out: ActorRef, jsonParser: JsonParsers) = Props(new WebSocketActor(out, jsonParser))
+  def props(out: ActorRef, jsonParser: JsonParsers, dbec: ExecutionContext) =
+    Props(new WebSocketActor(out, jsonParser, new BrokerExecutor(None, out, new KafkaProductionConfigurator, dbec)))
 }
 
-class WebSocketActor(out: ActorRef, jsonParser: JsonParsers) extends Actor {
+class WebSocketActor( out: ActorRef,
+                      jsonParser: JsonParsers,
+                      be: BrokerExecutor,
+                      // dbec: ExecutionContext,
+                      messageBuffer: ListBuffer[Message] = ListBuffer.empty[Message],
+                      invitationBuffer: ListBuffer[Invitation] = ListBuffer.empty[Invitation]
+                    ) extends Actor {
+
 
 
 
 
   override def postStop(): Unit = {
+    this.be.clearBroker()
     println(s"5. Wyłączyłem actora.")
 
     // TODO here we cloase all resources used in actor
@@ -28,46 +49,54 @@ class WebSocketActor(out: ActorRef, jsonParser: JsonParsers) extends Actor {
   }
 
   def receive: Receive = {
-    case msg: String =>
-      println(s"1. Przetwarzam wiadomość. $msg")
+    case s: String =>
 
-      jsonParser.parseMessage(msg) match {
+      parseMessage(s) match {
         case Left(_) =>
           println(s"CANNOT PARSE MESSAGE")
+          parseInvitation(s) match {
+            case Left(_) =>
+              println(s"CANNOT PARSE INVITATION")
+              parseConfiguration(s) match {
+                case Left(_) =>
+                  println(s"CANNOT PARSE CONFIGURATION")
+                case Right(conf) =>
+                  println(s"1. initializing Broker")
+                  this.be.initialize(conf)
+                  // this.broker = new BrokerExecutor(conf, out, new KafkaProductionConfigurator)
+              }
+            case Right(invitation) =>
+              this.be.sendInvitation( invitation )
+          }
         case Right(message) =>
-          println(s"Message processed normally")
-          out ! jsonParser.toJSON( message )
+          println(s"2. Processing message. $s")
+          this.be.sendMessage( message )
       }
 
-
-
-      if (msg.equals("PoisonPill")) {
-        println(s"4. Otrzymałem PoisonPill $msg")
-        out ! ("4. Wyłączam czat.")
-        self ! PoisonPill
-      }
-      else {
-
-        // wysyłanie wiadomości z powrotem
-        out ! (msg)
-      }
     case _ =>
       println(s"3a. Nieczytelna wiadomość. ")
       out ! ("3b. Dostałem nieczytelną wiadomość.")
-      /*
-      w momencie gdy chcemy zamknąć naszego aktora
-      i wywołać automatycznei postStop()
-      musimy wywołać
-
       self ! PoisonPill
-
-      TODO wbudować mechanizm autozamykania 15 min
-        jeśli nie ma żadnej aktywność wysyłąnej przez użytkownika.
-       */
-
 
   }
 
   println(s"0. Włączam aktora")
 
 }
+
+
+//      if (s.equals("PoisonPill")) {
+//        println(s"4. Otrzymałem PoisonPill $s")
+//        out ! ("4. Wyłączam czat.")
+//        self ! PoisonPill
+//      }
+//      else {
+//
+//        // wysyłanie wiadomości z powrotem
+//        out ! (s)
+
+
+
+
+
+

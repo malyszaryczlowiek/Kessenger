@@ -85,10 +85,6 @@ export class EditChatSettingsComponent implements OnInit {
         }
       }
     )
-    
-
-
-
 
     this.fetchingSubscription = this.userService.fetchingUserDataFinishedEmmiter.subscribe(
       (b) => {
@@ -245,13 +241,6 @@ export class EditChatSettingsComponent implements OnInit {
 
 
 
-  /*
-  todo
-  1. zaimplementować pobieranie listy użytkowników czatu
-  2. przy wyszukiwaniu użytkownika, którego będziemy chcieli dodać trzeba
-     odjąć tych użytkowników którzy są już w czacie
-  3. zaimplementować dodawanie użytkowników do czatu.   
-  */
 
   addUsers() {
     if (this.chatData) {
@@ -320,23 +309,6 @@ export class EditChatSettingsComponent implements OnInit {
                     return alreadySelected?.length == 0 && otherThanMe && alreadyInChat?.length == 0
                   }
                 )
-
-
-
-/*
-                this.foundUsers = new Array<User>(); 
-                users.forEach((user, index, array) => {
-                  const exists = this.selectedUsers.find( (u, index,arr) => {
-                    return u.userId == user.userId 
-                  })
-                  const isDifferent = this.userService.user?.userId != user.userId
-                  const alreadyInChat = this.chatData?.users.filter((u,i,arr) => {
-                    return u.login == user.login
-                  })
-                  if (!exists && isDifferent && alreadyInChat?.length == 0 ) {
-                    this.foundUsers.push( user )
-                  }
-                }) */
               }
             }
             if (response.status == 204){
@@ -346,7 +318,7 @@ export class EditChatSettingsComponent implements OnInit {
           },
           error: (error) => {
             console.log("ERROR", error)
-            this.foundUsers = new Array()  // todo to skasować CHYBA można
+            this.foundUsers = new Array()  
             if (error.status == 401){
               console.log('Session is out.')
               this.router.navigate(['session-timeout'])
@@ -371,7 +343,6 @@ export class EditChatSettingsComponent implements OnInit {
     this.foundUsers = this.foundUsers.filter( (user, index, array) => {
       return user.userId != u.userId;
     });
-    // this.validateForm();
   }
 
   unselect(u: User) {
@@ -379,13 +350,9 @@ export class EditChatSettingsComponent implements OnInit {
       return u.userId != user.userId
     })
     this.foundUsers.push(u);
-    // this.validateForm();
   }
 
-  /* validateForm() {
-    // this.disableSubmitting = !( this.chatForm.valid && this.selectedUsers.length > 0 );
-    this.userService.updateSession()
-  } */
+
 
 
 }

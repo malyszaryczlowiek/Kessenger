@@ -1,7 +1,7 @@
 package components.util
 
 import components.util.LoginCredentials.LoginCredentials
-import models.SignupData
+// import models.SignupData
 
 import play.api.data.Forms._
 import play.api.data._
