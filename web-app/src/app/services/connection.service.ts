@@ -12,9 +12,8 @@ import { Writing } from '../models/Writing';
 import { ChatData } from '../models/ChatData';
 import { SessionService } from './session.service';
 import { Chat } from '../models/Chat';
-
-// import * as SockJS from 'sockjs-client';
-
+import { MessagePartOff } from '../models/MesssagePartOff';
+import { Configuration } from '../models/Configuration';
 
 
 
@@ -25,9 +24,9 @@ export class ConnectionService {
 
   
   private wsConnection:     WebSocket | undefined
-  public messageEmitter:    EventEmitter<Message>    = new EventEmitter<Message>()
-  public invitationEmitter: EventEmitter<Invitation> = new EventEmitter<Invitation>()
-  public writingEmitter:    EventEmitter<Writing>    = new EventEmitter<Writing>()
+  public messageEmitter:    EventEmitter<MessagePartOff>    = new EventEmitter<MessagePartOff>()
+  public invitationEmitter: EventEmitter<Invitation>        = new EventEmitter<Invitation>()
+  public writingEmitter:    EventEmitter<Writing>           = new EventEmitter<Writing>()
 
 
   constructor(private http: HttpClient, 
@@ -164,6 +163,7 @@ export class ConnectionService {
   }
 
 
+
   searchUser(userId: string, search: string) : Observable<HttpResponse<User[]>> | undefined {
     const token = this.session.getSessionToken()
     if ( token ) {
@@ -197,6 +197,7 @@ export class ConnectionService {
   }
 
 
+
   getChats(userId: string): Observable<HttpResponse<Array<ChatData>>> | undefined {
     const token = this.session.getSessionToken()
     if ( token ) {
@@ -208,6 +209,7 @@ export class ConnectionService {
       });
     } else return undefined;
   }
+
 
 
   getChatUsers(userId: string, chatId: string): Observable<HttpResponse<User[]>> | undefined {
@@ -223,7 +225,6 @@ export class ConnectionService {
   }
 
 
-
   
   leaveChat(userId: string, chatId: string): Observable<HttpResponse<any>> | undefined {
     const token = this.session.getSessionToken()
@@ -236,6 +237,7 @@ export class ConnectionService {
       });
     } else return undefined;
   }
+
 
 
   setChatSettings(userId: string, chat: Chat): Observable<HttpResponse<any>> | undefined {
@@ -271,15 +273,9 @@ export class ConnectionService {
 
 
 
-
-
-  
-  // start_here
-  /* 
-  todo teraz sprawdzić czy wszystko z websocket jest ok 
-  a następnie w userService przepisać te metody wyżej które mają 
-  używać tych endpointów.  
-  */
+  // todo
+  /* kontynuować w backendzie czy web socket poprawnie obsługuje 
+  przesyłane dane */
 
 
 
@@ -288,23 +284,13 @@ export class ConnectionService {
   */
 
 
-  // nalezy zimplemenować używanie websocketu
-   // nieużywana
-
-  connectViaWS(userId: string) {
+  connectViaWS(conf: Configuration) {
     if (this.wsConnection === undefined) {
       console.log('Initializing Connection via WebSocket.')
-      this.wsConnection = new WebSocket(`ws://localhost:9000/user/${userId}/ws`);
+      this.wsConnection = new WebSocket(`ws://localhost:9000/user/${conf.me.userId}/ws`);
       this.wsConnection.onopen = () => {
         console.log('WebSocket connection opened.');
-        // todo tutaj trzeba wysłać widaomość z konfiguracją 
-        // czyli wszystkie chaty (dokładniej chatId)
-        // jak ma być skonfigurowany actor żeby pobierał
-        // właściwe dane
-        const configuration = {
-          conf: "simple configuration"
-        }
-        this.wsConnection?.send( JSON.stringify(configuration) )
+        this.wsConnection?.send( JSON.stringify( conf ) )
 
         //w konfiguracji należy przesłać również informacje o sesji ???
         //tak aby server był w stanie sprawdzić czy user ma ważną sesję
@@ -317,32 +303,12 @@ export class ConnectionService {
         if ( body.conf )
           console.log('got config: ', body.conf)
         if ( body.msg ) {
-          console.log('got message: ', body.msg)
-          this.messageEmitter.emit( body.msg )
+          console.log('got message: ', body )
+          this.messageEmitter.emit( body )
         }          
-        if ( body.inv )
-          console.log('got invitation: ', body.inv)
-
-
-
-/*         const message = this.parseToMessage( msg.data )
-        if ( message ) {
-          console.log('Got WS Message', message)
-          // this.messageEmitter.emit( message )
+        if ( body.inv ) {
+          console.log('got invitation: ', body )
         }
-        const invitation = this.parseToInvitation( body )
-        if (invitation) {
-          console.log('Got WS Invitation', invitation)
-          //this.invitationEmitter.emit(invitation)
-        } 
- */
-        // następnie subskrybent w userService musi przechwycić taką wiadomość
-        // dodać ją do odpowiedniego czatu a następnie musimy fetchować 
-        // całą listę czatów na nowo ponieważ mogła się zmienić 
-        // kolejność czatów na liscie 
-
-        // przygotować interfejsy w aktorze tak aby przetwarzał wszystkie rodzaje przychodzących wiadomości
-
       }
       this.wsConnection.onclose = () => {
         console.log('WebSocket connection closed.');
@@ -357,77 +323,6 @@ export class ConnectionService {
     }
   }
 
-
-  parseToMessage(m: any): Message | undefined {
-    /*
-export interface Message {
-    content: string;
-    authorId: string;
-    authorLogin: string;
-    chatId: string;
-    chatName: string;
-    groupChat: boolean;    
-    utcTime: number;
-    zoneId: string;
-}
-    */
-
-    try {
-      const body = JSON.parse( m )
-      
-      const content: string | null     = body.content;
-      const authorId: string | null    = body.authorId;
-      const authorLogin: string | null = body.authorLogin;
-      const chatId: string | null     = body.chatId;
-      const chatName: string   | null = body.chatName;
-      const groupChat: boolean | null = body.groupChat;    
-      const utcTime: number | null    = body.utcTime;
-      const zoneId: string | null     = body.zoneId;
-      
-      const isValid: boolean = (content != null) && 
-        (authorId != null) && 
-        (authorLogin != null) &&
-        (chatId != null) && 
-        (chatName != null) && 
-        (groupChat != null) &&
-        (utcTime != null) &&
-        (zoneId != null)
-      if ( isValid ) 
-        console.log('Message is valid')
-      else
-        console.log('Message is NOT valid')
-
-
-
-
-
-      const p: Message | undefined = <Message> JSON.parse( m ) as Message | undefined
-      return m 
-    } catch (error){
-      console.log(`cannot parse to selected type`, error)
-      return undefined
-    }
-  }
-
-  parseToInvitation(m: any): Invitation | undefined {
-    try {
-      const p: Invitation | undefined =  <Invitation>  m  as Invitation | undefined
-      return m 
-    } catch (error){
-      console.log(`cannot parse to selected type`, error)
-      return undefined
-    }
-  }
-
-   parseTo<T>(m: any): T | undefined {
-    try {
-      const p: T | undefined = <T> m as T | undefined  // m as T
-      return p
-    } catch (error){
-      console.log(`cannot parse to selected type`, error)
-      return undefined
-    }
-  } 
 
 
   // method closes akka actor and ws connection
@@ -484,21 +379,6 @@ export interface Message {
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
   getUserId(): string | undefined {
     return this.session.getSavedUserId();
   }
@@ -517,33 +397,23 @@ export interface Message {
     return this.session.isSessionValid();
   }  
 
+
+
   updateSession(userId: string) {
     this.session.updateSession(userId);
   }
 
 
 
-
-
-  
-
-
-
-
-
-
-  // w tej metodzie generujemy ciasteczko i zapisujemy je w przeglądarce. 
   setNewKSID(userId: string) {
     this.session.setNewSession(userId);
   }
 
 
 
-
   getSessionToken(): string | undefined {
     return this.session.getSessionToken();
   }
-
 
 
 
@@ -669,4 +539,64 @@ export interface Message {
     callAngular() {
       this.http.get<string>(this.api + '/angular/users').subscribe()
     }
+
+
+
+  parseToMessage(m: any): Message | undefined {
+    try {
+      const body = JSON.parse( m )
+      
+      const content: string | null     = body.content;
+      const authorId: string | null    = body.authorId;
+      const authorLogin: string | null = body.authorLogin;
+      const chatId: string | null     = body.chatId;
+      const chatName: string   | null = body.chatName;
+      const groupChat: boolean | null = body.groupChat;    
+      const utcTime: number | null    = body.utcTime;
+      const zoneId: string | null     = body.zoneId;
+      
+      const isValid: boolean = (content != null) && 
+        (authorId != null) && 
+        (authorLogin != null) &&
+        (chatId != null) && 
+        (chatName != null) && 
+        (groupChat != null) &&
+        (utcTime != null) &&
+        (zoneId != null)
+      if ( isValid ) 
+        console.log('Message is valid')
+      else
+        console.log('Message is NOT valid')
+
+
+
+
+
+      const p: Message | undefined = <Message> JSON.parse( m ) as Message | undefined
+      return m 
+    } catch (error){
+      console.log(`cannot parse to selected type`, error)
+      return undefined
+    }
+  }
+
+  parseToInvitation(m: any): Invitation | undefined {
+    try {
+      const p: Invitation | undefined =  <Invitation>  m  as Invitation | undefined
+      return m 
+    } catch (error){
+      console.log(`cannot parse to selected type`, error)
+      return undefined
+    }
+  }
+
+   parseTo<T>(m: any): T | undefined {
+    try {
+      const p: T | undefined = <T> m as T | undefined  // m as T
+      return p
+    } catch (error){
+      console.log(`cannot parse to selected type`, error)
+      return undefined
+    }
+  } 
 }

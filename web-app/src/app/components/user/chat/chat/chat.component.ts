@@ -32,16 +32,9 @@ export class ChatComponent implements OnInit, OnDestroy {
         c.subscribe({
           next: (response) => {
             if (response.status == 200) {
-              const body = response.body
+              const body = response.body              
               if (body) {
-                console.log('ChatComponent.ngOnInit() chats from server saved.')
-                const body2 = body.map(
-                  (cd) => {
-                    cd.emitter = new EventEmitter<ChatData>()
-                    return cd
-                  }
-                ) 
-                this.userService.setChats(body2)
+                this.userService.setChats(body)
                 this.userService.connectViaWebsocket() // run websocket connection
               }
               else console.log('ChatComponent.ngOnInit() empty body')

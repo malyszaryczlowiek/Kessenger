@@ -16,7 +16,7 @@ import akka.actor._
 import akka.actor.PoisonPill
 
 
-import scala.concurrent.{ExecutionContext, Future}
+import scala.concurrent.ExecutionContext
 import scala.collection.mutable.ListBuffer
 
 object WebSocketActor {
@@ -27,7 +27,6 @@ object WebSocketActor {
 class WebSocketActor( out: ActorRef,
                       jsonParser: JsonParsers,
                       be: BrokerExecutor,
-                      // dbec: ExecutionContext,
                       messageBuffer: ListBuffer[Message] = ListBuffer.empty[Message],
                       invitationBuffer: ListBuffer[Invitation] = ListBuffer.empty[Invitation]
                     ) extends Actor {
@@ -60,10 +59,14 @@ class WebSocketActor( out: ActorRef,
               parseConfiguration(s) match {
                 case Left(_) =>
                   println(s"CANNOT PARSE CONFIGURATION")
+                  if (s.equals("PoisonPill")) {
+                    println(s"4. Otrzymałem PoisonPill $s")
+                    out ! ("4. Wyłączam czat.")
+                    self ! PoisonPill
+                  }
                 case Right(conf) =>
                   println(s"1. initializing Broker")
                   this.be.initialize(conf)
-                  // this.broker = new BrokerExecutor(conf, out, new KafkaProductionConfigurator)
               }
             case Right(invitation) =>
               this.be.sendInvitation( invitation )
@@ -84,16 +87,6 @@ class WebSocketActor( out: ActorRef,
 
 }
 
-
-//      if (s.equals("PoisonPill")) {
-//        println(s"4. Otrzymałem PoisonPill $s")
-//        out ! ("4. Wyłączam czat.")
-//        self ! PoisonPill
-//      }
-//      else {
-//
-//        // wysyłanie wiadomości z powrotem
-//        out ! (s)
 
 
 

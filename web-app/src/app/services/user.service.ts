@@ -12,6 +12,8 @@ import { UserSettingsService } from './user-settings.service';
 import { Invitation } from '../models/Invitation';
 import { Chat } from '../models/Chat';
 import { ChatsDataService } from './chats-data.service';
+import { MessagePartOff } from '../models/MesssagePartOff';
+import { Configuration } from '../models/Configuration';
 // import { clearInterval } from 'stompjs';
 
 @Injectable({
@@ -42,10 +44,10 @@ export class UserService {
     
 
     this.messageSubscription = this.connection.messageEmitter.subscribe(
-      (message: Message) => {
+      (message: MessagePartOff) => {
         console.log(`message from emitter: ${message}`)
         this.chats.insertMessage( message )
-        this.dataFetched()
+        this.dataFetched() 
       },
       (error) => {
         console.log('Error in message emitter: ', error)
@@ -222,6 +224,9 @@ export class UserService {
     this.dataFetched()
   }
 
+  selectChat(chatId: string | undefined) {
+    this.chats.selectChat(chatId)
+  }
 
 
   insertChatUsers(chatId: string, u: User[]) {
@@ -229,11 +234,13 @@ export class UserService {
   }
 
 
-
   updateLogin(newLogin: string) {
     if (this.user) this.user.login = newLogin
   }
 
+  markMessagesAsRead(chatId: string) {
+    this.chats.markMessagesAsRead(chatId)
+  }
 
 
 
@@ -383,8 +390,28 @@ export class UserService {
   */
 
   connectViaWebsocket() {
-    if (this.user)
-      this.connection.connectViaWS(this.user.userId);
+    if (this.user) {
+      const conf: Configuration = {
+        me: this.user,
+        joiningOffset: this.settingsService.settings.joiningOffset,
+        chats: this.chats.chatAndUsers.map(
+          (c , i, arr) => {
+            return {
+              chatId: c.chat.chatId,
+              partitionOffset: c.partitionOffsets.map(
+                (parOff, i, arr2) => {
+                  return {
+                    partition: parOff.partition,
+                    offset: parOff.offset
+                  }
+                }
+              )
+            }
+          }
+        )
+      }
+      this.connection.connectViaWS( conf );
+    }
   }
 
 

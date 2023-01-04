@@ -5,7 +5,7 @@ import akka.actor.ActorRef
 import io.github.malyszaryczlowiek.kessengerlibrary.domain.Domain
 import io.github.malyszaryczlowiek.kessengerlibrary.domain.Domain.ChatId
 import io.github.malyszaryczlowiek.kessengerlibrary.kafka.configurators.KafkaConfigurator
-import io.github.malyszaryczlowiek.kessengerlibrary.model.{Configuration, Invitation, Message}
+import io.github.malyszaryczlowiek.kessengerlibrary.model.{Configuration, Invitation, Message, ResponseBody}
 
 import org.apache.kafka.clients.consumer.{ConsumerRecord, ConsumerRecords, KafkaConsumer}
 import org.apache.kafka.clients.producer.{KafkaProducer, ProducerRecord}
@@ -13,20 +13,18 @@ import org.apache.kafka.common.TopicPartition
 
 import java.time.Duration
 import java.util.concurrent.atomic.AtomicBoolean
+
 import scala.concurrent.{ExecutionContext, Future}
 import scala.jdk.javaapi.CollectionConverters
 import scala.util.Using
 
-class BrokerExecutor(private var conf: Option[Configuration], private val out: ActorRef, private val env: KafkaConfigurator, ec: ExecutionContext) { // (implicit s: String)
-
-
-  // here we initalize objct
+class BrokerExecutor(private var conf: Option[Configuration], private val out: ActorRef, private val env: KafkaConfigurator, private val ec: ExecutionContext) { // (implicit s: String)
 
   private val ka: KessengerAdmin = new KessengerAdmin(env)
 
 
   /**
-   * Field keeps if we should tracking incomming messages from
+   * Field keeps if we should tracking incoming messages from
    * kafka broker.
    */
   private val continueReading: AtomicBoolean = new AtomicBoolean(true)
@@ -49,25 +47,23 @@ class BrokerExecutor(private var conf: Option[Configuration], private val out: A
 
 
   // start invitation listener
-
   private var listener: Option[Future[Any]] = None
 
 
-
-  def initialize(conf: Configuration) = {
+  def initialize(conf: Configuration): Unit = {
     this.conf = Option(conf)
     this.conf match {
-      case Some( c ) =>
+      case Some(c) =>
         // create joining topic to listen invitation from other users
         if (conf.joiningOffset == -1L) {
           this.ka.createInvitationTopic(conf.me.userId) match {
             case Left(ke) =>
               // todo tutaj prawdopodobnie trzeba zamknąć kafkę ???
 
-              out ! (s"Kafka Error: ${ke.description}")
+              out ! ResponseBody(222, s"Kafka Error: ${ke.description} Cannot create joiningTopic. ").toString
             case Right(_) =>
               this.conf = Option(conf.copy(joiningOffset = 0L))
-              out ! (s"Joining topic created. ")
+              out ! ResponseBody(0, "Joining topic created.").toString
           }
         }
 
@@ -76,9 +72,9 @@ class BrokerExecutor(private var conf: Option[Configuration], private val out: A
 
             // at the beginning we create kafka consumer to consume invitation
             // from our joining topic.
-            Using(this.ka.createInvitationConsumer(conf.me.userId.toString) ) {
-              (invitationConsumer: KafkaConsumer[String, Invitation] ) =>
-                Using(this.ka.createChatConsumer(conf.me.userId.toString)) {
+            Using( this.ka.createInvitationConsumer(conf.me.userId.toString) ) {
+              (invitationConsumer: KafkaConsumer[String, Invitation]) =>
+                Using(this.ka.createMessageConsumer(conf.me.userId.toString)) {
                   (messageConsumer: KafkaConsumer[String, Message]) =>
 
                     // we set topic to read from (this topic has only one partition)
@@ -107,45 +103,45 @@ class BrokerExecutor(private var conf: Option[Configuration], private val out: A
                     // we start reading from it from last read message (offset)
                     // offset is always set as last read message offset + 1
                     // so we dont have duplicated messages.
-                    partitions.foreach( t => messageConsumer.seek(t._1, t._2) )
+                    partitions.foreach(t => messageConsumer.seek(t._1, t._2))
 
 
                     // Start loop to read from topic
                     while (continueReading.get()) {
 
-                      if (newChats.nonEmpty) {
+                      if ( newChats.nonEmpty ) {
                         val newPartitions: Iterable[(TopicPartition, Long)] = newChats.flatMap(
                           t => t._2.map(r => (new TopicPartition(t._1, r._1), r._2))
                         )
-                        newPartitions.foreach( t => messageConsumer.seek(t._1, t._2) )
+                        newPartitions.foreach(t => messageConsumer.seek(t._1, t._2))
                         newChats.keySet.foreach(
                           chatId => newChats.remove(chatId) // usunąć wszystkie ChatId, które aktualnie znajdują się w mapie
                         )
                       }
 
-                      /*
-                      TODO
-                       zaimplementować w kessenger-lib serializer i deserializer klasy Invitatio
-                       */
 
                       val invitations: ConsumerRecords[String, Invitation] = invitationConsumer.poll(java.time.Duration.ofMillis(250))
                       val messages: ConsumerRecords[String, Message] = messageConsumer.poll(java.time.Duration.ofMillis(250))
                       invitations.forEach(
                         (r: ConsumerRecord[String, Invitation]) => {
                           val i: Invitation = r.value().copy(myJoiningOffset = Option(r.offset() + 1L))
-                          out ! Invitation.toWebsocketJSON(i)
+                          out ! Invitation.toWebsocketJSON( i )
                         }
                       )
+
+                      // todo dodać do message server time i mzienić utc time na sending time
+                      //  w invitation dodac server time.
+
                       messages.forEach(
                         (r: ConsumerRecord[String, Message]) => {
-                          val m = (r.value(), r.partition(), r.offset())
-                          out ! Message.toWebsocketJSON( m )
+                          val m = (r.value().copy(serverTime = r.timestamp()), r.partition(), r.offset())
+                          out ! Message.toWebsocketJSON(m)
                         }
                       )
                     } // end of while loop
                 }
             }
-          }( ec )
+          }(ec)
         )
       case None =>
     }

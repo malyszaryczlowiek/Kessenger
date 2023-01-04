@@ -22,9 +22,18 @@ export class ChatPanelComponent implements OnInit, OnDestroy {
   constructor(private userService: UserService, private router: Router, private activated: ActivatedRoute) { }
 
 
+  /*
+  Dwa scenariusze:
+  1. użytkownik wchodzi w chat panel z chat-list wybierając konkretny chat. 
+     ngOnInit() jest wtedy uruchamiane i onClick() też.
+
+  2. użytkownik wchodzi bezpośrednio na stronę poprzez refresh strony 
+     ngOnInit() jest wtedy uruchamiany ale onClick() w chat-list już nie jest wywoływany. 
+
+  */
+
   ngOnInit(): void {
     console.log('ChatPanelComponent.ngOnInit')
-    // this subscription called when page is reload 
     this.fetchingSubscription = this.userService.fetchingUserDataFinishedEmmiter.subscribe(
       (b) => {
         if (b) {
@@ -35,6 +44,8 @@ export class ChatPanelComponent implements OnInit, OnDestroy {
               return chatData.chat.chatId == chatId;
             })
             if (this.chatData) {
+              this.userService.selectChat( this.chatData.chat.chatId ) 
+              this.userService.markMessagesAsRead( this.chatData.chat.chatId )
               if (this.chatModificationSubscription) this.chatModificationSubscription.unsubscribe()
               this.chatModificationSubscription = this.chatData.emitter.subscribe(
                 (cd) => this.chatData = cd
@@ -52,10 +63,12 @@ export class ChatPanelComponent implements OnInit, OnDestroy {
       (cd) =>  {
         // we modify only when new chat is selected
         if (cd.chat.chatId != this.chatData?.chat.chatId) {
+          this.userService.selectChat( cd.chat.chatId ) 
+          this.userService.markMessagesAsRead( cd.chat.chatId )
           console.log('ChatPanelComponent selectedChatSubscription fetched data from UserService.')
           if (this.chatModificationSubscription) this.chatModificationSubscription.unsubscribe()
-          this.chatData = this.userService.getAllChats().find((chatData, index, arr) => {
-            return chatData.chat.chatId == cd.chat.chatId;
+          this.chatData = this.userService.getAllChats().find((cd2, index, arr) => {
+            return cd2.chat.chatId == cd.chat.chatId;
           })
           if (this.chatData) {
             this.chatModificationSubscription = this.chatData.emitter.subscribe(
@@ -68,20 +81,23 @@ export class ChatPanelComponent implements OnInit, OnDestroy {
         }
       }
     )   
-    this.userService.dataFetched() // moved to on complete
+    const chatId = this.activated.snapshot.paramMap.get('chatId');
+    if ( chatId ) this.userService.markMessagesAsRead( chatId )
+    this.userService.dataFetched() 
   }
 
   ngOnDestroy(): void {
     if ( this.chatModificationSubscription ) this.chatModificationSubscription.unsubscribe()
     if ( this.fetchingSubscription )         this.fetchingSubscription.unsubscribe()
     if ( this.selectedChatSubscription )     this.selectedChatSubscription.unsubscribe()
+    this.userService.selectChat( undefined )
   }
 
 
   sendMessage(m: Message) {
     console.log('sending message', m)
     this.userService.updateSession()
-    this.userService.sendMessage( m )                         // todo continue here
+    this.userService.sendMessage( m )                        
   }
 
 

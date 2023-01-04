@@ -5,20 +5,20 @@ import akka.stream.Materializer
 import components.actions.{SessionChecker, SessionUpdater}
 import components.actors.WebSocketActor
 import components.db.MyDbExecutor
-import components.executioncontexts.{DatabaseExecutionContext, MyExecutionContext}
-import components.util.converters.{JsonParsers, PasswordConverter, SessionConverter}
-
+import components.executioncontexts.{DatabaseExecutionContext, KafkaExecutionContext}
+import components.util.converters.{JsonParsers, PasswordConverter}
+import util.HeadersParser
 import io.github.malyszaryczlowiek.kessengerlibrary.db.queries.{DataProcessingError, LoginTaken, QueryError, UndefinedError, UnsupportedOperation}
 import io.github.malyszaryczlowiek.kessengerlibrary.domain.Domain.ChatId
-import io.github.malyszaryczlowiek.kessengerlibrary.model.{Chat, Settings, User, ResponseBody}
+import io.github.malyszaryczlowiek.kessengerlibrary.env.Prod
+import io.github.malyszaryczlowiek.kessengerlibrary.kafka.TopicCreator
+import io.github.malyszaryczlowiek.kessengerlibrary.model.{Chat, ResponseBody, Settings, User}
 import io.github.malyszaryczlowiek.kessengerlibrary.model.Settings.parseJSONtoSettings
 import io.github.malyszaryczlowiek.kessengerlibrary.model.Chat.parseJSONtoChat
 import io.github.malyszaryczlowiek.kessengerlibrary.model.User.toJSON
-
 import play.api.db.Database
 import play.api.libs.streams.ActorFlow
 import play.api.mvc._
-import util.HeadersParser
 
 import java.util.UUID
 import javax.inject._
@@ -34,15 +34,16 @@ class KessengerController @Inject()
     val db: Database,
     val dbExecutor: MyDbExecutor,
     val passwordConverter: PasswordConverter,
-    val sessionConverter: SessionConverter,
     val jsonParser: JsonParsers,
     val headersParser: HeadersParser,
-    // val fc: FormsAndConstraint,
-    // implicit val futures: Futures, // do async
-    implicit val databaseExecutionContext: DatabaseExecutionContext,
-    implicit val ec: MyExecutionContext,
+    val databaseExecutionContext: DatabaseExecutionContext,
+    val kafkaExecutionContext: KafkaExecutionContext,
     implicit val system: ActorSystem,
     mat: Materializer
+    // val fc: FormsAndConstraint,
+    // implicit val futures: Futures, // do async
+    // implicit val ec: MyExecutionContext,
+    // val sessionConverter: SessionConverter,
   ) extends BaseController {
 
 
@@ -139,7 +140,7 @@ class KessengerController @Inject()
 
 
 
-  def logout = Action.async { implicit request =>
+  def logout: Action[AnyContent] = Action.async { implicit request =>
     request.headers.get("KSID") match {
       case Some(ksid) =>
         headersParser.parseKSID(ksid) match {
@@ -164,7 +165,7 @@ class KessengerController @Inject()
 
 
 
-  def user(userId: UUID) =
+  def user(userId: UUID): Action[AnyContent] =
     SessionChecker(parse.anyContent, userId)(
       databaseExecutionContext,
       db,
@@ -192,7 +193,7 @@ class KessengerController @Inject()
 
 
   // todo works
-  def changeSettings(userId: UUID) =
+  def changeSettings(userId: UUID): Action[AnyContent] =
     SessionChecker(parse.anyContent, userId)(
       databaseExecutionContext,
       db,
@@ -228,7 +229,7 @@ class KessengerController @Inject()
 
 
   // todo works
-  def changeLogin(userId: UUID) =
+  def changeLogin(userId: UUID): Action[AnyContent] =
     SessionChecker(parse.anyContent, userId)(
       databaseExecutionContext,
       db,
@@ -265,7 +266,7 @@ class KessengerController @Inject()
 
 
   // todo works
-  def changePassword(userId: UUID) =
+  def changePassword(userId: UUID): Action[AnyContent] =
     SessionChecker(parse.anyContent, userId)(
       databaseExecutionContext,
       db,
@@ -307,7 +308,7 @@ class KessengerController @Inject()
 
 
 
-  def searchUser(userId: UUID, u: String) =
+  def searchUser(userId: UUID, u: String): Action[AnyContent] =
     SessionChecker(parse.anyContent, userId)(
       databaseExecutionContext,
       db,
@@ -320,7 +321,7 @@ class KessengerController @Inject()
         dbExecutor,
         headersParser
       )
-    ).async(implicit request => {
+    ).async( implicit request => {
       Future {
         db.withConnection(implicit connection => {
           dbExecutor.findUser(u) match {
@@ -339,7 +340,7 @@ class KessengerController @Inject()
   // jak metoda zwróci wynik to należy
   // we front endzie wysłać info do kafki do wszystkich użytkowników
   // tod powininec zwracać informacje o chatcie.
-  def newChat(userId: UUID) =
+  def newChat(userId: UUID): Action[AnyContent] =
     SessionChecker(parse.anyContent, userId)(
       databaseExecutionContext,
       db,
@@ -362,12 +363,19 @@ class KessengerController @Inject()
                 dbExecutor.createChat(me, users, chatName) match {
                   case Left(QueryError(_, UnsupportedOperation)) => BadRequest(ResponseBody(12, "Chat already exists.").toString  )
                   case Left(queryError) => InternalServerError(s"Error 013. ${queryError.description.toString()}")
-                  case Right(createdChat) =>
+                  case Right( createdChat ) =>
                     // todo tutaj utworzyć jeszcze chat w kafce. i dopiero jak otrzymamy potwierdzenie
-                    //  z  kafki można wysłać odpiwiedź, że czat został utworzony.
+                    //  z kafki można wysłać odpiewiedź, że czat został utworzony.
+                    //  a jeśli będzie problem z kafką to nalezy dodać dany chat do nieutworzonych w db
 
+                    TopicCreator.createTopic(chatName, Prod) match {
+                      case Right(topicName: String) =>
+                        Ok(jsonParser.chatsToJSON(createdChat))
+                      case Left(error) =>
+                      // dodać do chatwó do utworzenia
+                        InternalServerError(ResponseBody(333, "Cannot start new chat, It will be ready in future.").toString)
 
-                    Ok(jsonParser.chatsToJSON(createdChat))
+                    }
                 }
               })
             }(databaseExecutionContext)
@@ -382,7 +390,7 @@ class KessengerController @Inject()
    * @return returns user's chats
    */
 
-  def getChats(userId: UUID) =
+  def getChats(userId: UUID): Action[AnyContent] =
     SessionChecker(parse.anyContent, userId)(
       databaseExecutionContext,
       db,
@@ -414,7 +422,7 @@ class KessengerController @Inject()
 
 
 
-  def getChatUsers(userId: UUID, chatId: ChatId) =
+  def getChatUsers(userId: UUID, chatId: ChatId): Action[AnyContent] =
     SessionChecker(parse.anyContent, userId)(
       databaseExecutionContext,
       db,
@@ -442,7 +450,7 @@ class KessengerController @Inject()
 
 
   // todo check this method
-  def leaveChat(userId: UUID, chatId: String) =
+  def leaveChat(userId: UUID, chatId: String): Action[AnyContent] =
     SessionChecker(parse.anyContent, userId)(
       databaseExecutionContext,
       db,
@@ -517,7 +525,7 @@ class KessengerController @Inject()
 
 
 
-  // todo not tested
+  // todo tested
   def addUsersToChat(userId: UUID, chatId: ChatId) =
     SessionChecker(parse.anyContent, userId)(
       databaseExecutionContext,
@@ -587,7 +595,7 @@ class KessengerController @Inject()
                       Right(
                         ActorFlow.actorRef { out =>
                           println(s"wszedłem w ActorFlow.")
-                          WebSocketActor.props(out, jsonParser, databaseExecutionContext)
+                          WebSocketActor.props(out, jsonParser, kafkaExecutionContext)
                         }
                       )
                     } else Left(Unauthorized("Error XXX. No valid session."))

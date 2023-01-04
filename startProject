@@ -1,5 +1,5 @@
 #!/bin/zsh
-# before starting project we need generate JAR file of clientCliApp
+# before starting project we need generate JAR file of kafka streams analyser and spark streaming analyser
 #./KafkaStreamsChatAnalyser/generateJAR
 #./SparkStreamingAnalyser/generateJAR
 docker-compose up -d # --build

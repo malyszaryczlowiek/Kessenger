@@ -151,6 +151,7 @@ export class EditChatSettingsComponent implements OnInit {
                   messages: this.chatData.messages,
                   partitionOffsets:  this.chatData.partitionOffsets,
                   users:  this.chatData.users,
+                  unreadMessages: this.chatData.unreadMessages,
                   emitter: this.chatData.emitter                  
                 }
                 this.userService.changeChat(newChatData)

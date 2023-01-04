@@ -3,4 +3,7 @@ export interface Invitation {
     chatName: string;
     senderId: string;
     senderLogin: string;
+    sendingTime: number;
+    serverTime: number;
+    myJoiningOffset: number;
 };

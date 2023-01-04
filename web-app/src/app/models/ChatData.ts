@@ -1,6 +1,7 @@
 import { EventEmitter } from "@angular/core";
 import { Chat } from "./Chat";
 import { Message } from "./Message";
+import { MessagePartOff } from "./MesssagePartOff";
 import { User } from "./User";
 
 export interface ChatData {
@@ -8,5 +9,6 @@ export interface ChatData {
     partitionOffsets: Array<{partition: number, offset: number}>;
     users: Array<User>;
     messages: Array<Message>;
-    emitter: EventEmitter<ChatData>
+    unreadMessages: Array<MessagePartOff>;
+    emitter: EventEmitter<ChatData>;
 }

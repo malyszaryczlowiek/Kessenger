@@ -8,5 +8,5 @@ import javax.inject.{Inject, Singleton}
 // https://www.playframework.com/documentation/2.8.x/api/scala/play/api/libs/concurrent/CustomExecutionContext.html
 
 @Singleton
-class DatabaseExecutionContext @Inject()(system: ActorSystem)
-  extends CustomExecutionContext(system, "database.dispatcher")
+class KafkaExecutionContext @Inject()(system: ActorSystem)
+  extends CustomExecutionContext(system, "kafka.dispatcher")

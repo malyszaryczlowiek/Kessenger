@@ -1,6 +1,6 @@
 package components.util.converters
 
-// import components.util.LoginCredentials.LoginCredentials
+import components.util.LoginCredentials.LoginCredentials
 
 import io.circe.Decoder.Result
 import io.circe.{Decoder, Encoder, Error, HCursor, Json}
@@ -9,7 +9,6 @@ import io.circe.parser.decode
 
 import io.github.malyszaryczlowiek.kessengerlibrary.model.{Chat, Settings, User}
 import io.github.malyszaryczlowiek.kessengerlibrary.domain.Domain.{Offset, Partition}
-import io.github.malyszaryczlowiek.kessengerlibrary.model.Message
 
 
 import java.util.UUID
@@ -17,38 +16,6 @@ import java.util.UUID
 
 
 class JsonParsers {
-
-//  private implicit object listUserEncoder extends Encoder[Iterable[User]]  {
-//    override def apply(a: Iterable[User]): Json = a.map(u => u.asJson).asJson
-//  }
-
-
-//  private implicit object listUserDecoder extends Decoder[List[User]] {
-//    override def apply(c: HCursor): Result[List[User]] = {
-//      c.values match {
-//        case Some(i) =>
-//          val buffer = ListBuffer.empty[User]
-//          val parsed = i.map((u: Json) => {
-//            val uc = u.hcursor
-//            for {
-//              userId <- uc.downField("userId").as[String]
-//              login  <- uc.downField("login") .as[String]
-//            } yield {
-//              User(UUID.fromString(userId), login)
-//            }
-//          })
-//          for (p <- parsed) {
-//            p match {
-//              case Left(_) =>
-//              case Right(user) => buffer.addOne(user)
-//            }
-//          }
-//          Right(buffer.toList)
-//        case None => Right(List.empty[User])
-//      }
-//    }
-//  }
-
 
 
   private implicit object newChatJSONDecoder extends Decoder[(User, List[UUID], String)] {
@@ -76,20 +43,6 @@ class JsonParsers {
   }
 
 
-//  private implicit object settingsDecoder extends Decoder[Settings] {
-//    override def apply(c: HCursor): Result[Settings] = {
-//      for {
-//        joiningOffset   <- c.downField("joiningOffset")  .as[Long]
-//        sessionDuration <- c.downField("sessionDuration").as[Long]
-//        zoneId          <- c.downField("zoneId")         .as[String]
-//      } yield {
-//        Settings(joiningOffset , sessionDuration , ZoneId.of(zoneId) )
-//      }
-//    }
-//  }
-
-
-
 
   private implicit object newPassDecoder extends Decoder[(String, String)] {
     override def apply(c: HCursor): Result[(String, String)] = {
@@ -112,9 +65,9 @@ class JsonParsers {
             Json.obj(
               ("partition", Json.fromInt(tup._1)),
               ("offset", Json.fromLong(tup._2))
-            )}).asJson),
-          ("users", List.empty[User].asJson),
-          ("messages", List.empty[Message].asJson)
+            )}).asJson) // ,
+//          ("users", List.empty[User].asJson),
+//          ("messages", List.empty[Message].asJson)
         )
       }).asJson
     }
@@ -136,7 +89,6 @@ class JsonParsers {
 
   def parseNewChat(json: String): Either[Error,(User, List[UUID], String)] = decode[(User, List[UUID], String)](json)(newChatJSONDecoder)
 
-  // todo przenieść model LoginCredentials do kessenger-lib
   def parseCredentials(json: String): Either[Error, LoginCredentials] = decode[LoginCredentials](json)
   def parseNewChatUsers(json: String): Either[Error, (String, List[UUID])] = decode[(String, List[UUID])](json)(newChatUsersJSONDecoder)
   def parseNewPass(json: String): Either[Error, (String, String)] = decode[(String, String)](json)(newPassDecoder)

@@ -2,7 +2,7 @@
 CREATE TABLE IF NOT EXISTS users (
   user_id uuid DEFAULT gen_random_uuid () UNIQUE,
   login varchar(255) UNIQUE,
-  pass varchar(255) NOT NULL,
+  pass  varchar(255) NOT NULL,
   PRIMARY KEY (user_id, login)
 );
 
@@ -12,16 +12,17 @@ CREATE TABLE IF NOT EXISTS users (
 CREATE TABLE IF NOT EXISTS chats (
   chat_id varchar(255) PRIMARY KEY,
   group_chat BOOLEAN NOT NULL
-  -- accepted BOOLEAN NOT NULL
+  -- writing_topic_exists BOOLEAN NOT NULL, -- DEFAULT false
+  -- chat_topic_exists    BOOLEAN NOT NULL, -- DEFAULT false
 );
 
 
 
 -- connecting users and chats, no duplicate pairs possible
 CREATE TABLE IF NOT EXISTS users_chats (
-  user_id uuid REFERENCES users(user_id) ON DELETE CASCADE,
-  chat_id varchar(255) REFERENCES chats(chat_id) ON DELETE CASCADE,
-  chat_name varchar(255) NOT NULL,
+  user_id        uuid         REFERENCES users(user_id) ON DELETE CASCADE,
+  chat_id        varchar(255) REFERENCES chats(chat_id) ON DELETE CASCADE,
+  chat_name      varchar(255) NOT NULL,
   message_time   BIGINT  DEFAULT 0 NOT NULL,
   silent         boolean DEFAULT false NOT NULL,
   users_offset_0 BIGINT  DEFAULT 0 NOT NULL, --ON DELETE CASCADE,
@@ -43,9 +44,9 @@ CREATE TABLE IF NOT EXISTS sessions (
 
 CREATE TABLE IF NOT EXISTS settings (
   user_id uuid REFERENCES users(user_id) ON DELETE CASCADE,  --UNIQUE,
-  joining_offset BIGINT DEFAULT -1 NOT NULL, -- if user has set to -1 this means that he has not running joining topic in kafka broker, and we must create it
-  session_duration BIGINT DEFAULT 900000 NOT NULL,
-  zone_id varchar(255) DEFAULT 'UTC' NOT NULL,
+  joining_offset   BIGINT       DEFAULT -1     NOT NULL, -- if user has set to -1 this means that he has not running joining topic in kafka broker, and we must create it
+  session_duration BIGINT       DEFAULT 900000 NOT NULL,
+  zone_id          varchar(255) DEFAULT 'UTC'  NOT NULL,
   PRIMARY KEY (user_id)
 );
 

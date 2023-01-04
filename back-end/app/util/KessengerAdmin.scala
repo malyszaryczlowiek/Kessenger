@@ -1,10 +1,10 @@
 package util
 
 
-import io.github.malyszaryczlowiek.kessengerlibrary.domain.Domain.{ChatId, JoinId, UserID, WritingId}
+import io.github.malyszaryczlowiek.kessengerlibrary.domain.Domain.{ChatId, JoinId, UserID }
 import io.github.malyszaryczlowiek.kessengerlibrary.domain.Domain
-import io.github.malyszaryczlowiek.kessengerlibrary.model.{Chat, Invitation, Message, User, Writing}
-import io.github.malyszaryczlowiek.kessengerlibrary.kafka.errors.{KafkaError, KafkaErrorsHandler}
+import io.github.malyszaryczlowiek.kessengerlibrary.model.{Chat, Invitation, Message,  Writing}
+import io.github.malyszaryczlowiek.kessengerlibrary.kafka.errors.{KafkaError,KafkaErrorsHandler}
 import io.github.malyszaryczlowiek.kessengerlibrary.kafka.configurators.KafkaConfigurator
 import io.github.malyszaryczlowiek.kessengerlibrary.kafka.errors._
 
@@ -25,10 +25,6 @@ import scala.jdk.javaapi.CollectionConverters
  *
  */
 class KessengerAdmin(configurator: KafkaConfigurator) {
-  // private var status: Status = NotInitialized
-
-  private var admin: Admin = _
-  //private var configurator: KafkaConfigurator = _
 
   private val userSerializer = "io.github.malyszaryczlowiek.kessengerlibrary.serdes.UserSerializer"
   private val userDeserializer = "io.github.malyszaryczlowiek.kessengerlibrary.serdes.UserDeserializer"
@@ -48,16 +44,10 @@ class KessengerAdmin(configurator: KafkaConfigurator) {
   private val stringSerializer = "org.apache.kafka.common.serialization.StringSerializer"
   private val stringDeserializer = "org.apache.kafka.common.serialization.StringDeserializer"
 
+  val properties = new Properties
+  properties.put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, configurator.EXTERNAL_SERVERS)
+  private val admin = Admin.create(properties)
 
-  def startAdmin(conf: KafkaConfigurator): Unit = {
-    // configurator = conf
-    val properties = new Properties
-    properties.put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, configurator.EXTERNAL_SERVERS)
-    admin = Admin.create(properties)
-//    status.synchronized {
-//      status = Running
-//    }
-  }
 
 
   /**
@@ -66,13 +56,7 @@ class KessengerAdmin(configurator: KafkaConfigurator) {
    */
   def closeAdmin(): Unit = {
     Try {
-      if (admin != null) {
-        admin.close()
-      }
-//      status.synchronized {
-//        status = Terminated
-//      }
-      //admin.close(Duration.ofMillis(5000))
+      if (admin != null) admin.close()
     } match {
       case Failure(_) => {}
       case Success(_) => {}
@@ -80,10 +64,57 @@ class KessengerAdmin(configurator: KafkaConfigurator) {
   }
 
 
+  def createChat(chat: Chat):  Either[KafkaError, (Boolean, Boolean)] = {
+    val cPartitionsNum: Int = configurator.CHAT_TOPIC_PARTITIONS_NUMBER
+    val cReplicationFactor: Short = configurator.CHAT_TOPIC_REPLICATION_FACTOR
+    val chatConfig: java.util.Map[String, String] = CollectionConverters.asJava(
+      Map(
+        TopicConfig.CLEANUP_POLICY_CONFIG -> TopicConfig.CLEANUP_POLICY_DELETE,
+        TopicConfig.RETENTION_MS_CONFIG -> "-1" // keep all logs forever
+      )
+    )
+    val chatTopic: NewTopic = new NewTopic(chat.chatId, cPartitionsNum, cReplicationFactor).configs(chatConfig)
+
+    val writingId: JoinId = Domain.generateWritingId(chat.chatId)
+    val wPartitionsNum: Int = configurator.JOINING_TOPIC_PARTITIONS_NUMBER
+    val wReplicationFactor: Short = configurator.JOINING_TOPIC_REPLICATION_FACTOR
+    val writingConfig: java.util.Map[String, String] = CollectionConverters.asJava(
+      Map(
+        TopicConfig.CLEANUP_POLICY_CONFIG -> TopicConfig.CLEANUP_POLICY_DELETE,
+        TopicConfig.RETENTION_MS_CONFIG -> "1000", // keeps logs only by 1s.
+        TopicConfig.MESSAGE_TIMESTAMP_DIFFERENCE_MAX_MS_CONFIG -> "1000" // difference to assume that log is too late
+      )
+    )
+    //val n = new NewTopic
+    val writingTopic = new NewTopic(writingId, wPartitionsNum, wReplicationFactor).configs(writingConfig)
+
+    val result: CreateTopicsResult = admin.createTopics(java.util.List.of(chatTopic, writingTopic))
+    var toReturn = (false, false)
+    val chatFuture = result.values().get(chat.chatId)
+    val writingFuture = result.values().get(writingId)
+    Try {
+      chatFuture.get(10L, TimeUnit.SECONDS)
+    } match {
+      case Failure(exception) =>  // do nothing
+      case Success(value) => toReturn = (true, false)
+    }
+    Try {
+      writingFuture.get() // we do not need wait
+    } match {
+      case Failure(exception) => // do nothing
+      case Success(value) => toReturn = (true, true)
+    }
+
+    Right( toReturn )
+  }
+
+
+
+
   /**
    * topic creation
    */
-  def createNewChat(chat: Chat): Either[KafkaError, Chat] = // , writingId: WritingId
+  def createChatTopic(chat: Chat): Either[KafkaError, Chat] = // , writingId: WritingId
     Try {
       val partitionsNum: Int = configurator.CHAT_TOPIC_PARTITIONS_NUMBER
       val replicationFactor: Short = configurator.CHAT_TOPIC_REPLICATION_FACTOR
@@ -116,7 +147,9 @@ class KessengerAdmin(configurator: KafkaConfigurator) {
    */
   def removeChat(chat: Chat): Either[KafkaError, Chat] = {
     Try {
-      val deleteTopicResult: DeleteTopicsResult = admin.deleteTopics(java.util.List.of(chat.chatId))
+      // todo uzupełnić o brakujące kafka future.
+      val wId: JoinId = Domain.generateWritingId(chat.chatId)
+      val deleteTopicResult: DeleteTopicsResult = admin.deleteTopics(java.util.List.of(chat.chatId, wId))
       val topicMap = CollectionConverters.asScala[String, KafkaFuture[Void]](deleteTopicResult.topicNameValues()).toMap
       if (topicMap.nonEmpty && topicMap.size == 1) {
         val optionKafkaFuture = topicMap.get(chat.chatId)
@@ -172,7 +205,7 @@ class KessengerAdmin(configurator: KafkaConfigurator) {
    *
    * @param userId this is normally user-id. So all chat users are in different consumer group,
    */
-  def createChatConsumer(userId: String): KafkaConsumer[String, Message] = {
+  def createMessageConsumer(userId: String): KafkaConsumer[String, Message] = {
     val props: Properties = new Properties();
     props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, configurator.EXTERNAL_SERVERS)
     props.put(ConsumerConfig.GROUP_ID_CONFIG, userId)
