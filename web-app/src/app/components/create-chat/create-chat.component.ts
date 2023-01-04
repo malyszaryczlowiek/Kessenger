@@ -1,8 +1,10 @@
 import { Component, EventEmitter, OnDestroy, OnInit } from '@angular/core';
 import { FormControl, FormGroup, Validators } from '@angular/forms';
-import { ActivatedRoute, Router } from '@angular/router';
-import { debounce, debounceTime, distinctUntilChanged, of, share, startWith, Subject, switchMap } from 'rxjs';
+import { Router } from '@angular/router';
+import { debounceTime, distinctUntilChanged, of, share, startWith, Subject, switchMap } from 'rxjs';
 import { ChatData } from 'src/app/models/ChatData';
+import { Message } from 'src/app/models/Message';
+import { MessagePartOff } from 'src/app/models/MesssagePartOff';
 import { User } from 'src/app/models/User';
 import { UserService } from 'src/app/services/user.service';
 
@@ -21,19 +23,6 @@ export class CreateChatComponent implements OnInit, OnDestroy {
   foundUsers: User[] = new Array<User>();
   searchTerm: Subject<string> = new Subject()
 
-
-  /*
-[
-    {
-      login: "log1",
-      userId: "uuid1"
-    },
-    {
-      login: "log2",
-      userId: "uuid2"
-    }
-  ];  
-  */
   
   public selectedUsers = new Array<User>();
 
@@ -63,6 +52,21 @@ export class CreateChatComponent implements OnInit, OnDestroy {
     console.log('CreateChatComponent.ngOnDestroy()')
   }
 
+  todo
+  /*
+    w create należy jeszcze wysyłanie przez websocket 
+    do aktora informacji o utworzonym czacie, tak, 
+    zeby można było w nim utworzyć chat w kafce. 
+
+    wypracować mechanizm co w przypadku, gdy przypisujemy
+    do consumera czaty dany chat nie istnieje i wywala error
+    to należy wtedy wysłać wiadomość, że chcemy utworzyć nowy topic/chat 
+    i PO UTWORZENIU NOWEGO CHATU / TOPICA 
+    sprawdzić czy Future jest już zakończony i zrestartować go ewentualnie.
+  */
+
+
+
 
   // to jest po naciśnięciu buttonu submit
   // tutaj wysyłamy rządanie utworzenia czatu
@@ -86,7 +90,8 @@ export class CreateChatComponent implements OnInit, OnDestroy {
                   chat: body.chat,
                   users: this.selectedUsers,                   
                   partitionOffsets: body.partitionOffsets,
-                  messages: new Array(),
+                  messages: new Array<Message>(),
+                  unreadMessages: new Array<MessagePartOff>(),
                   emitter: new EventEmitter<ChatData>
                 }
                 this.userService.addNewChat( chatData ) 

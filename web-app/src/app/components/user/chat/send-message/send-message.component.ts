@@ -14,7 +14,6 @@ import { UtctimeService } from 'src/app/services/utctime.service';
 export class SendMessageComponent implements OnInit {
 
   
-
   @Input() chat: Chat | undefined;
   @Output() sendingMessage: EventEmitter<Message> = new EventEmitter<Message>()
 
@@ -40,7 +39,8 @@ export class SendMessageComponent implements OnInit {
         content: messageContent,
         authorId: user.userId,
         authorLogin: user.login,
-        utcTime: this.utc.getUTCmilliSeconds(),
+        sendingTime: this.utc.getUTCmilliSeconds(),
+        serverTime: 0,
         zoneId: settings.zoneId,
         chatId: this.chat.chatId,
         chatName: this.chat.chatName,

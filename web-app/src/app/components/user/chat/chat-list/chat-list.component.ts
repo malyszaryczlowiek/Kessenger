@@ -1,9 +1,7 @@
 import { Component, Input, OnDestroy, OnInit } from '@angular/core';
-import { ActivatedRoute, Router } from '@angular/router';
+import { Router } from '@angular/router';
 import { ChatData } from 'src/app/models/ChatData';
-import { UserSettingsService } from 'src/app/services/user-settings.service';
 import { UserService } from 'src/app/services/user.service';
-import { UtctimeService } from 'src/app/services/utctime.service';
 
 @Component({
   selector: 'app-chat-list',
@@ -16,35 +14,11 @@ export class ChatListComponent implements OnInit, OnDestroy {
 
 
   constructor(private userService: UserService, private router: Router ) {}
-    //private userSettingsService: UserSettingsService,
-    //private utcService: UtctimeService,
-
   
 
   ngOnInit(): void {
     console.log('ChatListComponent.ngOnInit() ')
   }
-
-
-/* 
-  tutaj należy dodać jednak tego subskrybenta tak aby aktualizować listę czatów
-
-  o ile @Input nie aktualizuje jej automatycznie.  <-- !!!!!!!!  sprawdzić
-
-
-  jeśli np zostanie do któregoś z nich dodana wiadomość to lista musi być
-  ponownie zaktualizowana
- */
-/*     this.userService.fetchingUserDataFinishedEmmiter.subscribe(
-      (b) => {
-        if ( b ) {
-          this.chats = this.userService.chatAndUsers
-          console.log('List has size ' + this.chats.length)
-        }
-      }
-    )
- */  
-
 
 
   onClick(c: ChatData) {
@@ -55,12 +29,8 @@ export class ChatListComponent implements OnInit, OnDestroy {
   }
 
 
-
-
   ngOnDestroy(): void {
     console.log('ChatListComponent.ngOnDestroy() called.')
   }
-
-
 
 }
