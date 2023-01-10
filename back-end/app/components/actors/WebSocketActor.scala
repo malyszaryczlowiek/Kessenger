@@ -1,31 +1,27 @@
 package components.actors
 
 
-import io.github.malyszaryczlowiek.kessengerlibrary.kafka.configurators.KafkaProductionConfigurator
-import io.github.malyszaryczlowiek.kessengerlibrary.model.Invitation
-import io.github.malyszaryczlowiek.kessengerlibrary.model.Message
+import io.github.malyszaryczlowiek.kessengerlibrary.model.{ Invitation, Message, ChatOffsetUpdate, UserOffsetUpdate}
 import io.github.malyszaryczlowiek.kessengerlibrary.model.Configuration.parseConfiguration
 import io.github.malyszaryczlowiek.kessengerlibrary.model.Invitation.parseInvitation
 import io.github.malyszaryczlowiek.kessengerlibrary.model.Message.parseMessage
-
-import components.util.converters.JsonParsers
-
+import io.github.malyszaryczlowiek.kessengerlibrary.model.ChatOffsetUpdate.parseChatOffsetUpdate
+import io.github.malyszaryczlowiek.kessengerlibrary.model.UserOffsetUpdate.parseUserOffsetUpdate
+import io.github.malyszaryczlowiek.kessengerlibrary.model.Chat.parseNewChatId
 
 import util.BrokerExecutor
+
 import akka.actor._
 import akka.actor.PoisonPill
 
-
-import scala.concurrent.ExecutionContext
 import scala.collection.mutable.ListBuffer
 
 object WebSocketActor {
-  def props(out: ActorRef, jsonParser: JsonParsers, dbec: ExecutionContext) =
-    Props(new WebSocketActor(out, jsonParser, new BrokerExecutor(None, out, new KafkaProductionConfigurator, dbec)))
+  def props(out: ActorRef, be: BrokerExecutor) =
+    Props(new WebSocketActor(out, be))
 }
 
 class WebSocketActor( out: ActorRef,
-                      jsonParser: JsonParsers,
                       be: BrokerExecutor,
                       messageBuffer: ListBuffer[Message] = ListBuffer.empty[Message],
                       invitationBuffer: ListBuffer[Invitation] = ListBuffer.empty[Invitation]
@@ -38,47 +34,49 @@ class WebSocketActor( out: ActorRef,
   override def postStop(): Unit = {
     this.be.clearBroker()
     println(s"5. Wyłączyłem actora.")
-
-    // TODO here we cloase all resources used in actor
-    // tutaj będzie trzeba zpisywać wszystkie dane o tym która
-    // wiadomość (która partycja którego czatu jaki ma offset) została przeczytana
-    // i to będę zpisywał w db
-
-    // someResource.close()
   }
 
   def receive: Receive = {
     case s: String =>
-
       parseMessage(s) match {
         case Left(_) =>
-          println(s"CANNOT PARSE MESSAGE")
-          parseInvitation(s) match {
+          println(s"5a. CANNOT PARSE MESSAGE")
+          parseChatOffsetUpdate(s) match {
             case Left(_) =>
-              println(s"CANNOT PARSE INVITATION")
+              println(s"4a. CANNOT PARSE CHAT_OFFSET_UPDATE")
               parseConfiguration(s) match {
                 case Left(_) =>
-                  println(s"CANNOT PARSE CONFIGURATION")
-                  if (s.equals("PoisonPill")) {
-                    println(s"4. Otrzymałem PoisonPill $s")
-                    out ! ("4. Wyłączam czat.")
-                    self ! PoisonPill
+                  println(s"1a. CANNOT PARSE CONFIGURATION")
+                  parseNewChatId(s) match {
+                    case Left(_) =>
+                      println(s"1a. CANNOT PARSE NewChatId")
+                      if (s.equals("PoisonPill")) {
+                        println(s"4. Otrzymałem PoisonPill $s")
+                        out ! ("4. Wyłączam czat.")
+                        self ! PoisonPill
+                      }
+                      else
+                        println(s"'$s' is different from PoisonPill.")
+                    case Right(chatId) =>
+                      println(s"")
+                      this.be.addNewChat(chatId)
                   }
                 case Right(conf) =>
-                  println(s"1. initializing Broker")
+                  println(s"1a. initializing Broker")
                   this.be.initialize(conf)
               }
-            case Right(invitation) =>
-              this.be.sendInvitation( invitation )
+            case Right(update: ChatOffsetUpdate) =>
+              println(s"4. Processing ChatOffsetUpdate: $update")
+              this.be.updateChatOffset(update)
           }
         case Right(message) =>
-          println(s"2. Processing message. $s")
+          println(s"5. Processing message. $s")
           this.be.sendMessage( message )
       }
 
     case _ =>
-      println(s"3a. Nieczytelna wiadomość. ")
-      out ! ("3b. Dostałem nieczytelną wiadomość.")
+      println(s". Nieczytelna wiadomość. ")
+      out ! (". Dostałem nieczytelną wiadomość.")
       self ! PoisonPill
 
   }

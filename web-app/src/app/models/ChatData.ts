@@ -10,5 +10,6 @@ export interface ChatData {
     users: Array<User>;
     messages: Array<Message>;
     unreadMessages: Array<MessagePartOff>;
+    isNew?: boolean;
     emitter: EventEmitter<ChatData>;
 }

@@ -99,10 +99,10 @@ class KessengerAdmin(configurator: KafkaConfigurator) {
       case Success(value) => toReturn = (true, false)
     }
     Try {
-      writingFuture.get() // we do not need wait
+      writingFuture.get() // we do not need wait // otherwise 10L, TimeUnit.SECONDS
     } match {
       case Failure(exception) => // do nothing
-      case Success(value) => toReturn = (true, true)
+      case Success(value) => toReturn = (toReturn._1, true)
     }
 
     Right( toReturn )
@@ -147,11 +147,11 @@ class KessengerAdmin(configurator: KafkaConfigurator) {
    */
   def removeChat(chat: Chat): Either[KafkaError, Chat] = {
     Try {
-      // todo uzupełnić o brakujące kafka future.
       val wId: JoinId = Domain.generateWritingId(chat.chatId)
       val deleteTopicResult: DeleteTopicsResult = admin.deleteTopics(java.util.List.of(chat.chatId, wId))
       val topicMap = CollectionConverters.asScala[String, KafkaFuture[Void]](deleteTopicResult.topicNameValues()).toMap
-      if (topicMap.nonEmpty && topicMap.size == 1) {
+      if (topicMap.nonEmpty) {
+        // todo uzupełnić o brakujące kafka future.
         val optionKafkaFuture = topicMap.get(chat.chatId)
         optionKafkaFuture.get // may throw NoSuchElementException
           .get(5L, TimeUnit.SECONDS) // we give five seconds to complete removing chat
@@ -299,8 +299,8 @@ class KessengerAdmin(configurator: KafkaConfigurator) {
   def createWritingTopic(chatId: ChatId): Either[KafkaError, Unit] = {
     Try {
       val joinId: JoinId = Domain.generateWritingId(chatId)
-      val partitionsNum: Int = configurator.JOINING_TOPIC_PARTITIONS_NUMBER
-      val replicationFactor: Short = configurator.JOINING_TOPIC_REPLICATION_FACTOR
+      val partitionsNum: Int = configurator.WRITING_TOPIC_PARTITIONS_NUMBER
+      val replicationFactor: Short = configurator.WRITING_TOPIC_REPLICATION_FACTOR
       val talkConfig: java.util.Map[String, String] = CollectionConverters.asJava(
         Map(
           TopicConfig.CLEANUP_POLICY_CONFIG -> TopicConfig.CLEANUP_POLICY_DELETE,
@@ -311,8 +311,7 @@ class KessengerAdmin(configurator: KafkaConfigurator) {
       val joinTopic = new NewTopic(joinId, partitionsNum, replicationFactor).configs(talkConfig)
       val result: CreateTopicsResult = admin.createTopics(java.util.List.of(joinTopic))
       val joinFuture: KafkaFuture[Void] = result.values().get(joinId)
-
-      // this may block max 10s, it is important when kafka broker is down.
+      // this may block max 5s, it is important when kafka broker is down.
       // normally (when we call get()) it takes ~30s
       joinFuture.get(5_000, TimeUnit.MILLISECONDS)
     } match {

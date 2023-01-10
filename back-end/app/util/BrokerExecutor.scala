@@ -2,23 +2,25 @@ package util
 
 import akka.actor.ActorRef
 
+import components.db.DbExecutor
+
 import io.github.malyszaryczlowiek.kessengerlibrary.domain.Domain
 import io.github.malyszaryczlowiek.kessengerlibrary.domain.Domain.ChatId
-import io.github.malyszaryczlowiek.kessengerlibrary.kafka.configurators.KafkaConfigurator
-import io.github.malyszaryczlowiek.kessengerlibrary.model.{Configuration, Invitation, Message, ResponseBody}
+import io.github.malyszaryczlowiek.kessengerlibrary.kafka.configurators.{KafkaConfigurator, KafkaProductionConfigurator}
+import io.github.malyszaryczlowiek.kessengerlibrary.model.{ChatOffsetUpdate, Configuration, Invitation, Message, ResponseBody, UserOffsetUpdate}
 
 import org.apache.kafka.clients.consumer.{ConsumerRecord, ConsumerRecords, KafkaConsumer}
 import org.apache.kafka.clients.producer.{KafkaProducer, ProducerRecord}
 import org.apache.kafka.common.TopicPartition
 
+import play.api.db.Database
+
 import java.time.Duration
 import java.util.concurrent.atomic.AtomicBoolean
-
-import scala.concurrent.{ExecutionContext, Future}
-import scala.jdk.javaapi.CollectionConverters
+import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.util.Using
 
-class BrokerExecutor(private var conf: Option[Configuration], private val out: ActorRef, private val env: KafkaConfigurator, private val ec: ExecutionContext) { // (implicit s: String)
+class BrokerExecutor(private var conf: Option[Configuration], private val out: ActorRef, private val db: Database, private val env: KafkaConfigurator, private val ec: ExecutionContext) { // (implicit s: String)
 
   private val ka: KessengerAdmin = new KessengerAdmin(env)
 
@@ -53,19 +55,17 @@ class BrokerExecutor(private var conf: Option[Configuration], private val out: A
   def initialize(conf: Configuration): Unit = {
     this.conf = Option(conf)
     this.conf match {
-      case Some(c) =>
+      case Some( c ) =>
         // create joining topic to listen invitation from other users
-        if (conf.joiningOffset == -1L) {
-          this.ka.createInvitationTopic(conf.me.userId) match {
-            case Left(ke) =>
-              // todo tutaj prawdopodobnie trzeba zamknąć kafkę ???
-
-              out ! ResponseBody(222, s"Kafka Error: ${ke.description} Cannot create joiningTopic. ").toString
-            case Right(_) =>
-              this.conf = Option(conf.copy(joiningOffset = 0L))
-              out ! ResponseBody(0, "Joining topic created.").toString
-          }
-        }
+//        if (conf.joiningOffset == -1L) {
+//          this.ka.createInvitationTopic(conf.me.userId) match {
+//            case Left(ke) =>
+//              out ! ResponseBody(222, s"Kafka Error: ${ke.description} Cannot create joiningTopic. ").toString
+//            case Right(_) =>
+//              this.conf = Option(conf.copy(joiningOffset = 0L))
+//              out ! ResponseBody(0, "Joining topic created.").toString
+//          }
+//        }
 
         this.listener = Option(
           Future {
@@ -90,6 +90,7 @@ class BrokerExecutor(private var conf: Option[Configuration], private val out: A
                     // and assign offset for that topic partition
                     invitationConsumer.seek(myJoinTopic, conf.joiningOffset)
 
+                    // TODO zmienić tak aby pobierał po 10 ostatnich wiadomości
 
                     val partitions: Iterable[(TopicPartition, Long)] = conf.chats.flatMap(
                       t => t._2.map(r => (new TopicPartition(t._1, r._1), r._2))
@@ -114,11 +115,8 @@ class BrokerExecutor(private var conf: Option[Configuration], private val out: A
                           t => t._2.map(r => (new TopicPartition(t._1, r._1), r._2))
                         )
                         newPartitions.foreach(t => messageConsumer.seek(t._1, t._2))
-                        newChats.keySet.foreach(
-                          chatId => newChats.remove(chatId) // usunąć wszystkie ChatId, które aktualnie znajdują się w mapie
-                        )
+                        newChats.keySet.foreach( chatId => newChats.remove(chatId) )
                       }
-
 
                       val invitations: ConsumerRecords[String, Invitation] = invitationConsumer.poll(java.time.Duration.ofMillis(250))
                       val messages: ConsumerRecords[String, Message] = messageConsumer.poll(java.time.Duration.ofMillis(250))
@@ -128,9 +126,6 @@ class BrokerExecutor(private var conf: Option[Configuration], private val out: A
                           out ! Invitation.toWebsocketJSON( i )
                         }
                       )
-
-                      // todo dodać do message server time i mzienić utc time na sending time
-                      //  w invitation dodac server time.
 
                       messages.forEach(
                         (r: ConsumerRecord[String, Message]) => {
@@ -158,17 +153,11 @@ class BrokerExecutor(private var conf: Option[Configuration], private val out: A
     val f2 = Future {
       this.invitationProducer.close(Duration.ofSeconds(5L))
     }(ec)
-
     this.listener match {
       case Some(value) =>
-
-      case None => ???
+      case None =>
     }
-
-
-    // zamknąć też wszystkie wątki, które mają uruchomione consumery
-    // zamknąć też te consumery. ale wewnątrz wątków. sprawdzić jak to było zaimplementowane.
-
+    // Await.result(f1.zipWith(f2)((u1, u2) => u2)(ec), scala.concurrent.duration.Duration.create(5L, scala.concurrent.duration.SECONDS))
     this.ka.closeAdmin()
   }
 
@@ -194,6 +183,23 @@ class BrokerExecutor(private var conf: Option[Configuration], private val out: A
     this.newChats.addOne(chatId, offsets)
   }
 
+  def updateChatOffset(u: ChatOffsetUpdate): Unit = {
+    Future {
+      val dbExecutor = new DbExecutor(new KafkaProductionConfigurator)
+      db.withConnection( implicit connection => {
+        dbExecutor.updateChatOffsetAndMessageTime(u.userId, u.chatId, u.lastMessageTime, u.partitionOffsets.toSeq )
+      })
+    }(ec)
+  }
 
+
+  def updateUserJoiningOffset(u: UserOffsetUpdate): Unit = {
+    Future {
+      val dbExecutor = new DbExecutor(new KafkaProductionConfigurator)
+      db.withConnection( implicit connection => {
+        dbExecutor.updateJoiningOffset(u.userId, u.joiningOffset)
+      })
+    }(ec)
+  }
 
 }

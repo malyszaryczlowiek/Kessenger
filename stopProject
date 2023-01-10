@@ -31,9 +31,6 @@ function close_required {
   docker rm -v kafka3
 }
 
-# we start closing some docker containers
-close_required
-
 
 function close_other {
   docker stop pgadmin
@@ -53,6 +50,8 @@ function ask_argument {
 }
 
 
+# we start closing some docker containers
+close_required
 
 if [[ $# -eq 1 && "--all" == $1 ]] ; then
   close_other

@@ -39,18 +39,19 @@ export class ChatsDataService {
   // todo // zaimplementować,że w danym czacie wszystkie wiadomości są już przeczytane
   // po wywołaniu tej funkcji należy jeszcze fetchować ??? dane 
   markMessagesAsRead(chatId: string) {
-    const found = this.chatAndUsers.find(
+    const chat = this.chatAndUsers.find(
       (cd, i , arr) => {
         return cd.chat.chatId == chatId
       }
     )
-    if ( found ) {
-      if ( found.unreadMessages.length > 0 ) {
-        found.unreadMessages.forEach(
+    if ( chat ) {
+      chat.isNew = false
+      if ( chat.unreadMessages.length > 0 ) {
+        chat.unreadMessages.forEach(
           (m, i, arr) => {
-            found.messages.push( m.msg )
-            if (m.msg.serverTime > found.chat.lastMessageTime) found.chat.lastMessageTime = m.msg.serverTime
-            found.partitionOffsets = found.partitionOffsets.map(
+            chat.messages.push( m.msg )
+            if (m.msg.serverTime > chat.chat.lastMessageTime) chat.chat.lastMessageTime = m.msg.serverTime
+            chat.partitionOffsets = chat.partitionOffsets.map(
               (po, i, arr) => {
                 if (po.partition == m.p && po.offset < m.o){ 
                   po.offset = m.o
@@ -62,8 +63,8 @@ export class ChatsDataService {
             )
           }
         )
-        found.messages.sort((a,b) => a.serverTime - b.serverTime )
-        this.changeChat( found )
+        chat.messages.sort((a,b) => a.serverTime - b.serverTime )
+        this.changeChat( chat )
       } 
       // w każdym miejscu w którym opuszczamy chat należy wywołać 
       // this.userService.selectChat( undefined )
@@ -198,7 +199,6 @@ export class ChatsDataService {
   }
 
 
-  ///  -(a.chat.lastMessageTime - b.chat.lastMessageTime)
   compareLatestChatData(c1: ChatData, c2: ChatData): number {
     let data1 = 0
     let data2 = 0

@@ -56,6 +56,22 @@ class JsonParsers {
   }
 
 
+  private implicit object chatEncoder extends Encoder[(Chat, Map[Partition, Offset])] {
+    override def apply(a: (Chat, Map[Partition, Offset])): Json = {
+      Json.obj(
+        ("chat", a._1.asJson),
+        ("partitionOffsets", a._2.map(tup => {
+          Json.obj(
+            ("partition", Json.fromInt(tup._1)),
+            ("offset", Json.fromLong(tup._2))
+          )
+        }).asJson) // ,
+        //          ("users", List.empty[User].asJson),
+        //          ("messages", List.empty[Message].asJson)
+      )
+    }
+  }
+
   private implicit object usersChatsEncoder extends Encoder[Map[Chat, Map[Partition, Offset]]] {
     override def apply(a: Map[Chat, Map[Partition, Offset]]): Json = {
       a.map(keyValue => {
@@ -84,6 +100,8 @@ class JsonParsers {
 
 
   def toJSON(u: (User, Settings)): String = u.asJson.noSpaces
+
+  def chatToJSON(c: (Chat, Map[Partition, Offset])): String = c.asJson(chatEncoder).noSpaces
 
   def chatsToJSON(map: Map[Chat, Map[Partition, Offset]]): String = map.asJson.noSpaces
 

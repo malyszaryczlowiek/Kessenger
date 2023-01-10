@@ -55,6 +55,17 @@ class DbExecutor(val kafkaConfigurator: KafkaConfigurator) {
   }
 
 
+  def deleteUser(userId: UserID)(implicit connection: Connection): DbResponse[Int] = {
+    Using(connection.prepareStatement("DELETE FROM users WHERE user_id = ? ")) {
+      (statement: PreparedStatement) =>
+        statement.setObject(1, userId)
+        statement.executeUpdate()
+    } match {
+      case Failure(ex) => handleExceptionMessage(ex)
+      case Success(v) => Right(v)
+    }
+  }
+
 
 
   def updateMyLogin(userId: UUID, newLogin: Login)(implicit connection: Connection): DbResponse[Int] = {
@@ -365,14 +376,14 @@ class DbExecutor(val kafkaConfigurator: KafkaConfigurator) {
 
 
   // TODO działa
-  def findMyChats(userUUID: UUID)(implicit connection: Connection): DbResponse[Map[Chat, Map[Partition, Offset]]] = {
+  def findMyChats(userUUID: UUID)(implicit connection: Connection): DbResponse[Map[Chat, (Map[Partition, Offset], Boolean, Boolean)]] = {
     val numOfPartitions = kafkaConfigurator.CHAT_TOPIC_PARTITIONS_NUMBER
     val range = 0 until numOfPartitions
     val offsetColumn = "users_chats.users_offset_"
-    val prefix = "SELECT chats.chat_id, users_chats.chat_name, chats.group_chat, users_chats.message_time, users_chats.silent, " +
-      "users.user_id, users.login, "
+    val prefix = "SELECT chats.chat_id, chats.writing_topic_exists, chat.chat_topic_exists, users_chats.chat_name, " +
+      "chats.group_chat, users_chats.message_time, users_chats.silent, users.user_id, users.login, "
     val fold = range.foldLeft("")((folded, partition) => s"$folded$offsetColumn$partition, ").stripTrailing()
-    val offsets = fold.substring(0, fold.length - 1) // we remove last coma ,
+    val offsets = fold.substring(0, fold.length - 1) //  remove last coma ,
     val postfix = " FROM users_chats " +
       "INNER JOIN chats " +
       "ON users_chats.chat_id = chats.chat_id " +
@@ -385,11 +396,13 @@ class DbExecutor(val kafkaConfigurator: KafkaConfigurator) {
     Using(connection.prepareStatement(sql)) {
       (statement: PreparedStatement) =>
         statement.setObject(1, userUUID)
-        val buffer: ListBuffer[(Chat, Map[Partition, Offset])] = ListBuffer()
+        val buffer: ListBuffer[(Chat, (Map[Partition, Offset], Boolean, Boolean))] = ListBuffer()
         Using(statement.executeQuery()) {
           (resultSet: ResultSet) =>
             while (resultSet.next()) {
               val chatId: ChatId = resultSet.getString("chat_id")
+              val writTopExists: Boolean = resultSet.getBoolean("writing_topic_exists")
+              val chatTopExists: Boolean = resultSet.getBoolean("chat_topic_exists")
               val chatName: ChatName = resultSet.getString("chat_name")
               val groupChat: Boolean = resultSet.getBoolean("group_chat")
               val time: Long = resultSet.getLong("message_time")
@@ -402,7 +415,7 @@ class DbExecutor(val kafkaConfigurator: KafkaConfigurator) {
               val u: User = User(userId, login)
               // we add only when user_id is our id
               if (userUUID == u.userId)
-                buffer += ((chat, partitionOffsets))
+                buffer += (chat, (partitionOffsets, chatTopExists, writTopExists))
               // val grouped = buffer.toList.groupMap[Chat, User]((chat, user) => chat)((chat, user) => user)
             }
             val grouped = buffer.toList.toMap
@@ -412,8 +425,70 @@ class DbExecutor(val kafkaConfigurator: KafkaConfigurator) {
           case Success(either) => either
         }
     } match {
-      case Failure(ex) => handleExceptionMessage[Map[Chat, Map[Int, Long]]](ex)
+      case Failure(ex) => handleExceptionMessage(ex)
       case Success(either) => either
+    }
+  }
+
+
+
+  def getChatData(userId: UserID, chatId: ChatId)(implicit connection: Connection): DbResponse[(Chat, Map[Partition, Offset])] = {
+    val numOfPartitions = kafkaConfigurator.CHAT_TOPIC_PARTITIONS_NUMBER
+    val range = 0 until numOfPartitions
+    val offsetColumn = "users_chats.users_offset_"
+    val prefix = "SELECT chats.chat_id, users_chats.chat_name, " +
+      "chats.group_chat, users_chats.message_time, users_chats.silent "
+    val fold = range.foldLeft("")((folded, partition) => s"$folded$offsetColumn$partition, ").stripTrailing()
+    val offsets = fold.substring(0, fold.length - 1) //  remove last coma ,
+    val postfix = " FROM users_chats " +
+      "INNER JOIN chats " +
+      "ON users_chats.chat_id = chats.chat_id " +
+//      "INNER JOIN users_chats AS other_chats " +
+//      "ON chats.chat_id = other_chats.chat_id " +
+//      "INNER JOIN users " +
+//      "ON other_chats.user_id = users.user_id " +
+      "WHERE users_chats.user_id = ? AND chats.chat_id = ? "
+    val sql = s"$prefix$offsets$postfix"
+    Using(connection.prepareStatement(sql)) {
+      (statement: PreparedStatement) =>
+        statement.setObject(1, userId)
+        statement.setObject(2, chatId)
+        Using(statement.executeQuery()) {
+          (resultSet: ResultSet) =>
+            if (resultSet.next()) {
+              val chatId: ChatId = resultSet.getString("chat_id")
+              val chatName: ChatName = resultSet.getString("chat_name")
+              val groupChat: Boolean = resultSet.getBoolean("group_chat")
+              val time: Long = resultSet.getLong("message_time")
+              val silent: Boolean = resultSet.getBoolean("silent")
+              val partitionOffsets: Map[Partition, Offset] =
+                range.map(i => (i, resultSet.getLong(s"users_offset_$i"))).toMap
+              val chat: Chat = Chat(chatId, chatName, groupChat, time, silent)
+              Right((chat, partitionOffsets))
+            } else
+              Left(QueryError(ERROR, DataProcessingError))
+        } match {
+          case Failure(ex) => throw ex
+          case Success(either) => either
+        }
+    } match {
+      case Failure(ex) => handleExceptionMessage(ex)
+      case Success(either) => either
+    }
+  }
+
+
+  def updateChatTopicExistence(chatId: ChatId, chatTopic: Boolean, writTopic: Boolean )(implicit connection: Connection): DbResponse[Int] = {
+    val sql = "UPDATE chats SET chat_topic_exists = ?, writing_topic_exists = ? WHERE chat_id = ? "
+    Using(connection.prepareStatement(sql)) {
+      (statement: PreparedStatement) =>
+        statement.setBoolean(1, chatTopic)
+        statement.setBoolean(2, writTopic)
+        statement.setString(3, chatId)
+        statement.executeUpdate()
+    } match {
+      case Failure(ex)    => handleExceptionMessage(ex)
+      case Success(value) => Right(value)
     }
   }
 
@@ -684,6 +759,17 @@ class DbExecutor(val kafkaConfigurator: KafkaConfigurator) {
     } else Left(QueryError(ERROR, UnsupportedOperation)) // cannot leave non group chat
   }
 
+  def deleteChat(chatId: ChatId)(implicit connection: Connection): DbResponse[Int] = {
+    Using(connection.prepareStatement("DELETE FROM chats WHERE chat_id = ?  ")) {
+      (statement: PreparedStatement) =>
+        statement.setObject(1, chatId)
+        statement.executeUpdate()
+    } match {
+      case Failure(ex) => handleExceptionMessage(ex)
+      case Success(v)  => Right(v)
+    }
+  }
+
 
   // todo works
   def updateSettings(userId: UserID, settings: Settings )(implicit connection: Connection): DbResponse[Int] = {
@@ -724,12 +810,12 @@ class DbExecutor(val kafkaConfigurator: KafkaConfigurator) {
 
 
 
-  def updateJoiningOffset(user: User, offset: Offset)(implicit connection: Connection): DbResponse[Int] = {
+  def updateJoiningOffset(userId: UserID, offset: Offset)(implicit connection: Connection): DbResponse[Int] = {
     val sql = "UPDATE settings SET joining_offset = ? WHERE user_id = ? "
     Using(connection.prepareStatement(sql)) {
       (statement: PreparedStatement) =>
         statement.setLong(1, offset)
-        statement.setObject(2, user.userId)
+        statement.setObject(2, userId)
         statement.executeUpdate()
     } match {
       case Failure(ex) => handleExceptionMessage(ex)
@@ -739,7 +825,7 @@ class DbExecutor(val kafkaConfigurator: KafkaConfigurator) {
 
 
 
-  def updateChatOffsetAndMessageTime(userId: UUID, chat: Chat, sortedOffsets: => Seq[(Int, Long)])(implicit connection: Connection): DbResponse[Int] = {
+  def updateChatOffsetAndMessageTime(userId: UserID, chatId: ChatId, lastMessageTime: Long, sortedOffsets: => Seq[(Int, Long)])(implicit connection: Connection): DbResponse[Int] = {
     val prefix = "UPDATE users_chats SET "
     val offsets = sortedOffsets.foldLeft[String]("")(
       (folded: String, partitionAndOffset: (Int, Long)) =>
@@ -757,8 +843,8 @@ class DbExecutor(val kafkaConfigurator: KafkaConfigurator) {
             statement.setLong(partitionNum + 1, offset)
           }
         )
-        statement.setLong(   numOfPartitions + 1, chat.lastMessageTime)
-        statement.setString( numOfPartitions + 2, chat.chatId)
+        statement.setLong(   numOfPartitions + 1, lastMessageTime)
+        statement.setString( numOfPartitions + 2, chatId)
         statement.setObject( numOfPartitions + 3, userId)
         statement.executeUpdate()
     } match {

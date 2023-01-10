@@ -54,9 +54,36 @@ export class CreateChatComponent implements OnInit, OnDestroy {
 
   todo
   /*
-    w create należy jeszcze wysyłanie przez websocket 
-    do aktora informacji o utworzonym czacie, tak, 
-    zeby można było w nim utworzyć chat w kafce. 
+
+  wysyłanie rzeczy przez websocket
+
+  1. wysyłąnie offsetu chatu gdy: 
+     a) (DONE) jesteśmy w czacie i odbieramy wiadomość
+     b) (DONE) klikamy w dany czat na liście i nas tam przeności,
+        ale lista nowych wiadomości nie jest pusta
+
+  2. wysyłanie informacji o nowym czacie żeby utworzyć odpowiedni consumer. 
+     a) (DONE) jak tworzymy nowy czat i uzyskujemy odpowiedź
+     b) (DONE) jak dostajemy invitation i jesteśmy po pobraniu 
+        wszystkich danych o tym czacie z odpowiedniego (normalnego) endpointa. 
+        - (DONE) raz powinniśmy zmienić na liście, że jest 'NEW'
+
+    
+  3. odbieranie zaproszenia        
+     patrz pkt 2a)
+
+  4. sprawdzić przetwarzanie przychodzących wiadomosci, 
+     czy są prawidłowo przetwarzane.    
+
+  5. sprawdzić czy czat istnieje tylko wtedy jak istnieje topic tego czatu
+      - a jak topic tego czatu istnieje, to czy writing tego czatu istnieje, 
+        jeśli nie to należy jeszcze raz spróbować utworzyć taki topic. 
+
+
+  6. zrobić fetchowanie wcześniejszych wiadomości.       
+     zrobić to tak, że tworzonuy jest tylko tymczasowy consumer, 
+     któ®y pobierze dane z założonego zakresu i zaraz zostanie zamknięty. 
+       
 
     wypracować mechanizm co w przypadku, gdy przypisujemy
     do consumera czaty dany chat nie istnieje i wywala error
@@ -66,12 +93,6 @@ export class CreateChatComponent implements OnInit, OnDestroy {
   */
 
 
-
-
-  // to jest po naciśnięciu buttonu submit
-  // tutaj wysyłamy rządanie utworzenia czatu
-  // jeśli w odpowiedzi dostaniwmy dane z chatem to 
-  // w userService należy zaktualizować listę czatów
   create() {
     const chatName = this.chatForm.controls.chatName.value
     const me = this.userService.user
@@ -94,6 +115,8 @@ export class CreateChatComponent implements OnInit, OnDestroy {
                   unreadMessages: new Array<MessagePartOff>(),
                   emitter: new EventEmitter<ChatData>
                 }
+                // sending to server information to listen messages from this chat.
+                this.userService.startListeningFromNewChat( chatData.chat.chatId )
                 this.userService.addNewChat( chatData ) 
                 // inform chat created
                 this.createMessage = 'Chat created, Redirecting to it.'    

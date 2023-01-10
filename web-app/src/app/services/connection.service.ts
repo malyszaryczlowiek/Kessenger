@@ -14,6 +14,7 @@ import { SessionService } from './session.service';
 import { Chat } from '../models/Chat';
 import { MessagePartOff } from '../models/MesssagePartOff';
 import { Configuration } from '../models/Configuration';
+import { ChatOffsetUpdate } from '../models/ChatOffsetUpdate';
 
 
 
@@ -39,6 +40,7 @@ export class ConnectionService {
     this.invitationEmitter.unsubscribe()
     this.writingEmitter.unsubscribe()
     this.session.invalidateSession()
+    this.sendPoisonPill()
     this.wsConnection?.close()
     this.wsConnection = undefined
   }            
@@ -212,10 +214,11 @@ export class ConnectionService {
 
 
 
-  getChatUsers(userId: string, chatId: string): Observable<HttpResponse<User[]>> | undefined {
+
+  getChatData(userId: string, chatId: string): Observable<HttpResponse<{chat: Chat, partitionOffsets: Array<{partition: number, offset: number}>}>> | undefined {
     const token = this.session.getSessionToken()
     if ( token ) {
-      return this.http.get<User[]>(this.api + `/user/${userId}/chats/${chatId}`, {
+      return this.http.get<{chat: Chat, partitionOffsets: Array<{partition: number, offset: number}>}>(this.api + `/user/${userId}/chats/${chatId}`, {
         headers:  new HttpHeaders()
           .set('KSID', token),
         observe: 'response', 
@@ -225,12 +228,28 @@ export class ConnectionService {
   }
 
 
+
   
   leaveChat(userId: string, chatId: string): Observable<HttpResponse<any>> | undefined {
     const token = this.session.getSessionToken()
     if ( token ) {
       return this.http.delete<any>(this.api + `/user/${userId}/chats/${chatId}`, {
         headers: new HttpHeaders()
+          .set('KSID', token),
+        observe: 'response', 
+        responseType: 'json'
+      });
+    } else return undefined;
+  }
+
+
+
+
+  getChatUsers(userId: string, chatId: string): Observable<HttpResponse<User[]>> | undefined {
+    const token = this.session.getSessionToken()
+    if ( token ) {
+      return this.http.get<User[]>(this.api + `/user/${userId}/chats/${chatId}/users`, {
+        headers:  new HttpHeaders()
           .set('KSID', token),
         observe: 'response', 
         responseType: 'json'
@@ -273,10 +292,6 @@ export class ConnectionService {
 
 
 
-  // todo
-  /* kontynuować w backendzie czy web socket poprawnie obsługuje 
-  przesyłane dane */
-
 
 
   /*
@@ -297,9 +312,7 @@ export class ConnectionService {
 
       };
       this.wsConnection.onmessage = (msg: any) => {
-
         const body = JSON.parse( msg.data )
-
         if ( body.conf )
           console.log('got config: ', body.conf)
         if ( body.msg ) {
@@ -308,6 +321,11 @@ export class ConnectionService {
         }          
         if ( body.inv ) {
           console.log('got invitation: ', body )
+          this.invitationEmitter.emit( body.inv )
+          // tutaj // napisać jeszcze obsługę 
+          // jak dostajemy zaproszenie to znaczy, że czat jest już utworzony 
+          // i należy go dodać do listy czatów 
+
         }
       }
       this.wsConnection.onclose = () => {
@@ -316,9 +334,7 @@ export class ConnectionService {
       };
       this.wsConnection.onerror = (error) => {
         console.error('error from web socket connection', error)
-        // tutaj nie wiem czy nie powiiniśmy użyć kolejnego emittera
-        // i jak tylko pojawia się error to 
-        // zamknąć połączenie i pobnownie otworzyć. 
+        // here brobably we should close connection ??? and restart it ???
       };
     }
   }
@@ -356,6 +372,7 @@ export class ConnectionService {
     }
   } 
 
+
   sendWriting(w: Writing) {
     if (this.wsConnection) {
       console.log('sending invitation to server.');
@@ -363,6 +380,29 @@ export class ConnectionService {
     } else {
       console.error('Did not send data, open a connection first');
     }
+  }
+
+
+  sendChatOffsetUpdate(u: ChatOffsetUpdate) {
+    if (this.wsConnection) {
+      console.log('sending offset update to server.');
+      this.wsConnection.send(JSON.stringify( u ));
+    } else {
+      console.error('Did not send data, open a connection first');
+    }
+  }
+
+  
+  startListeningFromNewChat(chatId: string) {
+    if (this.wsConnection) {
+      console.log('sending offset update to server.');
+      const body = {
+        chatId: chatId
+      }
+      this.wsConnection.send(JSON.stringify( body ));
+    } else {
+      console.error('Did not send data, open a connection first');
+    }  
   }
 
 

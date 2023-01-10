@@ -2,6 +2,7 @@ import { Component, OnDestroy, OnInit } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Subscription } from 'rxjs';
 import { ChatData } from 'src/app/models/ChatData';
+import { ChatOffsetUpdate } from 'src/app/models/ChatOffsetUpdate';
 import { Message } from 'src/app/models/Message';
 import { UserService } from 'src/app/services/user.service';
 
@@ -12,18 +13,18 @@ import { UserService } from 'src/app/services/user.service';
 })
 export class ChatPanelComponent implements OnInit, OnDestroy {
 
-  chatData: ChatData | undefined;
-  fetchingSubscription: Subscription | undefined
-  selectedChatSubscription: Subscription | undefined
+  chatData:                     ChatData     | undefined;
+  fetchingSubscription:         Subscription | undefined
+  selectedChatSubscription:     Subscription | undefined
   chatModificationSubscription: Subscription | undefined
-  errorBody: any | undefined
+  errorBody:                    any          | undefined
 
 
   constructor(private userService: UserService, private router: Router, private activated: ActivatedRoute) { }
 
 
   /*
-  Dwa scenariusze:
+  Dwa scenariusze uruchomienia:
   1. użytkownik wchodzi w chat panel z chat-list wybierając konkretny chat. 
      ngOnInit() jest wtedy uruchamiane i onClick() też.
 
@@ -45,7 +46,17 @@ export class ChatPanelComponent implements OnInit, OnDestroy {
             })
             if (this.chatData) {
               this.userService.selectChat( this.chatData.chat.chatId ) 
+              const length = this.chatData.unreadMessages.length
               this.userService.markMessagesAsRead( this.chatData.chat.chatId )
+              if (this.userService.user?.userId && length > 0) {
+                const chatOffsetUpdate: ChatOffsetUpdate = {
+                  userId:           this.userService.user.userId,
+                  chatId:           this.chatData.chat.chatId,
+                  lastMessageTime:  this.chatData.chat.lastMessageTime,
+                  partitionOffsets: this.chatData.partitionOffsets // Array<{partition: number, offset: number}>;
+                }
+                this.userService.sendChatOffsetUpdate( chatOffsetUpdate )
+              }
               if (this.chatModificationSubscription) this.chatModificationSubscription.unsubscribe()
               this.chatModificationSubscription = this.chatData.emitter.subscribe(
                 (cd) => this.chatData = cd
@@ -65,6 +76,15 @@ export class ChatPanelComponent implements OnInit, OnDestroy {
         if (cd.chat.chatId != this.chatData?.chat.chatId) {
           this.userService.selectChat( cd.chat.chatId ) 
           this.userService.markMessagesAsRead( cd.chat.chatId )
+          if (this.userService.user?.userId) {
+            const chatOffsetUpdate: ChatOffsetUpdate = {
+              userId:           this.userService.user.userId,
+              chatId:           cd.chat.chatId,
+              lastMessageTime:  cd.chat.lastMessageTime,
+              partitionOffsets: cd.partitionOffsets // Array<{partition: number, offset: number}>;
+            }
+            this.userService.sendChatOffsetUpdate( chatOffsetUpdate )
+          }
           console.log('ChatPanelComponent selectedChatSubscription fetched data from UserService.')
           if (this.chatModificationSubscription) this.chatModificationSubscription.unsubscribe()
           this.chatData = this.userService.getAllChats().find((cd2, index, arr) => {

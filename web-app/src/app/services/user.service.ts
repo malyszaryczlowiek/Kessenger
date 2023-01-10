@@ -14,6 +14,7 @@ import { Chat } from '../models/Chat';
 import { ChatsDataService } from './chats-data.service';
 import { MessagePartOff } from '../models/MesssagePartOff';
 import { Configuration } from '../models/Configuration';
+import { ChatOffsetUpdate } from '../models/ChatOffsetUpdate';
 // import { clearInterval } from 'stompjs';
 
 @Injectable({
@@ -60,6 +61,33 @@ export class UserService {
     this.invitationSubscription = this.connection.invitationEmitter.subscribe(
       (invitation: Invitation) => {
         console.log('Got new invitaion', invitation)
+        const c = this.getChatData( invitation.chatId )
+        if ( c ) {
+          c.subscribe({
+            next: (response) => {
+              if (response.ok){
+                const body = response.body
+                if ( body ) {
+                  const cd: ChatData =  {
+                    chat: body.chat,
+                    partitionOffsets: body.partitionOffsets,
+                    messages: new Array<Message>(),
+                    unreadMessages: new Array<MessagePartOff>(),
+                    users: new Array<User>(),
+                    isNew: true,
+                    emitter: new EventEmitter<ChatData>()  
+                  }
+                  this.addNewChat( cd ) 
+                  this.dataFetched() 
+                }                
+              }              
+            },
+            error: (err) => {
+              console.log(err) 
+            },
+            complete: () => {}
+          })
+        }
       }
     )
 
@@ -347,6 +375,14 @@ export class UserService {
     else return undefined;
   }
 
+  getChatData(chatId: string): Observable<HttpResponse<{chat: Chat, partitionOffsets: Array<{partition: number, offset: number}>}>> | undefined  {
+    if (this.user) {
+      this.updateSession()
+      return this.connection.getChatData(this.user.userId, chatId);
+    }
+    else return undefined;
+  }
+
 
   getChatUsers(chatId: string): Observable<HttpResponse<User[]>> | undefined {
     if (this.user) {
@@ -424,6 +460,14 @@ export class UserService {
     this.connection.sendInvitation(inv)
   }
 
+  sendChatOffsetUpdate(update: ChatOffsetUpdate) {
+    this.connection.sendChatOffsetUpdate( update )
+  }
+
+  startListeningFromNewChat(chatId: string) {
+    this.connection.startListeningFromNewChat( chatId )
+  }
+
 
   
 
@@ -446,7 +490,9 @@ export class UserService {
 
 
 
-
+  /*
+  Methods to delete.
+  */
 
   
   callAngular() {

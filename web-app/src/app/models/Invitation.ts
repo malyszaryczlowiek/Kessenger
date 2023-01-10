@@ -1,8 +1,8 @@
 export interface Invitation {
-    chatId: string;
+    login: string;
+    toUserId: string;
     chatName: string;
-    senderId: string;
-    senderLogin: string;
+    chatId: string;
     sendingTime: number;
     serverTime: number;
     myJoiningOffset: number;

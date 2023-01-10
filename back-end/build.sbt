@@ -8,8 +8,7 @@ libraryDependencies ++= Seq(
   jdbc,
   // Own library with util and domain classes.
   // https://github.com/malyszaryczlowiek/kessenger-lib
-  // "io.github.malyszaryczlowiek" %% "kessenger-lib" % "0.2.5",
-  "io.github.malyszaryczlowiek" %% "kessenger-lib" % "0.3.8",
+  "io.github.malyszaryczlowiek" %% "kessenger-lib" % "0.3.14",
 
   "org.apache.kafka" %% "kafka"               % "3.1.0",
 
