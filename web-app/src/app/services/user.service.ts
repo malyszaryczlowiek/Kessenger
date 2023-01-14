@@ -15,6 +15,7 @@ import { ChatsDataService } from './chats-data.service';
 import { MessagePartOff } from '../models/MesssagePartOff';
 import { Configuration } from '../models/Configuration';
 import { ChatOffsetUpdate } from '../models/ChatOffsetUpdate';
+import { Writing } from '../models/Writing';
 // import { clearInterval } from 'stompjs';
 
 @Injectable({
@@ -79,6 +80,19 @@ export class UserService {
                   }
                   this.addNewChat( cd ) 
                   this.dataFetched() 
+                  const u = this.updateJoiningOffset( invitation.myJoiningOffset )
+                  if ( u ) {
+                    u.subscribe({
+                      next: (response) => {
+                        if ( response.ok )
+                          console.log('joining Offset updated ok. ')
+                      },
+                      error: (err) => {
+                        console.log('Error during joining offset update', err)
+                      },
+                      complete: () => {}
+                    })
+                  }
                 }                
               }              
             },
@@ -317,6 +331,18 @@ export class UserService {
   }
 
 
+
+  updateJoiningOffset(offset: number) {
+    if (this.user){ 
+      this.updateSession()
+      return this.connection.updateJoiningOffset(this.user.userId, offset)
+    }
+    else 
+      return undefined
+  }
+
+
+
   changeSettings(s: Settings): Observable<HttpResponse<any>> | undefined {
     if (this.user)  {
       this.updateSession()
@@ -325,6 +351,7 @@ export class UserService {
     else 
       return undefined
   }
+
 
 
   changeLogin(newLogin: string): Observable<HttpResponse<any>> | undefined {
@@ -414,7 +441,7 @@ export class UserService {
   addUsersToChat(chatId: string, chatName: string, usersIds: string[]) {
     if (this.user)  {
       this.updateSession()
-      return this.connection.addUsersToChat(this.user.userId, chatId, chatName, usersIds);
+      return this.connection.addUsersToChat(this.user.userId, this.user.login, chatId, chatName, usersIds);
     }    
     else return undefined;    
   }
@@ -458,6 +485,10 @@ export class UserService {
 
   sendInvitation(inv: Invitation) {
     this.connection.sendInvitation(inv)
+  }
+
+  sendWriting(w: Writing){
+    this.connection.sendWriting( w )
   }
 
   sendChatOffsetUpdate(update: ChatOffsetUpdate) {

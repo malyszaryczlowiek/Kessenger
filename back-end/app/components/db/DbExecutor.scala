@@ -103,6 +103,8 @@ class DbExecutor(val kafkaConfigurator: KafkaConfigurator) {
   }
 
 
+  // uruchomić cąłość
+
 
 
 
@@ -375,13 +377,12 @@ class DbExecutor(val kafkaConfigurator: KafkaConfigurator) {
   }
 
 
-  // TODO działa
-  def findMyChats(userUUID: UUID)(implicit connection: Connection): DbResponse[Map[Chat, (Map[Partition, Offset], Boolean, Boolean)]] = {
+  def findMyChats(userUUID: UserID)(implicit connection: Connection): DbResponse[Map[Chat, Map[Partition, Offset]]] = {
     val numOfPartitions = kafkaConfigurator.CHAT_TOPIC_PARTITIONS_NUMBER
     val range = 0 until numOfPartitions
     val offsetColumn = "users_chats.users_offset_"
-    val prefix = "SELECT chats.chat_id, chats.writing_topic_exists, chat.chat_topic_exists, users_chats.chat_name, " +
-      "chats.group_chat, users_chats.message_time, users_chats.silent, users.user_id, users.login, "
+    val prefix = "SELECT chats.chat_id, users_chats.chat_name, " +
+      "chats.group_chat, users_chats.message_time, users_chats.silent, users.user_id,  "
     val fold = range.foldLeft("")((folded, partition) => s"$folded$offsetColumn$partition, ").stripTrailing()
     val offsets = fold.substring(0, fold.length - 1) //  remove last coma ,
     val postfix = " FROM users_chats " +
@@ -396,29 +397,32 @@ class DbExecutor(val kafkaConfigurator: KafkaConfigurator) {
     Using(connection.prepareStatement(sql)) {
       (statement: PreparedStatement) =>
         statement.setObject(1, userUUID)
-        val buffer: ListBuffer[(Chat, (Map[Partition, Offset], Boolean, Boolean))] = ListBuffer()
+        val buffer: ListBuffer[(Chat, Map[Partition, Offset])] = ListBuffer() //ListBuffer.empty[(Chat, Map[Partition, Offset])]
         Using(statement.executeQuery()) {
           (resultSet: ResultSet) =>
             while (resultSet.next()) {
               val chatId: ChatId = resultSet.getString("chat_id")
-              val writTopExists: Boolean = resultSet.getBoolean("writing_topic_exists")
-              val chatTopExists: Boolean = resultSet.getBoolean("chat_topic_exists")
+              //val writTopExists: Boolean = resultSet.getBoolean("writing_topic_exists")
+              //val chatTopExists: Boolean = resultSet.getBoolean("chat_topic_exists")
               val chatName: ChatName = resultSet.getString("chat_name")
               val groupChat: Boolean = resultSet.getBoolean("group_chat")
               val time: Long = resultSet.getLong("message_time")
               val silent: Boolean = resultSet.getBoolean("silent")
               val userId: UUID = resultSet.getObject[UUID]("user_id", classOf[UUID])
-              val login: Login = resultSet.getString("login")
+              // val login: Login = resultSet.getString("login")
               val partitionOffsets: Map[Partition, Offset] =
                 range.map(i => (i, resultSet.getLong(s"users_offset_$i"))).toMap
               val chat: Chat = Chat(chatId, chatName, groupChat, time, silent)
-              val u: User = User(userId, login)
+              // val u: User = User(userId, login)
               // we add only when user_id is our id
-              if (userUUID == u.userId)
-                buffer += (chat, (partitionOffsets, chatTopExists, writTopExists))
+              if (userUUID == userId) {
+                buffer += ((chat, partitionOffsets))
+              }
               // val grouped = buffer.toList.groupMap[Chat, User]((chat, user) => chat)((chat, user) => user)
             }
-            val grouped = buffer.toList.toMap
+            val grouped = buffer.toList
+              .groupMap(_._1)(_._2)
+              .map(t => (t._1, t._2.head))
             Right(grouped)
         } match {
           case Failure(ex) => throw ex
@@ -478,19 +482,6 @@ class DbExecutor(val kafkaConfigurator: KafkaConfigurator) {
   }
 
 
-  def updateChatTopicExistence(chatId: ChatId, chatTopic: Boolean, writTopic: Boolean )(implicit connection: Connection): DbResponse[Int] = {
-    val sql = "UPDATE chats SET chat_topic_exists = ?, writing_topic_exists = ? WHERE chat_id = ? "
-    Using(connection.prepareStatement(sql)) {
-      (statement: PreparedStatement) =>
-        statement.setBoolean(1, chatTopic)
-        statement.setBoolean(2, writTopic)
-        statement.setString(3, chatId)
-        statement.executeUpdate()
-    } match {
-      case Failure(ex)    => handleExceptionMessage(ex)
-      case Success(value) => Right(value)
-    }
-  }
 
 
 
@@ -693,9 +684,6 @@ class DbExecutor(val kafkaConfigurator: KafkaConfigurator) {
       }
     }
   }
-
-
-
 
 
 
@@ -1149,6 +1137,21 @@ class DbExecutor(val kafkaConfigurator: KafkaConfigurator) {
             Left(QueryError(ERROR, DataProcessingError))
           }
         }
+    }
+  }
+
+  @deprecated
+  def updateChatTopicExistence(chatId: ChatId, chatTopic: Boolean, writTopic: Boolean)(implicit connection: Connection): DbResponse[Int] = {
+    val sql = "UPDATE chats SET chat_topic_exists = ?, writing_topic_exists = ? WHERE chat_id = ? "
+    Using(connection.prepareStatement(sql)) {
+      (statement: PreparedStatement) =>
+        statement.setBoolean(1, chatTopic)
+        statement.setBoolean(2, writTopic)
+        statement.setString(3, chatId)
+        statement.executeUpdate()
+    } match {
+      case Failure(ex) => handleExceptionMessage(ex)
+      case Success(value) => Right(value)
     }
   }
 

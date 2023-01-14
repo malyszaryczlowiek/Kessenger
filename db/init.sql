@@ -12,8 +12,8 @@ CREATE TABLE IF NOT EXISTS users (
 CREATE TABLE IF NOT EXISTS chats (
   chat_id varchar(255) PRIMARY KEY,
   group_chat BOOLEAN NOT NULL
-  chat_topic_exists    boolean DEFAULT false NOT NULL,
-  writing_topic_exists boolean DEFAULT false NOT NULL
+--  chat_topic_exists    boolean DEFAULT false NOT NULL,
+--  writing_topic_exists boolean DEFAULT false NOT NULL
 );
 
 

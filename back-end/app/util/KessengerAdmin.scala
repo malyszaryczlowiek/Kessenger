@@ -26,22 +26,19 @@ import scala.jdk.javaapi.CollectionConverters
  */
 class KessengerAdmin(configurator: KafkaConfigurator) {
 
-  private val userSerializer = "io.github.malyszaryczlowiek.kessengerlibrary.serdes.UserSerializer"
-  private val userDeserializer = "io.github.malyszaryczlowiek.kessengerlibrary.serdes.UserDeserializer"
+  private val userSerializer   = "io.github.malyszaryczlowiek.kessengerlibrary.serdes.user.UserSerializer"
+  private val userDeserializer = "io.github.malyszaryczlowiek.kessengerlibrary.serdes.user.UserDeserializer"
 
-  private val invitationSerializer = "io.github.malyszaryczlowiek.kessengerlibrary.serdes.InvitationSerializer"
-  private val invitationDeserializer = "io.github.malyszaryczlowiek.kessengerlibrary.serdes.InvitationDeserializer"
+  private val invitationSerializer   = "io.github.malyszaryczlowiek.kessengerlibrary.serdes.invitation.InvitationSerializer"
+  private val invitationDeserializer = "io.github.malyszaryczlowiek.kessengerlibrary.serdes.invitation.InvitationDeserializer"
 
+  private val messageSerializer   = "io.github.malyszaryczlowiek.kessengerlibrary.serdes.message.MessageSerializer"
+  private val messageDeserializer = "io.github.malyszaryczlowiek.kessengerlibrary.serdes.message.MessageDeserializer"
 
-  private val messageSerializer = "io.github.malyszaryczlowiek.kessengerlibrary.serdes.MessageSerializer"
-  private val messageDeserializer = "io.github.malyszaryczlowiek.kessengerlibrary.serdes.MessageDeserializer"
+  private val writingSerializer   = "io.github.malyszaryczlowiek.kessengerlibrary.serdes.writing.WritingSerializer"
+  private val writingDeserializer = "io.github.malyszaryczlowiek.kessengerlibrary.serdes.writing.WritingDeserializer"
 
-  private val writingSerializer = "io.github.malyszaryczlowiek.kessengerlibrary.serdes.WritingSerializer"
-  private val writingDeserializer = "io.github.malyszaryczlowiek.kessengerlibrary.serdes.WritingDeserializer"
-
-
-
-  private val stringSerializer = "org.apache.kafka.common.serialization.StringSerializer"
+  private val stringSerializer   = "org.apache.kafka.common.serialization.StringSerializer"
   private val stringDeserializer = "org.apache.kafka.common.serialization.StringDeserializer"
 
   val properties = new Properties
@@ -283,7 +280,7 @@ class KessengerAdmin(configurator: KafkaConfigurator) {
   def createInvitationConsumer(groupId: String): KafkaConsumer[String, Invitation] = {
     val props: Properties = new Properties();
     props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, configurator.EXTERNAL_SERVERS)
-    props.put(ConsumerConfig.GROUP_ID_CONFIG, groupId)
+    props.put(ConsumerConfig.GROUP_ID_CONFIG, groupId )
     props.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, "false")
     props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, stringDeserializer)
     props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, invitationDeserializer)
@@ -321,25 +318,25 @@ class KessengerAdmin(configurator: KafkaConfigurator) {
   }
 
   //
-  def createWritingProducer(): KafkaProducer[String, Writing] = {
+  def createWritingProducer: KafkaProducer[String, Writing] = {
     val properties = new Properties
     properties.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, configurator.EXTERNAL_SERVERS )
     properties.put(ProducerConfig.ACKS_CONFIG, "0") // No replica must confirm - send and forget
     properties.put(ProducerConfig.LINGER_MS_CONFIG, "0") // we do not wait to fill the buffer and send immediately
-    properties.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, stringDeserializer)
+    properties.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, stringSerializer)
     properties.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, writingSerializer)
     new KafkaProducer[String, Writing](properties)
   }
 
-    def createWritingConsumer(userId: UserID): KafkaConsumer[String, Writing] = {
-      val props: Properties = new Properties();
-      props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, configurator.EXTERNAL_SERVERS)
-      props.put(ConsumerConfig.GROUP_ID_CONFIG, userId)
-      props.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, "false")
-      props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, stringDeserializer)
-      props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, writingDeserializer)
-      new KafkaConsumer[String, Writing](props)
-    }
+  def createWritingConsumer(userId: String): KafkaConsumer[String, Writing] = {
+    val props: Properties = new Properties();
+    props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, configurator.EXTERNAL_SERVERS)
+    props.put(ConsumerConfig.GROUP_ID_CONFIG, userId )
+    props.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, "false")
+    props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, stringDeserializer)
+    props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, writingDeserializer)
+    new KafkaConsumer[String, Writing](props)
+  }
 
 }
 

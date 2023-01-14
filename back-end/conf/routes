@@ -16,6 +16,7 @@ POST         /signup                                             controllers.Kes
 POST         /signin                                             controllers.KessengerController.signin
 GET          /logout                                             controllers.KessengerController.logout
 GET          /user/:userId                                       controllers.KessengerController.user(userId: java.util.UUID)
+PUT          /user/:userId/updateJoiningOffset                   controllers.KessengerController.updateJoiningOffset(userId: java.util.UUID, offset: Long)
 PUT          /user/:userId/changeSettings                        controllers.KessengerController.changeSettings(userId: java.util.UUID)
 PUT          /user/:userId/changeLogin                           controllers.KessengerController.changeLogin(userId: java.util.UUID)
 PUT          /user/:userId/changePassword                        controllers.KessengerController.changePassword(userId: java.util.UUID)

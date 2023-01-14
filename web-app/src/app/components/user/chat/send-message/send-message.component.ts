@@ -2,6 +2,7 @@ import { Component, EventEmitter, Input, OnInit, Output } from '@angular/core';
 import { FormControl, FormGroup, Validators } from '@angular/forms';
 import { Chat } from 'src/app/models/Chat';
 import { Message } from 'src/app/models/Message';
+import { Writing } from 'src/app/models/Writing';
 import { UserSettingsService } from 'src/app/services/user-settings.service';
 import { UserService } from 'src/app/services/user.service';
 import { UtctimeService } from 'src/app/services/utctime.service';
@@ -28,6 +29,18 @@ export class SendMessageComponent implements OnInit {
 
   ngOnInit(): void {
     console.log('SendMessageComponent.ngOnInit()')
+  }
+
+  onWriting() {
+    const me = this.userService.user
+    if ( me && this.chat ) {
+      const w : Writing = {
+        chatId:    this.chat.chatId,
+        writerId:    me.userId,
+        writerLogin: me.login        
+      }
+      this.userService.sendWriting( w )
+    }
   }
 
   onSubmit() {

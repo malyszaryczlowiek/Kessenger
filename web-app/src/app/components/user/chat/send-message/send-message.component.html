@@ -1,6 +1,6 @@
 <div>
     <form  [formGroup]="messageForm" (ngSubmit)="onSubmit()">
-        <input formControlName="messageContent" type="text" placeholder="Your Message">
+        <input formControlName="messageContent" type="text" placeholder="Your Message" (keypress)="onWriting()">
         <button [disabled]="!messageForm.valid" type="submit">Send</button>
     </form>    
 </div>

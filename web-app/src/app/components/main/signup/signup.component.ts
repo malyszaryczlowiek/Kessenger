@@ -52,7 +52,7 @@ export class SignupComponent implements OnInit {
             this.userService.clearService();
             this.signUpForm.reset();
             // print message to user.
-            this.returnedError = error;
+            this.returnedError = error.error;
           },
           complete: () => {}
         })  

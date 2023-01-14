@@ -120,6 +120,24 @@ export class ConnectionService {
 
 
 
+
+  updateJoiningOffset(userId: string, newJoiningOffset: number): Observable<HttpResponse<any>> | undefined {
+    const token = this.session.getSessionToken()
+    if ( token ) {
+      return this.http.put<any>(this.api + `/user/${userId}/updateJoiningOffset`, { 
+        headers: new HttpHeaders()
+          .set('KSID', token),
+        observe: 'response', 
+        responseType: 'json',
+        params: {
+          offset: newJoiningOffset
+        }
+      });
+    }
+    else return undefined
+  }
+
+
   
   changeSettings(userId: string, s: Settings): Observable<HttpResponse<any>> | undefined  {
     const token = this.session.getSessionToken()
@@ -273,10 +291,11 @@ export class ConnectionService {
 
 
 
-  addUsersToChat(userId: string, chatId: string, chatName: string, userIds: string[]): Observable<HttpResponse<any>> | undefined {
+  addUsersToChat(userId: string, login: string, chatId: string, chatName: string, userIds: string[]): Observable<HttpResponse<any>> | undefined {
     const token = this.session.getSessionToken()
     if ( token ) {
       const body = {
+        invitersLogin: login,
         chatName: chatName,
         users: userIds
       }
@@ -314,19 +333,21 @@ export class ConnectionService {
       this.wsConnection.onmessage = (msg: any) => {
         const body = JSON.parse( msg.data )
         if ( body.conf )
-          console.log('got config: ', body.conf)
+          console.log('got config: ', body.conf )
         if ( body.msg ) {
-          console.log('got message: ', body )
-          this.messageEmitter.emit( body )
+          console.log('got message: ', body.msg )
+          this.messageEmitter.emit( body.msg )
         }          
         if ( body.inv ) {
-          console.log('got invitation: ', body )
+          console.log('got invitation: ', body.inv )
           this.invitationEmitter.emit( body.inv )
-          // tutaj // napisać jeszcze obsługę 
-          // jak dostajemy zaproszenie to znaczy, że czat jest już utworzony 
-          // i należy go dodać do listy czatów 
-
         }
+        if ( body.wrt ) {
+          console.log('got writing: ', body.wrt )
+          this.writingEmitter.emit( body.wrt )
+        }
+        else 
+          console.log('got other message: ', body)
       }
       this.wsConnection.onclose = () => {
         console.log('WebSocket connection closed.');
@@ -334,7 +355,7 @@ export class ConnectionService {
       };
       this.wsConnection.onerror = (error) => {
         console.error('error from web socket connection', error)
-        // here brobably we should close connection ??? and restart it ???
+        // here probably we should close connection ??? and restart it ???
       };
     }
   }
@@ -363,10 +384,10 @@ export class ConnectionService {
 
 
   // not necessary
-  sendInvitation(msg: Invitation) {
+  sendInvitation(inv: Invitation) {
     if (this.wsConnection) {
       console.log('sending invitation to server.');
-      this.wsConnection.send(JSON.stringify( msg ));
+      this.wsConnection.send(JSON.stringify( inv ));
     } else {
       console.error('Did not send data, open a connection first');
     }

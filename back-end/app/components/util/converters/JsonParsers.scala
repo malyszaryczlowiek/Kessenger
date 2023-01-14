@@ -31,13 +31,14 @@ class JsonParsers {
   }
 
 
-  private implicit object newChatUsersJSONDecoder extends Decoder[(String, List[UUID])] {
-    override def apply(c: HCursor): Result[(String, List[UUID])] = {
+  private implicit object newChatUsersJSONDecoder extends Decoder[(String, String, List[UUID])] {
+    override def apply(c: HCursor): Result[(String, String, List[UUID])] = {
       for {
+        login    <- c.downField("invitersLogin").as[String]
         chatName <- c.downField("chatName").as[String]
         users    <- c.downField("users").as[List[String]]
       } yield {
-        (chatName, users.map(UUID.fromString))
+        (login, chatName, users.map(UUID.fromString))
       }
     }
   }
@@ -108,7 +109,7 @@ class JsonParsers {
   def parseNewChat(json: String): Either[Error,(User, List[UUID], String)] = decode[(User, List[UUID], String)](json)(newChatJSONDecoder)
 
   def parseCredentials(json: String): Either[Error, LoginCredentials] = decode[LoginCredentials](json)
-  def parseNewChatUsers(json: String): Either[Error, (String, List[UUID])] = decode[(String, List[UUID])](json)(newChatUsersJSONDecoder)
+  def parseNewChatUsers(json: String): Either[Error, (String, String, List[UUID])] = decode[(String, String, List[UUID])](json)(newChatUsersJSONDecoder)
   def parseNewPass(json: String): Either[Error, (String, String)] = decode[(String, String)](json)(newPassDecoder)
 
 

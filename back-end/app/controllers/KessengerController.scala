@@ -9,7 +9,7 @@ import components.util.converters.{JsonParsers, PasswordConverter}
 import util.{BrokerExecutor, HeadersParser, KessengerAdmin}
 import io.github.malyszaryczlowiek.kessengerlibrary.db.queries.{DataProcessingError, LoginTaken, QueryError, UndefinedError, UnsupportedOperation}
 import io.github.malyszaryczlowiek.kessengerlibrary.domain.Domain
-import io.github.malyszaryczlowiek.kessengerlibrary.domain.Domain.ChatId
+import io.github.malyszaryczlowiek.kessengerlibrary.domain.Domain.{ChatId, Offset, UserID}
 import io.github.malyszaryczlowiek.kessengerlibrary.kafka.configurators.KafkaProductionConfigurator
 import io.github.malyszaryczlowiek.kessengerlibrary.kafka.errors.{ChatExistsError, KafkaError}
 import io.github.malyszaryczlowiek.kessengerlibrary.model.{Chat, Invitation, ResponseBody, Settings, User}
@@ -66,18 +66,21 @@ class KessengerController @Inject()
                           InternalServerError("Error 005. Encoding password failed")
                         )
                       case Right( encodedPass ) =>
-                        val settings = Settings(sessionDuration = 900000L) // todo zmienić w kessenger-lib na 900000L
+                        val settings = Settings(sessionDuration = 900000L) // todo zmienić w kessenger-lib że nie ma wartości początkowej a wartość tutaj przypisujemy z configuracji.
                         val user = User(userId, login)
                         Future {
                           db.withConnection(implicit connection => {
                             dbExecutor.createUser(user, encodedPass, settings, sessionData) match {
-                              case Left(queryError) =>
-                                InternalServerError(s"Error 006. ${queryError.description.toString()}")
+                              case Left(QueryError(_, LoginTaken)) =>
+                                BadRequest(ResponseBody(6, LoginTaken.toString()).toString)
+                              case Left(queryError: QueryError) =>
+                                InternalServerError(ResponseBody(7, queryError.description.toString()).toString )
                               case Right(value) =>
                                 if (value == 3) {
                                   val ka = new KessengerAdmin(new KafkaProductionConfigurator)
                                   ka.createInvitationTopic(userId) match {
                                     case Left(_) =>
+                                      println(s"nie udało się utworzyć invitation topic")
                                       dbExecutor.deleteUser(user.userId)
                                       ka.closeAdmin()
                                       InternalServerError(ResponseBody(7, "Error 007. User Creation Error. Try again later").toString)
@@ -203,6 +206,36 @@ class KessengerController @Inject()
       }(databaseExecutionContext)
     })
 
+
+
+
+  def updateJoiningOffset(userId: UserID, offset: Offset): Action[AnyContent] =
+    SessionChecker(parse.anyContent, userId)(
+      databaseExecutionContext,
+      db,
+      dbExecutor,
+      headersParser
+    ).andThen(
+      SessionUpdater(parse.anyContent, userId)(
+        databaseExecutionContext,
+        db,
+        dbExecutor,
+        headersParser
+      )
+    ).async(implicit request => {
+      if (offset > 0L) {
+        Future {
+          db.withConnection(implicit connection => {
+            dbExecutor.updateJoiningOffset(userId, offset) match {
+              case Left(_) => InternalServerError(ResponseBody(44, s"Database Error. Cannot update offset.").toString)
+              case Right(_) => Ok
+            }
+          })
+        }(databaseExecutionContext)
+      }
+      else
+        Future.successful( BadRequest(ResponseBody(45, s"Offset value should be above 0.").toString))
+    })
 
 
 
@@ -379,18 +412,19 @@ class KessengerController @Inject()
               db.withConnection(implicit connection => {
                 dbExecutor.createChat(me, users, chatName) match {
                   case Left(QueryError(_, UnsupportedOperation)) =>
-                    BadRequest(ResponseBody(12, "Chat already exists.").toString  )
+                    BadRequest(ResponseBody(12, "Chat already exists.").toString)
                   case Left(queryError) =>
                     InternalServerError(s"Error 013. ${queryError.description.toString()}")
                   case Right( createdChat ) =>
                     val ka = new KessengerAdmin(new KafkaProductionConfigurator)
                     ka.createChat(createdChat.head._1) match {
                       case Left(_) => // not rechable
+                        ka.removeChat( createdChat.head._1 )
                         ka.closeAdmin()
+                        dbExecutor.deleteChat( createdChat.head._1.chatId ) // delete chat from db
                         InternalServerError(ResponseBody(332, "Some Undefined Kafka Error.").toString)
                       case Right( t ) =>
-                        if ( t._1 ) { // if chat created we can send it to user
-                          dbExecutor.updateChatTopicExistence( createdChat.head._1.chatId, t._1, t._2 )
+                        if ( t._1 && t._2  ) { // if chat created we can send it to user
                           val producer = ka.createInvitationProducer
                           users.foreach( userId => {
                             val i = Invitation(me.login, userId, chatName, createdChat.head._1.chatId,
@@ -402,9 +436,9 @@ class KessengerController @Inject()
                           ka.closeAdmin()
                           Ok(jsonParser.chatsToJSON(createdChat))
                         } else {
-                          if ( t._2 ) ka.removeChat( createdChat.head._1 ) // delete writing topic
+                          ka.removeChat( createdChat.head._1 )
                           ka.closeAdmin()
-                          dbExecutor.deleteChat( createdChat.head._1.chatId ) // delete chat from db
+                          dbExecutor.deleteChat( createdChat.head._1.chatId )
                           InternalServerError(ResponseBody(333, "Cannot create new chat. Try again later.").toString)
                         }
                     }
@@ -416,6 +450,13 @@ class KessengerController @Inject()
     })
 
 
+  /*
+  TODO zmienić
+    1. zmienić kessengerAdmin na singleton
+    2. dodać shutdownhook dla kessenger admin'a
+    3. KafkaConfigurator oznaczyć jako
+
+   */
 
 
 
@@ -442,37 +483,41 @@ class KessengerController @Inject()
           dbExecutor.findMyChats(userId) match {
             case Left(_) => InternalServerError("Error 009. You are logged in with SessionChecker and SessionUpdater ")
             case Right(chats) =>
-              val kesAdm = new KessengerAdmin( new KafkaProductionConfigurator )
-              val filtered = chats.map( t => {
-                var chatTopic = t._2._2
-                if (!chatTopic) {
-                  kesAdm.createChatTopic(t._1) match { // create chat topic
-                    case Left(KafkaError(_, ChatExistsError)) =>
-                      chatTopic = true // if return topic already exists we need change value too
-                    case Left(KafkaError(_,_)) => // do nothing
-                    case Right(_) => chatTopic = true
-                  }
-                }
-                var writTopic = t._2._3
-                if (!writTopic) {
-                  kesAdm.createWritingTopic(t._1.chatId) match { // create writing topic
-                    case Left(KafkaError(_, ChatExistsError)) =>
-                      writTopic = true // if return topic already exists we need change value too
-                    case Left(KafkaError(_, _)) => // do nothing
-                    case Right(_) => writTopic = true
-                  }
-                }
-                kesAdm.closeAdmin()
-                if (chatTopic != t._2._2 || writTopic != t._2._3)  // if chatTopic or writing topic created need update info in db
-                  dbExecutor.updateChatTopicExistence(t._1.chatId, writTopic, chatTopic)
-                (t._1, (t._2._1, writTopic, chatTopic))
-              }).filter( t => !t._2._2) // if chat topic does not exists we remove this chat from list
-                .map(t => (t._1, t._2._1))
-              Ok( jsonParser.chatsToJSON( filtered ))
+              //val c = chats.filter(t => !t._2._2).map(t => (t._1, t._2._1))
+              Ok( jsonParser.chatsToJSON( chats ))
           }
           })
       }(databaseExecutionContext)
     })
+
+  //              val kesAdm = new KessengerAdmin( new KafkaProductionConfigurator )
+  //              val filtered = chats.map( t => {
+  //                usunąć // tworzenie tutaj topiców, całe tworzenie topiców powinno być w newChat.
+  //                var chatTopic = t._2._2
+  //                if (!chatTopic) {
+  //                  kesAdm.createChatTopic(t._1) match { // create chat topic
+  //                    case Left(KafkaError(_, ChatExistsError)) =>
+  //                      chatTopic = true // if return topic already exists we need change value too
+  //                    case Left(KafkaError(_,_)) => // do nothing
+  //                    case Right(_) => chatTopic = true
+  //                  }
+  //                }
+  //                var writTopic = t._2._3
+  //                if (!writTopic) {
+  //                  kesAdm.createWritingTopic(t._1.chatId) match { // create writing topic
+  //                    case Left(KafkaError(_, ChatExistsError)) =>
+  //                      writTopic = true // if return topic already exists we need change value too
+  //                    case Left(KafkaError(_, _)) => // do nothing
+  //                    case Right(_) => writTopic = true
+  //                  }
+  //                }
+  //                kesAdm.closeAdmin()
+  //                if (chatTopic != t._2._2 || writTopic != t._2._3)  // if chatTopic or writing topic created need update info in db
+  //                  dbExecutor.updateChatTopicExistence(t._1.chatId, writTopic, chatTopic)
+  //                (t._1, (t._2._1, writTopic, chatTopic))
+  //              }).filter( t => !t._2._2) // if chat topic does not exists we remove this chat from list
+  //                .map(t => (t._1, t._2._1))
+
 
 
 
@@ -621,18 +666,26 @@ class KessengerController @Inject()
         dbExecutor,
         headersParser
       )
-    ).async(implicit request =>
+    ).async( implicit request =>
       request.body.asJson.map(newChatUsers => {
         jsonParser.parseNewChatUsers(newChatUsers.toString()) match {
           case Left(_) => Future.successful(BadRequest("Error 018, JSON parsing error."))
-          case Right((chatName, users)) =>
+          case Right((inviters, chatName, users)) =>
             Future {
               db.withConnection { implicit connection =>
                 dbExecutor.addNewUsersToChat(users, chatId, chatName) match {
                   case Left(queryError) => InternalServerError(s"Error 019. ${queryError.description.toString()}")
                   case Right(value)     =>
-                    tutaj // wysłać zaproszenia do nowych userów.
-
+                    val ka = new KessengerAdmin(new KafkaProductionConfigurator)
+                    val producer = ka.createInvitationProducer
+                    users.foreach( userId2 => {
+                      val i = Invitation(inviters, userId2, chatName, chatId,
+                        System.currentTimeMillis(), 0L, None)
+                      val joiningTopic = Domain.generateJoinId(userId)
+                      producer.send(new ProducerRecord[String, Invitation](joiningTopic, i))
+                    })
+                    producer.close()
+                    ka.closeAdmin()
                     Ok(ResponseBody(0,s"$value users added.").toString)
                 }
               }
@@ -647,7 +700,7 @@ class KessengerController @Inject()
 
   // dokończyć definiowanie websocketa
   //  https://www.playframework.com/documentation/2.8.x/ScalaWebSockets
-  def ws(userId: UUID) =
+  def ws(userId: UUID): WebSocket =
     WebSocket.acceptOrResult[String, String] { request =>
       Future.successful(
         request.headers.get("Origin") match {

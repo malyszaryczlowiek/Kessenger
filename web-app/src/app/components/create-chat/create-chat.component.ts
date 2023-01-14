@@ -52,7 +52,7 @@ export class CreateChatComponent implements OnInit, OnDestroy {
     console.log('CreateChatComponent.ngOnDestroy()')
   }
 
-  todo
+  // todo
   /*
 
   wysyłanie rzeczy przez websocket
@@ -69,20 +69,20 @@ export class CreateChatComponent implements OnInit, OnDestroy {
         - (DONE) raz powinniśmy zmienić na liście, że jest 'NEW'
 
     
-  3. odbieranie zaproszenia        
+  3. (DONE) odbieranie zaproszenia        
      patrz pkt 2a)
 
-  4. sprawdzić przetwarzanie przychodzących wiadomosci, 
+  4. sprawdzić przetwarzanie przychodzących wiadomosci,
      czy są prawidłowo przetwarzane.    
 
-  5. sprawdzić czy czat istnieje tylko wtedy jak istnieje topic tego czatu
-      - a jak topic tego czatu istnieje, to czy writing tego czatu istnieje, 
+  5. (DONE) sprawdzić czy czat istnieje tylko wtedy jak istnieje topic tego czatu
+      a jak topic tego czatu istnieje, to czy writing tego czatu istnieje, 
         jeśli nie to należy jeszcze raz spróbować utworzyć taki topic. 
 
 
   6. zrobić fetchowanie wcześniejszych wiadomości.       
-     zrobić to tak, że tworzonuy jest tylko tymczasowy consumer, 
-     któ®y pobierze dane z założonego zakresu i zaraz zostanie zamknięty. 
+     zrobić to tak, że tworzony jest tylko tymczasowy consumer, 
+     który pobierze dane z założonego zakresu i zaraz zostanie zamknięty. 
        
 
     wypracować mechanizm co w przypadku, gdy przypisujemy
@@ -113,7 +113,7 @@ export class CreateChatComponent implements OnInit, OnDestroy {
                   partitionOffsets: body.partitionOffsets,
                   messages: new Array<Message>(),
                   unreadMessages: new Array<MessagePartOff>(),
-                  emitter: new EventEmitter<ChatData>
+                  emitter: new EventEmitter<ChatData>()
                 }
                 // sending to server information to listen messages from this chat.
                 this.userService.startListeningFromNewChat( chatData.chat.chatId )
