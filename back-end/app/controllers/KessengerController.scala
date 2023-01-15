@@ -66,7 +66,9 @@ class KessengerController @Inject()
                           InternalServerError("Error 005. Encoding password failed")
                         )
                       case Right( encodedPass ) =>
-                        val settings = Settings(sessionDuration = 900000L) // todo zmienić w kessenger-lib że nie ma wartości początkowej a wartość tutaj przypisujemy z configuracji.
+                        val settings = Settings(sessionDuration = 900000L)
+                        // todo zmienić w kessenger-lib że nie ma wartości początkowej
+                        //  a wartość tutaj przypisujemy z configuracji.
                         val user = User(userId, login)
                         Future {
                           db.withConnection(implicit connection => {
@@ -427,6 +429,12 @@ class KessengerController @Inject()
                         if ( t._1 && t._2  ) { // if chat created we can send it to user
                           val producer = ka.createInvitationProducer
                           users.foreach( userId => {
+
+                            here
+                            // todo
+                            //  tutaj chat offsets powinny być ustawione na 0L bo czat dopiero startuje
+
+
                             val i = Invitation(me.login, userId, chatName, createdChat.head._1.chatId,
                               System.currentTimeMillis(), 0L, None)
                             val joiningTopic = Domain.generateJoinId( userId )
@@ -578,7 +586,6 @@ class KessengerController @Inject()
 
 
 
-  // todo check this method
   def leaveChat(userId: UUID, chatId: String): Action[AnyContent] =
     SessionChecker(parse.anyContent, userId)(
       databaseExecutionContext,
@@ -673,12 +680,24 @@ class KessengerController @Inject()
           case Right((inviters, chatName, users)) =>
             Future {
               db.withConnection { implicit connection =>
+
+                here
+                // todo
+                //  tutaj należy ustawić userom dodawanym do chat'u
+                //  aby w bazie danych miały zapisany najdalszy aktualny offset
+
+
                 dbExecutor.addNewUsersToChat(users, chatId, chatName) match {
                   case Left(queryError) => InternalServerError(s"Error 019. ${queryError.description.toString()}")
                   case Right(value)     =>
                     val ka = new KessengerAdmin(new KafkaProductionConfigurator)
                     val producer = ka.createInvitationProducer
                     users.foreach( userId2 => {
+
+                      here
+                      // TODO
+                      //  tutaj invitation musi zawierać informacje o offsecie użytkownika, który dodaje tych użytkowników.
+
                       val i = Invitation(inviters, userId2, chatName, chatId,
                         System.currentTimeMillis(), 0L, None)
                       val joiningTopic = Domain.generateJoinId(userId)

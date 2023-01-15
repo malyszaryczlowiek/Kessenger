@@ -82,7 +82,7 @@ export class UserService {
                   this.dataFetched() 
                   const u = this.updateJoiningOffset( invitation.myJoiningOffset )
                   if ( u ) {
-                    u.subscribe({
+                    const sub = u.subscribe({
                       next: (response) => {
                         if ( response.ok )
                           console.log('joining Offset updated ok. ')
@@ -92,6 +92,7 @@ export class UserService {
                       },
                       complete: () => {}
                     })
+                    sub.unsubscribe() 
                   }
                 }                
               }              

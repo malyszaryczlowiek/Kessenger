@@ -5,7 +5,7 @@ import io.github.malyszaryczlowiek.kessengerlibrary.model.{ChatOffsetUpdate, Inv
 import io.github.malyszaryczlowiek.kessengerlibrary.model.Configuration.parseConfiguration
 import io.github.malyszaryczlowiek.kessengerlibrary.model.Message.parseMessage
 import io.github.malyszaryczlowiek.kessengerlibrary.model.ChatOffsetUpdate.parseChatOffsetUpdate
-import io.github.malyszaryczlowiek.kessengerlibrary.model.Chat.parseNewChatId
+// import io.github.malyszaryczlowiek.kessengerlibrary.model.Chat.parseNewChatId
 import io.github.malyszaryczlowiek.kessengerlibrary.model.Writing.parseWriting
 import util.BrokerExecutor
 import akka.actor._
@@ -50,6 +50,7 @@ class WebSocketActor( out: ActorRef,
                   parseConfiguration(s) match {
                     case Left(_) =>
                       println(s"5. CANNOT PARSE CONFIGURATION")
+                      here // change method to ChatPartitionOffsets.parseChatPartitionOffsets()
                       parseNewChatId(s) match {
                         case Left(_) =>
                           println(s"6. CANNOT PARSE NewChatId")

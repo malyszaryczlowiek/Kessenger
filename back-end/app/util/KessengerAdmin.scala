@@ -320,6 +320,7 @@ class KessengerAdmin(configurator: KafkaConfigurator) {
   //
   def createWritingProducer: KafkaProducer[String, Writing] = {
     val properties = new Properties
+    // properties.put(ProducerConfig.)
     properties.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, configurator.EXTERNAL_SERVERS )
     properties.put(ProducerConfig.ACKS_CONFIG, "0") // No replica must confirm - send and forget
     properties.put(ProducerConfig.LINGER_MS_CONFIG, "0") // we do not wait to fill the buffer and send immediately

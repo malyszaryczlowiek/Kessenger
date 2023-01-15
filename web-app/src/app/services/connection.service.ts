@@ -24,7 +24,8 @@ import { ChatOffsetUpdate } from '../models/ChatOffsetUpdate';
 export class ConnectionService {
 
   
-  private wsConnection:     WebSocket | undefined
+  private wsConnection:     WebSocket      | undefined
+  private wsPingSender:     NodeJS.Timeout | undefined
   public messageEmitter:    EventEmitter<MessagePartOff>    = new EventEmitter<MessagePartOff>()
   public invitationEmitter: EventEmitter<Invitation>        = new EventEmitter<Invitation>()
   public writingEmitter:    EventEmitter<Writing>           = new EventEmitter<Writing>()
@@ -290,7 +291,11 @@ export class ConnectionService {
   }
 
 
+  
+  todo /* tutaj trzeba zmienić obiekt wysyłany tak aby wysyłał równiez informację
+     o offsecie od jakiego mają zacząć czytać
 
+  */
   addUsersToChat(userId: string, login: string, chatId: string, chatName: string, userIds: string[]): Observable<HttpResponse<any>> | undefined {
     const token = this.session.getSessionToken()
     if ( token ) {
@@ -346,12 +351,20 @@ export class ConnectionService {
           console.log('got writing: ', body.wrt )
           this.writingEmitter.emit( body.wrt )
         }
+        if (body.comm == 'opened correctly') {
+          console.log('WS connection opend correctly.')
+          this.startPingSender()
+        }
         else 
           console.log('got other message: ', body)
       }
       this.wsConnection.onclose = () => {
         console.log('WebSocket connection closed.');
         if ( this.wsConnection ) this.wsConnection = undefined
+        if ( this.wsPingSender ) {
+          clearInterval( this.wsPingSender )
+          this.wsPingSender = undefined
+        }
       };
       this.wsConnection.onerror = (error) => {
         console.error('error from web socket connection', error)
@@ -424,6 +437,13 @@ export class ConnectionService {
     } else {
       console.error('Did not send data, open a connection first');
     }  
+  }
+
+  startPingSender() {
+    this.wsPingSender = setInterval(() => {
+      if ( this.wsConnection )
+        this.wsConnection.send('empty')
+    }, 60000 ) // ping empty message every 1 minute
   }
 
 

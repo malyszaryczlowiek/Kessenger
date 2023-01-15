@@ -7,3 +7,5 @@ export interface Invitation {
     serverTime: number;
     myJoiningOffset: number;
 };
+
+todo // dodać brakujące elementy modelu czyli nowo utworzone klasy
