@@ -122,7 +122,8 @@ export class ConnectionService {
 
 
 
-
+  // tuaj teraz naprawiać
+  
   updateJoiningOffset(userId: string, newJoiningOffset: number): Observable<HttpResponse<any>> | undefined {
     const token = this.session.getSessionToken()
     if ( token ) {

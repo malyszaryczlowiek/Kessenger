@@ -27,6 +27,7 @@ export class UserService {
   user: User | undefined;
   userFetched = false
   chatFetched = false
+
   fetchingUserDataFinishedEmmiter = new EventEmitter<boolean>() // called during page reload
 
 
@@ -148,6 +149,7 @@ export class UserService {
               this.restartLogoutTimer()
               this.userFetched = true
               this.dataFetched()
+              this.connectViaWebsocket()
             }
             else {
               // print error message

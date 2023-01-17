@@ -1,8 +1,6 @@
 import { Component, OnInit } from '@angular/core';
 import { Router } from '@angular/router';
-import { ConnectionService } from 'src/app/services/connection.service';
 import { UserService } from 'src/app/services/user.service';
-import { CookieService } from 'ngx-cookie-service';
 
 @Component({
   selector: 'app-main',
@@ -27,7 +25,7 @@ export class MainComponent implements OnInit {
     że servis jest niedostępny i pozostać na stronie.      
   */
   constructor(private router: Router, private userService: UserService) {
-    here // tutaj jest tworzony userService
+    //here // tutaj jest tworzony userService
     // przenieść go do RootComponent
     // a w ngOnDestroy wywołać czyszczenie userService
     // dzięki temu przy odświerzaniu nie będzie już żadnych niesubskrybowanych subscription

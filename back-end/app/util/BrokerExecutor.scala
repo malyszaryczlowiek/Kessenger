@@ -15,7 +15,7 @@ import java.time.Duration
 import java.util.concurrent.atomic.AtomicBoolean
 import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.jdk.javaapi.CollectionConverters
-import scala.util.{Failure, Success, Using}
+import scala.util.{Failure, Success, Try, Using}
 
 class BrokerExecutor(private var conf: Option[Configuration], private val out: ActorRef, private val db: Database, private val env: KafkaConfigurator, private val ec: ExecutionContext) { // (implicit s: String)
 
@@ -27,7 +27,8 @@ class BrokerExecutor(private var conf: Option[Configuration], private val out: A
 
   private val writingProducer: KafkaProducer[String, Writing] = ka.createWritingProducer
 
-  private val newChats: collection.concurrent.TrieMap[ChatId, List[PartitionOffset]] = collection.concurrent.TrieMap.empty
+  private val newChats:         collection.concurrent.TrieMap[ChatId, List[PartitionOffset]] = collection.concurrent.TrieMap.empty
+  private val readingFromChats: collection.concurrent.TrieMap[ChatId, List[PartitionOffset]] = collection.concurrent.TrieMap.empty
 
   private var listener: Option[Future[Any]] = None
 
@@ -112,20 +113,40 @@ class BrokerExecutor(private var conf: Option[Configuration], private val out: A
                           if (newChats.nonEmpty) {
                             // todo here lock on newChats ???
 
+                            Try {
+                              println(s"zaczynam dodawanie nowego chatu do listy")
 
-                            val newPartitions: Iterable[(TopicPartition, Long)] = newChats.flatMap(
-                              t => t._2.map(r => (new TopicPartition(t._1, r.partition), r.offset))
-                            )
-                            messageConsumer.assign( CollectionConverters.asJava( newPartitions.map(_._1).toList ) )
-                            newPartitions.foreach(t => messageConsumer.seek(t._1, t._2))
+                              val newPartitions: Iterable[(TopicPartition, Long)] = newChats.flatMap(
+                                t => t._2.map(r => (new TopicPartition(t._1, r.partition), r.offset))
+                              )
+                              println(s"utworzyłem listę topicpartycji")
+                              messageConsumer.assign(CollectionConverters.asJava(newPartitions.map(_._1).toList))
+                              println(s"zrobiłem assign() do message consumera")
+                              newPartitions.foreach(t => messageConsumer.seek(t._1, t._2))
+                              println(s"zrobiłem seek()  do message consumera")
 
-                            // writing topic actualisation
-                            val wrtTopicSet = writingConsumer.listTopics().keySet()
-                            wrtTopicSet.addAll(CollectionConverters.asJavaCollection(newChats.keySet))
-                            writingConsumer.subscribe( wrtTopicSet )
-                            newChats.keySet.foreach(chatId => newChats.remove(chatId))
-                            println(s"!!! NEW CHAT ADDED !!!.")
-                            hasChats = true
+
+                              // writing topic actualisation
+                              val wrtTopicSet = writingConsumer.listTopics().keySet()
+                              println(s"writing topic set taken")
+                              wrtTopicSet.addAll(CollectionConverters.asJavaCollection(newChats.keySet))
+                              println(s"new chats id's added to writing topic set ")
+                              writingConsumer.subscribe(wrtTopicSet)
+                              println(s"writing consumer subscribed ")
+
+
+                              newChats.clear()
+                              println(s"!!! NEW CHAT ADDED !!!.")
+                              hasChats = true
+                            } match {
+                              case Failure(exception) =>
+                                println(s"ERROR: ${exception.getMessage}\n${exception.printStackTrace()}")
+                                newChats.clear()
+                              case Success(value) =>
+                                println(s"Try succeeded.")
+                            }
+
+
                           }
 
                           val invitations: ConsumerRecords[String, Invitation] = invitationConsumer.poll(java.time.Duration.ofMillis(2500))
