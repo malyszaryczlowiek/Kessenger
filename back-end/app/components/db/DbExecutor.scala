@@ -3,7 +3,7 @@ package components.db
 import io.github.malyszaryczlowiek.kessengerlibrary.db.queries._
 import io.github.malyszaryczlowiek.kessengerlibrary.db.queries.ERROR
 import io.github.malyszaryczlowiek.kessengerlibrary.domain.Domain
-import io.github.malyszaryczlowiek.kessengerlibrary.model.{Chat, SessionInfo, Settings, User}
+import io.github.malyszaryczlowiek.kessengerlibrary.model.{Chat, PartitionOffset, SessionInfo, Settings, User}
 import io.github.malyszaryczlowiek.kessengerlibrary.domain.Domain.{ChatId, ChatName, DbResponse, Login, Offset, Partition, Password, UserID}
 import io.github.malyszaryczlowiek.kessengerlibrary.kafka.configurators.KafkaConfigurator
 
@@ -441,7 +441,7 @@ class DbExecutor(val kafkaConfigurator: KafkaConfigurator) {
     val range = 0 until numOfPartitions
     val offsetColumn = "users_chats.users_offset_"
     val prefix = "SELECT chats.chat_id, users_chats.chat_name, " +
-      "chats.group_chat, users_chats.message_time, users_chats.silent "
+      "chats.group_chat, users_chats.message_time, users_chats.silent, "
     val fold = range.foldLeft("")((folded, partition) => s"$folded$offsetColumn$partition, ").stripTrailing()
     val offsets = fold.substring(0, fold.length - 1) //  remove last coma ,
     val postfix = " FROM users_chats " +
@@ -651,7 +651,7 @@ class DbExecutor(val kafkaConfigurator: KafkaConfigurator) {
 
 
 
-  def addNewUsersToChat(users: List[UUID], chatId: String, chatName: ChatName)(implicit connection: Connection): DbResponse[Int] = {
+  def addNewUsersToChat(users: List[UUID], chatId: String, chatName: ChatName, partitionOffsets: List[PartitionOffset])(implicit connection: Connection): DbResponse[Int] = {
     if (users.isEmpty) Left(QueryError(ERROR, NoUserSelected))
     else {
       connection.setAutoCommit(false)
@@ -659,9 +659,23 @@ class DbExecutor(val kafkaConfigurator: KafkaConfigurator) {
       Using(connection.createStatement()) {
         (statement: Statement) => {
           val ct = System.currentTimeMillis()
+
+          val offsetColumn = "users_offset_"
+          val foldPartitions = partitionOffsets.map(_.partition)
+            .foldLeft("")((folded, partition) => s"$folded$offsetColumn$partition, ")
+            .stripTrailing()
+          val partitions = foldPartitions.substring(0, foldPartitions.length - 1)
+
+          val foldOffsets = partitionOffsets.map(_.offset)
+            .foldLeft("")((fold, offset) => s"$fold$offset , " )
+            .stripTrailing()
+          val offsets = foldOffsets.substring(0, foldOffsets.length - 1)
+
           users.foreach(uuid => {
-            val sql = s"INSERT INTO users_chats (chat_id, user_id, chat_name, message_time) " +
-              s"VALUES ( '$chatId', '${uuid.toString}' , '$chatName' , $ct ) "
+            val sql = s"INSERT INTO users_chats (chat_id, user_id, chat_name, message_time" +
+              s"$partitions ) " +
+              s"VALUES ( '$chatId', '${uuid.toString}' , '$chatName' , $ct ," +
+              s"$offsets ) "
             statement.addBatch( sql )
           })
           statement.executeBatch().sum

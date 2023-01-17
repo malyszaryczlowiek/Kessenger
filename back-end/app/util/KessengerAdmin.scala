@@ -301,8 +301,8 @@ class KessengerAdmin(configurator: KafkaConfigurator) {
       val talkConfig: java.util.Map[String, String] = CollectionConverters.asJava(
         Map(
           TopicConfig.CLEANUP_POLICY_CONFIG -> TopicConfig.CLEANUP_POLICY_DELETE,
-          TopicConfig.RETENTION_MS_CONFIG -> "1000",   // keeps logs only by 1s.
-          TopicConfig.MESSAGE_TIMESTAMP_DIFFERENCE_MAX_MS_CONFIG -> "1000" // difference to assume that log is too late
+          TopicConfig.RETENTION_MS_CONFIG -> "2000",   // keeps logs only by 2s.
+          TopicConfig.MESSAGE_TIMESTAMP_DIFFERENCE_MAX_MS_CONFIG -> "1500" // difference to assume that log is too late
         )
       )
       val joinTopic = new NewTopic(joinId, partitionsNum, replicationFactor).configs(talkConfig)

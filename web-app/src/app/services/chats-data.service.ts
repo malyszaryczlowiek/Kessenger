@@ -188,9 +188,15 @@ export class ChatsDataService {
 
 
   changeChat(chatD: ChatData) {
-    const filtered = this.chatAndUsers.filter((cd, i, arr) => {return cd.chat.chatId != chatD.chat.chatId})
-    filtered.push(chatD)
-    this.chatAndUsers = filtered.sort((a,b) => this.compareLatestChatData(a,b) )
+    const found = this.chatAndUsers.find((cd,index,arr) => { return cd.chat.chatId != chatD.chat.chatId})
+    if ( !found ) {
+      // chat does not exist in chat list
+      const filtered = this.chatAndUsers.filter((cd, i, arr) => {return cd.chat.chatId != chatD.chat.chatId})
+      filtered.push(chatD)
+      this.chatAndUsers = filtered.sort((a,b) => this.compareLatestChatData(a,b) )
+    } else {
+      console.log('chat already exist in chat list. ')
+    }
   }
 
 

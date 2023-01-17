@@ -5,7 +5,7 @@ import components.db.DbExecutor
 import io.github.malyszaryczlowiek.kessengerlibrary.domain.Domain
 import io.github.malyszaryczlowiek.kessengerlibrary.domain.Domain.ChatId
 import io.github.malyszaryczlowiek.kessengerlibrary.kafka.configurators.{KafkaConfigurator, KafkaProductionConfigurator}
-import io.github.malyszaryczlowiek.kessengerlibrary.model.{ChatOffsetUpdate, Configuration, Invitation, Message, UserOffsetUpdate, Writing}
+import io.github.malyszaryczlowiek.kessengerlibrary.model.{ChatOffsetUpdate, ChatPartitionsOffsets, Configuration, Invitation, Message, PartitionOffset, UserOffsetUpdate, Writing}
 import org.apache.kafka.clients.consumer.{ConsumerRecord, ConsumerRecords, KafkaConsumer}
 import org.apache.kafka.clients.producer.{KafkaProducer, ProducerRecord}
 import org.apache.kafka.common.TopicPartition
@@ -21,33 +21,14 @@ class BrokerExecutor(private var conf: Option[Configuration], private val out: A
 
   private val ka: KessengerAdmin = new KessengerAdmin(env)
 
-
-  /**
-   * Field keeps if we should tracking incoming messages from
-   * kafka broker.
-   */
   private val continueReading: AtomicBoolean = new AtomicBoolean(true)
 
-
-  /**
-   * joinProducer object is responsible for sending invitation
-   * messages to other users.
-   */
-  // private val invitationProducer: KafkaProducer[String, Invitation] = ka.createInvitationProducer
-
-
-  /**
-   * kafka producer used to send messages to specific chat topic.
-   */
   private val messageProducer: KafkaProducer[String, Message] = ka.createMessageProducer
 
   private val writingProducer: KafkaProducer[String, Writing] = ka.createWritingProducer
 
-  private val newChats: collection.concurrent.TrieMap[ChatId, Map[Int, Long]] = collection.concurrent.TrieMap.empty
+  private val newChats: collection.concurrent.TrieMap[ChatId, List[PartitionOffset]] = collection.concurrent.TrieMap.empty
 
-
-
-  // start invitation listener
   private var listener: Option[Future[Any]] = None
 
 
@@ -125,22 +106,25 @@ class BrokerExecutor(private var conf: Option[Configuration], private val out: A
                         }
 
 
-
-
                         // Start loop to read from topic
                         while (continueReading.get()) {
 
                           if (newChats.nonEmpty) {
+                            // todo here lock on newChats ???
+
+
                             val newPartitions: Iterable[(TopicPartition, Long)] = newChats.flatMap(
-                              t => t._2.map(r => (new TopicPartition(t._1, r._1), r._2))
+                              t => t._2.map(r => (new TopicPartition(t._1, r.partition), r.offset))
                             )
+                            messageConsumer.assign( CollectionConverters.asJava( newPartitions.map(_._1).toList ) )
                             newPartitions.foreach(t => messageConsumer.seek(t._1, t._2))
+
                             // writing topic actualisation
                             val wrtTopicSet = writingConsumer.listTopics().keySet()
                             wrtTopicSet.addAll(CollectionConverters.asJavaCollection(newChats.keySet))
                             writingConsumer.subscribe( wrtTopicSet )
                             newChats.keySet.foreach(chatId => newChats.remove(chatId))
-                            println(s"nowy chat dodany.")
+                            println(s"!!! NEW CHAT ADDED !!!.")
                             hasChats = true
                           }
 
@@ -227,12 +211,6 @@ class BrokerExecutor(private var conf: Option[Configuration], private val out: A
     messageProducer.send(new ProducerRecord[String, Message](m.chatId, m))
   }
 
-  @deprecated
-  def sendInvitation(i: Invitation): Unit = {
-    val joiningTopic = Domain.generateJoinId(i.toUserId)
-    // invitationProducer.send(new ProducerRecord[String, Invitation](joiningTopic, i))
-  }
-
 
   def sendWriting(w: Writing): Unit = {
     val writingTopic = Domain.generateWritingId(w.chatId)
@@ -240,9 +218,8 @@ class BrokerExecutor(private var conf: Option[Configuration], private val out: A
   }
 
 
-  def addNewChat(chatId: ChatId): Unit = {
-    val offsets = (0 until env.CHAT_TOPIC_PARTITIONS_NUMBER).map(i => (i, 0L)).toMap
-    this.newChats.addOne(chatId, offsets)
+  def addNewChat(chat: ChatPartitionsOffsets): Unit = {
+    this.newChats.addOne(chat.chatId, chat.partitionOffset)
   }
 
 
@@ -254,6 +231,21 @@ class BrokerExecutor(private var conf: Option[Configuration], private val out: A
       })
     }(ec)
   }
+
+
+
+
+
+
+
+
+
+  @deprecated
+  def sendInvitation(i: Invitation): Unit = {
+    val joiningTopic = Domain.generateJoinId(i.toUserId)
+    // invitationProducer.send(new ProducerRecord[String, Invitation](joiningTopic, i))
+  }
+
 
   @deprecated
   def updateUserJoiningOffset(u: UserOffsetUpdate): Unit = {

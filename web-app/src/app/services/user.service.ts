@@ -16,6 +16,7 @@ import { MessagePartOff } from '../models/MesssagePartOff';
 import { Configuration } from '../models/Configuration';
 import { ChatOffsetUpdate } from '../models/ChatOffsetUpdate';
 import { Writing } from '../models/Writing';
+import { PartitionOffset } from '../models/PartitionOffset';
 // import { clearInterval } from 'stompjs';
 
 @Injectable({
@@ -36,6 +37,7 @@ export class UserService {
   selectedChatEmitter: EventEmitter<ChatData> = new EventEmitter<ChatData>()
   messageSubscription: Subscription | undefined
   invitationSubscription: Subscription | undefined
+  writingSubscription:  Subscription | undefined
 
 
   constructor(private connection: ConnectionService, 
@@ -64,14 +66,14 @@ export class UserService {
         console.log('Got new invitaion', invitation)
         const c = this.getChatData( invitation.chatId )
         if ( c ) {
-          c.subscribe({
+          const cSub = c.subscribe({
             next: (response) => {
               if (response.ok){
                 const body = response.body
                 if ( body ) {
                   const cd: ChatData =  {
                     chat: body.chat,
-                    partitionOffsets: body.partitionOffsets,
+                    partitionOffsets: invitation.partitionOffsets,
                     messages: new Array<Message>(),
                     unreadMessages: new Array<MessagePartOff>(),
                     users: new Array<User>(),
@@ -79,7 +81,12 @@ export class UserService {
                     emitter: new EventEmitter<ChatData>()  
                   }
                   this.addNewChat( cd ) 
+                  this.startListeningFromNewChat( cd.chat.chatId, cd.partitionOffsets )
                   this.dataFetched() 
+                  // $$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
+                  // $$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
+                  // tutaj -> to moze powodować problemy
+                  // tutaj powinniśmy jeszcze wysłać przez ws info, że mamy nowy czat ??? 
                   const u = this.updateJoiningOffset( invitation.myJoiningOffset )
                   if ( u ) {
                     const sub = u.subscribe({
@@ -92,18 +99,33 @@ export class UserService {
                       },
                       complete: () => {}
                     })
-                    sub.unsubscribe() 
+                    // sub.unsubscribe() 
                   }
                 }                
               }              
             },
             error: (err) => {
-              console.log(err) 
+              console.error('error in calling getChatData() in invitationSubscription', err) 
             },
             complete: () => {}
           })
+          //cSub.unsubscribe()
         }
-      }
+      }, 
+      (error) => {
+        console.error('Got errorn in invitation subscription', error)
+      },
+      () => {} // on complete
+    )
+
+    this.writingSubscription = this.connection.writingEmitter.subscribe(
+      (wrt: Writing) => {
+        console.log(wrt)
+      },
+      (error) => {
+        console.error('Got errorn in writing subscription', error)
+      },
+      () => {} // on complete
     )
 
 
@@ -171,7 +193,7 @@ export class UserService {
 
 
 
-  // method called when session expires
+  // method called when session expires or logout clicked
   clearService() {
     this.user = undefined;
     this.chats.clear()
@@ -180,6 +202,7 @@ export class UserService {
     if (this.logoutTimer) clearInterval(this.logoutTimer)
     if (this.messageSubscription) this.messageSubscription.unsubscribe()
     if (this.invitationSubscription) this.invitationSubscription.unsubscribe()
+    if (this.writingSubscription) this.writingSubscription.unsubscribe()
     this.logoutTimer = undefined
     this.logoutSeconds = this.settingsService.settings.sessionDuration / 1000
     console.log('UserService clearservice')
@@ -438,11 +461,11 @@ export class UserService {
     else return undefined;
   }
 
-
-  addUsersToChat(chatId: string, chatName: string, usersIds: string[]) {
+  
+  addUsersToChat(chatId: string, chatName: string, usersIds: string[], partitionOffsets: PartitionOffset[]) {
     if (this.user)  {
       this.updateSession()
-      return this.connection.addUsersToChat(this.user.userId, this.user.login, chatId, chatName, usersIds);
+      return this.connection.addUsersToChat(this.user.userId, this.user.login, chatId, chatName, usersIds, partitionOffsets);
     }    
     else return undefined;    
   }
@@ -496,8 +519,8 @@ export class UserService {
     this.connection.sendChatOffsetUpdate( update )
   }
 
-  startListeningFromNewChat(chatId: string) {
-    this.connection.startListeningFromNewChat( chatId )
+  startListeningFromNewChat(chatId: string, partitionOffsets: PartitionOffset[]) {
+    this.connection.startListeningFromNewChat( chatId , partitionOffsets)
   }
 
 

@@ -116,7 +116,7 @@ export class CreateChatComponent implements OnInit, OnDestroy {
                   emitter: new EventEmitter<ChatData>()
                 }
                 // sending to server information to listen messages from this chat.
-                this.userService.startListeningFromNewChat( chatData.chat.chatId )
+                this.userService.startListeningFromNewChat( chatData.chat.chatId, chatData.partitionOffsets )
                 this.userService.addNewChat( chatData ) 
                 // inform chat created
                 this.createMessage = 'Chat created, Redirecting to it.'    

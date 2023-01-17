@@ -27,6 +27,10 @@ export class MainComponent implements OnInit {
     że servis jest niedostępny i pozostać na stronie.      
   */
   constructor(private router: Router, private userService: UserService) {
+    here // tutaj jest tworzony userService
+    // przenieść go do RootComponent
+    // a w ngOnDestroy wywołać czyszczenie userService
+    // dzięki temu przy odświerzaniu nie będzie już żadnych niesubskrybowanych subscription
     
   }
 

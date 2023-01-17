@@ -245,7 +245,10 @@ export class EditChatSettingsComponent implements OnInit {
 
   addUsers() {
     if (this.chatData) {
-      const c = this.userService.addUsersToChat(this.chatData.chat.chatId, this.chatData.chat.chatName, this.selectedUsers.map(u => u.userId))
+      const c = this.userService.addUsersToChat(
+        this.chatData.chat.chatId, this.chatData.chat.chatName, 
+        this.selectedUsers.map(u => u.userId), this.chatData.partitionOffsets
+        )
       if ( c ) {
         c.subscribe({
           next: (response) => {

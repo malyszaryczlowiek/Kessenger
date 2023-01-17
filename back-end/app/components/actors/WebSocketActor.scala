@@ -1,12 +1,13 @@
 package components.actors
 
 
-import io.github.malyszaryczlowiek.kessengerlibrary.model.{ChatOffsetUpdate, Invitation, Message, UserOffsetUpdate, Writing}
+import io.github.malyszaryczlowiek.kessengerlibrary.model.{ChatOffsetUpdate, Invitation, Message}
 import io.github.malyszaryczlowiek.kessengerlibrary.model.Configuration.parseConfiguration
 import io.github.malyszaryczlowiek.kessengerlibrary.model.Message.parseMessage
 import io.github.malyszaryczlowiek.kessengerlibrary.model.ChatOffsetUpdate.parseChatOffsetUpdate
-// import io.github.malyszaryczlowiek.kessengerlibrary.model.Chat.parseNewChatId
+import io.github.malyszaryczlowiek.kessengerlibrary.model.ChatPartitionsOffsets.parseChatPartitionOffsets
 import io.github.malyszaryczlowiek.kessengerlibrary.model.Writing.parseWriting
+
 import util.BrokerExecutor
 import akka.actor._
 import akka.actor.PoisonPill
@@ -50,8 +51,7 @@ class WebSocketActor( out: ActorRef,
                   parseConfiguration(s) match {
                     case Left(_) =>
                       println(s"5. CANNOT PARSE CONFIGURATION")
-                      here // change method to ChatPartitionOffsets.parseChatPartitionOffsets()
-                      parseNewChatId(s) match {
+                      parseChatPartitionOffsets(s) match {
                         case Left(_) =>
                           println(s"6. CANNOT PARSE NewChatId")
                           if (s.equals("PoisonPill")) {
@@ -61,9 +61,9 @@ class WebSocketActor( out: ActorRef,
                           }
                           else
                             println(s"'$s' is different from PoisonPill.")
-                        case Right(chatId) =>
-                          println(s"6. GOT NEW_CHAT_ID: $chatId")
-                          this.be.addNewChat(chatId)
+                        case Right(chat) =>
+                          println(s"6. GOT NEW_CHAT_ID: $chat")
+                          this.be.addNewChat(chat)
                       }
                     case Right(conf) =>
                       println(s"5. GOT CONFIGURATION: $conf")

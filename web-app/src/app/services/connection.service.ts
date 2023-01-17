@@ -15,6 +15,7 @@ import { Chat } from '../models/Chat';
 import { MessagePartOff } from '../models/MesssagePartOff';
 import { Configuration } from '../models/Configuration';
 import { ChatOffsetUpdate } from '../models/ChatOffsetUpdate';
+import { PartitionOffset } from '../models/PartitionOffset';
 
 
 
@@ -278,6 +279,7 @@ export class ConnectionService {
 
 
 
+
   setChatSettings(userId: string, chat: Chat): Observable<HttpResponse<any>> | undefined {
     const token = this.session.getSessionToken()
     if ( token ) {
@@ -292,17 +294,15 @@ export class ConnectionService {
 
 
   
-  todo /* tutaj trzeba zmienić obiekt wysyłany tak aby wysyłał równiez informację
-     o offsecie od jakiego mają zacząć czytać
 
-  */
-  addUsersToChat(userId: string, login: string, chatId: string, chatName: string, userIds: string[]): Observable<HttpResponse<any>> | undefined {
+  addUsersToChat(userId: string, login: string, chatId: string, chatName: string, userIds: string[], pOffsets: PartitionOffset[]): Observable<HttpResponse<any>> | undefined {
     const token = this.session.getSessionToken()
     if ( token ) {
       const body = {
         invitersLogin: login,
         chatName: chatName,
-        users: userIds
+        users: userIds,
+        partitionOffsets: pOffsets
       }
       return this.http.post<any>(this.api + `/user/${userId}/chats/${chatId}/addNewUsers`, body, {
         headers: new HttpHeaders()
@@ -339,6 +339,7 @@ export class ConnectionService {
         const body = JSON.parse( msg.data )
         if ( body.conf )
           console.log('got config: ', body.conf )
+
         if ( body.msg ) {
           console.log('got message: ', body.msg )
           this.messageEmitter.emit( body.msg )
@@ -427,11 +428,12 @@ export class ConnectionService {
   }
 
   
-  startListeningFromNewChat(chatId: string) {
+  startListeningFromNewChat(chatId: string, partOffsets: PartitionOffset[]) {
     if (this.wsConnection) {
       console.log('sending offset update to server.');
       const body = {
-        chatId: chatId
+        chatId: chatId,
+        partitionOffset: partOffsets
       }
       this.wsConnection.send(JSON.stringify( body ));
     } else {

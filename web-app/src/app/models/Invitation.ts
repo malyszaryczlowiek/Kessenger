@@ -1,3 +1,5 @@
+import { PartitionOffset } from "./PartitionOffset";
+
 export interface Invitation {
     login: string;
     toUserId: string;
@@ -6,6 +8,6 @@ export interface Invitation {
     sendingTime: number;
     serverTime: number;
     myJoiningOffset: number;
-};
+    partitionOffsets: PartitionOffset[];
+}
 
-todo // dodać brakujące elementy modelu czyli nowo utworzone klasy

@@ -12,7 +12,7 @@ import io.github.malyszaryczlowiek.kessengerlibrary.domain.Domain
 import io.github.malyszaryczlowiek.kessengerlibrary.domain.Domain.{ChatId, Offset, UserID}
 import io.github.malyszaryczlowiek.kessengerlibrary.kafka.configurators.KafkaProductionConfigurator
 import io.github.malyszaryczlowiek.kessengerlibrary.kafka.errors.{ChatExistsError, KafkaError}
-import io.github.malyszaryczlowiek.kessengerlibrary.model.{Chat, Invitation, ResponseBody, Settings, User}
+import io.github.malyszaryczlowiek.kessengerlibrary.model.{Chat, Invitation, PartitionOffset, ResponseBody, Settings, User}
 import io.github.malyszaryczlowiek.kessengerlibrary.model.Settings.parseJSONtoSettings
 import io.github.malyszaryczlowiek.kessengerlibrary.model.Chat.parseJSONtoChat
 import io.github.malyszaryczlowiek.kessengerlibrary.model.User.toJSON
@@ -37,8 +37,9 @@ class KessengerController @Inject()
     val headersParser: HeadersParser,
     val databaseExecutionContext: DatabaseExecutionContext,
     val kafkaExecutionContext: KafkaExecutionContext,
+    val configurator: KafkaProductionConfigurator,
     implicit val system: ActorSystem,
-    // implicit val configurator: KafkaProductionConfigurator
+
     // val fc: FormsAndConstraint,
     // implicit val futures: Futures, // do async
     // implicit val ec: MyExecutionContext,
@@ -429,14 +430,10 @@ class KessengerController @Inject()
                         if ( t._1 && t._2  ) { // if chat created we can send it to user
                           val producer = ka.createInvitationProducer
                           users.foreach( userId => {
-
-                            here
-                            // todo
-                            //  tutaj chat offsets powinny być ustawione na 0L bo czat dopiero startuje
-
-
+                            val partitionOffsets = (0 until configurator.CHAT_TOPIC_PARTITIONS_NUMBER)
+                              .map(i => PartitionOffset(i, 0L)).toList
                             val i = Invitation(me.login, userId, chatName, createdChat.head._1.chatId,
-                              System.currentTimeMillis(), 0L, None)
+                              System.currentTimeMillis(), 0L, partitionOffsets, None)
                             val joiningTopic = Domain.generateJoinId( userId )
                             producer.send(new ProducerRecord[String, Invitation](joiningTopic, i))
                           })
@@ -677,29 +674,17 @@ class KessengerController @Inject()
       request.body.asJson.map(newChatUsers => {
         jsonParser.parseNewChatUsers(newChatUsers.toString()) match {
           case Left(_) => Future.successful(BadRequest("Error 018, JSON parsing error."))
-          case Right((inviters, chatName, users)) =>
+          case Right((inviters, chatName, users, partitionOffsets)) =>
             Future {
               db.withConnection { implicit connection =>
-
-                here
-                // todo
-                //  tutaj należy ustawić userom dodawanym do chat'u
-                //  aby w bazie danych miały zapisany najdalszy aktualny offset
-
-
-                dbExecutor.addNewUsersToChat(users, chatId, chatName) match {
+                dbExecutor.addNewUsersToChat(users, chatId, chatName, partitionOffsets) match {
                   case Left(queryError) => InternalServerError(s"Error 019. ${queryError.description.toString()}")
                   case Right(value)     =>
                     val ka = new KessengerAdmin(new KafkaProductionConfigurator)
                     val producer = ka.createInvitationProducer
                     users.foreach( userId2 => {
-
-                      here
-                      // TODO
-                      //  tutaj invitation musi zawierać informacje o offsecie użytkownika, który dodaje tych użytkowników.
-
                       val i = Invitation(inviters, userId2, chatName, chatId,
-                        System.currentTimeMillis(), 0L, None)
+                        System.currentTimeMillis(), 0L, partitionOffsets, None)
                       val joiningTopic = Domain.generateJoinId(userId)
                       producer.send(new ProducerRecord[String, Invitation](joiningTopic, i))
                     })
