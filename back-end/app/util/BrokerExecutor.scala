@@ -1,6 +1,6 @@
 package util
 
-import akka.actor.ActorRef
+import akka.actor.{ActorRef, PoisonPill}
 import components.db.DbExecutor
 import io.github.malyszaryczlowiek.kessengerlibrary.domain.Domain
 import io.github.malyszaryczlowiek.kessengerlibrary.domain.Domain.ChatId
@@ -17,9 +17,13 @@ import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.jdk.javaapi.CollectionConverters
 import scala.util.{Failure, Success, Try, Using}
 
-class BrokerExecutor(private var conf: Option[Configuration], private val out: ActorRef, private val db: Database, private val env: KafkaConfigurator, private val ec: ExecutionContext) { // (implicit s: String)
+class BrokerExecutor( private val out: ActorRef, private val db: Database, private val env: KafkaConfigurator, private val ec: ExecutionContext) { // (implicit s: String)
 
   private val ka: KessengerAdmin = new KessengerAdmin(env)
+
+  private var conf: Option[Configuration] = None
+
+  private var selfReference: Option[ActorRef] = None
 
   private val continueReading: AtomicBoolean = new AtomicBoolean(true)
 
@@ -27,26 +31,32 @@ class BrokerExecutor(private var conf: Option[Configuration], private val out: A
 
   private val writingProducer: KafkaProducer[String, Writing] = ka.createWritingProducer
 
-  private val newChats:         collection.concurrent.TrieMap[ChatId, List[PartitionOffset]] = collection.concurrent.TrieMap.empty
-  private val readingFromChats: collection.concurrent.TrieMap[ChatId, List[PartitionOffset]] = collection.concurrent.TrieMap.empty
+  private val newChats:        collection.concurrent.TrieMap[ChatId, List[PartitionOffset]] = collection.concurrent.TrieMap.empty
+  private val chats:           collection.concurrent.TrieMap[ChatId, List[PartitionOffset]] = collection.concurrent.TrieMap.empty
 
   private var listener: Option[Future[Any]] = None
 
+  /*
+  TODO
+    1. napisać mechanizm zamykania actora podobny do tego dla consumerów ale dla PRODUCENTÓW ??? Czy aby warto ???
+    2. napisać mechanizm przypisywania czatów consumerom (wraz z uwzględnianiem tego aby zczytał ostatnie 20 wiadomości)
+    3. następnie napisać mechanizm odczytywania wcześniejszych wiadomości
+       i powrotu do ostatnio czytanych offsetów tak aby z powrotem móc zczytywać bierzące wiadomości.
+    4. Napisać we front-endzie mechanizm stopowania prób uruchomienia reconnectWSTimer
+
+
+
+
+
+  TODO
+   zmienić tak aby pobierał po 10 ostatnich wiadomości
+
+   */
 
   def initialize(conf: Configuration): Unit = {
     this.conf = Option(conf)
     this.conf match {
       case Some( c ) =>
-        // create joining topic to listen invitation from other users
-//        if (conf.joiningOffset == -1L) {
-//          this.ka.createInvitationTopic(conf.me.userId) match {
-//            case Left(ke) =>
-//              out ! ResponseBody(222, s"Kafka Error: ${ke.description} Cannot create joiningTopic. ").toString
-//            case Right(_) =>
-//              this.conf = Option(conf.copy(joiningOffset = 0L))
-//              out ! ResponseBody(0, "Joining topic created.").toString
-//          }
-//        }
         println(s"inicjalizacja konfiguracji powiodła się.")
 
         this.listener = Option(
@@ -70,15 +80,10 @@ class BrokerExecutor(private var conf: Option[Configuration], private val out: A
                         // assign this toopic to kafka consumer
                         invitationConsumer.assign(java.util.List.of(myJoinTopic))
 
-                        // this may throw IllegalArgumentException if joining topic exists,
-                        // but in db we do not have updated offset
-                        // and inserted value of joinOffset (taken from db) is -1.
-
                         // and assign offset for that topic partition
                         invitationConsumer.seek(myJoinTopic, conf.joiningOffset)
                         println(s"przypisałem invitation consumerowi topic i offset")
 
-                        // TODO zmienić tak aby pobierał po 10 ostatnich wiadomości
 
                         var hasChats = conf.chats.nonEmpty
 
@@ -175,7 +180,6 @@ class BrokerExecutor(private var conf: Option[Configuration], private val out: A
                               (r: ConsumerRecord[String, Writing]) => out ! Writing.toWebsocketJSON(r.value())
                             )
                           } // end of if
-
                         } // end of while loop
                         println(s"koniec Using(writingConsumer)")
                       }
@@ -186,6 +190,20 @@ class BrokerExecutor(private var conf: Option[Configuration], private val out: A
                 println(s"koniec Using(joiningConsumer)")
               }
             }
+            if ( this.continueReading.get() ) {
+              // TODO if we should continue reading but something goes wrong (lost connection to kafka etc)
+              //  we should inform user and close actor
+              //  if user got this special message should not start trying to reconnect
+              //  because
+              here // zmienić na obiekt JSON
+              out ! ("Kafka connection lost. Try refresh page in a few minutes.")
+              Thread.sleep(250)
+              this.selfReference match {
+                case Some(self) => self ! PoisonPill // switch off Actor
+                case None => // do nothing
+              }
+            }
+
           }(ec)
         )
         out ! ("{\"comm\":\"opened correctly\"}")
@@ -194,7 +212,9 @@ class BrokerExecutor(private var conf: Option[Configuration], private val out: A
     }
   }
 
+  def initializeChatConsumers(): Unit = {
 
+  }
 
 
   def clearBroker(): Unit = {
@@ -245,6 +265,7 @@ class BrokerExecutor(private var conf: Option[Configuration], private val out: A
 
 
   def updateChatOffset(u: ChatOffsetUpdate): Unit = {
+    here // tutaj trzeba jeszcze uwzględnić aby zmiany były tez wprowadzone w MAP chat.
     Future {
       val dbExecutor = new DbExecutor(new KafkaProductionConfigurator)
       db.withConnection( implicit connection => {
@@ -252,6 +273,10 @@ class BrokerExecutor(private var conf: Option[Configuration], private val out: A
       })
     }(ec)
   }
+
+  def setSelfReference(self: ActorRef): Unit = this.selfReference = Option(self)
+
+
 
 
 

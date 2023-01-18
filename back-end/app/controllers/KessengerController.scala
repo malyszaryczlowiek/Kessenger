@@ -727,7 +727,7 @@ class KessengerController @Inject()
                       Right(
                         ActorFlow.actorRef { out =>
                           println(s"wszedłem w ActorFlow.")
-                          val brokerExecutor = new BrokerExecutor(None, out, db, new KafkaProductionConfigurator, kafkaExecutionContext)
+                          val brokerExecutor = new BrokerExecutor( out, db, new KafkaProductionConfigurator, kafkaExecutionContext)
                           WebSocketActor.props(out, brokerExecutor)
                         }
                       )

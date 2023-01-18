@@ -13,22 +13,24 @@ import akka.actor._
 import akka.actor.PoisonPill
 
 import java.util.UUID
-import scala.collection.mutable.ListBuffer
+import java.util.concurrent.atomic.AtomicInteger
 
 object WebSocketActor {
   def props(out: ActorRef, be: BrokerExecutor): Props =
     Props(new WebSocketActor(out, be))
 }
 
-class WebSocketActor( out: ActorRef,
-                      be: BrokerExecutor,
-                      messageBuffer: ListBuffer[Message] = ListBuffer.empty[Message],
-                      invitationBuffer: ListBuffer[Invitation] = ListBuffer.empty[Invitation]
-                    ) extends Actor {
+class WebSocketActor( out: ActorRef, be: BrokerExecutor ) extends Actor {
 
 
 
   private val actorId = UUID.randomUUID()
+
+
+  /*
+  We can switch off actor only when num of actor listeners decreases to zero
+   */
+  // private val numOfListeners = new AtomicInteger(0)
 
 
   override def postStop(): Unit = {
@@ -56,7 +58,6 @@ class WebSocketActor( out: ActorRef,
                           println(s"6. CANNOT PARSE NewChatId")
                           if (s.equals("PoisonPill")) {
                             println(s"7. GOT PoisonPill '$s'")
-                            // out ! ("4. Wyłączam czat.")
                             self ! PoisonPill
                           }
                           else
@@ -83,13 +84,15 @@ class WebSocketActor( out: ActorRef,
       }
 
     case _ =>
-      println(s". Nieczytelna wiadomość. ")
-      out ! (". Dostałem nieczytelną wiadomość.")
+      println(s". Unreadable message. ")
+      out ! ("Got Unreadable message")
       self ! PoisonPill
 
   }
 
-  println(s"0. Włączam aktora")
+  this.be.setSelfReference( self )
+
+  println(s"0. Actor started")
 
 }
 
