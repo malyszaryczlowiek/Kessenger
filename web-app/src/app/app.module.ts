@@ -33,6 +33,7 @@ import { SelectChatComponent } from './components/user/chat/select-chat/select-c
 import { SessionTimeoutComponent } from './components/session-timeout/session-timeout.component';
 import { TestComponent } from './components/dummy/test/test.component';
 import { ChatComponent } from './components/user/chat/chat/chat.component';
+import { RootComponent } from './components/root/root.component';
 
 @NgModule({
   declarations: [
@@ -62,7 +63,8 @@ import { ChatComponent } from './components/user/chat/chat/chat.component';
     SelectChatComponent,
     SessionTimeoutComponent,
     TestComponent,
-    ChatComponent
+    ChatComponent,
+    RootComponent
   ],
   imports: [
     BrowserModule,

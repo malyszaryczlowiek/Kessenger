@@ -27,9 +27,16 @@ export class ConnectionService {
   
   private wsConnection:     WebSocket      | undefined
   private wsPingSender:     NodeJS.Timeout | undefined
+  
+  private reconnectWS = true
+  
+
+
   public messageEmitter:    EventEmitter<MessagePartOff>    = new EventEmitter<MessagePartOff>()
   public invitationEmitter: EventEmitter<Invitation>        = new EventEmitter<Invitation>()
   public writingEmitter:    EventEmitter<Writing>           = new EventEmitter<Writing>()
+
+  public restartWSEmitter:  EventEmitter<boolean>           = new EventEmitter<boolean>()
 
 
   constructor(private http: HttpClient, 
@@ -41,6 +48,8 @@ export class ConnectionService {
     this.messageEmitter.unsubscribe()
     this.invitationEmitter.unsubscribe()
     this.writingEmitter.unsubscribe()
+    this.restartWSEmitter.unsubscribe()
+    this.reconnectWS = false
     this.session.invalidateSession()
     this.sendPoisonPill()
     this.wsConnection?.close()
@@ -123,7 +132,7 @@ export class ConnectionService {
 
 
   // tuaj teraz naprawiać
-  
+
   updateJoiningOffset(userId: string, newJoiningOffset: number): Observable<HttpResponse<any>> | undefined {
     const token = this.session.getSessionToken()
     if ( token ) {
@@ -335,6 +344,8 @@ export class ConnectionService {
         //w konfiguracji należy przesłać również informacje o sesji ???
         //tak aby server był w stanie sprawdzić czy user ma ważną sesję
 
+        this.reconnectWS = true
+        this.restartWSEmitter.emit( false )
       };
       this.wsConnection.onmessage = (msg: any) => {
         const body = JSON.parse( msg.data )
@@ -367,6 +378,7 @@ export class ConnectionService {
           clearInterval( this.wsPingSender )
           this.wsPingSender = undefined
         }
+        if ( this.reconnectWS ) this.restartWSEmitter.emit( this.reconnectWS )
       };
       this.wsConnection.onerror = (error) => {
         console.error('error from web socket connection', error)
@@ -452,6 +464,7 @@ export class ConnectionService {
 
   closeWebSocket() {
     if (this.wsConnection) {
+      this.reconnectWS = false
       console.log('sending PoisonPill to server.');
       this.wsConnection.send('PoisonPill')
       //this.sendPoisonPill()

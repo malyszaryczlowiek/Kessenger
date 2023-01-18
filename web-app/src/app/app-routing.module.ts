@@ -9,6 +9,7 @@ import { TestComponent } from './components/dummy/test/test.component';
 import { WebsocketComponent } from './components/dummy/websocket/websocket.component';
 import { MainComponent } from './components/main/main/main.component';
 import { PagenotfoundComponent } from './components/pagenotfound/pagenotfound.component';
+import { RootComponent } from './components/root/root.component';
 import { SessionTimeoutComponent } from './components/session-timeout/session-timeout.component';
 import { ChatPanelComponent } from './components/user/chat/chat-panel/chat-panel.component';
 import { ChatComponent } from './components/user/chat/chat/chat.component';
@@ -25,39 +26,44 @@ const firstComponentChildRoutes: Routes = [
 
 
 const routes: Routes = [
-  {path: '', component: MainComponent},
-  {
-    path: 'user', 
-    component: UserComponent,
+  { path: '', 
+    component: RootComponent,
     children: [
-      {path: '', 
-      component: ChatComponent,
-      children: [
-        {path: '', component: SelectChatComponent},
-        {path: 'chat/:chatId', component: ChatPanelComponent},
-        {path: 'editChat/:chatId', component: EditChatSettingsComponent}
+      {path: '', component: MainComponent},
+      {
+        path: 'user', 
+        component: UserComponent,
+        children: [
+          {path: '', 
+          component: ChatComponent,
+          children: [
+            {path: '', component: SelectChatComponent},
+            {path: 'chat/:chatId', component: ChatPanelComponent},
+            {path: 'editChat/:chatId', component: EditChatSettingsComponent}
+            ]
+          },
+          {path: 'settings',   component: EditAccountComponent},
+          {path: 'createChat', component: CreateChatComponent}
         ]
       },
-      {path: 'settings',   component: EditAccountComponent},
-      {path: 'createChat', component: CreateChatComponent}
+      {path: 'session-timeout', component: SessionTimeoutComponent},
+      {path: 'test', component: TestComponent},
+      {path: '**', component: PagenotfoundComponent},
+
+
+
+
+
+      {path: 'first-component', component: FirstComponent },
+      { 
+        path: 'second-component', 
+        component: SecondComponent ,
+        children: firstComponentChildRoutes
+      },
+      {path: 'websocket-component', component: WebsocketComponent },
+      {path: '**', component: PagenotfoundComponent},
     ]
-  },
-  {path: 'session-timeout', component: SessionTimeoutComponent},
-  {path: 'test', component: TestComponent},
-  {path: '**', component: PagenotfoundComponent},
-
-
-
-
-
-  {path: 'first-component', component: FirstComponent },
-  { 
-    path: 'second-component', 
-    component: SecondComponent ,
-    children: firstComponentChildRoutes
-  },
-  {path: 'websocket-component', component: WebsocketComponent },
-  {path: '**', component: PagenotfoundComponent},
+  }
 ];
 
 

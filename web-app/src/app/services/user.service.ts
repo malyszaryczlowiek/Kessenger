@@ -27,6 +27,8 @@ export class UserService {
   user: User | undefined;
   userFetched = false
   chatFetched = false
+  
+  
 
   fetchingUserDataFinishedEmmiter = new EventEmitter<boolean>() // called during page reload
 
@@ -36,15 +38,21 @@ export class UserService {
   logoutSecondsEmitter: EventEmitter<number> = new EventEmitter()
 
   selectedChatEmitter: EventEmitter<ChatData> = new EventEmitter<ChatData>()
-  messageSubscription: Subscription | undefined
+
+  messageSubscription:    Subscription | undefined
   invitationSubscription: Subscription | undefined
-  writingSubscription:  Subscription | undefined
+  writingSubscription:    Subscription | undefined
+
+  restartWSSubscription:  Subscription | undefined
+  reconnectWSTimer:     NodeJS.Timeout | undefined
 
 
   constructor(private connection: ConnectionService, 
     private chats: ChatsDataService,
     private settingsService: UserSettingsService, 
     private router: Router) { 
+    
+    
     console.log('UserService constructor called.')
     
 
@@ -129,6 +137,26 @@ export class UserService {
       () => {} // on complete
     )
 
+    this.restartWSSubscription = this.connection.restartWSEmitter.subscribe(
+      (r: boolean) => {
+        // if we get true we need to start timer end trying to reconnect
+        if ( r ) {
+          if ( ! this.reconnectWSTimer ) {
+            console.log('initializing reconnectWSTimer. ')
+            this.reconnectWSTimer = setInterval( () => {
+              console.log('inside reconnectWSTimer trying to reconnect WS. ')
+              this.connectViaWebsocket()
+            }, 10000) // we try reconnect every 10s
+          }          
+        } else {
+          // if we get false this means that we need to stop timer,
+          // because we connected, 
+          // or we disconnected and we do not need to reconnect
+          if ( this.reconnectWSTimer ) clearInterval( this.reconnectWSTimer )
+        }
+      }
+    )
+
 
     // fetching user data from server
     const userId = this.connection.getUserId();
@@ -200,6 +228,8 @@ export class UserService {
     this.user = undefined;
     this.chats.clear()
     this.settingsService.clearSettings();
+    if (this.restartWSSubscription) this.restartWSSubscription.unsubscribe()
+    if (this.reconnectWSTimer) clearInterval(this.reconnectWSTimer) 
     this.connection.disconnect();
     if (this.logoutTimer) clearInterval(this.logoutTimer)
     if (this.messageSubscription) this.messageSubscription.unsubscribe()
