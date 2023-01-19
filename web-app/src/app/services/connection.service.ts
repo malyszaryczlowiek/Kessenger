@@ -352,6 +352,14 @@ export class ConnectionService {
         if ( body.conf )
           console.log('got config: ', body.conf )
 
+        here // dodać if (body.msgList)   
+        // tak aby odbierać za jednym razem pakiet wiadomości tak jak np przy fetchowaniu wstecznym
+        oraz // należy jeszcze w interfejsie Message dodać partitionOffset,
+             // który będzie identyfikatorem wiadomości 
+        if ( body.msgList ) {
+          console.log('got list of message: ', body.msgList )
+          this.messageListEmitter.emit( body.msgList )
+        }
         if ( body.msg ) {
           console.log('got message: ', body.msg )
           this.messageEmitter.emit( body.msg )
@@ -368,8 +376,13 @@ export class ConnectionService {
           console.log('WS connection opend correctly.')
           this.startPingSender()
         }
-        else 
+        if (body.num && body.message) {
+          console.log('got ResponseBody()' + body.message )
+          if (body.num) this.reconnectWS = false
+        }
+        else {
           console.log('got other message: ', body)
+        }          
       }
       this.wsConnection.onclose = () => {
         console.log('WebSocket connection closed.');
