@@ -12,7 +12,7 @@ import { UserSettingsService } from './user-settings.service';
 import { Invitation } from '../models/Invitation';
 import { Chat } from '../models/Chat';
 import { ChatsDataService } from './chats-data.service';
-import { MessagePartOff } from '../models/MesssagePartOff';
+// import { MessagePartOff } from '../models/MesssagePartOff';
 import { Configuration } from '../models/Configuration';
 import { ChatOffsetUpdate } from '../models/ChatOffsetUpdate';
 import { Writing } from '../models/Writing';
@@ -37,14 +37,15 @@ export class UserService {
   logoutSeconds: number = this.settingsService.settings.sessionDuration / 1000    // number of seconds to logout
   logoutSecondsEmitter: EventEmitter<number> = new EventEmitter()
 
-  selectedChatEmitter: EventEmitter<ChatData> = new EventEmitter<ChatData>()
+  selectedChatEmitter:  EventEmitter<ChatData> = new EventEmitter<ChatData>()
 
-  messageSubscription:    Subscription | undefined
-  invitationSubscription: Subscription | undefined
-  writingSubscription:    Subscription | undefined
+  newMessagesSubscription: Subscription | undefined
+  oldMessagesSubscription: Subscription | undefined
+  invitationSubscription:  Subscription | undefined
+  writingSubscription:     Subscription | undefined
 
-  restartWSSubscription:  Subscription | undefined
-  reconnectWSTimer:     NodeJS.Timeout | undefined
+  restartWSSubscription:   Subscription | undefined
+  reconnectWSTimer:      NodeJS.Timeout | undefined
 
 
   constructor(private connection: ConnectionService, 
@@ -56,10 +57,10 @@ export class UserService {
     console.log('UserService constructor called.')
     
 
-    this.messageSubscription = this.connection.messageEmitter.subscribe(
-      (message: MessagePartOff) => {
-        console.log(`message from emitter: ${message}`)
-        this.chats.insertMessage( message )
+    this.newMessagesSubscription = this.connection.newMessagesEmitter.subscribe(
+      (messageList: Message[]) => {
+        console.log(`messages from emitter: ${messageList}`)
+        this.chats.insertNewMessages( messageList ) // this may has messages from different chats
         this.dataFetched() 
       },
       (error) => {
@@ -68,6 +69,21 @@ export class UserService {
       },
       () => console.log('on message emitter completed.')
     )
+
+    this.oldMessagesSubscription = this.connection.oldMessagesEmitter.subscribe(
+      (messageList: Message[]) => {
+        console.log(`messages from emitter: ${messageList}`)
+        this.chats.insertOldMessages( messageList ) // this may has messages from different chats
+        // this.dataFetched()  
+      },
+      (error) => {
+        console.log('Error in message emitter: ', error)
+        console.log(error)
+      },
+      () => console.log('on message emitter completed.')
+    ) // tutaj podobnie jak wyżej. 
+    // tutaj wiadomości są zawsze z jednego chatu z którego feczujemy
+    // insertOldMessages()
 
 
     this.invitationSubscription = this.connection.invitationEmitter.subscribe(
@@ -84,7 +100,7 @@ export class UserService {
                     chat: body.chat,
                     partitionOffsets: invitation.partitionOffsets,
                     messages: new Array<Message>(),
-                    unreadMessages: new Array<MessagePartOff>(),
+                    unreadMessages: new Array<Message>(),
                     users: new Array<User>(),
                     isNew: true,
                     emitter: new EventEmitter<ChatData>()  
@@ -232,9 +248,10 @@ export class UserService {
     if (this.reconnectWSTimer) clearInterval(this.reconnectWSTimer) 
     this.connection.disconnect();
     if (this.logoutTimer) clearInterval(this.logoutTimer)
-    if (this.messageSubscription) this.messageSubscription.unsubscribe()
-    if (this.invitationSubscription) this.invitationSubscription.unsubscribe()
-    if (this.writingSubscription) this.writingSubscription.unsubscribe()
+    if (this.newMessagesSubscription) this.newMessagesSubscription.unsubscribe()
+    if (this.oldMessagesSubscription) this.oldMessagesSubscription.unsubscribe()
+    if (this.invitationSubscription)  this.invitationSubscription.unsubscribe()
+    if (this.writingSubscription)     this.writingSubscription.unsubscribe()
     this.logoutTimer = undefined
     this.logoutSeconds = this.settingsService.settings.sessionDuration / 1000
     console.log('UserService clearservice')

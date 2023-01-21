@@ -827,24 +827,19 @@ class DbExecutor(val kafkaConfigurator: KafkaConfigurator) {
 
 
 
-  def updateChatOffsetAndMessageTime(userId: UserID, chatId: ChatId, lastMessageTime: Long, sortedOffsets: => Seq[(Int, Long)])(implicit connection: Connection): DbResponse[Int] = {
+  def updateChatOffsetAndMessageTime(userId: UserID, chatId: ChatId, lastMessageTime: Long, partitionOffsets: List[PartitionOffset])(implicit connection: Connection): DbResponse[Int] = {
     val prefix = "UPDATE users_chats SET "
-    val offsets = sortedOffsets.foldLeft[String]("")(
-      (folded: String, partitionAndOffset: (Int, Long)) =>
-        s"${folded}users_offset_${partitionAndOffset._1} = ?, "
+    val offsets = partitionOffsets.foldLeft[String]("")(
+      (folded: String, po: PartitionOffset) =>
+        s"${folded}users_offset_${po.partition} = ?, "
     ).stripTrailing()
     val postfix = " message_time = ? WHERE chat_id = ? AND user_id = ? "
 
     val sql = s"$prefix$offsets$postfix"
     Using(connection.prepareStatement(sql)) {
       (statement: PreparedStatement) =>
-        val numOfPartitions = sortedOffsets.size
-        sortedOffsets.foreach(
-          (partitionAndOffset: (Int, Long)) => {
-            val (partitionNum, offset): (Int, Long) = partitionAndOffset
-            statement.setLong(partitionNum + 1, offset)
-          }
-        )
+        val numOfPartitions = partitionOffsets.size
+        partitionOffsets.foreach( po => statement.setLong( po.partition + 1, po.offset) )
         statement.setLong(   numOfPartitions + 1, lastMessageTime)
         statement.setString( numOfPartitions + 2, chatId)
         statement.setObject( numOfPartitions + 3, userId)

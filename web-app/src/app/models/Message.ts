@@ -1,3 +1,5 @@
+import { PartitionOffset } from "./PartitionOffset";
+
 export interface Message {
     content: string;
     authorId: string;
@@ -8,4 +10,5 @@ export interface Message {
     chatId: string;
     chatName: string;
     groupChat: boolean;    
+    partOff: PartitionOffset;
 }

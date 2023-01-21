@@ -5,12 +5,13 @@ import io.github.malyszaryczlowiek.kessengerlibrary.model.{ChatOffsetUpdate, Inv
 import io.github.malyszaryczlowiek.kessengerlibrary.model.Configuration.parseConfiguration
 import io.github.malyszaryczlowiek.kessengerlibrary.model.Message.parseMessage
 import io.github.malyszaryczlowiek.kessengerlibrary.model.ChatOffsetUpdate.parseChatOffsetUpdate
+import io.github.malyszaryczlowiek.kessengerlibrary.model.FetchMessagesFrom.parseFetchingOlderMessagesRequest
 import io.github.malyszaryczlowiek.kessengerlibrary.model.ChatPartitionsOffsets.parseChatPartitionOffsets
 import io.github.malyszaryczlowiek.kessengerlibrary.model.Writing.parseWriting
-
 import util.BrokerExecutor
 import akka.actor._
 import akka.actor.PoisonPill
+
 
 import java.util.UUID
 import java.util.concurrent.atomic.AtomicInteger
@@ -50,25 +51,32 @@ class WebSocketActor( out: ActorRef, be: BrokerExecutor ) extends Actor {
               parseChatOffsetUpdate(s) match {
                 case Left(_) =>
                   println(s"4. CANNOT PARSE CHAT_OFFSET_UPDATE")
-                  parseConfiguration(s) match {
+                  parseFetchingOlderMessagesRequest(s) match {
                     case Left(_) =>
-                      println(s"5. CANNOT PARSE CONFIGURATION")
-                      parseChatPartitionOffsets(s) match {
+                      println(s"44444. CANNOT PARSE FetchingOlderMessages")
+                      parseConfiguration(s) match {
                         case Left(_) =>
-                          println(s"6. CANNOT PARSE NewChatId")
-                          if (s.equals("PoisonPill")) {
-                            println(s"7. GOT PoisonPill '$s'")
-                            self ! PoisonPill
+                          println(s"5. CANNOT PARSE CONFIGURATION")
+                          parseChatPartitionOffsets(s) match {
+                            case Left(_) =>
+                              println(s"6. CANNOT PARSE NewChatId")
+                              if (s.equals("PoisonPill")) {
+                                println(s"7. GOT PoisonPill '$s'")
+                                self ! PoisonPill
+                              }
+                              else
+                                println(s"'$s' is different from PoisonPill.")
+                            case Right(chat) =>
+                              println(s"6. GOT NEW_CHAT_ID: $chat")
+                              this.be.addNewChat(chat)
                           }
-                          else
-                            println(s"'$s' is different from PoisonPill.")
-                        case Right(chat) =>
-                          println(s"6. GOT NEW_CHAT_ID: $chat")
-                          this.be.addNewChat(chat)
+                        case Right(conf) =>
+                          println(s"5. GOT CONFIGURATION: $conf")
+                          this.be.initialize(conf)
                       }
-                    case Right(conf) =>
-                      println(s"5. GOT CONFIGURATION: $conf")
-                      this.be.initialize(conf)
+                    case Right( c ) =>
+                      println(s"GOT FetchingREQUEST FROM: $c.chatId")
+                      this.be.fetchOlderMessages( c.chatId )
                   }
                 case Right(update: ChatOffsetUpdate) =>
                   println(s"3. GOT CHAT_OFFSET_UPDATE: $update")
@@ -95,7 +103,6 @@ class WebSocketActor( out: ActorRef, be: BrokerExecutor ) extends Actor {
   println(s"0. Actor started")
 
 }
-
 
 
 

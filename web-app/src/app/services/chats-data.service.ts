@@ -1,7 +1,6 @@
 import { EventEmitter, Injectable } from '@angular/core';
 import { ChatData } from '../models/ChatData';
 import { Message } from '../models/Message';
-import { MessagePartOff } from '../models/MesssagePartOff';
 import { User } from '../models/User';
 
 @Injectable({
@@ -20,7 +19,7 @@ export class ChatsDataService {
       (cd) => {
         cd.users =  new Array<User>()
         cd.messages = new Array<Message>()
-        cd.unreadMessages = new Array<MessagePartOff>()
+        cd.unreadMessages = new Array<Message>()
         cd.emitter = new EventEmitter<ChatData>()
         return cd
       }
@@ -49,12 +48,12 @@ export class ChatsDataService {
       if ( chat.unreadMessages.length > 0 ) {
         chat.unreadMessages.forEach(
           (m, i, arr) => {
-            chat.messages.push( m.msg )
-            if (m.msg.serverTime > chat.chat.lastMessageTime) chat.chat.lastMessageTime = m.msg.serverTime
+            chat.messages.push( m )
+            if (m.serverTime > chat.chat.lastMessageTime) chat.chat.lastMessageTime = m.serverTime
             chat.partitionOffsets = chat.partitionOffsets.map(
               (po, i, arr) => {
-                if (po.partition == m.p && po.offset < m.o){ 
-                  po.offset = m.o
+                if (po.partition == m.partOff.partition && po.offset < m.partOff.offset){ 
+                  po.offset = m.partOff.offset
                   return po
                 } else  {
                   return po
@@ -71,11 +70,12 @@ export class ChatsDataService {
     }
   }
 
-
-  insertMessage(m: MessagePartOff) {
+  
+  insertNewMessages(m: Message[]) {
+    here // zaimplementować to poprawnie. 
     const found = this.chatAndUsers.find(
       (cd, i , arr) => {
-        return cd.chat.chatId == m.msg.chatId
+        return cd.chat.chatId == m.chatId
       }
     )
     if ( found ) {
@@ -100,6 +100,13 @@ export class ChatsDataService {
         this.changeChat( found )
       }
     }  
+  }
+
+
+  insertOldMessages(m: Message[]) {
+    here // nie fetchujemy wszystkiego bo bezsensu przeładowywać całość
+    // tylko użyję wewnętrzengo emitera z ChatData i jego zasubskrybuje w 
+    // chat componenecie czy gdzie tam będzie pasować. 
   }
     
     
@@ -213,7 +220,7 @@ export class ChatsDataService {
     else {
       c1.unreadMessages.forEach(
         (m,i,a) => {
-          if (m.msg.serverTime > data1) data1 = m.msg.serverTime
+          if (m.serverTime > data1) data1 = m.serverTime
         }
       )
     }
@@ -222,7 +229,7 @@ export class ChatsDataService {
     else {
       c2.unreadMessages.forEach(
         (m,i,a) => {
-          if (m.msg.serverTime > data1) data2 = m.msg.serverTime
+          if (m.serverTime > data1) data2 = m.serverTime
         }
       )
     }
