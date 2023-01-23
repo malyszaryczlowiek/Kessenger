@@ -45,6 +45,7 @@ export class ChatsDataService {
     )
     if ( chat ) {
       chat.isNew = false
+      this.selectedChat = chatId 
       if ( chat.unreadMessages.length > 0 ) {
         chat.unreadMessages.forEach(
           (m, i, arr) => {
@@ -62,107 +63,71 @@ export class ChatsDataService {
             )
           }
         )
-        chat.messages.sort((a,b) => a.serverTime - b.serverTime )
+        chat.unreadMessages = new Array<Message>()
+        chat.messages = chat.messages.sort((a,b) => a.serverTime - b.serverTime )
         this.changeChat( chat )
       } 
-      // w każdym miejscu w którym opuszczamy chat należy wywołać 
-      // this.userService.selectChat( undefined )
+    } else {
+      // this.selectedChat = undefined
     }
   }
 
-  
+
+
   insertNewMessages(m: Message[]) {
-    here // zaimplementować to poprawnie. 
-    const found = this.chatAndUsers.find(
-      (cd, i , arr) => {
-        return cd.chat.chatId == m.chatId
-      }
-    )
-    if ( found ) {
-      if (m.msg.chatId == this.selectedChat) {
-        found.messages.push(m.msg)
-        found.partitionOffsets = found.partitionOffsets.map(
-          (po, i, arr) => {
-            if (po.partition == m.p && po.offset < m.o){ 
-              po.offset = m.o
-              return po
-            } else  {
-              return po
+    m.forEach((mm,i,arr) => {
+      const foundCD = this.chatAndUsers.find((cd, i, arr) => {
+        return cd.chat.chatId == mm.chatId
+      })
+      if ( foundCD ) {
+        if ( foundCD.chat.chatId == this.selectedChat) {
+          foundCD.messages.push( mm )
+          foundCD.messages = foundCD.messages.sort((a,b) => a.serverTime - b.serverTime )
+          foundCD.partitionOffsets = foundCD.partitionOffsets.map(
+            (po, i, arr) => {
+              if (po.partition == mm.partOff.partition && po.offset < mm.partOff.offset){ 
+                po.offset = mm.partOff.offset
+                return po
+              } else  {
+                return po
+              }
             }
-          }
-        )
-        found.chat.lastMessageTime = m.msg.serverTime
-        found.messages.sort((a,b) => a.serverTime - b.serverTime )
-        this.changeChat( found )
-      } else {
-        found.unreadMessages.push( m )
-        found.chat.lastMessageTime = m.msg.serverTime
-        this.changeChat( found )
+          )
+        } else {
+          foundCD.unreadMessages.push( mm )
+        }
+        if (foundCD.chat.lastMessageTime < mm.serverTime) foundCD.chat.lastMessageTime = mm.serverTime
+        this.changeChat( foundCD )
       }
-    }  
+    })
   }
+
+    // gdzieś trzeba jeszcze wysłać powiadomienia przez websocket,
+    // że w danym chatcie po odczytaniu wiadomości mamy nowy offset 
+    // od którego będzie przy następnym pobiernaiu wiadomości zacząć. 
+
+
+
 
 
   insertOldMessages(m: Message[]) {
-    here // nie fetchujemy wszystkiego bo bezsensu przeładowywać całość
-    // tylko użyję wewnętrzengo emitera z ChatData i jego zasubskrybuje w 
-    // chat componenecie czy gdzie tam będzie pasować. 
-  }
-    
-    
-    /*
-          i w subskrybencie zrobić tak, że jeśli offset jest mniejszy 
-          niż ten zapisany w  chatdata to należy zapisać wiadomość do readMessages
-          natomiast jeśli nie większy to należy zpaisac zarówno wiadomość jak i offset 
-          do unreadmessages.
-
-          Następnie jak będziemy wchodzić w chat panel to przy ładowaniu componentu
-          sprawdzamy czy ma jakieś unread, jeśli ma to aktualizujemy partitionoffsets 
-          i dodajemy wiadomości do przeczytanych. 
-
-          W przypadku gdy jest to czat otwarty w którym jesteśmy to 
-          powinniśmy w subscrybencie ??? sprawdzić ścieżkę w której jesteśmy
-          i jeśli jest ta sama jak chatId w wiadomości to powinniśmy od razu dodać do read messages
-          i updejtować partition offsets. 
-
-
-    */
-    
-
-
-    /*
-    pomysł na rozwiązanie:
-
-    wprowadzić zmienną selectedChatId i jeśli jest ona zdefiniowana to znaczy, że dana strona jest aktywna
-    i każdą wiadomość w tego czatu nalezy dodać do przeczytanych. 
-
-
-    insertujemy tę wiadomość jako nieprzeczytaną następnie wiemy, że po tej wiadomości 
-    emitowany jest fetch data emiter, 
-    subskrybując ten emmiter powinniśmy sprawdzić jaki jest chatId w ścierzce (to w niektych sybskrybentach jest już zrobione)
-    i mając ten chatId wywołać w userService markAllMessagesAsRead(chatId) następnie to przekazuje dalej do chatService
-    w chatService przenosimy te wiadomości do readMessages, obliczamy nowy lastMessage time 
-    i ponownie sortujemy ??? -> ale to powoduje, że dwa razy wykonujemy sortowanie całej listy. 
-    
-    ŻLE to jest
-
-
-    */
-    
-    
-/*     const cd = this.chatAndUsers.find((cd, i , arr) => {
-      return cd.chat.chatId == m.msg.chatId
-    })
-    if ( cd ) {
-      const mess = cd.messages
-      mess.push(m)
-      cd.messages = mess.sort((a,b) => { return a.utcTime - b.utcTime })
-      cd.chat.lastMessageTime = m.msg.serverTime
-      this.changeChat( cd )
+    const chatId = m.at(0)?.chatId
+    if ( chatId ) {
+      const found = this.chatAndUsers.find(
+        (cd, i , arr) => {
+          return cd.chat.chatId == chatId
+        }
+      )
+      if ( found ) {
+        m.forEach((mess, i, arr) => found.messages.push(mess))
+        found.messages = found.messages.sort((a,b) => a.serverTime - b.serverTime )
+        this.changeChat( found )
+        found.emitter.emit( found )
+      }
     }
   }
   
- */  
+
 
 
   deleteChat(c: ChatData) {
@@ -195,15 +160,9 @@ export class ChatsDataService {
 
 
   changeChat(chatD: ChatData) {
-    const found = this.chatAndUsers.find((cd,index,arr) => { return cd.chat.chatId != chatD.chat.chatId})
-    if ( !found ) {
-      // chat does not exist in chat list
-      const filtered = this.chatAndUsers.filter((cd, i, arr) => {return cd.chat.chatId != chatD.chat.chatId})
-      filtered.push(chatD)
-      this.chatAndUsers = filtered.sort((a,b) => this.compareLatestChatData(a,b) )
-    } else {
-      console.log('chat already exist in chat list. ')
-    }
+    const filtered = this.chatAndUsers.filter((cd, i, arr) => {return cd.chat.chatId != chatD.chat.chatId})
+    filtered.push(chatD)
+    this.chatAndUsers = filtered.sort((a,b) => this.compareLatestChatData(a,b) )
   }
 
 
@@ -212,7 +171,7 @@ export class ChatsDataService {
   }
 
 
-  compareLatestChatData(c1: ChatData, c2: ChatData): number {
+  private compareLatestChatData(c1: ChatData, c2: ChatData): number {
     let data1 = 0
     let data2 = 0
     if (c1.unreadMessages.length == 0)
@@ -229,7 +188,7 @@ export class ChatsDataService {
     else {
       c2.unreadMessages.forEach(
         (m,i,a) => {
-          if (m.serverTime > data1) data2 = m.serverTime
+          if (m.serverTime > data2) data2 = m.serverTime
         }
       )
     }

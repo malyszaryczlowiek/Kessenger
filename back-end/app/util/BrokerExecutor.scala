@@ -76,11 +76,11 @@ class BrokerExecutor( private val out: ActorRef, private val db: Database, priva
 
 
   private def processConsumption( configuration:      Configuration,
-                          invitationConsumer: KafkaConsumer[String, Invitation],
-                          messageConsumer:    KafkaConsumer[String, Message],
-                          writingConsumer:    KafkaConsumer[String, Writing],
-                          oldMessageConsumer: KafkaConsumer[String, Message]
-                        ): Unit = {
+                                  invitationConsumer: KafkaConsumer[String, Invitation],
+                                  messageConsumer:    KafkaConsumer[String, Message],
+                                  writingConsumer:    KafkaConsumer[String, Writing],
+                                  oldMessageConsumer: KafkaConsumer[String, Message]
+                                ): Unit = {
     assignChats(configuration.chats)
     initializeInvitationConsumer(configuration.me.userId, configuration.joiningOffset, invitationConsumer)
     if (chats.nonEmpty) initializeChatConsumers(messageConsumer, writingConsumer)
@@ -148,42 +148,42 @@ class BrokerExecutor( private val out: ActorRef, private val db: Database, priva
     // offset is always set as last read message offset + 1
     // so we dont have duplicated messages.
     partitions.foreach(t => messageConsumer.seek(t._1, t._2))
-    println(s"przypisałem message consumer wszystkie. topiki. i offsety")
     val writingTopics = this.chats.map(t => Domain.generateWritingId(t._1))
     writingConsumer.subscribe(CollectionConverters.asJavaCollection(writingTopics))
-    println(s"wszystkie consumery uruchomione. ")
+    println(s"wszystkie MESSAGE consumery uruchomione. ")
   }
 
 
 
 
   private def addNewChats(messageConsumer: KafkaConsumer[String, Message],
-                  writingConsumer: KafkaConsumer[String, Writing]
-                 ): Unit = {
-    if (newChats.nonEmpty) {
-      // todo here lock on newChats ??? TAK TUTAJ ZROBIĆ SYNCHRONIZACJĘ
-      //  ponieważ w trakcie przypisywani nowego czatu w future
-
+                          writingConsumer: KafkaConsumer[String, Writing]
+                         ): Unit = {
+    if ( newChats.nonEmpty ) {
       Try {
         println(s"zaczynam dodawanie nowego chatu do listy")
-
-        val newPartitions: Iterable[(TopicPartition, Long)] = newChats.flatMap(
-          t => t._2.map(r => (new TopicPartition(t._1, r.partition), r.offset))
-        )
-        println(s"utworzyłem listę topicpartycji")
-        messageConsumer.assign(CollectionConverters.asJava(newPartitions.map(_._1).toList))
-        println(s"zrobiłem assign() do message consumera")
-        newPartitions.foreach(t => messageConsumer.seek(t._1, t._2))
-        println(s"zrobiłem seek()  do message consumera")
-
-
-        // writing topic actualisation
-        val wrtTopicSet = writingConsumer.listTopics().keySet()
-        println(s"writing topic set taken")
-        wrtTopicSet.addAll(CollectionConverters.asJavaCollection(newChats.keySet))
-        println(s"new chats id's added to writing topic set ")
-        writingConsumer.subscribe(wrtTopicSet)
-        println(s"writing consumer subscribed ")
+        messageConsumer.unsubscribe()
+        writingConsumer.unsubscribe()
+        newChats.foreach(kv => this.chats.put(kv._1, ( fetchingOffsetShift(kv._2) ,kv._2)))
+        initializeChatConsumers(messageConsumer, writingConsumer)
+//
+//        val newPartitions: Iterable[(TopicPartition, Long)] = newChats.flatMap(
+//          t => t._2.map(r => (new TopicPartition(t._1, r.partition), r.offset))
+//        )
+//        println(s"utworzyłem listę topic partycji ")
+//        messageConsumer.assign(CollectionConverters.asJava(newPartitions.map(_._1).toList))
+//        println(s"zrobiłem assign() do message consumera")
+//        newPartitions.foreach(t => messageConsumer.seek(t._1, t._2))
+//        println(s"zrobiłem seek()  do message consumera")
+//
+//
+//        // writing topic actualisation
+//        val wrtTopicSet = writingConsumer.listTopics().keySet()
+//        println(s"writing topic set taken")
+//        wrtTopicSet.addAll(CollectionConverters.asJavaCollection(newChats.keySet))
+//        println(s"new chats id's added to writing topic set ")
+//        writingConsumer.subscribe(wrtTopicSet)
+//        println(s"writing consumer subscribed ")
         newChats.clear()
         println(s"!!! NEW CHAT ADDED !!!.")
         true
@@ -192,7 +192,7 @@ class BrokerExecutor( private val out: ActorRef, private val db: Database, priva
           println(s"ERROR przy dodawańiu nowego czatu: ${exception.getMessage}\n${exception.printStackTrace()}")
           newChats.clear()
         case Success(value) =>
-          println(s"Try succeeded.")
+          println(s"Try Adding new chat succeded. succeeded.")
       }
     }
   }
@@ -201,11 +201,11 @@ class BrokerExecutor( private val out: ActorRef, private val db: Database, priva
 
 
   private def poolInvitations(invitationConsumer: KafkaConsumer[String, Invitation]): Unit = {
-    val invitations: ConsumerRecords[String, Invitation] = invitationConsumer.poll(java.time.Duration.ofMillis(2500))
+    val invitations: ConsumerRecords[String, Invitation] = invitationConsumer.poll(java.time.Duration.ofMillis(250))
     invitations.forEach(
       (r: ConsumerRecord[String, Invitation]) => {
         val i: Invitation = r.value().copy(myJoiningOffset = Option(r.offset() + 1L))
-        println(s"wysyłanie zaproszenia")
+        println(s"BrokerExecutor: sending Invitation")
         out ! Invitation.toWebsocketJSON(i)
       }
     )
@@ -237,11 +237,12 @@ class BrokerExecutor( private val out: ActorRef, private val db: Database, priva
             )
             val listToSent = buffer.toList
             println(s"lista starych wiadomości do wysłania ma ${listToSent.length} długości.")
-            out ! Message.toOldMessagesWebsocketJSON(buffer.toList)
+            if ( listToSent.nonEmpty )  out ! Message.toOldMessagesWebsocketJSON(buffer.toList)
             updateOldMessagesOffset(chatId, startFrom)
             this.fetchFrom = None
             oldMessageConsumer.unsubscribe()
-          case None => // none
+          case None =>
+            println(s"BrokerExecutor. nie znaleziono chatu o ID $chatId do fetchowania")
         }
       case None =>
     }
@@ -252,10 +253,8 @@ class BrokerExecutor( private val out: ActorRef, private val db: Database, priva
 
   private def pullMessages(messageConsumer: KafkaConsumer[String, Message],
                    writingConsumer: KafkaConsumer[String, Writing]): Unit = {
-    val messages: ConsumerRecords[String, Message] = messageConsumer.poll(java.time.Duration.ofMillis(2500))
-    println(s"pool'owanie z message wykonane")
-    val writings: ConsumerRecords[String, Writing] = writingConsumer.poll(java.time.Duration.ofMillis(2500))
-    println(s"pool'owanie ze wszystkich wykonane")
+    val messages: ConsumerRecords[String, Message] = messageConsumer.poll(java.time.Duration.ofMillis(500))
+    val writings: ConsumerRecords[String, Writing] = writingConsumer.poll(java.time.Duration.ofMillis(0))
     val buffer = ListBuffer.empty[Message]
     messages.forEach(
       (r: ConsumerRecord[String, Message]) => {
@@ -263,11 +262,15 @@ class BrokerExecutor( private val out: ActorRef, private val db: Database, priva
         buffer.addOne( m )
       }
     )
-    out ! Message.toNewMessagesWebsocketJSON( buffer.toList )
+    val messagesToSend = buffer.toList
+    if ( messagesToSend.nonEmpty ) out ! Message.toNewMessagesWebsocketJSON( messagesToSend )
     writings.forEach(
       (r: ConsumerRecord[String, Writing]) => out ! Writing.toWebsocketJSON(r.value())
     )
   }
+
+
+
 
   private def updateOldMessagesOffset(chatId: ChatId, po: List[PartitionOffset]): Unit = {
     this.chats.get(chatId) match {
@@ -326,7 +329,6 @@ class BrokerExecutor( private val out: ActorRef, private val db: Database, priva
         }
       case None =>
     }
-    // Await.result(f1.zipWith(f2)((u1, u2) => u2)(ec), scala.concurrent.duration.Duration.create(5L, scala.concurrent.duration.SECONDS))
     this.ka.closeAdmin()
     println(s"BrokerExecutor is switched off. ")
   }
@@ -352,7 +354,9 @@ class BrokerExecutor( private val out: ActorRef, private val db: Database, priva
   def addNewChat(chat: ChatPartitionsOffsets): Unit = {
     this.chats.get(chat.chatId) match {
       case Some(_) =>
+        println(s"Cannot add this chat, chat already exists in list. ")
       case None =>
+        println(s"DODAłEM chat do dodania do listy czatów")
         this.newChats.addOne(chat.chatId, chat.partitionOffset)
     }
   }
@@ -378,14 +382,13 @@ class BrokerExecutor( private val out: ActorRef, private val db: Database, priva
       case Some( t ) =>
         val isGrater = u.partitionOffsets.map(_.offset).sum > t._2.map(_.offset).sum
         if ( isGrater ) {
-          this.chats.replace(u.chatId, (t._1, u.partitionOffsets))
+          this.chats.put(u.chatId, (t._1, u.partitionOffsets))
           Future {
             val dbExecutor = new DbExecutor(new KafkaProductionConfigurator)
             db.withConnection(implicit connection => {
               dbExecutor.updateChatOffsetAndMessageTime(u.userId, u.chatId, u.lastMessageTime, u.partitionOffsets)
             })
           }(ec)
-
         }
       case None =>
     }

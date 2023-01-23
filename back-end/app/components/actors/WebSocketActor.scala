@@ -1,7 +1,7 @@
 package components.actors
 
 
-import io.github.malyszaryczlowiek.kessengerlibrary.model.{ChatOffsetUpdate, Invitation, Message}
+import io.github.malyszaryczlowiek.kessengerlibrary.model.ChatOffsetUpdate
 import io.github.malyszaryczlowiek.kessengerlibrary.model.Configuration.parseConfiguration
 import io.github.malyszaryczlowiek.kessengerlibrary.model.Message.parseMessage
 import io.github.malyszaryczlowiek.kessengerlibrary.model.ChatOffsetUpdate.parseChatOffsetUpdate
@@ -36,7 +36,7 @@ class WebSocketActor( out: ActorRef, be: BrokerExecutor ) extends Actor {
 
   override def postStop(): Unit = {
     this.be.clearBroker()
-    println(s"8. SWITCH OFF ACTOR.")
+    println(s"9. SWITCH OFF ACTOR.")
   }
 
   def receive: Receive = {
@@ -48,46 +48,46 @@ class WebSocketActor( out: ActorRef, be: BrokerExecutor ) extends Actor {
           parseMessage(s) match {
             case Left(_) =>
               println(s"3. CANNOT PARSE MESSAGE")
-              parseChatOffsetUpdate(s) match {
+              parseConfiguration(s) match {
                 case Left(_) =>
-                  println(s"4. CANNOT PARSE CHAT_OFFSET_UPDATE")
-                  parseFetchingOlderMessagesRequest(s) match {
+                  println(s"4. CANNOT PARSE CONFIGURATION")
+                  parseChatOffsetUpdate(s) match {
                     case Left(_) =>
-                      println(s"44444. CANNOT PARSE FetchingOlderMessages")
-                      parseConfiguration(s) match {
+                      println(s"5. CANNOT PARSE CHAT_OFFSET_UPDATE")
+                      parseChatPartitionOffsets(s) match {
                         case Left(_) =>
-                          println(s"5. CANNOT PARSE CONFIGURATION")
-                          parseChatPartitionOffsets(s) match {
+                          println(s"6. CANNOT PARSE NewChatId")
+                          parseFetchingOlderMessagesRequest(s) match {
                             case Left(_) =>
-                              println(s"6. CANNOT PARSE NewChatId")
+                              println(s"7 CANNOT PARSE FetchingOlderMessages")
                               if (s.equals("PoisonPill")) {
-                                println(s"7. GOT PoisonPill '$s'")
+                                println(s"8. GOT PoisonPill '$s'")
                                 self ! PoisonPill
                               }
                               else
-                                println(s"'$s' is different from PoisonPill.")
-                            case Right(chat) =>
-                              println(s"6. GOT NEW_CHAT_ID: $chat")
-                              this.be.addNewChat(chat)
+                                println(s"8. '$s' is different from PoisonPill.")
+                            case Right(c) =>
+                              println(s"7. GOT FetchingREQUEST FROM: $c.chatId")
+                              this.be.fetchOlderMessages(c.chatId)
                           }
-                        case Right(conf) =>
-                          println(s"5. GOT CONFIGURATION: $conf")
-                          this.be.initialize(conf)
+                        case Right(chat) =>
+                          println(s"6. GOT NEW_CHAT_ID: $chat")
+                          this.be.addNewChat(chat)
                       }
-                    case Right( c ) =>
-                      println(s"GOT FetchingREQUEST FROM: $c.chatId")
-                      this.be.fetchOlderMessages( c.chatId )
+                    case Right(update: ChatOffsetUpdate) =>
+                      println(s"5. GOT CHAT_OFFSET_UPDATE: $update")
+                      this.be.updateChatOffset(update)
                   }
-                case Right(update: ChatOffsetUpdate) =>
-                  println(s"3. GOT CHAT_OFFSET_UPDATE: $update")
-                  this.be.updateChatOffset(update)
+                case Right(conf) =>
+                  println(s"4. GOT CONFIGURATION: $conf")
+                  this.be.initialize(conf)
               }
             case Right(message) =>
-              println(s"2. GOT MESSAGE: $s")
+              println(s"3. GOT MESSAGE: $s")
               this.be.sendMessage(message)
           }
         case Right(w) =>
-          println(s"1. GOT WRITING: $w")
+          println(s"2. GOT WRITING: $w")
           this.be.sendWriting( w )
       }
 
@@ -105,7 +105,35 @@ class WebSocketActor( out: ActorRef, be: BrokerExecutor ) extends Actor {
 }
 
 
+/*
 
+Rządanie ma Origin header
+Rządanie ma 1 ważnych sesji.
+wszedłem w ActorFlow.
+0. Actor started
+1. ACTOR_ID: 3eada425-1e60-42a9-8e33-13c707b6d448
+2. CANNOT PARSE WRITING
+3. CANNOT PARSE MESSAGE
+4. GOT CONFIGURATION: Configuration(User(d83abea2-d8cf-4446-8a79-f5488b67ba51,Boner69),0,List())
+Jestem w future w BrokerExecutor.
+utworzyłem Invitation consumer
+utworzyłem Message consumer
+utworzyłem Writing consumer
+przypisałem invitation consumerowi topic i offset
+BrokerExecutor: sending Invitation
+1. ACTOR_ID: 3eada425-1e60-42a9-8e33-13c707b6d448
+2. CANNOT PARSE WRITING
+3. CANNOT PARSE MESSAGE
+4. CANNOT PARSE CONFIGURATION
+5. CANNOT PARSE CHAT_OFFSET_UPDATE
+6. GOT NEW_CHAT_ID: ChatPartitionsOffsets(chat--ca19cd85-416a-439e-b13b-784638bb42fa--d83abea2-d8cf-4446-8a79-f5488b67ba51,List(PartitionOffset(0,0), PartitionOffset(1,0), PartitionOffset(2,0)))
+DODAłEM chat do dodania do listy czatów
+zaczynam dodawanie nowego chatu do listy
+wszystkie MESSAGE consumery uruchomione.
+!!! NEW CHAT ADDED !!!.
+Try Adding new chat succeded. succeeded.
+
+ */
 
 
 

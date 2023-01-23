@@ -12,12 +12,12 @@ import { UserSettingsService } from './user-settings.service';
 import { Invitation } from '../models/Invitation';
 import { Chat } from '../models/Chat';
 import { ChatsDataService } from './chats-data.service';
-// import { MessagePartOff } from '../models/MesssagePartOff';
 import { Configuration } from '../models/Configuration';
 import { ChatOffsetUpdate } from '../models/ChatOffsetUpdate';
 import { Writing } from '../models/Writing';
 import { PartitionOffset } from '../models/PartitionOffset';
-// import { clearInterval } from 'stompjs';
+import { UserOffsetUpdate } from '../models/UserOffsetUpdate';
+
 
 @Injectable({
   providedIn: 'root'
@@ -28,10 +28,7 @@ export class UserService {
   userFetched = false
   chatFetched = false
   
-  
-
   fetchingUserDataFinishedEmmiter = new EventEmitter<boolean>() // called during page reload
-
 
   logoutTimer: NodeJS.Timeout | undefined;
   logoutSeconds: number = this.settingsService.settings.sessionDuration / 1000    // number of seconds to logout
@@ -59,7 +56,7 @@ export class UserService {
 
     this.newMessagesSubscription = this.connection.newMessagesEmitter.subscribe(
       (messageList: Message[]) => {
-        console.log(`messages from emitter: ${messageList}`)
+        console.log(`new messages from emitter: ${messageList}`)
         this.chats.insertNewMessages( messageList ) // this may has messages from different chats
         this.dataFetched() 
       },
@@ -72,18 +69,15 @@ export class UserService {
 
     this.oldMessagesSubscription = this.connection.oldMessagesEmitter.subscribe(
       (messageList: Message[]) => {
-        console.log(`messages from emitter: ${messageList}`)
-        this.chats.insertOldMessages( messageList ) // this may has messages from different chats
-        // this.dataFetched()  
+        console.log(`old messages from emitter: ${messageList}`)
+        this.chats.insertOldMessages( messageList ) 
       },
       (error) => {
         console.log('Error in message emitter: ', error)
         console.log(error)
       },
       () => console.log('on message emitter completed.')
-    ) // tutaj podobnie jak wyżej. 
-    // tutaj wiadomości są zawsze z jednego chatu z którego feczujemy
-    // insertOldMessages()
+    ) 
 
 
     this.invitationSubscription = this.connection.invitationEmitter.subscribe(
@@ -108,24 +102,30 @@ export class UserService {
                   this.addNewChat( cd ) 
                   this.startListeningFromNewChat( cd.chat.chatId, cd.partitionOffsets )
                   this.dataFetched() 
-                  // $$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
-                  // $$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
-                  // tutaj -> to moze powodować problemy
-                  // tutaj powinniśmy jeszcze wysłać przez ws info, że mamy nowy czat ??? 
-                  const u = this.updateJoiningOffset( invitation.myJoiningOffset )
-                  if ( u ) {
-                    const sub = u.subscribe({
-                      next: (response) => {
-                        if ( response.ok )
-                          console.log('joining Offset updated ok. ')
-                      },
-                      error: (err) => {
-                        console.log('Error during joining offset update', err)
-                      },
-                      complete: () => {}
-                    })
-                    // sub.unsubscribe() 
-                  }
+
+                  if ( this.user ) {
+                    const bodyToSent: UserOffsetUpdate = {
+                      userId: this.user.userId,
+                      joiningOffset: invitation.myJoiningOffset                    
+                    }
+                    const u = this.updateJoiningOffset( bodyToSent )
+                    if ( u ) {
+                      const sub = u.subscribe({
+                        next: (response) => {
+                          if ( response.ok ) {
+                            this.settingsService.settings.joiningOffset = invitation.myJoiningOffset
+                            console.log('joining Offset updated ok. to ', this.settingsService.settings.joiningOffset)
+                          }
+                            
+                        },
+                        error: (err) => {
+                          console.log('Error during joining offset update', err)
+                        },
+                        complete: () => {}
+                      })
+                      // sub.unsubscribe() 
+                    }
+                  }                  
                 }                
               }              
             },
@@ -192,8 +192,17 @@ export class UserService {
               this.logoutSeconds = this.settingsService.settings.sessionDuration / 1000
               this.restartLogoutTimer()
               this.userFetched = true
-              this.dataFetched()
-              this.connectViaWebsocket()
+              // this.connectViaWebsocket()
+              
+              
+              napisać // emitera w ConnectionService, który wyemituje sygnał, że 
+              // połączenie zostało nawiązane
+              // tutaj natomiast napisać subskrybenta, który przechwyci sygnał
+              // i  uruchomi fetchowanie -> this.dataFetched()
+              // NO I NAPISAĆ nowy endpoint w którym pobieramy dane usera i jego czaty razem. 
+              // wtedy można zlikwidoważ zmienne chatFetched i userFetched
+
+              //this.dataFetched()              
             }
             else {
               // print error message
@@ -221,8 +230,8 @@ export class UserService {
               this.chats.initialize( chats )
             }
             this.chatFetched = true
-            this.dataFetched()
             this.connectViaWebsocket() // run websocket connection
+            //this.dataFetched()
           } ,
           error: (error) => {
             console.log(error) 
@@ -405,10 +414,10 @@ export class UserService {
 
 
 
-  updateJoiningOffset(offset: number) {
+  updateJoiningOffset(body: UserOffsetUpdate) {
     if (this.user){ 
       this.updateSession()
-      return this.connection.updateJoiningOffset(this.user.userId, offset)
+      return this.connection.updateJoiningOffset(this.user.userId, body)
     }
     else 
       return undefined

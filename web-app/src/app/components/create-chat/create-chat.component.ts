@@ -4,7 +4,6 @@ import { Router } from '@angular/router';
 import { debounceTime, distinctUntilChanged, of, share, startWith, Subject, switchMap } from 'rxjs';
 import { ChatData } from 'src/app/models/ChatData';
 import { Message } from 'src/app/models/Message';
-import { MessagePartOff } from 'src/app/models/MesssagePartOff';
 import { User } from 'src/app/models/User';
 import { UserService } from 'src/app/services/user.service';
 
@@ -112,7 +111,7 @@ export class CreateChatComponent implements OnInit, OnDestroy {
                   users: this.selectedUsers,                   
                   partitionOffsets: body.partitionOffsets,
                   messages: new Array<Message>(),
-                  unreadMessages: new Array<MessagePartOff>(),
+                  unreadMessages: new Array<Message>(),
                   emitter: new EventEmitter<ChatData>()
                 }
                 // sending to server information to listen messages from this chat.

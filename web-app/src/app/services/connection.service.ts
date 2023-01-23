@@ -15,6 +15,7 @@ import { Chat } from '../models/Chat';
 import { Configuration } from '../models/Configuration';
 import { ChatOffsetUpdate } from '../models/ChatOffsetUpdate';
 import { PartitionOffset } from '../models/PartitionOffset';
+import { UserOffsetUpdate } from '../models/UserOffsetUpdate';
 
 
 
@@ -24,19 +25,16 @@ import { PartitionOffset } from '../models/PartitionOffset';
 export class ConnectionService {
 
   
-  private wsConnection:     WebSocket      | undefined
-  private wsPingSender:     NodeJS.Timeout | undefined
+  private wsConnection: WebSocket      | undefined
+  private wsPingSender: NodeJS.Timeout | undefined
   
   private reconnectWS = true
-  
-
 
   public newMessagesEmitter: EventEmitter<Array<Message>>    = new EventEmitter<Array<Message>>()
   public oldMessagesEmitter: EventEmitter<Array<Message>>    = new EventEmitter<Array<Message>>()
   public invitationEmitter:  EventEmitter<Invitation>        = new EventEmitter<Invitation>()
   public writingEmitter:     EventEmitter<Writing>           = new EventEmitter<Writing>()
-
-  public restartWSEmitter:  EventEmitter<boolean>           = new EventEmitter<boolean>()
+  public restartWSEmitter:   EventEmitter<boolean>           = new EventEmitter<boolean>()
 
 
   constructor(private http: HttpClient, 
@@ -45,13 +43,17 @@ export class ConnectionService {
 
 
   disconnect() {
-    this.newMessagesEmitter.unsubscribe()
+/*     this.newMessagesEmitter.unsubscribe()
     this.oldMessagesEmitter.unsubscribe()
     this.invitationEmitter.unsubscribe()
     this.writingEmitter.unsubscribe()
     this.restartWSEmitter.unsubscribe()
-    this.reconnectWS = false
+ */    this.reconnectWS = false
     this.session.invalidateSession()
+    if ( this.wsPingSender ) {
+      clearInterval( this.wsPingSender )
+      this.wsPingSender = undefined
+    }
     this.sendPoisonPill()
     this.wsConnection?.close()
     this.wsConnection = undefined
@@ -102,6 +104,7 @@ export class ConnectionService {
 
 
 
+
   logout(): Observable<HttpResponse<string>> | undefined {
     const token = this.session.getSessionToken()
     if ( token ) {
@@ -132,23 +135,20 @@ export class ConnectionService {
 
 
 
-  // tuaj teraz naprawiać
 
-  updateJoiningOffset(userId: string, newJoiningOffset: number): Observable<HttpResponse<any>> | undefined {
+  updateJoiningOffset(userId: string, body: UserOffsetUpdate): Observable<HttpResponse<any>> | undefined {
     const token = this.session.getSessionToken()
     if ( token ) {
-      return this.http.put<any>(this.api + `/user/${userId}/updateJoiningOffset`, { 
+      return this.http.put<any>(this.api + `/user/${userId}/updateJoiningOffset`,  body , { 
         headers: new HttpHeaders()
           .set('KSID', token),
         observe: 'response', 
-        responseType: 'json',
-        params: {
-          offset: newJoiningOffset
-        }
+        responseType: 'json'
       });
     }
     else return undefined
   }
+
 
 
   
@@ -165,6 +165,8 @@ export class ConnectionService {
   }
 
 
+
+
   changeLogin(userId: string, newLogin: string): Observable<HttpResponse<any>> | undefined {
     const token = this.session.getSessionToken()
     if ( token ) {
@@ -176,6 +178,7 @@ export class ConnectionService {
       });
     } else return undefined;
   }
+
 
 
   
@@ -197,6 +200,7 @@ export class ConnectionService {
 
 
 
+
   searchUser(userId: string, search: string) : Observable<HttpResponse<User[]>> | undefined {
     const token = this.session.getSessionToken()
     if ( token ) {
@@ -209,6 +213,7 @@ export class ConnectionService {
       });
     } else return undefined;
   }
+
 
 
     
@@ -376,9 +381,9 @@ export class ConnectionService {
           console.log('got ResponseBody()' + body.message )
           if (body.num) this.reconnectWS = false
         }
-        else {
+        /* else {
           console.log('got other message: ', body)
-        }          
+        }   */        
       }
       this.wsConnection.onclose = () => {
         console.log('WebSocket connection closed.');
@@ -404,9 +409,11 @@ export class ConnectionService {
       console.log('sending PoisonPill to server.');
       this.wsConnection.send('PoisonPill');
     } else {
-      console.error('Did not send data, open a connection first');
+      console.error('WS connection is closed now. ');
     }
   }
+
+
 
 
   sendMessage(message: Message) {
@@ -419,7 +426,8 @@ export class ConnectionService {
   }
 
 
-  // not necessary
+  
+
   sendInvitation(inv: Invitation) {
     if (this.wsConnection) {
       console.log('sending invitation to server.');
@@ -428,6 +436,8 @@ export class ConnectionService {
       console.error('Did not send data, open a connection first');
     }
   } 
+
+
 
 
   sendWriting(w: Writing) {
@@ -440,6 +450,8 @@ export class ConnectionService {
   }
 
 
+
+
   sendChatOffsetUpdate(u: ChatOffsetUpdate) {
     if (this.wsConnection) {
       console.log('sending offset update to server.');
@@ -449,10 +461,12 @@ export class ConnectionService {
     }
   }
 
+
+
   
   startListeningFromNewChat(chatId: string, partOffsets: PartitionOffset[]) {
     if (this.wsConnection) {
-      console.log('sending offset update to server.');
+      console.log('sending New chat data to server to start listentning.');
       const body = {
         chatId: chatId,
         partitionOffset: partOffsets
@@ -463,12 +477,17 @@ export class ConnectionService {
     }  
   }
 
+
+
+
   startPingSender() {
     this.wsPingSender = setInterval(() => {
       if ( this.wsConnection )
         this.wsConnection.send('empty')
     }, 60000 ) // ping empty message every 1 minute
   }
+
+
 
 
   closeWebSocket() {
@@ -482,6 +501,7 @@ export class ConnectionService {
       this.wsConnection = undefined;
     }
   }
+
 
 
 

@@ -12,10 +12,11 @@ import io.github.malyszaryczlowiek.kessengerlibrary.domain.Domain
 import io.github.malyszaryczlowiek.kessengerlibrary.domain.Domain.{ChatId, Offset, UserID}
 import io.github.malyszaryczlowiek.kessengerlibrary.kafka.configurators.KafkaProductionConfigurator
 import io.github.malyszaryczlowiek.kessengerlibrary.kafka.errors.{ChatExistsError, KafkaError}
-import io.github.malyszaryczlowiek.kessengerlibrary.model.{Chat, Invitation, PartitionOffset, ResponseBody, Settings, User}
+import io.github.malyszaryczlowiek.kessengerlibrary.model.{Chat, Invitation, PartitionOffset, ResponseBody, Settings, User, UserOffsetUpdate}
 import io.github.malyszaryczlowiek.kessengerlibrary.model.Settings.parseJSONtoSettings
 import io.github.malyszaryczlowiek.kessengerlibrary.model.Chat.parseJSONtoChat
 import io.github.malyszaryczlowiek.kessengerlibrary.model.User.toJSON
+import io.github.malyszaryczlowiek.kessengerlibrary.model.UserOffsetUpdate.parseUserOffsetUpdate
 import org.apache.kafka.clients.producer.ProducerRecord
 import play.api.db.Database
 import play.api.libs.streams.ActorFlow
@@ -25,6 +26,7 @@ import java.util.UUID
 import javax.inject._
 import scala.concurrent.duration.{Duration, SECONDS}
 import scala.concurrent.{Await, Future}
+import scala.util.{Failure, Success, Try}
 
 
 class KessengerController @Inject()
@@ -212,7 +214,7 @@ class KessengerController @Inject()
 
 
 
-  def updateJoiningOffset(userId: UserID, offset: Offset): Action[AnyContent] =
+  def updateJoiningOffset(userId: UserID): Action[AnyContent] =
     SessionChecker(parse.anyContent, userId)(
       databaseExecutionContext,
       db,
@@ -226,18 +228,25 @@ class KessengerController @Inject()
         headersParser
       )
     ).async(implicit request => {
-      if (offset > 0L) {
-        Future {
-          db.withConnection(implicit connection => {
-            dbExecutor.updateJoiningOffset(userId, offset) match {
-              case Left(_) => InternalServerError(ResponseBody(44, s"Database Error. Cannot update offset.").toString)
-              case Right(_) => Ok
+      request.body.asJson.map( s => {
+        parseUserOffsetUpdate(s.toString()) match {
+          case Left(_) =>
+            Future.successful(InternalServerError(s"Error 333. Cannot parse payload data. "))
+          case Right(uou) =>
+            if (uou.joiningOffset > 0L) {
+              Future {
+                db.withConnection(implicit connection => {
+                  dbExecutor.updateJoiningOffset(userId, uou.joiningOffset) match {
+                    case Left(_) => InternalServerError(ResponseBody(44, s"Database Error. Cannot update offset.").toString)
+                    case Right(_) => Ok
+                  }
+                })
+              }(databaseExecutionContext)
             }
-          })
-        }(databaseExecutionContext)
-      }
-      else
-        Future.successful( BadRequest(ResponseBody(45, s"Offset value should be above 0.").toString))
+            else
+              Future.successful(BadRequest(ResponseBody(45, s"Offset value should be above 0.").toString))
+        }
+      }).getOrElse(Future.successful(InternalServerError(s"Error 028. Cannot parse payload data. ")))
     })
 
 

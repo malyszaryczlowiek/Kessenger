@@ -2,6 +2,7 @@ import { Component, EventEmitter, Input, OnInit, Output } from '@angular/core';
 import { FormControl, FormGroup, Validators } from '@angular/forms';
 import { Chat } from 'src/app/models/Chat';
 import { Message } from 'src/app/models/Message';
+import { PartitionOffset } from 'src/app/models/PartitionOffset';
 import { Writing } from 'src/app/models/Writing';
 import { UserSettingsService } from 'src/app/services/user-settings.service';
 import { UserService } from 'src/app/services/user.service';
@@ -57,7 +58,8 @@ export class SendMessageComponent implements OnInit {
         zoneId: settings.zoneId,
         chatId: this.chat.chatId,
         chatName: this.chat.chatName,
-        groupChat: this.chat.groupChat
+        groupChat: this.chat.groupChat,
+        partOff: {partition: -1, offset: -1}
       }
       this.sendingMessage.emit( m );
       this.messageForm.controls.messageContent.setValue('')

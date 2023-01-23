@@ -105,11 +105,11 @@ class DbExecutor(val kafkaConfigurator: KafkaConfigurator) {
 
   // uruchomić cąłość
 
-
+  zmergować // findUser() i findMyChats()
 
 
   /**
-   * TODO works
+   *
    */
   def findUser(login: Login, pass: Password)(implicit connection: Connection): DbResponse[(User, Settings)] = {
     val sql =
