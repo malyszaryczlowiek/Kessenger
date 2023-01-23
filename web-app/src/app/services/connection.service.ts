@@ -82,7 +82,7 @@ export class ConnectionService {
 
 
 
-
+  tutaj // zmienił  się model pobieranych danych
   signIn(login: string, pass: string): Observable<HttpResponse<{user: User, settings: Settings}>> | undefined {
     const fakeUserId = uuidv4();
     this.session.setNewSession(fakeUserId); 
@@ -119,7 +119,7 @@ export class ConnectionService {
 
 
 
-
+  tutaj // zmienił  się model pobieranych danych
   user(userId: string): Observable<HttpResponse<{user: User, settings: Settings}>> | undefined {
     const token = this.session.getSessionToken()
     if ( token ) {
@@ -236,7 +236,7 @@ export class ConnectionService {
 
 
 
-  getChats(userId: string): Observable<HttpResponse<Array<ChatData>>> | undefined {
+/*   getChats(userId: string): Observable<HttpResponse<Array<ChatData>>> | undefined {
     const token = this.session.getSessionToken()
     if ( token ) {
       return this.http.get<Array<ChatData>>(this.api + `/user/${userId}/chats`, {
@@ -247,7 +247,7 @@ export class ConnectionService {
       });
     } else return undefined;
   }
-
+ */
 
 
 

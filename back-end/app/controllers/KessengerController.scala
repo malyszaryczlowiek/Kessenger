@@ -64,10 +64,7 @@ class KessengerController @Inject()
                     val login = loginCredentials.login
                     val userId = UUID.randomUUID() // here we create another userId
                     passwordConverter.convert(loginCredentials.pass) match {
-                      case Left(_) =>
-                        Future.successful(
-                          InternalServerError("Error 005. Encoding password failed")
-                        )
+                      case Left(_) => Future.successful(InternalServerError("Error 005. Encoding password failed"))
                       case Right( encodedPass ) =>
                         val settings = Settings(sessionDuration = 900000L)
                         // todo zmienić w kessenger-lib że nie ma wartości początkowej
@@ -134,14 +131,14 @@ class KessengerController @Inject()
                           db.withConnection(implicit connection => {
                             dbExecutor.findUser(loginCredentials.login, encodedPass) match {
                               case Left(_) => BadRequest(ResponseBody(13, "Login or Password not match.").toString)
-                              case Right((user, settings)) =>
+                              case Right((user, settings, chatList)) =>
                                 val validityTime = System.currentTimeMillis() + settings.sessionDuration
                                 dbExecutor.createSession(sessionData.sessionId, user.userId, validityTime) match {
                                   case Left(_) =>
                                     InternalServerError("Error 014. Cannot Create session in DB.")
                                   case Right(v) =>
                                     dbExecutor.removeAllExpiredUserSessions(user.userId, System.currentTimeMillis())
-                                    if (v == 1) Ok(jsonParser.toJSON((user, settings)))
+                                    if (v == 1) Ok(jsonParser.toJSON((user, settings, chatList)))
                                     else InternalServerError("Error 015. Not matching row affected.")
                                 }
                             }
@@ -203,9 +200,9 @@ class KessengerController @Inject()
     ).async(implicit request => {
       Future {
         db.withConnection(implicit connection => {
-          dbExecutor.findUserWithUUID(userId) match {
-            case Left(value) => InternalServerError("Error 009. You are logged in with SessionChecker and SessionUpdater ")
-            case Right(userAndSettings) => Ok(jsonParser.toJSON(userAndSettings))
+          dbExecutor.getUserData( userId ) match {
+            case Left(_) => InternalServerError("Error 009. You are logged in with SessionChecker and SessionUpdater ")
+            case Right(t) => Ok(jsonParser.toJSON( t ))
           }
         })
       }(databaseExecutionContext)
@@ -474,64 +471,31 @@ class KessengerController @Inject()
 
 
 
-  /**
-   *
-   * @return returns user's chats
-   */
-  def getChats(userId: UUID): Action[AnyContent] =
-    SessionChecker(parse.anyContent, userId)(
-      databaseExecutionContext,
-      db,
-      dbExecutor,
-      headersParser
-    ).andThen(
-      SessionUpdater(parse.anyContent, userId)(
-        databaseExecutionContext,
-        db,
-        dbExecutor,
-        headersParser
-      )
-    ).async( implicit request => {
-      Future {
-        db.withConnection(implicit connection => {
-          dbExecutor.findMyChats(userId) match {
-            case Left(_) => InternalServerError("Error 009. You are logged in with SessionChecker and SessionUpdater ")
-            case Right(chats) =>
-              //val c = chats.filter(t => !t._2._2).map(t => (t._1, t._2._1))
-              Ok( jsonParser.chatsToJSON( chats ))
-          }
-          })
-      }(databaseExecutionContext)
-    })
-
-  //              val kesAdm = new KessengerAdmin( new KafkaProductionConfigurator )
-  //              val filtered = chats.map( t => {
-  //                usunąć // tworzenie tutaj topiców, całe tworzenie topiców powinno być w newChat.
-  //                var chatTopic = t._2._2
-  //                if (!chatTopic) {
-  //                  kesAdm.createChatTopic(t._1) match { // create chat topic
-  //                    case Left(KafkaError(_, ChatExistsError)) =>
-  //                      chatTopic = true // if return topic already exists we need change value too
-  //                    case Left(KafkaError(_,_)) => // do nothing
-  //                    case Right(_) => chatTopic = true
-  //                  }
-  //                }
-  //                var writTopic = t._2._3
-  //                if (!writTopic) {
-  //                  kesAdm.createWritingTopic(t._1.chatId) match { // create writing topic
-  //                    case Left(KafkaError(_, ChatExistsError)) =>
-  //                      writTopic = true // if return topic already exists we need change value too
-  //                    case Left(KafkaError(_, _)) => // do nothing
-  //                    case Right(_) => writTopic = true
-  //                  }
-  //                }
-  //                kesAdm.closeAdmin()
-  //                if (chatTopic != t._2._2 || writTopic != t._2._3)  // if chatTopic or writing topic created need update info in db
-  //                  dbExecutor.updateChatTopicExistence(t._1.chatId, writTopic, chatTopic)
-  //                (t._1, (t._2._1, writTopic, chatTopic))
-  //              }).filter( t => !t._2._2) // if chat topic does not exists we remove this chat from list
-  //                .map(t => (t._1, t._2._1))
-
+//  def getChats(userId: UUID): Action[AnyContent] =
+//    SessionChecker(parse.anyContent, userId)(
+//      databaseExecutionContext,
+//      db,
+//      dbExecutor,
+//      headersParser
+//    ).andThen(
+//      SessionUpdater(parse.anyContent, userId)(
+//        databaseExecutionContext,
+//        db,
+//        dbExecutor,
+//        headersParser
+//      )
+//    ).async( implicit request => {
+//      Future {
+//        db.withConnection(implicit connection => {
+//          dbExecutor.findMyChats(userId) match {
+//            case Left(_) => InternalServerError("Error 009. You are logged in with SessionChecker and SessionUpdater ")
+//            case Right(chats) =>
+//              //val c = chats.filter(t => !t._2._2).map(t => (t._1, t._2._1))
+//              Ok( jsonParser.chatsToJSON( chats ))
+//          }
+//          })
+//      }(databaseExecutionContext)
+//    })
 
 
 

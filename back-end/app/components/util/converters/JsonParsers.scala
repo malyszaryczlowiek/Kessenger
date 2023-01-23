@@ -89,7 +89,7 @@ class JsonParsers {
   }
 
 
-  private implicit object userSettingsEncoder extends Encoder[(User,Settings)] {
+  private implicit object userSettingsEncoder extends Encoder[(User, Settings)] {
     override def apply(a: (User, Settings)): Json =
       Json.obj(
         ("user", a._1.asJson),
@@ -97,7 +97,20 @@ class JsonParsers {
       )
   }
 
+  private implicit object userDataEncoder extends Encoder[(User, Settings, List[(Chat, List[PartitionOffset])])] {
+    override def apply(a: (User, Settings, List[(Chat, List[PartitionOffset])])): Json =
+      Json.obj(
+        ("user", a._1.asJson),
+        ("settings", a._2.asJson),
+        ("chatList", a._3.map(t => Json.obj(
+          ("chat", t._1.asJson),
+          ("partitionOffsets", t._2.map(_.asJson).asJson)
+        )).asJson)
+      )
+  }
 
+
+  def toJSON(u: (User, Settings, List[(Chat, List[PartitionOffset])])): String = u.asJson.noSpaces
   def toJSON(u: (User, Settings)): String = u.asJson.noSpaces
 
   def chatToJSON(c: (Chat, Map[Partition, Offset])): String = c.asJson(chatEncoder).noSpaces

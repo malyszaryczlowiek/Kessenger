@@ -24,7 +24,7 @@ GET          /user/:userId/searchUser                            controllers.Kes
 
 # chats
 POST         /user/:userId/newChat                               controllers.KessengerController.newChat(userId: java.util.UUID)
-GET          /user/:userId/chats                                 controllers.KessengerController.getChats(userId: java.util.UUID)
+# GET          /user/:userId/chats                                 controllers.KessengerController.getChats(userId: java.util.UUID)
 GET          /user/:userId/chats/:chatId                         controllers.KessengerController.getChatData(userId: java.util.UUID, chatId: String)
 DELETE       /user/:userId/chats/:chatId                         controllers.KessengerController.leaveChat(userId: java.util.UUID, chatId: String)
 GET          /user/:userId/chats/:chatId/users                   controllers.KessengerController.getChatUsers(userId: java.util.UUID, chatId: String)

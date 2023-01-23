@@ -173,6 +173,10 @@ export class UserService {
       }
     )
 
+    sprawdzić // gdzie jeszcze występują odwołania do 
+    // connection.user( userId ) i  .getChats(userId) czyli ffetchowanie  danych
+
+    usunąć // pobieranie użytkowników przy pobieraniu chatu ??? 
 
     // fetching user data from server
     const userId = this.connection.getUserId();

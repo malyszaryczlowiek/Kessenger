@@ -3,7 +3,7 @@ package components.db
 import io.github.malyszaryczlowiek.kessengerlibrary.db.queries._
 import io.github.malyszaryczlowiek.kessengerlibrary.db.queries.ERROR
 import io.github.malyszaryczlowiek.kessengerlibrary.domain.Domain
-import io.github.malyszaryczlowiek.kessengerlibrary.model.{Chat, PartitionOffset, SessionInfo, Settings, User}
+import io.github.malyszaryczlowiek.kessengerlibrary.model.{Chat, ChatPartitionsOffsets, PartitionOffset, SessionInfo, Settings, User}
 import io.github.malyszaryczlowiek.kessengerlibrary.domain.Domain.{ChatId, ChatName, DbResponse, Login, Offset, Partition, Password, UserID}
 import io.github.malyszaryczlowiek.kessengerlibrary.kafka.configurators.KafkaConfigurator
 
@@ -55,6 +55,8 @@ class DbExecutor(val kafkaConfigurator: KafkaConfigurator) {
   }
 
 
+
+
   def deleteUser(userId: UserID)(implicit connection: Connection): DbResponse[Int] = {
     Using(connection.prepareStatement("DELETE FROM users WHERE user_id = ? ")) {
       (statement: PreparedStatement) =>
@@ -65,6 +67,7 @@ class DbExecutor(val kafkaConfigurator: KafkaConfigurator) {
       case Success(v) => Right(v)
     }
   }
+
 
 
 
@@ -103,53 +106,108 @@ class DbExecutor(val kafkaConfigurator: KafkaConfigurator) {
   }
 
 
-  // uruchomić cąłość
-
-  zmergować // findUser() i findMyChats()
 
 
-  /**
-   *
-   */
-  def findUser(login: Login, pass: Password)(implicit connection: Connection): DbResponse[(User, Settings)] = {
-    val sql =
-      "SELECT users.user_id, users.login, settings.joining_offset, settings.zone_id, settings.session_duration " +
-        "FROM users " +
-        "INNER JOIN settings " +
-        "ON users.user_id = settings.user_id " +
-        "WHERE users.login = ? AND users.pass = ? "
+  def getUserData(userId: UserID)(implicit connection: Connection): DbResponse[(User, Settings, List[(Chat, List[PartitionOffset])])] = {
+    val numOfPartitions = kafkaConfigurator.CHAT_TOPIC_PARTITIONS_NUMBER
+    val range = 0 until numOfPartitions
+    val offsetColumn = "users_chats.users_offset_"
+    val offsets = range.foldLeft("")((folded, partition) => s"$folded$offsetColumn$partition, ")
+
+    val prefix = "SELECT users.login, settings.joining_offset, settings.session_duration, settings.zone_id,  " +
+      "users_chats.chat_id, users_chats.chat_name, users_chats.message_time, users_chats.silent, " +
+      offsets + "chats.group_chat "
+
+    val postfix = "FROM users " +
+      "INNER JOIN settings " +
+      "ON users.user_id = settings.user_id " +
+      "INNER JOIN users_chats " +
+      "ON settings.user_id = users_chats.user_id " +
+      "INNER JOIN chats " +
+      "ON users_chats.chat_id = chats.chat_id " +
+      "WHERE users.user_id = ? "
+
+
+    // here i collect chat users as well
+
+//    val postfix = "FROM users " +
+//      "INNER JOIN settings " +
+//      "ON users.user_id = settings.user_id " +
+//      "INNER JOIN users_chats " +
+//      "ON settings.user_id = users_chats.user_id " +
+//      "INNER JOIN chats " +
+//      "ON users_chats.chat_id = chats.chat_id " +
+//      "INNER JOIN users_chats AS users_chats_2 " +
+//      "ON chats.chat_id = users_chats_2.chat_id " +
+//      "INNER JOIN users AS users_2 " +
+//      "ON users_chats_2.user_id = users_2.user_id " +
+//      "WHERE users.user_id = ? "
+
+    val sql = s"$prefix$postfix"
+
     Using(connection.prepareStatement(sql)) {
       (statement: PreparedStatement) =>
-        statement.setString(1, login)
-        statement.setString(2, pass)
+        statement.setObject(1, userId)
+        var me: Option[User] = None
+        var mySettings: Option[Settings] = None
+        val buffer: ListBuffer[(Chat, List[PartitionOffset])] = ListBuffer()
         Using(statement.executeQuery()) {
           (resultSet: ResultSet) =>
-            if (resultSet.next()) {
-              val userId: UserID  = resultSet.getObject[UUID]("user_id", classOf[UUID])
-              val login:  Login   = resultSet.getString("login")
-              val offset: Long    = resultSet.getLong("joining_offset")
-              val zoneId: String  = resultSet.getString("zone_id")
-              val sessionDur: Long = resultSet.getLong("session_duration")
-              Right((
-                User(userId, login),
-                Settings(offset, sessionDur, ZoneId.of(zoneId))
-              ))
+            while (resultSet.next()) {
+              if (me.isEmpty) { // user
+                val login = resultSet.getString("login")
+                me = Option(User(userId, login))
+              }
+              if (mySettings.isEmpty) {
+                val joiningOffset = resultSet.getLong("joining_offset")
+                val sessionDuration = resultSet.getLong("session_duration")
+                val zoneId = resultSet.getString("zone_id")
+                mySettings = Option(Settings(joiningOffset, sessionDuration, ZoneId.of(zoneId)))
+              }
+              // chat
+              val chatId = resultSet.getString("chat_id")
+              val chatName = resultSet.getString("chat_name")
+              val groupChat = resultSet.getBoolean("group_chat")
+              val time = resultSet.getLong("message_time")
+              val silent = resultSet.getBoolean("silent")
+              val chat: Chat = Chat(chatId, chatName, groupChat, time, silent)
+
+              // partition offset list
+              val partitionOffsets: List[PartitionOffset] =
+                range.map(i => PartitionOffset(i, resultSet.getLong(s"users_offset_$i"))).toList
+
+              // chat users
+//              val otherUserId: UUID = resultSet.getObject[UUID]("other_user_id", classOf[UUID])
+//              val otherLogin = resultSet.getString("other_login")
+//              val chatUser = User(otherUserId, otherLogin)
+
+              buffer.addOne((chat, partitionOffsets))
             }
-            else {
-              Left(QueryError(ERROR, IncorrectLoginOrPassword))
-            }
+            (me, mySettings, buffer.toList)
         } match {
           case Failure(ex) => throw ex
-          case Success(either) => either
+          case Success(t) =>
+            if (t._1.isDefined && t._2.isDefined && t._3.nonEmpty) Right((t._1.get, t._2.get, t._3))
+            else
+              findUserWithUserId(userId) match {
+                case Left(value) => Left(value)
+                case Right((user, settings)) => Right((user, settings, List.empty[(Chat, List[PartitionOffset])]))
+              }
         }
     } match {
       case Failure(ex) => handleExceptionMessage(ex)
-      case Success(either) => either
+      case Success(either) =>
+        either match {
+          case Left(err) => Left(err)
+          case Right(tuple) => Right(tuple)
+        }
     }
   }
 
 
-  def findUserWithUUID(userId: UserID)(implicit connection: Connection): DbResponse[(User, Settings)] = {
+
+
+  private def findUserWithUserId(userId: UserID)(implicit connection: Connection): DbResponse[(User, Settings)] = {
     val sql =
       "SELECT users.user_id, users.login, settings.joining_offset, settings.zone_id, settings.session_duration " +
         "FROM users " +
@@ -187,6 +245,145 @@ class DbExecutor(val kafkaConfigurator: KafkaConfigurator) {
 
 
 
+
+  def findUser(login: Login, pass: Password)(implicit connection: Connection): DbResponse[(User, Settings, List[(Chat, List[PartitionOffset])])] = {
+    val numOfPartitions = kafkaConfigurator.CHAT_TOPIC_PARTITIONS_NUMBER
+    val range = 0 until numOfPartitions
+    val offsetColumn = "users_chats.users_offset_"
+    val offsets = range.foldLeft("")((folded, partition) => s"$folded$offsetColumn$partition, ") // .stripTrailing()
+    // val offsets = fold.substring(0, fold.length - 1) //  remove last coma ,
+
+    val prefix = "SELECT users.user_id, settings.joining_offset, settings.session_duration, settings.zone_id, " +
+      "users_chats.chat_id, users_chats.chat_name, users_chats.message_time, users_chats.silent, " +
+      offsets + "chats.group_chat "
+
+    val postfix = "FROM users " +
+      "INNER JOIN settings " +
+      "ON users.user_id = settings.user_id " +
+      "INNER JOIN users_chats " +
+      "ON settings.user_id = users_chats.user_id " +
+      "INNER JOIN chats " +
+      "ON users_chats.chat_id = chats.chat_id " +
+      "WHERE users.login = ? AND users.pass = ?"
+
+
+//    val postfix = "FROM users " +
+//      "INNER JOIN settings " +
+//      "ON users.user_id = settings.user_id " +
+//      "INNER JOIN users_chats " +
+//      "ON settings.user_id = users_chats.user_id " +
+//      "INNER JOIN chats " +
+//      "ON users_chats.chat_id = chats.chat_id " +
+//      "INNER JOIN users_chats AS users_chats_2 " +
+//      "ON chats.chat_id = users_chats_2.chat_id " +
+//      "INNER JOIN users AS users_2 " +
+//      "ON users_chats_2.user_id = users_2.user_id " +
+//      "WHERE users.login = ? AND users.pass = ?"
+
+
+    val sql = s"$prefix$postfix"
+
+    Using(connection.prepareStatement(sql)) {
+      (statement: PreparedStatement) =>
+        statement.setString(1, login)
+        statement.setString(2, pass)
+        var me: Option[User] = None
+        var mySettings: Option[Settings] = None
+        val buffer: ListBuffer[(Chat, List[PartitionOffset])] = ListBuffer() //ListBuffer.empty[(Chat, Map[Partition, Offset])]
+        Using(statement.executeQuery()) {
+          (resultSet: ResultSet) =>
+            while (resultSet.next()) {
+              if (me.isEmpty) { // user
+                val userId = resultSet.getObject[UUID]("user_id", classOf[UUID])
+                me = Option(User(userId, login))
+              }
+              if (mySettings.isEmpty) {
+                val joiningOffset = resultSet.getLong("joining_offset")
+                val sessionDuration = resultSet.getLong("session_duration")
+                val zoneId = resultSet.getString("zone_id")
+                mySettings = Option(Settings(joiningOffset, sessionDuration, ZoneId.of(zoneId)))
+              }
+              // chat
+              val chatId = resultSet.getString("chat_id")
+              val chatName = resultSet.getString("chat_name")
+              val groupChat = resultSet.getBoolean("group_chat")
+              val time = resultSet.getLong("message_time")
+              val silent = resultSet.getBoolean("silent")
+              val chat: Chat = Chat(chatId, chatName, groupChat, time, silent)
+
+              // partition offset list
+              val partitionOffsets: List[PartitionOffset] =
+                range.map(i => PartitionOffset(i, resultSet.getLong(s"users_offset_$i"))).toList
+
+              buffer.addOne((chat, partitionOffsets))
+            }
+            (me, mySettings, buffer.toList)
+        } match {
+          case Failure(ex) => throw ex
+          case Success(t) =>
+            if (t._1.isDefined && t._2.isDefined && t._3.nonEmpty) Right((t._1.get, t._2.get, t._3))
+            else
+              findUserWithoutChats(login, pass) match {
+                case Left(value) => Left(value)
+                case Right((user, settings)) => Right((user, settings, List.empty[(Chat, List[PartitionOffset])]))
+              }
+        }
+    } match {
+      case Failure(ex) => handleExceptionMessage(ex)
+      case Success(either) =>
+        either match {
+          case Left(err) => Left(err)
+          case Right(tuple) => Right(tuple)
+        }
+    }
+  }
+
+
+
+
+  /**
+   *
+   */
+  private def findUserWithoutChats(login: Login, pass: Password)(implicit connection: Connection): DbResponse[(User, Settings)] = {
+    val sql =
+      "SELECT users.user_id, users.login, settings.joining_offset, settings.zone_id, settings.session_duration " +
+        "FROM users " +
+        "INNER JOIN settings " +
+        "ON users.user_id = settings.user_id " +
+        "WHERE users.login = ? AND users.pass = ? "
+    Using(connection.prepareStatement(sql)) {
+      (statement: PreparedStatement) =>
+        statement.setString(1, login)
+        statement.setString(2, pass)
+        Using(statement.executeQuery()) {
+          (resultSet: ResultSet) =>
+            if (resultSet.next()) {
+              val userId: UserID  = resultSet.getObject[UUID]("user_id", classOf[UUID])
+              val login:  Login   = resultSet.getString("login")
+              val offset: Long    = resultSet.getLong("joining_offset")
+              val zoneId: String  = resultSet.getString("zone_id")
+              val sessionDur: Long = resultSet.getLong("session_duration")
+              Right((
+                User(userId, login),
+                Settings(offset, sessionDur, ZoneId.of(zoneId))
+              ))
+            }
+            else {
+              Left(QueryError(ERROR, IncorrectLoginOrPassword))
+            }
+        } match {
+          case Failure(ex) => throw ex
+          case Success(either) => either
+        }
+    } match {
+      case Failure(ex) => handleExceptionMessage(ex)
+      case Success(either) => either
+    }
+  }
+
+
+
+
   // todo works
   def createSession(sessionId: UUID, userId: UUID, validityTime: Long)(implicit connection: Connection): DbResponse[Int] = {
     val sql = "INSERT INTO sessions (session_id, user_id, validity_time)  VALUES (?, ?, ?)"
@@ -202,7 +399,6 @@ class DbExecutor(val kafkaConfigurator: KafkaConfigurator) {
       case Success(e) => e
     }
   }
-
 
 
 
@@ -235,6 +431,7 @@ class DbExecutor(val kafkaConfigurator: KafkaConfigurator) {
       case Success(either) => either
     }
   }
+
 
 
 
@@ -277,6 +474,8 @@ class DbExecutor(val kafkaConfigurator: KafkaConfigurator) {
       case Success(v) => Right(v)
     }
   }
+
+
 
 
   def getNumOfValidUserSessions(userId: UserID)(implicit connection: Connection): DbResponse[Int] = {
@@ -325,7 +524,6 @@ class DbExecutor(val kafkaConfigurator: KafkaConfigurator) {
 
 
 
-
   def removeAllExpiredUserSessions(userId: UUID, newValidityTime: Long)(implicit connection: Connection): DbResponse[Int] = {
     Using(connection.prepareStatement("DELETE FROM sessions WHERE user_id = ? AND validity_time < ? ")) {
       (statement: PreparedStatement) =>
@@ -341,9 +539,8 @@ class DbExecutor(val kafkaConfigurator: KafkaConfigurator) {
 
 
 
-
   /**
-   * Searching user's maching logins via regex, Frontend sends requests
+   * Searching user's matching logins via regex, Frontend sends requests
    * only when 'u' argument is longer than four characters.
    * @param logins
    * @param connection
@@ -377,65 +574,15 @@ class DbExecutor(val kafkaConfigurator: KafkaConfigurator) {
   }
 
 
-  def findMyChats(userUUID: UserID)(implicit connection: Connection): DbResponse[Map[Chat, Map[Partition, Offset]]] = {
-    val numOfPartitions = kafkaConfigurator.CHAT_TOPIC_PARTITIONS_NUMBER
-    val range = 0 until numOfPartitions
-    val offsetColumn = "users_chats.users_offset_"
-    val prefix = "SELECT chats.chat_id, users_chats.chat_name, " +
-      "chats.group_chat, users_chats.message_time, users_chats.silent, users.user_id,  "
-    val fold = range.foldLeft("")((folded, partition) => s"$folded$offsetColumn$partition, ").stripTrailing()
-    val offsets = fold.substring(0, fold.length - 1) //  remove last coma ,
-    val postfix = " FROM users_chats " +
-      "INNER JOIN chats " +
-      "ON users_chats.chat_id = chats.chat_id " +
-      "INNER JOIN users_chats AS other_chats " +
-      "ON chats.chat_id = other_chats.chat_id " +
-      "INNER JOIN users " +
-      "ON other_chats.user_id = users.user_id " +
-      "WHERE users_chats.user_id = ?"
-    val sql = s"$prefix$offsets$postfix"
-    Using(connection.prepareStatement(sql)) {
-      (statement: PreparedStatement) =>
-        statement.setObject(1, userUUID)
-        val buffer: ListBuffer[(Chat, Map[Partition, Offset])] = ListBuffer() //ListBuffer.empty[(Chat, Map[Partition, Offset])]
-        Using(statement.executeQuery()) {
-          (resultSet: ResultSet) =>
-            while (resultSet.next()) {
-              val chatId: ChatId = resultSet.getString("chat_id")
-              //val writTopExists: Boolean = resultSet.getBoolean("writing_topic_exists")
-              //val chatTopExists: Boolean = resultSet.getBoolean("chat_topic_exists")
-              val chatName: ChatName = resultSet.getString("chat_name")
-              val groupChat: Boolean = resultSet.getBoolean("group_chat")
-              val time: Long = resultSet.getLong("message_time")
-              val silent: Boolean = resultSet.getBoolean("silent")
-              val userId: UUID = resultSet.getObject[UUID]("user_id", classOf[UUID])
-              // val login: Login = resultSet.getString("login")
-              val partitionOffsets: Map[Partition, Offset] =
-                range.map(i => (i, resultSet.getLong(s"users_offset_$i"))).toMap
-              val chat: Chat = Chat(chatId, chatName, groupChat, time, silent)
-              // val u: User = User(userId, login)
-              // we add only when user_id is our id
-              if (userUUID == userId) {
-                buffer += ((chat, partitionOffsets))
-              }
-              // val grouped = buffer.toList.groupMap[Chat, User]((chat, user) => chat)((chat, user) => user)
-            }
-            val grouped = buffer.toList
-              .groupMap(_._1)(_._2)
-              .map(t => (t._1, t._2.head))
-            Right(grouped)
-        } match {
-          case Failure(ex) => throw ex
-          case Success(either) => either
-        }
-    } match {
-      case Failure(ex) => handleExceptionMessage(ex)
-      case Success(either) => either
-    }
-  }
 
 
-
+  /**
+   * used when user get notification of participating in new chat
+   * @param userId
+   * @param chatId
+   * @param connection
+   * @return
+   */
   def getChatData(userId: UserID, chatId: ChatId)(implicit connection: Connection): DbResponse[(Chat, Map[Partition, Offset])] = {
     val numOfPartitions = kafkaConfigurator.CHAT_TOPIC_PARTITIONS_NUMBER
     val range = 0 until numOfPartitions
@@ -485,14 +632,12 @@ class DbExecutor(val kafkaConfigurator: KafkaConfigurator) {
 
 
 
-
-
   def findChatUsers(chatId: ChatId)(implicit connection: Connection): DbResponse[List[User]] = {
     // val sql = "SELECT users.user_id, users.login FROM users INNER JOIN users_chats ON users.user_id = users_chats.user_id WHERE users_chats.chat_id = ? "
     val sql = "SELECT users.user_id, users.login FROM users_chats " + // users_chats.users_offset,
       "INNER JOIN users " +
       "ON users_chats.user_id = users.user_id " +
-      "WHERE users_chats.chat_id = ?"
+      "WHERE users_chats.chat_id = ? "
     Using(connection.prepareStatement(sql)) {
       (statement: PreparedStatement) =>
         statement.setString(1, chatId)
@@ -537,6 +682,8 @@ class DbExecutor(val kafkaConfigurator: KafkaConfigurator) {
   }
 
 
+
+
   private def checkDuplicatedChat(myID: UUID, otherId: UUID)(implicit connection: Connection): DbResponse[Int] = {
     val chatId1 = Domain.generateChatId(myID, otherId)
     val chatId2 = Domain.generateChatId(otherId, myID)
@@ -559,6 +706,8 @@ class DbExecutor(val kafkaConfigurator: KafkaConfigurator) {
       case Success(v)  => Right(v)
     }
   }
+
+
 
 
   private def createSingleChat(me: User, otherId: UUID, chatId: ChatId, chatName: ChatName)(implicit connection: Connection): DbResponse[Map[Chat,Map[Int, Long]]] = {
@@ -603,7 +752,6 @@ class DbExecutor(val kafkaConfigurator: KafkaConfigurator) {
         }
     }
   }
-
 
 
 
@@ -702,7 +850,6 @@ class DbExecutor(val kafkaConfigurator: KafkaConfigurator) {
 
 
 
-
   private def numOfChatUsers(chatId: ChatId)(implicit connection: Connection): DbResponse[Int] = {
     Using(connection.prepareStatement("SELECT silent FROM users_chats WHERE chat_id = ? ")) {
       (statement: PreparedStatement) =>
@@ -721,7 +868,6 @@ class DbExecutor(val kafkaConfigurator: KafkaConfigurator) {
       case Success(either) => either
     }
   }
-
 
 
 
@@ -761,6 +907,9 @@ class DbExecutor(val kafkaConfigurator: KafkaConfigurator) {
     } else Left(QueryError(ERROR, UnsupportedOperation)) // cannot leave non group chat
   }
 
+
+
+
   def deleteChat(chatId: ChatId)(implicit connection: Connection): DbResponse[Int] = {
     Using(connection.prepareStatement("DELETE FROM chats WHERE chat_id = ?  ")) {
       (statement: PreparedStatement) =>
@@ -771,6 +920,8 @@ class DbExecutor(val kafkaConfigurator: KafkaConfigurator) {
       case Success(v)  => Right(v)
     }
   }
+
+
 
 
   // todo works
@@ -788,6 +939,8 @@ class DbExecutor(val kafkaConfigurator: KafkaConfigurator) {
       case Success(value) => Right(value)
     }
   }
+
+
 
 
   def updateChat(userId: UserID, chat: Chat)(implicit connection: Connection): DbResponse[Int] = {
@@ -827,6 +980,7 @@ class DbExecutor(val kafkaConfigurator: KafkaConfigurator) {
 
 
 
+
   def updateChatOffsetAndMessageTime(userId: UserID, chatId: ChatId, lastMessageTime: Long, partitionOffsets: List[PartitionOffset])(implicit connection: Connection): DbResponse[Int] = {
     val prefix = "UPDATE users_chats SET "
     val offsets = partitionOffsets.foldLeft[String]("")(
@@ -853,6 +1007,7 @@ class DbExecutor(val kafkaConfigurator: KafkaConfigurator) {
 
 
 
+
   def updateChatName(myUUID: UUID, chatId: String, newName: ChatName)(implicit connection: Connection): DbResponse[Int] = {
     val sql = "UPDATE users_chats SET chat_name = ? WHERE chat_id = ? AND user_id = ? "
     Using(connection.prepareStatement(sql)) {
@@ -866,6 +1021,7 @@ class DbExecutor(val kafkaConfigurator: KafkaConfigurator) {
       case Success(value) => Right(value)
     }
   }
+
 
 
 
@@ -918,9 +1074,317 @@ class DbExecutor(val kafkaConfigurator: KafkaConfigurator) {
   }
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
   /**
-   * DEPRECATED
+   * DEPRECATED METHODS
    */
+
+  @deprecated(s"use getUserData() instead")
+  def findMyChats(userUUID: UserID)(implicit connection: Connection): DbResponse[Map[Chat, Map[Partition, Offset]]] = {
+    val numOfPartitions = kafkaConfigurator.CHAT_TOPIC_PARTITIONS_NUMBER
+    val range = 0 until numOfPartitions
+    val offsetColumn = "users_chats.users_offset_"
+    val prefix = "SELECT chats.chat_id, users_chats.chat_name, " +
+      "chats.group_chat, users_chats.message_time, users_chats.silent, users.user_id,  "
+    val fold = range.foldLeft("")((folded, partition) => s"$folded$offsetColumn$partition, ").stripTrailing()
+    val offsets = fold.substring(0, fold.length - 1) //  remove last coma ,
+    val postfix = " FROM users_chats " +
+      "INNER JOIN chats " +
+      "ON users_chats.chat_id = chats.chat_id " +
+      "INNER JOIN users_chats AS other_chats " +
+      "ON chats.chat_id = other_chats.chat_id " +
+      "INNER JOIN users " +
+      "ON other_chats.user_id = users.user_id " +
+      "WHERE users_chats.user_id = ?"
+    val sql = s"$prefix$offsets$postfix"
+    Using(connection.prepareStatement(sql)) {
+      (statement: PreparedStatement) =>
+        statement.setObject(1, userUUID)
+        val buffer: ListBuffer[(Chat, Map[Partition, Offset])] = ListBuffer() //ListBuffer.empty[(Chat, Map[Partition, Offset])]
+        Using(statement.executeQuery()) {
+          (resultSet: ResultSet) =>
+            while (resultSet.next()) {
+              val chatId: ChatId = resultSet.getString("chat_id")
+              //val writTopExists: Boolean = resultSet.getBoolean("writing_topic_exists")
+              //val chatTopExists: Boolean = resultSet.getBoolean("chat_topic_exists")
+              val chatName: ChatName = resultSet.getString("chat_name")
+              val groupChat: Boolean = resultSet.getBoolean("group_chat")
+              val time: Long = resultSet.getLong("message_time")
+              val silent: Boolean = resultSet.getBoolean("silent")
+              val userId: UUID = resultSet.getObject[UUID]("user_id", classOf[UUID])
+              // val login: Login = resultSet.getString("login")
+              val partitionOffsets: Map[Partition, Offset] =
+                range.map(i => (i, resultSet.getLong(s"users_offset_$i"))).toMap
+              val chat: Chat = Chat(chatId, chatName, groupChat, time, silent)
+              // val u: User = User(userId, login)
+              // we add only when user_id is our id
+              if (userUUID == userId) {
+                buffer += ((chat, partitionOffsets))
+              }
+              // val grouped = buffer.toList.groupMap[Chat, User]((chat, user) => chat)((chat, user) => user)
+            }
+            val grouped = buffer.toList
+              .groupMap(_._1)(_._2)
+              .map(t => (t._1, t._2.head))
+            Right(grouped)
+        } match {
+          case Failure(ex) => throw ex
+          case Success(either) => either
+        }
+    } match {
+      case Failure(ex) => handleExceptionMessage(ex)
+      case Success(either) => either
+    }
+  }
+
+
+  @deprecated
+  def findUser2(login: Login, pass: Password)(implicit connection: Connection): DbResponse[(User, Settings, List[(Chat, List[PartitionOffset], List[User])])] = {
+    val numOfPartitions = kafkaConfigurator.CHAT_TOPIC_PARTITIONS_NUMBER
+    val range = 0 until numOfPartitions
+    val offsetColumn = "users_chats.users_offset_"
+    val offsets = range.foldLeft("")((folded, partition) => s"$folded$offsetColumn$partition, ") // .stripTrailing()
+    // val offsets = fold.substring(0, fold.length - 1) //  remove last coma ,
+
+    val prefix = "SELECT users.user_id, settings.joining_offset, settings.session_duration, settings.zone_id,  " + //  chats.chat_id, users_chats.chat_name, " +
+      "users_chats.chat_id, users_chats.message_time, users_chats.silent, " +
+      offsets +
+      "chats.group_chat,  " +
+      "users_chats_2.user_id AS other_user_id, users_2.login AS other_login "
+
+    val postfix = "FROM users " +
+      "INNER JOIN settings " +
+      "ON users.user_id = settings.user_id " +
+      "INNER JOIN users_chats " +
+      "ON settings.user_id = users_chats.user_id " +
+      "INNER JOIN chats " +
+      "ON users_chats.chat_id = chats.chat_id " +
+      "INNER JOIN users_chats AS users_chats_2 " +
+      "ON chats.chat_id = users_chats_2.chat_id " +
+      "INNER JOIN users AS users_2 " +
+      "ON users_chats_2.user_id = users_2.user_id " +
+      "WHERE users.login = ? AND users.pass = ?"
+
+    //    val postfix2 = " FROM users_chats " +             // FROM users /
+    //      "INNER JOIN settings " +                       // INNER JOIN settings /
+    //      "ON users_chats.user_id = settings.user_id " + // ON users.user_id = settings.user_id /
+    //      "INNER JOIN users " +   // users_chats         // INNER JOIN users_chats /
+    //      "ON settings.user_id = users.user_id " +       // ON settings.user_id = users_chats.user_id /
+    //      "INNER JOIN chats " +                          // Inner join chats /
+    //      "ON users_chats.chat_id = chats.chat_id " +    // ON users_chats.chat_id = chats.chat_id  /
+    //      "INNER JOIN users_chats AS other_chats " +     // INNER JOIN users_chats AS users_chats_2 /
+    //      "ON chats.chat_id = other_chats.chat_id " +    // ON chats.chat_id = users_chats_2.chat_id /
+    //      "INNER JOIN users " +                          // INNER JOIN users AS users_2 /
+    //      "ON other_chats.user_id = users.user_id " +    // ON users_chats_2.user_id = users_2.user_id /
+    //      "WHERE users_chats.user_id = ?"                // WHERE users.user_id = ?
+
+    val sql = s"$prefix$postfix" //s"$prefix$offsets$postfix"
+
+
+    //    val sql2 =
+    //      "SELECT users.user_id, users.login, settings.joining_offset, settings.zone_id, settings.session_duration " +
+    //        "FROM users " +
+    //        "INNER JOIN settings " +
+    //        "ON users.user_id = settings.user_id " +
+    //        "WHERE users.user_id = ? "
+
+
+    Using(connection.prepareStatement(sql)) {
+      (statement: PreparedStatement) =>
+        statement.setString(1, login)
+        statement.setString(2, pass)
+        var me: Option[User] = None
+        var mySettings: Option[Settings] = None
+        val buffer: ListBuffer[(Chat, List[PartitionOffset], User)] = ListBuffer() //ListBuffer.empty[(Chat, Map[Partition, Offset])]
+        Using(statement.executeQuery()) {
+          (resultSet: ResultSet) =>
+            while (resultSet.next()) {
+              if (me.isEmpty) { // user
+                val userId = resultSet.getObject[UUID]("user_id", classOf[UUID])
+                me = Option(User(userId, login))
+              }
+              if (mySettings.isEmpty) {
+                val joiningOffset = resultSet.getLong("joining_offset")
+                val sessionDuration = resultSet.getLong("session_duration")
+                val zoneId = resultSet.getString("zone_id")
+                mySettings = Option(Settings(joiningOffset, sessionDuration, ZoneId.of(zoneId)))
+              }
+              // chat
+              val chatId = resultSet.getString("chat_id")
+              val chatName = resultSet.getString("chat_name")
+              val groupChat = resultSet.getBoolean("group_chat")
+              val time = resultSet.getLong("message_time")
+              val silent = resultSet.getBoolean("silent")
+              val chat: Chat = Chat(chatId, chatName, groupChat, time, silent)
+
+              // partition offset list
+              val partitionOffsets: List[PartitionOffset] =
+                range.map(i => PartitionOffset(i, resultSet.getLong(s"users_offset_$i"))).toList
+
+              // chat users
+              val otherUserId: UUID = resultSet.getObject[UUID]("other_user_id", classOf[UUID])
+              val otherLogin = resultSet.getString("other_login")
+
+              val chatUser = User(otherUserId, otherLogin)
+              buffer.addOne((chat, partitionOffsets, chatUser))
+            }
+            val grouped = buffer.toList
+              .groupMap(t => (t._1, t._2))(_._3)
+              .map(kv => (kv._1._1, kv._1._2, kv._2))
+              .toList
+            (me, mySettings, grouped)
+        } match {
+          case Failure(ex) => throw ex
+          case Success(t) =>
+            if (t._1.isDefined && t._2.isDefined && t._3.nonEmpty) Right((t._1.get, t._2.get, t._3))
+            else
+              findUserWithoutChats(login, pass) match {
+                case Left(value) => Left(value)
+                case Right((user, settings)) => Right((user, settings, List.empty[(Chat, List[PartitionOffset], List[User])]))
+              }
+        }
+    } match {
+      case Failure(ex) => handleExceptionMessage(ex)
+      case Success(either) =>
+        either match {
+          case Left(err) => Left(err)
+          case Right(tuple) => Right(tuple)
+        }
+    }
+  }
+
+
+  /**
+   * here we collect chat users as well
+   */
+  @deprecated
+  def getUserData2(userId: UserID)(implicit connection: Connection): DbResponse[(User, Settings, List[(Chat, List[PartitionOffset], List[User])])] = {
+    val numOfPartitions = kafkaConfigurator.CHAT_TOPIC_PARTITIONS_NUMBER
+    val range = 0 until numOfPartitions
+    val offsetColumn = "users_chats.users_offset_"
+    val offsets = range.foldLeft("")((folded, partition) => s"$folded$offsetColumn$partition, ") // .stripTrailing()
+    // val offsets = fold.substring(0, fold.length - 1) //  remove last coma ,
+
+    val prefix = "SELECT users.login, settings.joining_offset, settings.session_duration, settings.zone_id,  " + //  chats.chat_id, users_chats.chat_name, " +
+      "users_chats.chat_id, users_chats.message_time, users_chats.silent, " +
+      offsets +
+      "chats.group_chat,  " +
+      "users_chats_2.user_id AS other_user_id, users_2.login AS other_login "
+
+    val postfix = "FROM users " +
+      "INNER JOIN settings " +
+      "ON users.user_id = settings.user_id " +
+      "INNER JOIN users_chats " +
+      "ON settings.user_id = users_chats.user_id " +
+      "INNER JOIN chats " +
+      "ON users_chats.chat_id = chats.chat_id " +
+      "INNER JOIN users_chats AS users_chats_2 " +
+      "ON chats.chat_id = users_chats_2.chat_id " +
+      "INNER JOIN users AS users_2 " +
+      "ON users_chats_2.user_id = users_2.user_id " +
+      "WHERE users.user_id = ? "
+
+    //    val postfix2 = " FROM users_chats " +             // FROM users /
+    //      "INNER JOIN settings " +                       // INNER JOIN settings /
+    //      "ON users_chats.user_id = settings.user_id " + // ON users.user_id = settings.user_id /
+    //      "INNER JOIN users " +   // users_chats         // INNER JOIN users_chats /
+    //      "ON settings.user_id = users.user_id " +       // ON settings.user_id = users_chats.user_id /
+    //      "INNER JOIN chats " +                          // Inner join chats /
+    //      "ON users_chats.chat_id = chats.chat_id " +    // ON users_chats.chat_id = chats.chat_id  /
+    //      "INNER JOIN users_chats AS other_chats " +     // INNER JOIN users_chats AS users_chats_2 /
+    //      "ON chats.chat_id = other_chats.chat_id " +    // ON chats.chat_id = users_chats_2.chat_id /
+    //      "INNER JOIN users " +                          // INNER JOIN users AS users_2 /
+    //      "ON other_chats.user_id = users.user_id " +    // ON users_chats_2.user_id = users_2.user_id /
+    //      "WHERE users_chats.user_id = ?"                // WHERE users.user_id = ?
+
+    val sql = s"$prefix$postfix" //s"$prefix$offsets$postfix"
+
+
+    //    val sql2 =
+    //      "SELECT users.user_id, users.login, settings.joining_offset, settings.zone_id, settings.session_duration " +
+    //        "FROM users " +
+    //        "INNER JOIN settings " +
+    //        "ON users.user_id = settings.user_id " +
+    //        "WHERE users.user_id = ? "
+
+
+    Using(connection.prepareStatement(sql)) {
+      (statement: PreparedStatement) =>
+        statement.setObject(1, userId)
+        var me: Option[User] = None
+        var mySettings: Option[Settings] = None
+        val buffer: ListBuffer[(Chat, List[PartitionOffset], User)] = ListBuffer() //ListBuffer.empty[(Chat, Map[Partition, Offset])]
+        Using(statement.executeQuery()) {
+          (resultSet: ResultSet) =>
+            while (resultSet.next()) {
+              if (me.isEmpty) { // user
+                val login = resultSet.getString("login")
+                me = Option(User(userId, login))
+              }
+              if (mySettings.isEmpty) {
+                val joiningOffset = resultSet.getLong("joining_offset")
+                val sessionDuration = resultSet.getLong("session_duration")
+                val zoneId = resultSet.getString("zone_id")
+                mySettings = Option(Settings(joiningOffset, sessionDuration, ZoneId.of(zoneId)))
+              }
+              // chat
+              val chatId = resultSet.getString("chat_id")
+              val chatName = resultSet.getString("chat_name")
+              val groupChat = resultSet.getBoolean("group_chat")
+              val time = resultSet.getLong("message_time")
+              val silent = resultSet.getBoolean("silent")
+              val chat: Chat = Chat(chatId, chatName, groupChat, time, silent)
+
+              // partition offset list
+              val partitionOffsets: List[PartitionOffset] =
+                range.map(i => PartitionOffset(i, resultSet.getLong(s"users_offset_$i"))).toList
+
+              // chat users
+              val otherUserId: UUID = resultSet.getObject[UUID]("other_user_id", classOf[UUID])
+              val otherLogin = resultSet.getString("other_login")
+
+              val chatUser = User(otherUserId, otherLogin)
+              buffer.addOne((chat, partitionOffsets, chatUser))
+            }
+            val grouped = buffer.toList
+              .groupMap(t => (t._1, t._2))(_._3)
+              .map(kv => (kv._1._1, kv._1._2, kv._2))
+              .toList
+            (me, mySettings, grouped)
+        } match {
+          case Failure(ex) => throw ex
+          case Success(t) =>
+            if (t._1.isDefined && t._2.isDefined && t._3.nonEmpty) Right((t._1.get, t._2.get, t._3))
+            else
+              findUserWithUserId(userId) match {
+                case Left(value) => Left(value)
+                case Right((user, settings)) => Right((user, settings, List.empty[(Chat, List[PartitionOffset], List[User])]))
+              }
+        }
+    } match {
+      case Failure(ex) => handleExceptionMessage(ex)
+      case Success(either) =>
+        either match {
+          case Left(err) => Left(err)
+          case Right(tuple) => Right(tuple)
+        }
+    }
+  }
+
 
   @deprecated("use createUser() instead.")
   def createUserWithoutBatch(user: User, pass: Password, settings: Settings)(implicit connection: Connection): DbResponse[Int] = {
