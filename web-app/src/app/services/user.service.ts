@@ -176,6 +176,9 @@ export class UserService {
     sprawdzić // gdzie jeszcze występują odwołania do 
     // connection.user( userId ) i  .getChats(userId) czyli ffetchowanie  danych
 
+    zostawić // pobieranie danych przez connection.user( userId ) 
+    // pobieranie przez   .getChats(userId) zostało usunięte. 
+
     usunąć // pobieranie użytkowników przy pobieraniu chatu ??? 
 
     // fetching user data from server
