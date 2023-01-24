@@ -105,7 +105,7 @@ export class ChatPanelComponent implements OnInit, OnDestroy {
     )   
     // const chatId = this.activated.snapshot.paramMap.get('chatId');
     // if ( chatId ) this.userService.markMessagesAsRead( chatId )
-    this.userService.dataFetched() 
+    if ( this.userService.isWSconnected() ) this.userService.dataFetched() 
   }
 
 

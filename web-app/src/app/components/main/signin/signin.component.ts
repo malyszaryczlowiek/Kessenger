@@ -32,17 +32,20 @@ export class SigninComponent implements OnInit {
         signin.subscribe({
           next: (response) => {
             if (response.status === 200) {
-              this.userService.setUserAndSettings(
-                response.body?.user,
-                response.body?.settings
-              );
-              // after successfull request we should update KSID cookie 
-              // to have correct userId
-              this.userService.updateSession()
-              
-              // this.userService.setLogoutTimer()
-              // and redirect to user site
-              this.router.navigate(['user']);
+
+              const body = response.body
+              if ( body ) {
+                this.userService.setUserAndSettings(
+                  body.user,
+                  body.settings
+                );
+                // after successfull request we should update KSID cookie 
+                // to have correct userId
+                this.userService.updateSession()
+                this.userService.setChats( response.body.chatList )
+                this.userService.connectViaWebsocket()
+                this.router.navigate(['user']);
+              }              
             } else {
               console.log('sign in status other than 200.')
             }            

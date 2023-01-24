@@ -471,31 +471,31 @@ class KessengerController @Inject()
 
 
 
-//  def getChats(userId: UUID): Action[AnyContent] =
-//    SessionChecker(parse.anyContent, userId)(
-//      databaseExecutionContext,
-//      db,
-//      dbExecutor,
-//      headersParser
-//    ).andThen(
-//      SessionUpdater(parse.anyContent, userId)(
-//        databaseExecutionContext,
-//        db,
-//        dbExecutor,
-//        headersParser
-//      )
-//    ).async( implicit request => {
-//      Future {
-//        db.withConnection(implicit connection => {
-//          dbExecutor.findMyChats(userId) match {
-//            case Left(_) => InternalServerError("Error 009. You are logged in with SessionChecker and SessionUpdater ")
-//            case Right(chats) =>
-//              //val c = chats.filter(t => !t._2._2).map(t => (t._1, t._2._1))
-//              Ok( jsonParser.chatsToJSON( chats ))
-//          }
-//          })
-//      }(databaseExecutionContext)
-//    })
+  def getChats(userId: UUID): Action[AnyContent] =
+    SessionChecker(parse.anyContent, userId)(
+      databaseExecutionContext,
+      db,
+      dbExecutor,
+      headersParser
+    ).andThen(
+      SessionUpdater(parse.anyContent, userId)(
+        databaseExecutionContext,
+        db,
+        dbExecutor,
+        headersParser
+      )
+    ).async( implicit request => {
+      Future {
+        db.withConnection(implicit connection => {
+          dbExecutor.findMyChats(userId) match {
+            case Left(_) => InternalServerError("Error 009. You are logged in with SessionChecker and SessionUpdater ")
+            case Right(chats) =>
+              //val c = chats.filter(t => !t._2._2).map(t => (t._1, t._2._1))
+              Ok( jsonParser.chatsToJSON( chats ))
+          }
+          })
+      }(databaseExecutionContext)
+    })
 
 
 

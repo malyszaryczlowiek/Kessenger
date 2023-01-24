@@ -164,7 +164,7 @@ class BrokerExecutor( private val out: ActorRef, private val db: Database, priva
         println(s"zaczynam dodawanie nowego chatu do listy")
         messageConsumer.unsubscribe()
         writingConsumer.unsubscribe()
-        newChats.foreach(kv => this.chats.put(kv._1, ( fetchingOffsetShift(kv._2) ,kv._2)))
+        newChats.foreach(kv => this.chats.put(kv._1, (fetchingOffsetShift(kv._2) ,kv._2) ))
         initializeChatConsumers(messageConsumer, writingConsumer)
 //
 //        val newPartitions: Iterable[(TopicPartition, Long)] = newChats.flatMap(

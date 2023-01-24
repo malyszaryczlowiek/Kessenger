@@ -18,6 +18,8 @@ export class ChatComponent implements OnInit, OnDestroy {
   constructor(private userService: UserService) { }
 
   ngOnInit(): void {
+    tutaj // sprawdzić czy nie można zostawić samego fetchowania danych przez poniższy emmiter. 
+    // i tylko użyć if (this.userService.isWSconnected() ) this.userService.dataFetched()
     this.fetchingSubscription = this.userService.fetchingUserDataFinishedEmmiter.subscribe( (b) => {
         if (b) {
           console.log('ChatComponent fetched data from UserService via fetchEmmiter.')
@@ -34,7 +36,7 @@ export class ChatComponent implements OnInit, OnDestroy {
             if (response.status == 200) {
               const body = response.body              
               if (body) {
-                this.userService.setChats(body)
+                this.userService.setChats( body )
                 this.userService.connectViaWebsocket() // run websocket connection
               }
               else console.log('ChatComponent.ngOnInit() empty body')
@@ -53,6 +55,7 @@ export class ChatComponent implements OnInit, OnDestroy {
       console.log('ChatComponent.constructor() chat data read from UserService directly')
       this.chats = this.userService.getAllChats()
     }
+    
   }
 
 

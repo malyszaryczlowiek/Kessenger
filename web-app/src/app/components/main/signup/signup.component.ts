@@ -36,6 +36,7 @@ export class SignupComponent implements OnInit {
                 response.body?.user,
                 response.body?.settings
               );
+              this.userService.connectViaWebsocket()
               // after successfull request we should update KSID cookie 
               // to have correct userId
               // this.userService.updateSession()

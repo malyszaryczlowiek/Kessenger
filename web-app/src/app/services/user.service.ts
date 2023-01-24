@@ -24,9 +24,12 @@ import { UserOffsetUpdate } from '../models/UserOffsetUpdate';
 })
 export class UserService {
 
+
+
+
   user: User | undefined;
-  userFetched = false
-  chatFetched = false
+  //userFetched = false
+  //chatFetched = false
   
   fetchingUserDataFinishedEmmiter = new EventEmitter<boolean>() // called during page reload
 
@@ -36,13 +39,20 @@ export class UserService {
 
   selectedChatEmitter:  EventEmitter<ChatData> = new EventEmitter<ChatData>()
 
-  newMessagesSubscription: Subscription | undefined
-  oldMessagesSubscription: Subscription | undefined
-  invitationSubscription:  Subscription | undefined
-  writingSubscription:     Subscription | undefined
+  newMessagesSubscription:  Subscription | undefined
+  oldMessagesSubscription:  Subscription | undefined
+  invitationSubscription:   Subscription | undefined
+  writingSubscription:      Subscription | undefined
 
-  restartWSSubscription:   Subscription | undefined
-  reconnectWSTimer:      NodeJS.Timeout | undefined
+  restartWSSubscription:    Subscription | undefined
+  wsConnectionSubscription: Subscription | undefined
+  reconnectWSTimer:       NodeJS.Timeout | undefined
+
+
+
+
+
+
 
 
   constructor(private connection: ConnectionService, 
@@ -50,9 +60,7 @@ export class UserService {
     private settingsService: UserSettingsService, 
     private router: Router) { 
     
-    
     console.log('UserService constructor called.')
-    
 
     this.newMessagesSubscription = this.connection.newMessagesEmitter.subscribe(
       (messageList: Message[]) => {
@@ -173,13 +181,20 @@ export class UserService {
       }
     )
 
-    sprawdzić // gdzie jeszcze występują odwołania do 
-    // connection.user( userId ) i  .getChats(userId) czyli ffetchowanie  danych
+    // here we simply notify that all needed data are loaded
+    // and WS connection is established 
+    // so all fetching sobscribers can load data. 
+    this.wsConnectionSubscription = this.connection.wsConnEmitter.subscribe(
+      ( bool ) => { this.dataFetched() }
+    )
 
-    zostawić // pobieranie danych przez connection.user( userId ) 
+    // sprawdzić // gdzie jeszcze występują odwołania do 
+    // connection.user( userId ) i  .getChats(userId) czyli fetchowanie  danych
+
+    // zostawić // pobieranie danych przez connection.user( userId ) 
     // pobieranie przez   .getChats(userId) zostało usunięte. 
 
-    usunąć // pobieranie użytkowników przy pobieraniu chatu ??? 
+    // usunąć // pobieranie użytkowników przy pobieraniu chatu ??? 
 
     // fetching user data from server
     const userId = this.connection.getUserId();
@@ -198,17 +213,17 @@ export class UserService {
               this.settingsService.setSettings(body.settings)
               this.logoutSeconds = this.settingsService.settings.sessionDuration / 1000
               this.restartLogoutTimer()
-              this.userFetched = true
-              // this.connectViaWebsocket()
+              this.chats.initialize( body.chatList )
+              this.connectViaWebsocket() 
               
               
-              napisać // emitera w ConnectionService, który wyemituje sygnał, że 
+              // napisać // emitera w ConnectionService, który wyemituje sygnał, że 
               // połączenie zostało nawiązane
               // tutaj natomiast napisać subskrybenta, który przechwyci sygnał
               // i  uruchomi fetchowanie -> this.dataFetched()
-              // NO I NAPISAĆ nowy endpoint w którym pobieramy dane usera i jego czaty razem. 
-              // wtedy można zlikwidoważ zmienne chatFetched i userFetched
 
+              // emisja eventu o fethocwaniu musi się odbyć 
+              // gdy otrzymamy info zwrotne o tym że WS już wystartowało 
               //this.dataFetched()              
             }
             else {
@@ -224,31 +239,6 @@ export class UserService {
           complete: () => {}
         })
       }
-      // we get user's chats
-      const c = this.connection.getChats(userId);
-      if ( c ){
-        c.subscribe({
-          next: (response) => {
-            // we need to sort our chats according to messageTime
-            const chats = response.body 
-            // we sort newest (larger lastMessageTime) first.
-            if (chats) {
-              console.log('UserSerivice.constructor() fetching chats')
-              this.chats.initialize( chats )
-            }
-            this.chatFetched = true
-            this.connectViaWebsocket() // run websocket connection
-            //this.dataFetched()
-          } ,
-          error: (error) => {
-            console.log(error) 
-            this.clearService()
-            console.log('redirection to logging page')
-            this.router.navigate([''])
-          } ,
-          complete: () => {}
-        })
-      }
     } else this.router.navigate([''])
 
   }
@@ -260,6 +250,7 @@ export class UserService {
     this.user = undefined;
     this.chats.clear()
     this.settingsService.clearSettings();
+    if (this.wsConnectionSubscription) this.wsConnectionSubscription.unsubscribe()
     if (this.restartWSSubscription) this.restartWSSubscription.unsubscribe()
     if (this.reconnectWSTimer) clearInterval(this.reconnectWSTimer) 
     this.connection.disconnect();
@@ -274,11 +265,12 @@ export class UserService {
   }
 
 
+
+
   setUserAndSettings(u: User | undefined, s: Settings | undefined) {
     this.user = u;
     if (s) this.settingsService.setSettings(s);
-    this.userFetched = true
-    this.dataFetched()
+    // this.dataFetched()
   }
 
   
@@ -320,7 +312,8 @@ export class UserService {
   }
 
   dataFetched() {
-    this.fetchingUserDataFinishedEmmiter.emit(this.userFetched && this.chatFetched)
+    this.fetchingUserDataFinishedEmmiter.emit( true )
+    // this.fetchingUserDataFinishedEmmiter.emit(this.userFetched && this.chatFetched)
   }
 
   getAllChats() {
@@ -337,7 +330,7 @@ export class UserService {
 
   setChats(chats: ChatData[]) {
     this.chats.initialize( chats )
-    this.chatFetched = true
+    // this.chatFetched = true
     this.dataFetched()
   }
 
@@ -388,9 +381,11 @@ export class UserService {
 
 
 
-  signIn(login: string, pass: string): Observable<HttpResponse<{user: User, settings: Settings}>> | undefined {
+  signIn(login: string, pass: string): Observable<HttpResponse<{user: User, settings: Settings, chatList: Array<ChatData>}>> | undefined {
     return this.connection.signIn(login, pass);
   }
+
+
 
 
   logout() {
@@ -588,6 +583,9 @@ export class UserService {
     this.connection.startListeningFromNewChat( chatId , partitionOffsets)
   }
 
+  isWSconnected(): boolean {
+    return this.connection.isWSconnected()
+  }
 
   
 

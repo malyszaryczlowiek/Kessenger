@@ -35,6 +35,7 @@ export class ConnectionService {
   public invitationEmitter:  EventEmitter<Invitation>        = new EventEmitter<Invitation>()
   public writingEmitter:     EventEmitter<Writing>           = new EventEmitter<Writing>()
   public restartWSEmitter:   EventEmitter<boolean>           = new EventEmitter<boolean>()
+  public wsConnEmitter:      EventEmitter<boolean>           = new EventEmitter<boolean>()
 
 
   constructor(private http: HttpClient, 
@@ -58,7 +59,7 @@ export class ConnectionService {
     this.wsConnection?.close()
     this.wsConnection = undefined
   }            
-  
+  // {user: User, settings: Settings, chatList: Array<{chat: Chat, partitionOffsets: Array<PartitionOffset>}>}
 
 
   signUp(login: string, pass: string): Observable<HttpResponse<{user: User, settings: Settings}>> | undefined{
@@ -81,9 +82,9 @@ export class ConnectionService {
   }  
 
 
+// 
 
-  tutaj // zmienił  się model pobieranych danych
-  signIn(login: string, pass: string): Observable<HttpResponse<{user: User, settings: Settings}>> | undefined {
+  signIn(login: string, pass: string): Observable<HttpResponse<{user: User, settings: Settings, chatList: Array<ChatData>}>> | undefined {
     const fakeUserId = uuidv4();
     this.session.setNewSession(fakeUserId); 
     const body = {
@@ -93,7 +94,7 @@ export class ConnectionService {
     };
     const token = this.session.getSessionToken()
     if ( token ) {
-      return this.http.post<{user: User, settings: Settings}>(this.api + '/signin', body, {
+      return this.http.post<{user: User, settings: Settings, chatList: Array<ChatData>}>(this.api + '/signin', body, {
         headers:  new HttpHeaders()
           .set('KSID', token),
         observe: 'response', 
@@ -119,11 +120,11 @@ export class ConnectionService {
 
 
 
-  tutaj // zmienił  się model pobieranych danych
-  user(userId: string): Observable<HttpResponse<{user: User, settings: Settings}>> | undefined {
+
+  user(userId: string): Observable<HttpResponse<{user: User, settings: Settings, chatList: Array<ChatData>}>> | undefined {
     const token = this.session.getSessionToken()
     if ( token ) {
-      return this.http.get<{user: User, settings: Settings}>(this.api + `/user/${userId}`, {
+      return this.http.get<{user: User, settings: Settings, chatList: Array<ChatData>}>(this.api + `/user/${userId}`, {
         headers: new HttpHeaders()
           .set('KSID', token),
         observe: 'response', 
@@ -236,7 +237,7 @@ export class ConnectionService {
 
 
 
-/*   getChats(userId: string): Observable<HttpResponse<Array<ChatData>>> | undefined {
+  getChats(userId: string): Observable<HttpResponse<Array<ChatData>>> | undefined {
     const token = this.session.getSessionToken()
     if ( token ) {
       return this.http.get<Array<ChatData>>(this.api + `/user/${userId}/chats`, {
@@ -247,7 +248,7 @@ export class ConnectionService {
       });
     } else return undefined;
   }
- */
+
 
 
 
@@ -355,8 +356,9 @@ export class ConnectionService {
       };
       this.wsConnection.onmessage = (msg: any) => {
         const body = JSON.parse( msg.data )
-        if ( body.conf )
+        if ( body.conf ) {
           console.log('got config: ', body.conf )
+        }          
         if ( body.newMsgList ) {
           console.log('got list of NEW message: ', body.newMsgList )
           this.newMessagesEmitter.emit( body.newMsgList )
@@ -375,6 +377,7 @@ export class ConnectionService {
         }
         if (body.comm == 'opened correctly') {
           console.log('WS connection opend correctly.')
+          this.wsConnEmitter.emit( this.isWSconnected() )
           this.startPingSender()
         }
         if (body.num && body.message) {
@@ -509,6 +512,14 @@ export class ConnectionService {
     return this.session.getSavedUserId();
   }
 
+
+
+  isWSconnected(): boolean {
+    if ( this.wsConnection ) {
+      const state =  this.wsConnection.readyState
+      return state == this.wsConnection.OPEN
+    } else return false 
+  }
 
 
 

@@ -55,7 +55,7 @@ export class EditAccountComponent implements OnInit, OnDestroy {
         }
       }
     )
-    this.userService.dataFetched() 
+    if ( this.userService.isWSconnected() ) this.userService.dataFetched() 
   }
 
 
