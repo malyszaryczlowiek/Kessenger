@@ -1,6 +1,5 @@
 import { Component, OnDestroy, OnInit } from '@angular/core';
 import { Router } from '@angular/router';
-import { ChatData } from 'src/app/models/ChatData';
 import { UserService } from 'src/app/services/user.service';
 
 
@@ -17,6 +16,7 @@ export class UserComponent implements OnInit, OnDestroy {
   
   ngOnInit(): void {
     console.log('UserComponent.ngOnInit()')
+    if ( ! this.userService.isWSconnectionDefined() ) this.userService.connectViaWebsocket() 
   }
 
 

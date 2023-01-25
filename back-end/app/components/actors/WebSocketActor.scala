@@ -59,7 +59,7 @@ class WebSocketActor( out: ActorRef, be: BrokerExecutor ) extends Actor {
                           println(s"6. CANNOT PARSE NewChatId")
                           parseFetchingOlderMessagesRequest(s) match {
                             case Left(_) =>
-                              println(s"7 CANNOT PARSE FetchingOlderMessages")
+                              println(s"7. CANNOT PARSE FetchingOlderMessages")
                               if (s.equals("PoisonPill")) {
                                 println(s"8. GOT PoisonPill '$s'")
                                 self ! PoisonPill

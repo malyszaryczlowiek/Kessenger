@@ -23,9 +23,7 @@ export class ChatsDataService {
         cd.emitter = new EventEmitter<ChatData>()
         return cd
       }
-    ).sort(
-      (a,b) => this.compareLatestChatData(a,b)
-    )
+    ).sort( (a,b) => this.compareLatestChatData(a,b) )
   }
 
 
@@ -72,7 +70,11 @@ export class ChatsDataService {
     }
   }
 
-
+  //tutaj // jest problem z wczytaniem wielu wiadomości 
+  // oraz z tym że jak jesteśmy w liście czatów i zrobimy refresh
+  // to wszystkie wiadomości są wczytywane do nowych wiadomości 
+  // dlatego trzeba jeszcze zimplementować mechanizm sprawdzający
+  // czy dana wiadomość ma offset poniżej czy powyżej offsetu w danym chacie. 
 
   insertNewMessages(m: Message[]) {
     m.forEach((mm,i,arr) => {
@@ -94,7 +96,28 @@ export class ChatsDataService {
             }
           )
         } else {
-          foundCD.unreadMessages.push( mm )
+          //sprawdzić // czy offset wiadomości jest mniejszy niż offset w chatcie
+          // jeśli tak to trafia do przeczytanych, 
+          // jeśli jest większy to do nieprzeczytanych. 
+          const unread = foundCD.partitionOffsets.some((po,i,arr) => {
+            return po.partition == mm.partOff.partition && po.offset < mm.partOff.offset
+          })
+          if ( unread ) foundCD.unreadMessages.push( mm ) 
+          else {
+            console.log('WIADOMOŚĆ DODANA DO PRZECZYTANYCH')
+            foundCD.messages.push( mm )
+            foundCD.messages = foundCD.messages.sort((a,b) => a.serverTime - b.serverTime )
+            foundCD.partitionOffsets = foundCD.partitionOffsets.map(
+              (po, i, arr) => {
+                if (po.partition == mm.partOff.partition && po.offset < mm.partOff.offset){ 
+                  po.offset = mm.partOff.offset
+                  return po
+                } else  {
+                  return po
+                }
+              }
+            )
+          }          
         }
         if (foundCD.chat.lastMessageTime < mm.serverTime) foundCD.chat.lastMessageTime = mm.serverTime
         this.changeChat( foundCD )

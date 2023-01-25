@@ -445,7 +445,7 @@ export class ConnectionService {
 
   sendWriting(w: Writing) {
     if (this.wsConnection) {
-      console.log('sending invitation to server.');
+      console.log('sending writing to server.');
       this.wsConnection.send(JSON.stringify( w ));
     } else {
       console.error('Did not send data, open a connection first');
@@ -486,7 +486,7 @@ export class ConnectionService {
   startPingSender() {
     this.wsPingSender = setInterval(() => {
       if ( this.wsConnection )
-        this.wsConnection.send('empty')
+        this.wsConnection.send('ping')
     }, 60000 ) // ping empty message every 1 minute
   }
 
@@ -519,6 +519,13 @@ export class ConnectionService {
       const state =  this.wsConnection.readyState
       return state == this.wsConnection.OPEN
     } else return false 
+  }
+
+
+
+
+  isWSconnectionDefined(): boolean {
+    return this.wsConnection !== undefined
   }
 
 

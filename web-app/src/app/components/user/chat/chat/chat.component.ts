@@ -18,7 +18,7 @@ export class ChatComponent implements OnInit, OnDestroy {
   constructor(private userService: UserService) { }
 
   ngOnInit(): void {
-    tutaj // sprawdzić czy nie można zostawić samego fetchowania danych przez poniższy emmiter. 
+    // tutaj // sprawdzić czy nie można zostawić samego fetchowania danych przez poniższy emmiter. 
     // i tylko użyć if (this.userService.isWSconnected() ) this.userService.dataFetched()
     this.fetchingSubscription = this.userService.fetchingUserDataFinishedEmmiter.subscribe( (b) => {
         if (b) {

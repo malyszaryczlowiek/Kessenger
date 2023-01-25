@@ -35,6 +35,7 @@ export class SigninComponent implements OnInit {
 
               const body = response.body
               if ( body ) {
+                this.userService.assignSubscriptions()
                 this.userService.setUserAndSettings(
                   body.user,
                   body.settings
@@ -43,7 +44,7 @@ export class SigninComponent implements OnInit {
                 // to have correct userId
                 this.userService.updateSession()
                 this.userService.setChats( response.body.chatList )
-                this.userService.connectViaWebsocket()
+                // this.userService.connectViaWebsocket() ttt
                 this.router.navigate(['user']);
               }              
             } else {

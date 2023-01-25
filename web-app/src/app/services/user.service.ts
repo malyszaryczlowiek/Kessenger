@@ -52,141 +52,15 @@ export class UserService {
 
 
 
-
-
-
   constructor(private connection: ConnectionService, 
     private chats: ChatsDataService,
     private settingsService: UserSettingsService, 
     private router: Router) { 
     
     console.log('UserService constructor called.')
-
-    this.newMessagesSubscription = this.connection.newMessagesEmitter.subscribe(
-      (messageList: Message[]) => {
-        console.log(`new messages from emitter: ${messageList}`)
-        this.chats.insertNewMessages( messageList ) // this may has messages from different chats
-        this.dataFetched() 
-      },
-      (error) => {
-        console.log('Error in message emitter: ', error)
-        console.log(error)
-      },
-      () => console.log('on message emitter completed.')
-    )
-
-    this.oldMessagesSubscription = this.connection.oldMessagesEmitter.subscribe(
-      (messageList: Message[]) => {
-        console.log(`old messages from emitter: ${messageList}`)
-        this.chats.insertOldMessages( messageList ) 
-      },
-      (error) => {
-        console.log('Error in message emitter: ', error)
-        console.log(error)
-      },
-      () => console.log('on message emitter completed.')
-    ) 
-
-
-    this.invitationSubscription = this.connection.invitationEmitter.subscribe(
-      (invitation: Invitation) => {
-        console.log('Got new invitaion', invitation)
-        const c = this.getChatData( invitation.chatId )
-        if ( c ) {
-          const cSub = c.subscribe({
-            next: (response) => {
-              if (response.ok){
-                const body = response.body
-                if ( body ) {
-                  const cd: ChatData =  {
-                    chat: body.chat,
-                    partitionOffsets: invitation.partitionOffsets,
-                    messages: new Array<Message>(),
-                    unreadMessages: new Array<Message>(),
-                    users: new Array<User>(),
-                    isNew: true,
-                    emitter: new EventEmitter<ChatData>()  
-                  }
-                  this.addNewChat( cd ) 
-                  this.startListeningFromNewChat( cd.chat.chatId, cd.partitionOffsets )
-                  this.dataFetched() 
-
-                  if ( this.user ) {
-                    const bodyToSent: UserOffsetUpdate = {
-                      userId: this.user.userId,
-                      joiningOffset: invitation.myJoiningOffset                    
-                    }
-                    const u = this.updateJoiningOffset( bodyToSent )
-                    if ( u ) {
-                      const sub = u.subscribe({
-                        next: (response) => {
-                          if ( response.ok ) {
-                            this.settingsService.settings.joiningOffset = invitation.myJoiningOffset
-                            console.log('joining Offset updated ok. to ', this.settingsService.settings.joiningOffset)
-                          }
-                            
-                        },
-                        error: (err) => {
-                          console.log('Error during joining offset update', err)
-                        },
-                        complete: () => {}
-                      })
-                      // sub.unsubscribe() 
-                    }
-                  }                  
-                }                
-              }              
-            },
-            error: (err) => {
-              console.error('error in calling getChatData() in invitationSubscription', err) 
-            },
-            complete: () => {}
-          })
-          //cSub.unsubscribe()
-        }
-      }, 
-      (error) => {
-        console.error('Got errorn in invitation subscription', error)
-      },
-      () => {} // on complete
-    )
-
-    this.writingSubscription = this.connection.writingEmitter.subscribe(
-      (wrt: Writing) => {
-        console.log(wrt)
-      },
-      (error) => {
-        console.error('Got errorn in writing subscription', error)
-      },
-      () => {} // on complete
-    )
-
-    this.restartWSSubscription = this.connection.restartWSEmitter.subscribe(
-      (r: boolean) => {
-        // if we get true we need to start timer end trying to reconnect
-        if ( r ) {
-          if ( ! this.reconnectWSTimer ) {
-            console.log('initializing reconnectWSTimer. ')
-            this.reconnectWSTimer = setInterval( () => {
-              console.log('inside reconnectWSTimer trying to reconnect WS. ')
-              this.connectViaWebsocket()
-            }, 10000) // we try reconnect every 10s
-          }          
-        } else {
-          // if we get false this means that we need to stop timer,
-          // because we connected, 
-          // or we disconnected and we do not need to reconnect
-          if ( this.reconnectWSTimer ) clearInterval( this.reconnectWSTimer )
-        }
-      }
-    )
-
-    // here we simply notify that all needed data are loaded
-    // and WS connection is established 
-    // so all fetching sobscribers can load data. 
-    this.wsConnectionSubscription = this.connection.wsConnEmitter.subscribe(
-      ( bool ) => { this.dataFetched() }
-    )
+    this.assignSubscriptions()
+    
+    
 
     // sprawdzić // gdzie jeszcze występują odwołania do 
     // connection.user( userId ) i  .getChats(userId) czyli fetchowanie  danych
@@ -245,24 +119,192 @@ export class UserService {
 
 
 
-  // method called when session expires or logout clicked
+
+  assignSubscriptions() {
+    if ( ! this.newMessagesSubscription ) {
+      this.newMessagesSubscription = this.connection.newMessagesEmitter.subscribe(
+        (messageList: Message[]) => {
+          console.log(`new messages from emitter: ${messageList}`)
+          this.chats.insertNewMessages( messageList ) // this may has messages from different chats
+          this.dataFetched() 
+        },
+        (error) => {
+          console.log('Error in message emitter: ', error)
+          console.log(error)
+        },
+        () => console.log('on message emitter completed.')
+      )
+    }
+
+    if ( ! this.oldMessagesSubscription ) {
+      this.oldMessagesSubscription = this.connection.oldMessagesEmitter.subscribe(
+        (messageList: Message[]) => {
+          console.log(`old messages from emitter: ${messageList}`)
+          this.chats.insertOldMessages( messageList ) 
+        },
+        (error) => {
+          console.log('Error in message emitter: ', error)
+          console.log(error)
+        },
+        () => console.log('on message emitter completed.')
+      ) 
+    }
+
+    if (! this.invitationSubscription ) {
+      this.invitationSubscription = this.connection.invitationEmitter.subscribe(
+        (invitation: Invitation) => {
+          console.log('Got new invitaion', invitation)
+          const c = this.getChatData( invitation.chatId )
+          if ( c ) {
+            const cSub = c.subscribe({
+              next: (response) => {
+                if (response.ok){
+                  const body = response.body
+                  if ( body ) {
+                    const cd: ChatData =  {
+                      chat: body.chat,
+                      partitionOffsets: invitation.partitionOffsets,
+                      messages: new Array<Message>(),
+                      unreadMessages: new Array<Message>(),
+                      users: new Array<User>(),
+                      isNew: true,
+                      emitter: new EventEmitter<ChatData>()  
+                    }
+                    this.addNewChat( cd ) 
+                    this.startListeningFromNewChat( cd.chat.chatId, cd.partitionOffsets )
+                    this.dataFetched() 
+  
+                    if ( this.user ) {
+                      const bodyToSent: UserOffsetUpdate = {
+                        userId: this.user.userId,
+                        joiningOffset: invitation.myJoiningOffset                    
+                      }
+                      const u = this.updateJoiningOffset( bodyToSent )
+                      if ( u ) {
+                        const sub = u.subscribe({
+                          next: (response) => {
+                            if ( response.ok ) {
+                              this.settingsService.settings.joiningOffset = invitation.myJoiningOffset
+                              console.log('joining Offset updated ok. to ', this.settingsService.settings.joiningOffset)
+                            }
+                              
+                          },
+                          error: (err) => {
+                            console.log('Error during joining offset update', err)
+                          },
+                          complete: () => {}
+                        })
+                        // sub.unsubscribe() 
+                      }
+                    }                  
+                  }                
+                }              
+              },
+              error: (err) => {
+                console.error('error in calling getChatData() in invitationSubscription', err) 
+              },
+              complete: () => {}
+            })
+            //cSub.unsubscribe()
+          }
+        }, 
+        (error) => {
+          console.error('Got errorn in invitation subscription', error)
+        },
+        () => {} // on complete
+      )
+    }
+
+    if (! this.writingSubscription) {
+      this.writingSubscription = this.connection.writingEmitter.subscribe(
+        (wrt: Writing) => {
+          console.log(wrt)
+        },
+        (error) => {
+          console.error('Got errorn in writing subscription', error)
+        },
+        () => {} // on complete
+      )
+    }
+
+    if (! this.restartWSSubscription ) {
+      this.restartWSSubscription = this.connection.restartWSEmitter.subscribe(
+        (r: boolean) => {
+          // if we get true we need to start timer end trying to reconnect
+          if ( r ) {
+            if ( ! this.reconnectWSTimer ) {
+              console.log('initializing reconnectWSTimer. ')
+              this.reconnectWSTimer = setInterval( () => {
+                console.log('inside reconnectWSTimer trying to reconnect WS. ')
+                this.connectViaWebsocket()
+              }, 10000) // we try reconnect every 10s
+            }          
+          } else {
+            // if we get false this means that we need to stop timer,
+            // because we connected, 
+            // or we disconnected and we do not need to reconnect
+            if ( this.reconnectWSTimer ) clearInterval( this.reconnectWSTimer )
+          }
+        }
+      )
+    }
+
+    if ( ! this.wsConnectionSubscription ) {
+      // here we simply notify that all needed data are loaded
+      // and WS connection is established 
+      // so all fetching sobscribers can load data. 
+      this.wsConnectionSubscription = this.connection.wsConnEmitter.subscribe(
+        ( bool ) => { this.dataFetched() }
+      )
+    }
+  }
+
+
+
+
+
+  // sprawdzić // czy nie trzeba też czegoś restartować 
+  // w chat service
+  // settings service
+  // connection service
+  
   clearService() {
     this.user = undefined;
-    this.chats.clear()
+    this.chats.clear() 
     this.settingsService.clearSettings();
-    if (this.wsConnectionSubscription) this.wsConnectionSubscription.unsubscribe()
-    if (this.restartWSSubscription) this.restartWSSubscription.unsubscribe()
-    if (this.reconnectWSTimer) clearInterval(this.reconnectWSTimer) 
-    this.connection.disconnect();
-    if (this.logoutTimer) clearInterval(this.logoutTimer)
-    if (this.newMessagesSubscription) this.newMessagesSubscription.unsubscribe()
-    if (this.oldMessagesSubscription) this.oldMessagesSubscription.unsubscribe()
-    if (this.invitationSubscription)  this.invitationSubscription.unsubscribe()
-    if (this.writingSubscription)     this.writingSubscription.unsubscribe()
+    if (this.wsConnectionSubscription) {
+      this.wsConnectionSubscription.unsubscribe()
+      this.wsConnectionSubscription = undefined
+    }
+    if (this.restartWSSubscription) {
+      this.restartWSSubscription.unsubscribe()
+      this.restartWSSubscription = undefined
+    }
+    if (this.reconnectWSTimer) clearInterval(this.reconnectWSTimer)  
+    this.connection.disconnect();  
+    if (this.logoutTimer) clearInterval(this.logoutTimer)  
+    if (this.newMessagesSubscription) {
+      this.newMessagesSubscription.unsubscribe()
+      this.newMessagesSubscription = undefined
+    }
+    if (this.oldMessagesSubscription) {
+      this.oldMessagesSubscription.unsubscribe()
+      this.oldMessagesSubscription = undefined
+    }
+    if (this.invitationSubscription)  {
+      this.invitationSubscription.unsubscribe()
+      this.invitationSubscription = undefined
+    }
+    if (this.writingSubscription)     {
+      this.writingSubscription.unsubscribe()
+      this.writingSubscription = undefined
+    }
     this.logoutTimer = undefined
     this.logoutSeconds = this.settingsService.settings.sessionDuration / 1000
     console.log('UserService clearservice')
   }
+
+
 
 
 
@@ -330,8 +372,6 @@ export class UserService {
 
   setChats(chats: ChatData[]) {
     this.chats.initialize( chats )
-    // this.chatFetched = true
-    this.dataFetched()
   }
 
 
@@ -585,6 +625,10 @@ export class UserService {
 
   isWSconnected(): boolean {
     return this.connection.isWSconnected()
+  }
+
+  isWSconnectionDefined(): boolean {
+    return this.connection.isWSconnectionDefined()
   }
 
   
