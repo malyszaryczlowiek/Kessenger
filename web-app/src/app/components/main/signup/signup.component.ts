@@ -32,6 +32,7 @@ export class SignupComponent implements OnInit {
         signup.subscribe({
           next: (response) => {
             if (response.status === 200) {
+              this.userService.assignSubscriptions()
               this.userService.setUserAndSettings(
                 response.body?.user,
                 response.body?.settings

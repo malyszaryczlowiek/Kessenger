@@ -6,6 +6,9 @@
     <div>
         <app-message-list [messages]="chatData.messages"></app-message-list>
     </div>
+    <div *ngIf="wrt">
+        {{ wrt.writerLogin }} is writing...
+    </div>
     <div>
         <app-send-message [chat]="chatData.chat"  (sendingMessage)="sendMessage($event)"></app-send-message> 
     </div>

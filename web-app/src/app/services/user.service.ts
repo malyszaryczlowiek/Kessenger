@@ -25,12 +25,7 @@ import { UserOffsetUpdate } from '../models/UserOffsetUpdate';
 export class UserService {
 
 
-
-
   user: User | undefined;
-  //userFetched = false
-  //chatFetched = false
-  
   fetchingUserDataFinishedEmmiter = new EventEmitter<boolean>() // called during page reload
 
   logoutTimer: NodeJS.Timeout | undefined;
@@ -42,7 +37,7 @@ export class UserService {
   newMessagesSubscription:  Subscription | undefined
   oldMessagesSubscription:  Subscription | undefined
   invitationSubscription:   Subscription | undefined
-  writingSubscription:      Subscription | undefined
+  // writingSubscription:      Subscription | undefined
 
   restartWSSubscription:    Subscription | undefined
   wsConnectionSubscription: Subscription | undefined
@@ -52,25 +47,11 @@ export class UserService {
 
 
 
-  constructor(private connection: ConnectionService, 
-    private chats: ChatsDataService,
-    private settingsService: UserSettingsService, 
-    private router: Router) { 
-    
+  constructor(private connection: ConnectionService, private chats: ChatsDataService,
+    private settingsService: UserSettingsService, private router: Router) { 
+
     console.log('UserService constructor called.')
     this.assignSubscriptions()
-    
-    
-
-    // sprawdzić // gdzie jeszcze występują odwołania do 
-    // connection.user( userId ) i  .getChats(userId) czyli fetchowanie  danych
-
-    // zostawić // pobieranie danych przez connection.user( userId ) 
-    // pobieranie przez   .getChats(userId) zostało usunięte. 
-
-    // usunąć // pobieranie użytkowników przy pobieraniu chatu ??? 
-
-    // fetching user data from server
     const userId = this.connection.getUserId();
     if ( userId ) {
       this.updateSessionViaUserId( userId )
@@ -83,22 +64,11 @@ export class UserService {
             const body = response.body
             if ( body ){
               console.log('UserSerivice.constructor() fetching user login and settings' )
-              this.user = body.user
-              this.settingsService.setSettings(body.settings)
+              this.setUserAndSettings(body.user, body.settings)
               this.logoutSeconds = this.settingsService.settings.sessionDuration / 1000
               this.restartLogoutTimer()
               this.chats.initialize( body.chatList )
               this.connectViaWebsocket() 
-              
-              
-              // napisać // emitera w ConnectionService, który wyemituje sygnał, że 
-              // połączenie zostało nawiązane
-              // tutaj natomiast napisać subskrybenta, który przechwyci sygnał
-              // i  uruchomi fetchowanie -> this.dataFetched()
-
-              // emisja eventu o fethocwaniu musi się odbyć 
-              // gdy otrzymamy info zwrotne o tym że WS już wystartowało 
-              //this.dataFetched()              
             }
             else {
               // print error message
@@ -125,7 +95,7 @@ export class UserService {
       this.newMessagesSubscription = this.connection.newMessagesEmitter.subscribe(
         (messageList: Message[]) => {
           console.log(`new messages from emitter: ${messageList}`)
-          this.chats.insertNewMessages( messageList ) // this may has messages from different chats
+          this.chats.insertNewMessages( messageList ) 
           this.dataFetched() 
         },
         (error) => {
@@ -153,7 +123,6 @@ export class UserService {
     if (! this.invitationSubscription ) {
       this.invitationSubscription = this.connection.invitationEmitter.subscribe(
         (invitation: Invitation) => {
-          console.log('Got new invitaion', invitation)
           const c = this.getChatData( invitation.chatId )
           if ( c ) {
             const cSub = c.subscribe({
@@ -185,7 +154,7 @@ export class UserService {
                           next: (response) => {
                             if ( response.ok ) {
                               this.settingsService.settings.joiningOffset = invitation.myJoiningOffset
-                              console.log('joining Offset updated ok. to ', this.settingsService.settings.joiningOffset)
+                              console.log('joining Offset updated ok. to ', invitation.myJoiningOffset)
                             }
                               
                           },
@@ -194,7 +163,6 @@ export class UserService {
                           },
                           complete: () => {}
                         })
-                        // sub.unsubscribe() 
                       }
                     }                  
                   }                
@@ -205,27 +173,26 @@ export class UserService {
               },
               complete: () => {}
             })
-            //cSub.unsubscribe()
           }
         }, 
         (error) => {
           console.error('Got errorn in invitation subscription', error)
         },
-        () => {} // on complete
+        () => {} 
       )
     }
 
-    if (! this.writingSubscription) {
+    /* if (! this.writingSubscription) {
       this.writingSubscription = this.connection.writingEmitter.subscribe(
-        (wrt: Writing) => {
+        (wrt: Writing | undefined) => {
           console.log(wrt)
         },
         (error) => {
           console.error('Got errorn in writing subscription', error)
         },
-        () => {} // on complete
+        () => {} 
       )
-    }
+    } */
 
     if (! this.restartWSSubscription ) {
       this.restartWSSubscription = this.connection.restartWSEmitter.subscribe(
@@ -295,10 +262,10 @@ export class UserService {
       this.invitationSubscription.unsubscribe()
       this.invitationSubscription = undefined
     }
-    if (this.writingSubscription)     {
+    /* if (this.writingSubscription)     {
       this.writingSubscription.unsubscribe()
       this.writingSubscription = undefined
-    }
+    } */
     this.logoutTimer = undefined
     this.logoutSeconds = this.settingsService.settings.sessionDuration / 1000
     console.log('UserService clearservice')
@@ -310,9 +277,11 @@ export class UserService {
 
 
   setUserAndSettings(u: User | undefined, s: Settings | undefined) {
-    this.user = u;
+    if (u) {
+      this.user = u;
+      this.connection.setUserId( this.user.userId )
+    }
     if (s) this.settingsService.setSettings(s);
-    // this.dataFetched()
   }
 
   
@@ -404,6 +373,10 @@ export class UserService {
 
   markMessagesAsRead(chatId: string) {
     this.chats.markMessagesAsRead(chatId)
+  }
+
+  getWritingEmmiter() {
+    return this.connection.writingEmitter
   }
 
 

@@ -55,13 +55,12 @@ export class ChatComponent implements OnInit, OnDestroy {
       console.log('ChatComponent.constructor() chat data read from UserService directly')
       this.chats = this.userService.getAllChats()
     }
-    
   }
 
 
 
   ngOnDestroy() {
-    if (this.fetchingSubscription ) this.fetchingSubscription.unsubscribe()
+    if ( this.fetchingSubscription ) this.fetchingSubscription.unsubscribe()
     console.log('ChatComponent.ngOnDestroy()')
   }
 

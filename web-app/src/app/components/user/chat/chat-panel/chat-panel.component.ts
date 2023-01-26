@@ -1,9 +1,10 @@
-import { Component, OnDestroy, OnInit } from '@angular/core';
+import { Component, Input, OnDestroy, OnInit } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Subscription } from 'rxjs';
 import { ChatData } from 'src/app/models/ChatData';
 import { ChatOffsetUpdate } from 'src/app/models/ChatOffsetUpdate';
 import { Message } from 'src/app/models/Message';
+import { Writing } from 'src/app/models/Writing';
 import { UserService } from 'src/app/services/user.service';
 
 @Component({
@@ -13,11 +14,15 @@ import { UserService } from 'src/app/services/user.service';
 })
 export class ChatPanelComponent implements OnInit, OnDestroy {
 
-  chatData:                     ChatData     | undefined;
+  chatData:                     ChatData     | undefined
   fetchingSubscription:         Subscription | undefined
+  writingSubscription:          Subscription | undefined
   selectedChatSubscription:     Subscription | undefined
   chatModificationSubscription: Subscription | undefined
   errorBody:                    any          | undefined
+  wrt:                          Writing      | undefined
+
+  
 
 
   constructor(private userService: UserService, private router: Router, private activated: ActivatedRoute) { }
@@ -103,6 +108,12 @@ export class ChatPanelComponent implements OnInit, OnDestroy {
         }
       }
     )   
+
+    this.writingSubscription = this.userService.getWritingEmmiter().subscribe(
+      (w: Writing | undefined) => { this.wrt = w }
+    )
+
+    
     // const chatId = this.activated.snapshot.paramMap.get('chatId');
     // if ( chatId ) this.userService.markMessagesAsRead( chatId )
     if ( this.userService.isWSconnected() ) this.userService.dataFetched() 
@@ -114,6 +125,7 @@ export class ChatPanelComponent implements OnInit, OnDestroy {
   ngOnDestroy(): void {
     if ( this.chatModificationSubscription ) this.chatModificationSubscription.unsubscribe()
     if ( this.fetchingSubscription )         this.fetchingSubscription.unsubscribe()
+    if ( this.writingSubscription )          this.writingSubscription.unsubscribe()
     if ( this.selectedChatSubscription )     this.selectedChatSubscription.unsubscribe()
     this.userService.selectChat( undefined )
   }

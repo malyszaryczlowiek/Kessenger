@@ -25,17 +25,21 @@ import { UserOffsetUpdate } from '../models/UserOffsetUpdate';
 export class ConnectionService {
 
   
-  private wsConnection: WebSocket      | undefined
-  private wsPingSender: NodeJS.Timeout | undefined
+  private wsConnection:  WebSocket      | undefined
+  private wsPingSender:  NodeJS.Timeout | undefined
   
-  private reconnectWS = true
+  private writerCleaner: NodeJS.Timeout | undefined
+  private someoneIsWriting: boolean = false
 
-  public newMessagesEmitter: EventEmitter<Array<Message>>    = new EventEmitter<Array<Message>>()
-  public oldMessagesEmitter: EventEmitter<Array<Message>>    = new EventEmitter<Array<Message>>()
-  public invitationEmitter:  EventEmitter<Invitation>        = new EventEmitter<Invitation>()
-  public writingEmitter:     EventEmitter<Writing>           = new EventEmitter<Writing>()
-  public restartWSEmitter:   EventEmitter<boolean>           = new EventEmitter<boolean>()
-  public wsConnEmitter:      EventEmitter<boolean>           = new EventEmitter<boolean>()
+  private reconnectWS = true
+  private myUserId: string | undefined
+
+  public newMessagesEmitter: EventEmitter<Array<Message>>      = new EventEmitter<Array<Message>>()
+  public oldMessagesEmitter: EventEmitter<Array<Message>>      = new EventEmitter<Array<Message>>()
+  public invitationEmitter:  EventEmitter<Invitation>          = new EventEmitter<Invitation>()
+  public writingEmitter:     EventEmitter<Writing | undefined> = new EventEmitter<Writing| undefined>()
+  public restartWSEmitter:   EventEmitter<boolean>             = new EventEmitter<boolean>()
+  public wsConnEmitter:      EventEmitter<boolean>             = new EventEmitter<boolean>()
 
 
   constructor(private http: HttpClient, 
@@ -44,12 +48,7 @@ export class ConnectionService {
 
 
   disconnect() {
-/*     this.newMessagesEmitter.unsubscribe()
-    this.oldMessagesEmitter.unsubscribe()
-    this.invitationEmitter.unsubscribe()
-    this.writingEmitter.unsubscribe()
-    this.restartWSEmitter.unsubscribe()
- */    this.reconnectWS = false
+    this.reconnectWS = false
     this.session.invalidateSession()
     if ( this.wsPingSender ) {
       clearInterval( this.wsPingSender )
@@ -353,6 +352,17 @@ export class ConnectionService {
 
         this.reconnectWS = true
         this.restartWSEmitter.emit( false )
+
+        //tutaj //  zdefiniować cleaner, który następnie będzie usuwany w metodzie 
+        // cleaner musi wysyłać wiadomość tylko jak zmienna 
+        // someoneIsWriting jest na true
+        // emitter wysyła wtedy po 0.5 s undefined
+        // jeśli jest na false to emitter nie wysyła nic 
+        this.writerCleaner = setInterval(() => {
+          if ( this.someoneIsWriting ) this.writingEmitter.emit( undefined )
+          this.someoneIsWriting = false
+        }, 1200)
+
       };
       this.wsConnection.onmessage = (msg: any) => {
         const body = JSON.parse( msg.data )
@@ -372,8 +382,11 @@ export class ConnectionService {
           this.invitationEmitter.emit( body.inv )
         }
         if ( body.wrt ) {
-          console.log('got writing: ', body.wrt )
-          this.writingEmitter.emit( body.wrt )
+          // console.log('got writing: ', body.wrt )
+          if (body.wrt.writerId != this.myUserId) {
+            this.someoneIsWriting = true
+            this.writingEmitter.emit( body.wrt )
+          }          
         }
         if (body.comm == 'opened correctly') {
           console.log('WS connection opend correctly.')
@@ -498,6 +511,11 @@ export class ConnectionService {
       this.reconnectWS = false
       console.log('sending PoisonPill to server.');
       this.wsConnection.send('PoisonPill')
+      this.someoneIsWriting = false
+      if ( this.writerCleaner ) { 
+        clearTimeout( this.writerCleaner )
+        this.writerCleaner = undefined
+      }
       //this.sendPoisonPill()
       this.wsConnection.close()
       console.log('connection deeactivated.');
@@ -567,6 +585,10 @@ export class ConnectionService {
 
 
 
+
+  setUserId(userId: string) {
+    this.myUserId = userId
+  }
 
 
 

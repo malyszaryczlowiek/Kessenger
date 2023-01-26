@@ -1,6 +1,8 @@
 import { Component, Input, OnDestroy, OnInit } from '@angular/core';
+import { Subscription } from 'rxjs';
 import { Router } from '@angular/router';
 import { ChatData } from 'src/app/models/ChatData';
+import { Writing } from 'src/app/models/Writing';
 import { UserService } from 'src/app/services/user.service';
 
 @Component({
@@ -11,6 +13,9 @@ import { UserService } from 'src/app/services/user.service';
 export class ChatListComponent implements OnInit, OnDestroy {
 
   @Input() chats: Array<ChatData> = new Array<ChatData>(); 
+  writingSubscription:  Subscription | undefined
+  wrt:      Writing | undefined
+  meUserId: string  | undefined
 
 
   constructor(private userService: UserService, private router: Router ) {}
@@ -18,6 +23,10 @@ export class ChatListComponent implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     console.log('ChatListComponent.ngOnInit() ')
+    this.meUserId = this.userService.user?.userId
+    this.writingSubscription = this.userService.getWritingEmmiter().subscribe(
+      (w: Writing | undefined) => { this.wrt = w }
+    )
   }
 
 
@@ -31,6 +40,7 @@ export class ChatListComponent implements OnInit, OnDestroy {
 
   ngOnDestroy(): void {
     console.log('ChatListComponent.ngOnDestroy() called.')
+    if ( this.writingSubscription )  this.writingSubscription.unsubscribe()
   }
 
 }
