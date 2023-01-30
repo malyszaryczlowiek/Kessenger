@@ -1,6 +1,17 @@
-<div>
+
+<div class="col">
     <form  [formGroup]="messageForm" (ngSubmit)="onSubmit()">
-        <input formControlName="messageContent" type="text" placeholder="Your Message" (keypress)="onWriting()">
-        <button [disabled]="!messageForm.valid" type="submit">Send</button>
+        <div class="row">
+            <div class="col-11">
+                 <div class="row">
+                    <textarea formControlName="messageContent" type="text" placeholder="Your Message" (keypress)="onWriting()"></textarea>                    
+                </div>
+            </div>
+            <div class="col-1">
+                <div class="row">
+                    <button type="button" class="btn btn-primary" [disabled]="!messageForm.valid" type="submit">Send</button>    
+                </div>
+            </div>    
+        </div>                
     </form>    
 </div>

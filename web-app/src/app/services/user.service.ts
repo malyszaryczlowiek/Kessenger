@@ -37,7 +37,7 @@ export class UserService {
   newMessagesSubscription:  Subscription | undefined
   oldMessagesSubscription:  Subscription | undefined
   invitationSubscription:   Subscription | undefined
-  // writingSubscription:      Subscription | undefined
+  // writingSubscription:      Subscription | undefined 
 
   restartWSSubscription:    Subscription | undefined
   wsConnectionSubscription: Subscription | undefined

@@ -7,6 +7,7 @@ import { FirstComponent } from './components/dummy/first/first.component';
 import { SecondComponent } from './components/dummy/second/second.component';
 import { TestComponent } from './components/dummy/test/test.component';
 import { WebsocketComponent } from './components/dummy/websocket/websocket.component';
+import { FooComponent } from './components/foo/foo.component';
 import { MainComponent } from './components/main/main/main.component';
 import { PagenotfoundComponent } from './components/pagenotfound/pagenotfound.component';
 import { RootComponent } from './components/root/root.component';

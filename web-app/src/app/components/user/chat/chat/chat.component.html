@@ -1,7 +1,29 @@
-    <div>
-        <app-chat-list [chats]="chats"></app-chat-list>
+<div class="container-fluid" > 
+    <div class="row mh-100 ">
+        <div class="col-3 mh-100 align-self-start " style="border: 4px solid green;">
+            <app-chat-list [chats]="chats"></app-chat-list>
+        </div>
+        <div class="col-9 mh-100 align-self-start " style="border: 4px solid magenta;">
+            <!-- tutja zrobić teraz -->
+            <router-outlet></router-outlet>
+        </div>    
     </div>
-    <p></p>
-    <div>
-        <router-outlet></router-outlet>
-    </div>
+</div>
+
+
+<!-- 
+
+
+<div class="col">
+    <div class="row  ">
+        <div class="col-3 align-self-start " style="border: 4px solid green;">
+            <app-chat-list [chats]="chats"></app-chat-list>
+        </div>
+        <div class="col-9 align-self-start " style="border: 4px solid magenta;">
+            <router-outlet></router-outlet> 
+        </div>    
+    </div>    
+</div>
+
+
+-->

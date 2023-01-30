@@ -1,8 +1,25 @@
-<div>
-    <form [formGroup]="signUpForm" (ngSubmit)="onSubmit()">
-        <input formControlName="login" type="text" id="signup-login" placeholder="Login">
-        <input formControlName="password" type="password" id="signup-pass" placeholder="Password">
-        <button [disabled]="!signUpForm.valid" type="submit" >Sign Up</button>
-    </form>
-    <p *ngIf="returnedError" (click)="clearError()"> Error Status: {{ returnedError.num }} Error Description: {{ returnedError.message }} </p>
-</div>
+<div class="row">
+    <div class="col">
+        <form [formGroup]="signUpForm" (ngSubmit)="onSubmit()">
+            <div class="row">
+                <div class="col">
+                    <input formControlName="login" type="text" id="signup-login" placeholder="Login">
+                </div>            
+            </div>
+            <div class="row ">
+                <div class="col">
+                    <input formControlName="password" type="password" id="signup-pass" placeholder="Password">
+                </div>
+            </div>
+            <div class="row ">
+                <div class="col">
+                    <button type="button" class="btn btn-primary" [disabled]="!signUpForm.valid" type="submit" >Sign Up</button>
+                </div>            
+            </div>
+            <div class="row ">
+                <p *ngIf="returnedError" (click)="clearError()"> Error Status: {{ returnedError.num }} Error Description: {{ returnedError.message }} </p>
+            </div>
+        </form>
+    </div>
+</div>        
+
