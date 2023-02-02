@@ -323,6 +323,7 @@ export class UserService {
   }
 
   dataFetched() {
+    todo3 // może wysyłać informację o tym jak dane zostały zmienione. ???
     this.fetchingUserDataFinishedEmmiter.emit( true )
     // this.fetchingUserDataFinishedEmmiter.emit(this.userFetched && this.chatFetched)
   }

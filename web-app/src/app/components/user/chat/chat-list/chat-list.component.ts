@@ -43,4 +43,20 @@ export class ChatListComponent implements OnInit, OnDestroy {
     if ( this.writingSubscription )  this.writingSubscription.unsubscribe()
   }
 
+
+  // layout methods
+
+  setHeightLayout(){
+    const header = document.getElementById('header')
+    const chatList = document.getElementById('chat_list')
+    if (  header && chatList ) {
+      const h = window.innerHeight - 
+        header.offsetHeight         
+      chatList.style.height = h + 'px'
+    }
+  }
+
+  
+
+
 }

@@ -1,9 +1,8 @@
 
-    <div *ngFor="let m of messages" style="border: 4px solid orange;"> <!-- class="row " -->
-        <app-message-item [message]="m"></app-message-item>    
-        <p></p>
-    </div>
-
+<div class="d-flex flex-column align-items-center overflow-auto " id="messages" style=" border: 2px solid blue">
+    <app-message-item *ngFor="let m of messages" [message]="m"></app-message-item>    
+</div>
+    
 
 
 <!--

@@ -1,4 +1,4 @@
-import { Component, Input, OnDestroy, OnInit } from '@angular/core';
+import { Component, EventEmitter, Input, OnDestroy, OnInit } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Subscription } from 'rxjs';
 import { ChatData } from 'src/app/models/ChatData';
@@ -19,23 +19,25 @@ export class ChatPanelComponent implements OnInit, OnDestroy {
   writingSubscription:          Subscription | undefined
   selectedChatSubscription:     Subscription | undefined
   chatModificationSubscription: Subscription | undefined
+  //messageListSubscription:      Subscription | undefined
+
   errorBody:                    any          | undefined
   wrt:                          Writing      | undefined
+
+  rescaleAndScrollTimer:      NodeJS.Timeout | undefined;
+
+  //firstLoad = true
+
+  // full - rescale and scroll
+  // scroll - 
+  // rescale - 
+  messageListEmmiter: EventEmitter<string> = new EventEmitter<string>()
 
   
 
 
   constructor(private userService: UserService, private router: Router, private activated: ActivatedRoute) { }
 
-
-  /*
-  Dwa scenariusze uruchomienia:
-  1. użytkownik wchodzi w chat panel z chat-list wybierając konkretny chat. 
-     ngOnInit() jest wtedy uruchamiane i onClick() też.
-
-  2. użytkownik wchodzi bezpośrednio na stronę poprzez refresh strony 
-     ngOnInit() jest wtedy uruchamiany ale onClick() w chat-list już nie jest wywoływany. 
-  */
 
   ngOnInit(): void {
     console.log('ChatPanelComponent.ngOnInit')
@@ -51,7 +53,7 @@ export class ChatPanelComponent implements OnInit, OnDestroy {
             if ( found ) {
               const length = found.unreadMessages.length
               this.userService.markMessagesAsRead( chatId )
-              this.chatData = this.userService.getAllChats().find((cd2, index, arr) => {
+              this.chatData = this.userService.getAllChats().find( (cd2, index, arr) => {
                 return cd2.chat.chatId == chatId;
               })
               if (this.chatData) {
@@ -63,12 +65,19 @@ export class ChatPanelComponent implements OnInit, OnDestroy {
                     partitionOffsets: this.chatData.partitionOffsets 
                   }
                   this.userService.sendChatOffsetUpdate( chatOffsetUpdate )
+                  if ( ! this.rescaleAndScrollTimer ) {
+                    this.rescaleAndScrollTimer = setInterval(() => {
+                      this.setHeightLayout()
+                      this.scrollDown()
+                      console.log('interval')
+                    }, 700)
+                  }
                 }
                 if (this.chatModificationSubscription) this.chatModificationSubscription.unsubscribe()
                 this.chatModificationSubscription = this.chatData.emitter.subscribe(
                   (cd) => this.chatData = cd
                 )              
-              } 
+              }
             } else {
               console.log('ChatPanelComponent.ngOnInit() fetchingSubscription chat not found in list.')
               this.router.navigate(['page-not-found']);
@@ -97,9 +106,14 @@ export class ChatPanelComponent implements OnInit, OnDestroy {
                 partitionOffsets: this.chatData.partitionOffsets 
               }
               this.userService.sendChatOffsetUpdate( chatOffsetUpdate )
+              this.scrollDown()
             }
             this.chatModificationSubscription = this.chatData.emitter.subscribe(
-              (cd) => this.chatData = cd
+              (cd) => {
+                this.chatData = cd
+                // here // tutaj jeszcze dodać, że jak przychodzi nowa wiadomość to jeśli nie jeszteśmy
+              // na końcu to należy wyświetlić powiadomienie, że można zjechać na dół
+              }
             )              
           } else {
             console.log('ChatPanelComponent.ngOnInit() selectedChatSubscription chat not found in list.')
@@ -109,14 +123,18 @@ export class ChatPanelComponent implements OnInit, OnDestroy {
       }
     )   
 
+    todo33 // to zlikwidować i brać z ChatComponent
     this.writingSubscription = this.userService.getWritingEmmiter().subscribe(
       (w: Writing | undefined) => { this.wrt = w }
     )
 
-    
-    // const chatId = this.activated.snapshot.paramMap.get('chatId');
-    // if ( chatId ) this.userService.markMessagesAsRead( chatId )
+    window.addEventListener("resize" , (event) => {
+      this.setHeightLayout()
+      this.scrollDown()
+    })
+
     if ( this.userService.isWSconnected() ) this.userService.dataFetched() 
+    
   }
 
 
@@ -127,6 +145,8 @@ export class ChatPanelComponent implements OnInit, OnDestroy {
     if ( this.fetchingSubscription )         this.fetchingSubscription.unsubscribe()
     if ( this.writingSubscription )          this.writingSubscription.unsubscribe()
     if ( this.selectedChatSubscription )     this.selectedChatSubscription.unsubscribe()
+    // if ( this.messageListSubscription )      this.messageListSubscription.unsubscribe()
+    if ( this.rescaleAndScrollTimer )        clearTimeout( this.rescaleAndScrollTimer )
     this.userService.selectChat( undefined )
   }
 
@@ -147,5 +167,49 @@ export class ChatPanelComponent implements OnInit, OnDestroy {
     this.router.navigate(['user', 'editChat', `${this.chatData?.chat.chatId}`])
   }
 
+
+
+
+
+  // layout methods
+
+  setHeightLayout(){
+    const header = document.getElementById('header')
+    const chatHeader = document.getElementById('chat_header')
+    const messageList = document.getElementById('messages')
+    const sendMessage = document.getElementById('send_message')
+    if ( messageList && chatHeader && header && sendMessage ) {
+      const h = window.innerHeight - 
+        header.offsetHeight -
+        chatHeader.offsetHeight - 
+        sendMessage.offsetHeight 
+      messageList.style.height = h + 'px'
+    } else {
+      console.log('header', header)
+      console.log('chatHeader', chatHeader)
+      console.log('messageList', messageList)
+      console.log('sendMessage', sendMessage)
+    }
+  }
+
+  scrollDown() {
+    const messages = document.getElementById('messages')
+    if (messages) {
+      messages.scrollTo(0, messages.scrollHeight)
+      if( this.rescaleAndScrollTimer ) clearInterval( this.rescaleAndScrollTimer )
+
+      todo
+      // 1. sprawdzić co się da przenieść do chat panelu
+      // 2. wysyłanie info o updejcie chat offsetu powinno być wysyłane tylko wtedy gdy unread messages jest > 0
+      // 3. napisać Html service do zarządzania rescalowaniem, scrollowaniem i przesuwaniem focusu
+      // 4. napisać scroll listenera, który będzie wysyłał żądanie o wcześniejsze wiadomości
+      // 5. napsać sprawdzanie czy jak przychodzi nowa wiadomość to czy wyświetlić zapyutanie o przeskrolowanie do dołu
+      // i jeśli  przyjdzie wiadomość to trzeba sprawdzić czy to położenie 
+      // jest mniejsze niż maksymalny scroll minus wysokość ostatniej wiadomości 
+      // jeśli jest większe to należy wywołąć jeszcze scrollDown tak aby po przyjściu wiadomosci 
+      // zamiast wyświetlać komunikat przejść do końca lini. 
+      
+    }
+  }
 
 }

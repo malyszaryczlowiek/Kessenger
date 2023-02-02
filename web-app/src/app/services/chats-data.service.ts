@@ -9,6 +9,10 @@ import { User } from '../models/User';
 export class ChatsDataService {
 
   selectedChat: string | undefined // chatId
+  todo // użyć tego is read do sprawdzenia, że w czacie który mamy otwarty czy jesteśmy na samym dole, 
+  // jak przeskrolujemy do dołu i otrzymmay wartość najwyższą to wtedy tutaj ustawiamy na true
+  // jeśli s
+  isRead = false 
 
   chatAndUsers: Array<ChatData> = new Array();
 

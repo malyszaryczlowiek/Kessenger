@@ -27,6 +27,11 @@ export class ChatComponent implements OnInit, OnDestroy {
         }
       }
     )
+
+    todo2
+    // tuaj powinniśmy mieć nowe rodzaje listenerów
+    // Dane o tym w jakim chatcie jesteśmy powinny trafiać do chatService??? 
+
     if ( this.userService.getAllChats().length == 0 ) {
       const c = this.userService.getChats()
       if ( c ) {

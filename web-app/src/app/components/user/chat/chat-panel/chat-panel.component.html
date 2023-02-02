@@ -1,29 +1,30 @@
 
 <div *ngIf="chatData">
-    <div class="row "> 
+
+    <div class="row " id="chat_header" > 
         <div class="col text-end" style="border: 4px solid red;">
             Welcome in chat "{{chatData.chat.chatName}}"
+        </div>
+        <div class="col-2">
+            <div  *ngIf="wrt">
+                {{ wrt.writerLogin }} is writing...
+            </div>
         </div>
         <div class="col" style="border: 4px solid red;">
             <button type="button" class="btn btn-primary" (click)="goToChatSettings()">Chat Settings</button>
         </div>
     </div>
-    <div class="row h-100" > <!-- h-100 overflow-y-scroll -->
-         <div class="col" style="border: 4px solid green;"> 
-            <div class="d-flex-column scrollable overflow-scroll allign-content-center justify-content-end vh-100" 
-                 style="border: 4px solid blue;">
-                <app-message-list class="h-100" [messages]="chatData.messages"></app-message-list>            
-            </div>            
-         </div>         
+
+
+    <div class="row" id="chat_messages_list" > 
+        <app-message-list [messages]="chatData.messages"></app-message-list>  
     </div>
-    <div class="row" *ngIf="wrt">
-        <div class="col">
-            {{ wrt.writerLogin }} is writing...
-        </div>                
-    </div>
-    <div class="row  allign-self-end" style="border: 4px solid red;">
+
+
+    <div class="row  allign-self-end"  id="send_message" style="border: 4px solid red;">
         <app-send-message [chat]="chatData.chat"  (sendingMessage)="sendMessage($event)"></app-send-message> 
     </div>
+    
 </div>    
 
 
