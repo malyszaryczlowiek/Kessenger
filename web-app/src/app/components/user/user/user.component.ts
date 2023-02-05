@@ -1,5 +1,5 @@
 import { Component, OnDestroy, OnInit } from '@angular/core';
-import { Router } from '@angular/router';
+import { HtmlService } from 'src/app/services/html.service';
 import { UserService } from 'src/app/services/user.service';
 
 
@@ -12,7 +12,7 @@ import { UserService } from 'src/app/services/user.service';
 export class UserComponent implements OnInit, OnDestroy {
 
 
-  constructor(private userService: UserService, private router: Router) { }
+  constructor(private userService: UserService, private htmlService: HtmlService) { }
   
   ngOnInit(): void {
     console.log('UserComponent.ngOnInit()')

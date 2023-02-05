@@ -1,5 +1,5 @@
 import { EventEmitter, Injectable } from '@angular/core';
-import { map, Observable, of, Subscription } from 'rxjs';
+import { Observable, Subscription } from 'rxjs';
 import { ConnectionService } from './connection.service';
 // import { v4 as uuidv4 } from 'uuid';
 import { Message} from '../models/Message';
@@ -26,18 +26,24 @@ export class UserService {
 
 
   user: User | undefined;
-  fetchingUserDataFinishedEmmiter = new EventEmitter<boolean>() // called during page reload
+
+  /* codes:
+  0. do not update data
+  1. update both, chat list and chatPanel
+  2. update chat list
+  3. update chatPanel 
+  */
+  fetchingUserDataFinishedEmmiter = new EventEmitter<number>() 
 
   logoutTimer: NodeJS.Timeout | undefined;
   logoutSeconds: number = this.settingsService.settings.sessionDuration / 1000    // number of seconds to logout
-  logoutSecondsEmitter: EventEmitter<number> = new EventEmitter()
+  logoutSecondsEmitter: EventEmitter<number>   = new EventEmitter()
 
   selectedChatEmitter:  EventEmitter<ChatData> = new EventEmitter<ChatData>()
 
   newMessagesSubscription:  Subscription | undefined
   oldMessagesSubscription:  Subscription | undefined
   invitationSubscription:   Subscription | undefined
-  // writingSubscription:      Subscription | undefined 
 
   restartWSSubscription:    Subscription | undefined
   wsConnectionSubscription: Subscription | undefined
@@ -94,13 +100,12 @@ export class UserService {
     if ( ! this.newMessagesSubscription ) {
       this.newMessagesSubscription = this.connection.newMessagesEmitter.subscribe(
         (messageList: Message[]) => {
-          console.log(`new messages from emitter: ${messageList}`)
-          this.chats.insertNewMessages( messageList ) 
-          this.dataFetched() 
+          this.chats.insertNewMessages( messageList )
+          this.dataFetched( 1 ) // both
+          // this.dataFetched( this.chats.insertNewMessages( messageList ) ) 
         },
         (error) => {
           console.log('Error in message emitter: ', error)
-          console.log(error)
         },
         () => console.log('on message emitter completed.')
       )
@@ -141,7 +146,7 @@ export class UserService {
                     }
                     this.addNewChat( cd ) 
                     this.startListeningFromNewChat( cd.chat.chatId, cd.partitionOffsets )
-                    this.dataFetched() 
+                    this.dataFetched( 2 ) 
   
                     if ( this.user ) {
                       const bodyToSent: UserOffsetUpdate = {
@@ -221,7 +226,7 @@ export class UserService {
       // and WS connection is established 
       // so all fetching sobscribers can load data. 
       this.wsConnectionSubscription = this.connection.wsConnEmitter.subscribe(
-        ( bool ) => { this.dataFetched() }
+        ( bool ) => { this.dataFetched( 1 ) }
       )
     }
   }
@@ -313,20 +318,29 @@ export class UserService {
   }
 
   
+
+
   updateSessionViaUserId(userId: string) {
     this.connection.updateSession(userId);
     this.restartLogoutTimer()
   }
 
+
+
+
   isSessionValid(): boolean {
     return this.connection.isSessionValid();
   }
 
-  dataFetched() {
-    todo3 // może wysyłać informację o tym jak dane zostały zmienione. ???
-    this.fetchingUserDataFinishedEmmiter.emit( true )
-    // this.fetchingUserDataFinishedEmmiter.emit(this.userFetched && this.chatFetched)
+
+
+
+  dataFetched(code: number) {
+    this.fetchingUserDataFinishedEmmiter.emit( code )
   }
+
+
+
 
   getAllChats() {
     return this.chats.chatAndUsers
@@ -348,14 +362,14 @@ export class UserService {
 
   changeChat(chatD: ChatData) {
     this.chats.changeChat(chatD)
-    this.dataFetched()
+    this.dataFetched( 1 )
   }
 
 
 
   deleteChat(c: ChatData){
     this.chats.deleteChat(c)
-    this.dataFetched()
+    this.dataFetched( 1 )
   }
 
   selectChat(chatId: string | undefined) {
@@ -372,9 +386,25 @@ export class UserService {
     if (this.user) this.user.login = newLogin
   }
 
-  markMessagesAsRead(chatId: string) {
-    this.chats.markMessagesAsRead(chatId)
+  markMessagesAsRead(chatId: string): ChatData | undefined {
+    const cd = this.chats.markMessagesAsRead(chatId)
+    if ( this.user && cd ) {
+      if ( cd.num > 0 ) {
+        const chatOffsetUpdate: ChatOffsetUpdate = {
+          userId:           this.user.userId,
+          chatId:           cd.cd.chat.chatId,
+          lastMessageTime:  cd.cd.chat.lastMessageTime,
+          partitionOffsets: cd.cd.partitionOffsets 
+        }    
+        this.connection.sendChatOffsetUpdate( chatOffsetUpdate )
+      }
+      this.fetchingUserDataFinishedEmmiter.emit( 2 ) // update only chat list
+      return cd.cd
+    } else return undefined   
   }
+
+
+
 
   getWritingEmmiter() {
     return this.connection.writingEmitter
@@ -597,6 +627,10 @@ export class UserService {
     this.connection.startListeningFromNewChat( chatId , partitionOffsets)
   }
 
+  fetchOlderMessages(chatId: string) {
+    this.connection.fetchOlderMessages( chatId )
+  }
+  
   isWSconnected(): boolean {
     return this.connection.isWSconnected()
   }
@@ -604,6 +638,8 @@ export class UserService {
   isWSconnectionDefined(): boolean {
     return this.connection.isWSconnectionDefined()
   }
+
+
 
   
 

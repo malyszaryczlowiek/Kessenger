@@ -20,17 +20,13 @@ export class ChatComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     // tutaj // sprawdzić czy nie można zostawić samego fetchowania danych przez poniższy emmiter. 
     // i tylko użyć if (this.userService.isWSconnected() ) this.userService.dataFetched()
-    this.fetchingSubscription = this.userService.fetchingUserDataFinishedEmmiter.subscribe( (b) => {
-        if (b) {
+    this.fetchingSubscription = this.userService.fetchingUserDataFinishedEmmiter.subscribe( (c) => {
+        if (c == 1 || c == 2) { 
           console.log('ChatComponent fetched data from UserService via fetchEmmiter.')
           this.chats = this.userService.getAllChats()
         }
       }
     )
-
-    todo2
-    // tuaj powinniśmy mieć nowe rodzaje listenerów
-    // Dane o tym w jakim chatcie jesteśmy powinny trafiać do chatService??? 
 
     if ( this.userService.getAllChats().length == 0 ) {
       const c = this.userService.getChats()

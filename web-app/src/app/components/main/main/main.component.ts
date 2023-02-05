@@ -61,6 +61,9 @@ export class MainComponent implements OnInit, OnDestroy {
 
 
 
+  /*
+    METHODS TO DELETE
+  */
 
 
 

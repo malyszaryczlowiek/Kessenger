@@ -496,6 +496,19 @@ export class ConnectionService {
 
 
 
+  fetchOlderMessages(chatId: string) {
+    if (this.wsConnection) {
+      console.log('sending New chat data to server to start listentning.');
+      const body = { chatId: chatId }
+      this.wsConnection.send(JSON.stringify( body )); 
+    } else {
+      console.error('Did not send data, open a connection first');
+    } 
+  }
+
+
+
+
   startPingSender() {
     this.wsPingSender = setInterval(() => {
       if ( this.wsConnection )

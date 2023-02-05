@@ -15,10 +15,10 @@ export class EditAccountComponent implements OnInit, OnDestroy {
 
   settings: Settings | undefined
   zones: string[] = []
-  settingsResponse: any | undefined
-  loginResponse: any | undefined
-  passwordResponse: any | undefined  
-  returnedError: any | undefined
+  settingsResponse:  any | undefined
+  loginResponse:     any | undefined
+  passwordResponse:  any | undefined  
+  returnedError:     any | undefined
   fechingSubscription: Subscription | undefined
 
 
@@ -55,7 +55,7 @@ export class EditAccountComponent implements OnInit, OnDestroy {
         }
       }
     )
-    if ( this.userService.isWSconnected() ) this.userService.dataFetched() 
+    if ( this.userService.isWSconnected() ) this.userService.dataFetched( 0 ) 
   }
 
 

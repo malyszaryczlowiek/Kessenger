@@ -14,8 +14,8 @@ export class ChatListComponent implements OnInit, OnDestroy {
 
   @Input() chats: Array<ChatData> = new Array<ChatData>(); 
   writingSubscription:  Subscription | undefined
-  wrt:      Writing | undefined
-  meUserId: string  | undefined
+  wrt:                       Writing | undefined
+  myUserId:                  string  | undefined
 
 
   constructor(private userService: UserService, private router: Router ) {}
@@ -23,7 +23,7 @@ export class ChatListComponent implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     console.log('ChatListComponent.ngOnInit() ')
-    this.meUserId = this.userService.user?.userId
+    this.myUserId = this.userService.user?.userId
     this.writingSubscription = this.userService.getWritingEmmiter().subscribe(
       (w: Writing | undefined) => { this.wrt = w }
     )
@@ -42,21 +42,6 @@ export class ChatListComponent implements OnInit, OnDestroy {
     console.log('ChatListComponent.ngOnDestroy() called.')
     if ( this.writingSubscription )  this.writingSubscription.unsubscribe()
   }
-
-
-  // layout methods
-
-  setHeightLayout(){
-    const header = document.getElementById('header')
-    const chatList = document.getElementById('chat_list')
-    if (  header && chatList ) {
-      const h = window.innerHeight - 
-        header.offsetHeight         
-      chatList.style.height = h + 'px'
-    }
-  }
-
-  
 
 
 }

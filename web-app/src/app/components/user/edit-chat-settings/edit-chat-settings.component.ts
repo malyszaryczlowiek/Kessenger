@@ -104,7 +104,7 @@ export class EditChatSettingsComponent implements OnInit {
         }
       }
     )
-    if ( this.userService.isWSconnected() ) this.userService.dataFetched()
+    if ( this.userService.isWSconnected() ) this.userService.dataFetched( 1 )
   }
 
   ngOnDelete() {

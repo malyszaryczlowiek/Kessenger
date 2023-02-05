@@ -9,9 +9,7 @@ import { User } from '../models/User';
 export class ChatsDataService {
 
   selectedChat: string | undefined // chatId
-  todo // użyć tego is read do sprawdzenia, że w czacie który mamy otwarty czy jesteśmy na samym dole, 
-  // jak przeskrolujemy do dołu i otrzymmay wartość najwyższą to wtedy tutaj ustawiamy na true
-  // jeśli s
+  
   isRead = false 
 
   chatAndUsers: Array<ChatData> = new Array();
@@ -39,7 +37,7 @@ export class ChatsDataService {
 
   // todo // zaimplementować,że w danym czacie wszystkie wiadomości są już przeczytane
   // po wywołaniu tej funkcji należy jeszcze fetchować ??? dane 
-  markMessagesAsRead(chatId: string) {
+  markMessagesAsRead(chatId: string): {cd: ChatData, num: number} | undefined {
     const chat = this.chatAndUsers.find(
       (cd, i , arr) => {
         return cd.chat.chatId == chatId
@@ -48,7 +46,8 @@ export class ChatsDataService {
     if ( chat ) {
       chat.isNew = false
       this.selectedChat = chatId 
-      if ( chat.unreadMessages.length > 0 ) {
+      const num = chat.unreadMessages.length
+      if ( num > 0 ) {
         chat.unreadMessages.forEach(
           (m, i, arr) => {
             chat.messages.push( m )
@@ -69,8 +68,9 @@ export class ChatsDataService {
         chat.messages = chat.messages.sort((a,b) => a.serverTime - b.serverTime )
         this.changeChat( chat )
       } 
+      return { cd: chat, num: num }
     } else {
-      // this.selectedChat = undefined
+      return undefined
     }
   }
 
@@ -78,15 +78,75 @@ export class ChatsDataService {
   // oraz z tym że jak jesteśmy w liście czatów i zrobimy refresh
   // to wszystkie wiadomości są wczytywane do nowych wiadomości 
   // dlatego trzeba jeszcze zimplementować mechanizm sprawdzający
-  // czy dana wiadomość ma offset poniżej czy powyżej offsetu w danym chacie. 
+  // czy dana wiadomość ma offset poniżej czy powyżej offsetu w danym chacie.
 
   insertNewMessages(m: Message[]) {
+    // let code = 2
+    m.forEach((mm,i,arr) => {
+      const foundCD = this.chatAndUsers.find((cd, i, arr) => {
+        return cd.chat.chatId == mm.chatId
+      })
+      if ( foundCD ) {
+        const unread = foundCD.partitionOffsets.some((po,i,arr) => {
+          return po.partition == mm.partOff.partition && po.offset < mm.partOff.offset
+        })
+        if ( unread ) foundCD.unreadMessages.push( mm ) 
+        else {
+          console.log('WIADOMOŚĆ DODANA DO PRZECZYTANYCH')
+          // if (code == 2) code = 1
+          foundCD.messages.push( mm )
+          foundCD.messages = foundCD.messages.sort((a,b) => a.serverTime - b.serverTime )
+          foundCD.partitionOffsets = foundCD.partitionOffsets.map(
+            (po, i, arr) => {
+              if (po.partition == mm.partOff.partition && po.offset < mm.partOff.offset){ 
+                po.offset = mm.partOff.offset
+                return po
+              } else  {
+                return po
+              }
+            }
+          )
+        }
+        if (foundCD.chat.lastMessageTime < mm.serverTime) foundCD.chat.lastMessageTime = mm.serverTime
+        this.changeChat( foundCD )
+
+
+
+/* 
+        if ( foundCD.chat.chatId == this.selectedChat) {
+          if (code == 2) code = 1
+          foundCD.messages.push( mm )
+          foundCD.messages = foundCD.messages.sort((a,b) => a.serverTime - b.serverTime )
+          foundCD.partitionOffsets = foundCD.partitionOffsets.map(
+            (po, i, arr) => {
+              if (po.partition == mm.partOff.partition && po.offset < mm.partOff.offset){ 
+                po.offset = mm.partOff.offset
+                return po
+              } else  {
+                return po
+              }
+            }
+          )
+        } else {
+          
+        } */
+        
+      }
+    })
+    // return code
+  }
+
+   
+
+  insertNewMessagesOld(m: Message[]): number {
+    let code = 2
     m.forEach((mm,i,arr) => {
       const foundCD = this.chatAndUsers.find((cd, i, arr) => {
         return cd.chat.chatId == mm.chatId
       })
       if ( foundCD ) {
         if ( foundCD.chat.chatId == this.selectedChat) {
+          if (code == 2) code = 1
           foundCD.messages.push( mm )
           foundCD.messages = foundCD.messages.sort((a,b) => a.serverTime - b.serverTime )
           foundCD.partitionOffsets = foundCD.partitionOffsets.map(
@@ -109,6 +169,7 @@ export class ChatsDataService {
           if ( unread ) foundCD.unreadMessages.push( mm ) 
           else {
             console.log('WIADOMOŚĆ DODANA DO PRZECZYTANYCH')
+            if (code == 2) code = 1
             foundCD.messages.push( mm )
             foundCD.messages = foundCD.messages.sort((a,b) => a.serverTime - b.serverTime )
             foundCD.partitionOffsets = foundCD.partitionOffsets.map(
@@ -127,6 +188,7 @@ export class ChatsDataService {
         this.changeChat( foundCD )
       }
     })
+    return code
   }
 
     // gdzieś trzeba jeszcze wysłać powiadomienia przez websocket,
@@ -134,17 +196,28 @@ export class ChatsDataService {
     // od którego będzie przy następnym pobiernaiu wiadomości zacząć. 
 
 
+/*   canFetchOlderMessages(chatId: string): boolean {
+    const cd = this.chatAndUsers.find((cd,i,arr) => {
+      return cd.chat.chatId == chatId
+    })
+    if (cd) {
+      let r = false
+      cd.messages.find((m,i,ar) => {
+        return m.partOff.
+      })
 
+
+      return true
+    }
+    else return false
+  }
+ */
 
 
   insertOldMessages(m: Message[]) {
     const chatId = m.at(0)?.chatId
     if ( chatId ) {
-      const found = this.chatAndUsers.find(
-        (cd, i , arr) => {
-          return cd.chat.chatId == chatId
-        }
-      )
+      const found = this.chatAndUsers.find( (cd, i , arr) => { return cd.chat.chatId == chatId } )
       if ( found ) {
         m.forEach((mess, i, arr) => found.messages.push(mess))
         found.messages = found.messages.sort((a,b) => a.serverTime - b.serverTime )

@@ -67,7 +67,7 @@ class WebSocketActor( out: ActorRef, be: BrokerExecutor ) extends Actor {
                               else
                                 println(s"8. '$s' is different from PoisonPill.")
                             case Right(c) =>
-                              println(s"7. GOT FetchingREQUEST FROM: $c.chatId")
+                              println(s"7. GOT FETCHING OLDER MESSAGES REQUEST FROM: $c.chatId")
                               this.be.fetchOlderMessages(c.chatId)
                           }
                         case Right(chat) =>
