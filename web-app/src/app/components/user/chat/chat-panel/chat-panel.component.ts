@@ -40,8 +40,10 @@ export class ChatPanelComponent implements OnInit, OnDestroy {
     1. po wysłaniu wiadomości osoba odberająca wiadomość 
        nawet jak nie jest na końcu czatu to i tak jest przekierowywana
        scrollowana down a licznik wiadomości przeczytanych jest kasowany do zera 
-    
-    2. po wejściu do /user okno nie jest scalowane do rozmiaru window. 
+
+    2. ustawić w każdym subskrybcji gdy odpytujemy endpointy
+      sprawdzić, że w htttperror response jest status 0 a status text 'Unknown Error' 
+      to trzeba wyświetlić info, że servis in anavailable. 
 
     */
 

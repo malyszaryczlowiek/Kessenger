@@ -4,6 +4,7 @@ import { Router } from '@angular/router';
 import { ChatData } from 'src/app/models/ChatData';
 import { Writing } from 'src/app/models/Writing';
 import { UserService } from 'src/app/services/user.service';
+import { HtmlService } from 'src/app/services/html.service';
 
 @Component({
   selector: 'app-chat-list',
@@ -18,7 +19,7 @@ export class ChatListComponent implements OnInit, OnDestroy {
   myUserId:                  string  | undefined
 
 
-  constructor(private userService: UserService, private router: Router ) {}
+  constructor(private userService: UserService, private router: Router, private htmlService: HtmlService ) {}
   
 
   ngOnInit(): void {
@@ -27,6 +28,7 @@ export class ChatListComponent implements OnInit, OnDestroy {
     this.writingSubscription = this.userService.getWritingEmmiter().subscribe(
       (w: Writing | undefined) => { this.wrt = w }
     )
+    this.htmlService.resizeChatList2()
   }
 
 

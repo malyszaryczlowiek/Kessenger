@@ -196,6 +196,32 @@ export class HtmlService {
     }
   }
 
+  resizeChatListInterval: NodeJS.Timeout | undefined
+
+  resizeChatList2() {
+    if (this.resizeChatListInterval) {
+      clearInterval(this.resizeChatListInterval)
+      this.rcl()
+    } else {
+      this.rcl()
+    }
+  }
+
+  private rcl() {
+    this.resizeChatListInterval = setInterval(()=>{
+      const header = document.getElementById('header')
+      const chatList = document.getElementById('chat_list')
+      if (header && chatList) {
+        const h = window.innerHeight - header.offsetHeight 
+        chatList.style.height = h + 'px'
+        if (this.resizeChatListInterval) {
+          clearInterval(this.resizeChatListInterval)
+          this.resizeChatListInterval = undefined
+        }
+      }
+    }, 50)
+  }
+
 
 
 
