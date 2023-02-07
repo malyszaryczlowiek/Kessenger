@@ -105,35 +105,4 @@ class WebSocketActor( out: ActorRef, be: BrokerExecutor ) extends Actor {
 }
 
 
-/*
-
-Rządanie ma Origin header
-Rządanie ma 1 ważnych sesji.
-wszedłem w ActorFlow.
-0. Actor started
-1. ACTOR_ID: 3eada425-1e60-42a9-8e33-13c707b6d448
-2. CANNOT PARSE WRITING
-3. CANNOT PARSE MESSAGE
-4. GOT CONFIGURATION: Configuration(User(d83abea2-d8cf-4446-8a79-f5488b67ba51,Boner69),0,List())
-Jestem w future w BrokerExecutor.
-utworzyłem Invitation consumer
-utworzyłem Message consumer
-utworzyłem Writing consumer
-przypisałem invitation consumerowi topic i offset
-BrokerExecutor: sending Invitation
-1. ACTOR_ID: 3eada425-1e60-42a9-8e33-13c707b6d448
-2. CANNOT PARSE WRITING
-3. CANNOT PARSE MESSAGE
-4. CANNOT PARSE CONFIGURATION
-5. CANNOT PARSE CHAT_OFFSET_UPDATE
-6. GOT NEW_CHAT_ID: ChatPartitionsOffsets(chat--ca19cd85-416a-439e-b13b-784638bb42fa--d83abea2-d8cf-4446-8a79-f5488b67ba51,List(PartitionOffset(0,0), PartitionOffset(1,0), PartitionOffset(2,0)))
-DODAłEM chat do dodania do listy czatów
-zaczynam dodawanie nowego chatu do listy
-wszystkie MESSAGE consumery uruchomione.
-!!! NEW CHAT ADDED !!!.
-Try Adding new chat succeded. succeeded.
-
- */
-
-
 

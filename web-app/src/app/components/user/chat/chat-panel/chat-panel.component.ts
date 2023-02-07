@@ -33,15 +33,10 @@ export class ChatPanelComponent implements OnInit, OnDestroy {
 
 
 
-    todo // zbadać wartości jakie są przy scrollingu w message list bo 1.)
     /*
-
     problemy 
-    1. po wysłaniu wiadomości osoba odberająca wiadomość 
-       nawet jak nie jest na końcu czatu to i tak jest przekierowywana
-       scrollowana down a licznik wiadomości przeczytanych jest kasowany do zera 
 
-    2. ustawić w każdym subskrybcji gdy odpytujemy endpointy
+    1. ustawić w każdym subskrybcji gdy odpytujemy endpointy
       sprawdzić, że w htttperror response jest status 0 a status text 'Unknown Error' 
       to trzeba wyświetlić info, że servis in anavailable. 
 
@@ -59,7 +54,7 @@ export class ChatPanelComponent implements OnInit, OnDestroy {
           const chatId = this.activated.snapshot.paramMap.get('chatId');
           if ( chatId ) { 
             console.log('ChatPanelComponent fetchingSubscription fetched data from UserService via fetchEmmiter.')
-            const currentChat = this.userService.getAllChats().find((chatData, index, arr) => {
+            const currentChat = this.userService.getAllChats().find(  (chatData, index, arr) => {
               return chatData.chat.chatId == chatId;
             })
             if ( currentChat ) {
@@ -79,7 +74,6 @@ export class ChatPanelComponent implements OnInit, OnDestroy {
                 } else {
                   this.chatData = currentChat // this chat data has unread messages 
                   console.warn('added older messages.')
-                  this.htmlService.scrollDown( false )
                 }
               } else { // no new messages
                 this.chatData = currentChat
