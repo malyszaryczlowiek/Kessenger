@@ -51,45 +51,7 @@ export class CreateChatComponent implements OnInit, OnDestroy {
     console.log('CreateChatComponent.ngOnDestroy()')
   }
 
-  // todo
-  /*
 
-  wysyłanie rzeczy przez websocket
-
-  1. wysyłąnie offsetu chatu gdy: 
-     a) (DONE) jesteśmy w czacie i odbieramy wiadomość
-     b) (DONE) klikamy w dany czat na liście i nas tam przeności,
-        ale lista nowych wiadomości nie jest pusta
-
-  2. wysyłanie informacji o nowym czacie żeby utworzyć odpowiedni consumer. 
-     a) (DONE) jak tworzymy nowy czat i uzyskujemy odpowiedź
-     b) (DONE) jak dostajemy invitation i jesteśmy po pobraniu 
-        wszystkich danych o tym czacie z odpowiedniego (normalnego) endpointa. 
-        - (DONE) raz powinniśmy zmienić na liście, że jest 'NEW'
-
-    
-  3. (DONE) odbieranie zaproszenia        
-     patrz pkt 2a)
-
-  4. sprawdzić przetwarzanie przychodzących wiadomosci,
-     czy są prawidłowo przetwarzane.    
-
-  5. (DONE) sprawdzić czy czat istnieje tylko wtedy jak istnieje topic tego czatu
-      a jak topic tego czatu istnieje, to czy writing tego czatu istnieje, 
-        jeśli nie to należy jeszcze raz spróbować utworzyć taki topic. 
-
-
-  6. zrobić fetchowanie wcześniejszych wiadomości.       
-     zrobić to tak, że tworzony jest tylko tymczasowy consumer, 
-     który pobierze dane z założonego zakresu i zaraz zostanie zamknięty. 
-       
-
-    wypracować mechanizm co w przypadku, gdy przypisujemy
-    do consumera czaty dany chat nie istnieje i wywala error
-    to należy wtedy wysłać wiadomość, że chcemy utworzyć nowy topic/chat 
-    i PO UTWORZENIU NOWEGO CHATU / TOPICA 
-    sprawdzić czy Future jest już zakończony i zrestartować go ewentualnie.
-  */
 
 
   create() {

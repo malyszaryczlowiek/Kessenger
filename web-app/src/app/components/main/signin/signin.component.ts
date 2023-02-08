@@ -1,6 +1,7 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, EventEmitter, OnInit, Output } from '@angular/core';
 import { FormControl, FormGroup, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
+import { HttpErrorHandlerService } from 'src/app/services/http-error-handler.service';
 import { UserService } from 'src/app/services/user.service';
 
 @Component({
@@ -13,12 +14,14 @@ export class SigninComponent implements OnInit {
   signInForm = new FormGroup({
     login: new FormControl('', [Validators.required, Validators.minLength(4)]),
     password: new FormControl('', [Validators.required, Validators.minLength(6)])  //  todo dodać walidatory
-  });
+  }); 
   
-  
-  returnedError: any | undefined;
+  // @Output() errorMessageEmitter: EventEmitter<string> = new EventEmitter<string>()
 
-  constructor(private userService: UserService, private router: Router) { }
+
+  constructor(private userService: UserService, 
+              private httpErrorHandler: HttpErrorHandlerService,
+              private router: Router) { }
 
   ngOnInit(): void {
   }
@@ -52,12 +55,11 @@ export class SigninComponent implements OnInit {
             }            
           },
           error: (error) => {
+            this.httpErrorHandler.handle(error)                                  
             console.log(error)
             console.log('clearing UserService.')
             this.userService.clearService();
             this.signInForm.reset();
-            // print message to user.
-            this.returnedError = error.error;
           },
           complete: () => {}
         })
@@ -66,7 +68,6 @@ export class SigninComponent implements OnInit {
   }
 
   clearError() {
-    this.returnedError = undefined
   }
 
 

@@ -16,9 +16,6 @@
                     <button type="button" class="btn btn-primary" [disabled]="!signUpForm.valid" type="submit" >Sign Up</button>
                 </div>            
             </div>
-            <div class="row ">
-                <p *ngIf="returnedError" (click)="clearError()"> Error Status: {{ returnedError.num }} Error Description: {{ returnedError.message }} </p>
-            </div>
         </form>
     </div>
 </div>        

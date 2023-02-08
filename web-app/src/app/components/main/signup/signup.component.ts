@@ -1,6 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import { FormControl, FormGroup, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
+import { HttpErrorHandlerService } from 'src/app/services/http-error-handler.service';
 import { UserService } from 'src/app/services/user.service';
 
 @Component({
@@ -16,12 +17,16 @@ export class SignupComponent implements OnInit {
     password: new FormControl('', [Validators.required, Validators.minLength(6)])  
   });
 
-  public returnedError: any | undefined;
+  constructor(private userService: UserService, 
+              private httpErrorHandler: HttpErrorHandlerService,
+              private router: Router) { }
 
-  constructor(private userService: UserService, private router: Router) { }
+  
+  
+  ngOnInit(): void { }
 
-  ngOnInit(): void {
-  }
+
+
 
   onSubmit() {
     const login = this.signUpForm.value.login;
@@ -49,12 +54,12 @@ export class SignupComponent implements OnInit {
             }
           },
           error: (error) => {
+            this.httpErrorHandler.handle(error)
             console.log(error);
             console.log('clearing UserService.')
             this.userService.clearService();
             this.signUpForm.reset();
-            // print message to user.
-            this.returnedError = error.error;
+
           },
           complete: () => {}
         })  
@@ -64,8 +69,8 @@ export class SignupComponent implements OnInit {
   }
 
 
-  clearError() {
-    this.returnedError = undefined
-  }
+
+
+  
 
 }

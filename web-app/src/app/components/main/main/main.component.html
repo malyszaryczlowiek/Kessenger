@@ -10,11 +10,21 @@
             </div>
             <div class="col">
                 <h4 >Sign In</h4>
-                <app-signin></app-signin>
+                <app-signin></app-signin> 
             </div>
         </div>
         <div class="row">
-            
+            <div class="toast-container position-fixed p-3 bottom-0 start-50 translate-middle-x">
+                <div id="error_main_toast" class="toast" role="alert" aria-live="assertive" aria-atomic="true">
+                    <div class="toast-header">
+                        <strong class="me-auto">{{ error?.header }}</strong>
+                        <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
+                    </div>
+                    <div class="toast-body">
+                        {{ error?.message }}
+                    </div>
+                </div>
+            </div>            
         </div>
     </div>    
 </div>
@@ -22,52 +32,3 @@
 
 
 
-
-
-<!-- 
-
-    <div class="container-fluid">
-        <div class="row">
-            <div class="col">
-                <div class="d-flex flex-column vh-100 overflow-hidden">
-                    <div class="row my-3">
-                        <div class="col">
-                            <input type="text" class="form-control form-control-lg" placeholder="Input" aria-label="First name">
-                        </div>
-                        <div class="col">
-                            <input type="text" class="form-control form-control-lg" placeholder="Input" aria-label="Last name">
-                        </div>
-                        <div class="col">
-                            <input type="text" class="form-control form-control-lg" placeholder="Last name" aria-label="Last name">
-                        </div>
-                    </div>
-                    <div class="row mb-3">
-                        <div class="btn-group" role="group" aria-label="Basic outlined example">
-                            <button type="button" class="btn btn-outline-primary p-2 bg-white" style="border: 1px solid #ced4da">Overview</button>
-                            <button type="button" class="btn btn-outline-primary bg-white" style="border: 1px solid #ced4da">Tickets</button>
-                            <button type="button" class="btn btn-outline-primary bg-white" style="border: 1px solid #ced4da">...</button>
-                        </div>
-                    </div>
-                    <div class="row h-100 mb-3 mx-0 overflow-hidden">
-                        <div class="container-fluid h-100">
-                            <div class="row h-100">
-                                <div class="col-4 h-100 p-0 m-0">
-                                    <div class="card h-100 border rounded bg-white">
-                                        <div class="card-header"> List </div>
-                                        <div class="card-body p-0 m-0 overflow-hidden">
-                                            <div class="list-group h-100 list-group-flush rounded-0">
-                                                <div class="h-100 scrollable overflow-auto"> Show item<br> Show item<br> Show item<br> Show item<br> Show item<br> Show item<br> Show item<br> Show item<br> Show item<br> Show item<br> Show item<br> Show item<br> Show item<br> Show item<br> Show item<br> Show item<br> Show item<br> Show item<br> Show item<br> Show item<br> Show item<br> Show item<br> Show item<br> Show item<br> Show item<br> Show item<br> Show item<br> Show item<br> Show item<br> Show item<br> Show item<br> Show item<br> Show item<br> Show item<br> Show item<br> Show item<br> Show item<br> Show item<br> Show item<br> Show item<br> Show item<br> Show item<br> Show item<br> Show item<br> Last item<br>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>  
-
--->
