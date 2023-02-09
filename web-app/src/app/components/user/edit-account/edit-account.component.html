@@ -5,7 +5,7 @@
         <form [formGroup]="settingsGroup" (ngSubmit)="saveSettings()">
             Session Time: 
             <input formControlName="sessionControl" type="number" min="1" max="15" placeholder=""> 
-            (Minutes < min: 1, max: 15>)     
+            (Minutes min: 1, max: 15)     
             <br>
             Your Zone:
             <select formControlName="zoneControl" > 
@@ -46,9 +46,6 @@
     <p *ngIf="passwordResponse" (click)="clearPasswordNotification()">{{ passwordResponse.message }}</p>
     <p> </p>
     <button routerLink="/user" routerLinkActive="active" ariaCurrentWhenActive="page">Back to Chats</button>
-</div>
-<div>
-    <p *ngIf="returnedError" (click)="clearError()">Error Code: {{ returnedError.num }} Error Description: {{ returnedError.message }} </p>
 </div>
 
 

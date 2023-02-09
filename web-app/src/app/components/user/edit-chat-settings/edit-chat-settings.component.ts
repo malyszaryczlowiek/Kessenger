@@ -5,6 +5,7 @@ import { debounceTime, distinctUntilChanged, of, share, startWith, Subject, Subs
 import { Chat } from 'src/app/models/Chat';
 import { ChatData } from 'src/app/models/ChatData';
 import { User } from 'src/app/models/User';
+import { ResponseNotifierService } from 'src/app/services/response-notifier.service';
 import { UserService } from 'src/app/services/user.service';
 
 @Component({
@@ -24,7 +25,7 @@ export class EditChatSettingsComponent implements OnInit {
   })
 
   chatData?: ChatData;
-  responseMessage: any | undefined
+  //responseMessage: any | undefined
   fetchingSubscription: Subscription | undefined
   foundUsers = new Array<User>()
   selectedUsers = new Array<User>();
@@ -35,10 +36,10 @@ export class EditChatSettingsComponent implements OnInit {
 
 
   
-  constructor(
-    private router: Router, 
-    private activated: ActivatedRoute,
-    private userService: UserService) { }
+  constructor( private router: Router, 
+               private activated: ActivatedRoute,
+               private responseNotifier: ResponseNotifierService,
+               private userService: UserService) { }
 
 
 
@@ -65,15 +66,8 @@ export class EditChatSettingsComponent implements OnInit {
                 }
               },
               error: (err) => {
-                console.log("ERROR", err)
-                if (err.status == 401){
-                  console.log('Session is out.')
-                  this.userService.clearService()
-                  this.router.navigate(['session-timeout'])
-                }
-                else {
-                  this.responseMessage = err.error
-                }
+                this.responseNotifier.handleError( err )
+                
               },
               complete: () => {
                 
@@ -139,13 +133,13 @@ export class EditChatSettingsComponent implements OnInit {
           silent:          newSilent
         }
       }
-      const c = this.userService.setChatSettings(body)
+      const c = this.userService.setChatSettings( body )
       if ( c ) {
         c.subscribe({
           next: (response) => {
             if (response.ok) {
               if (this.chatData) {
-                this.responseMessage = response.body.message
+                
                 const newChatData: ChatData = {
                   chat: body,
                   messages: this.chatData.messages,
@@ -155,14 +149,20 @@ export class EditChatSettingsComponent implements OnInit {
                   emitter: this.chatData.emitter                  
                 }
                 this.userService.changeChat(newChatData)
+                const printBody = {
+                  header: 'Update',
+                  //code: 0,
+                  message: `${response.body.message}`
+                }
+                this.responseNotifier.printNotification( printBody ) 
               }
             } else {
               console.log('Changing chat settings has gone wrong')
             }
           },
           error: (err) => {
-            console.log(err)
-            this.responseMessage = err.error            
+            console.warn(err)
+            this.responseNotifier.handleError( err )            
           },
           complete: () => {},
         })
@@ -211,15 +211,8 @@ export class EditChatSettingsComponent implements OnInit {
             }
           },
           error: (err) => {
-            console.log("ERROR", err)
-            if (err.status == 401){
-              console.log('Session is out.')
-              this.userService.clearService()
-              this.router.navigate(['session-timeout'])
-            }
-            else {
-              this.responseMessage = err.error
-            }
+            console.warn(err)
+            this.responseNotifier.handleError( err )
           },
           complete: () => {},
         }) 
@@ -234,13 +227,6 @@ export class EditChatSettingsComponent implements OnInit {
   }
 
 
-  
-  clearNotification() {
-    this.userService.updateSession()
-    this.responseMessage = undefined
-  }
-
-
 
 
   addUsers() {
@@ -252,19 +238,16 @@ export class EditChatSettingsComponent implements OnInit {
       if ( c ) {
         c.subscribe({
           next: (response) => {
-            console.log(response.body)
-            this.responseMessage = response.body
+            const body = {
+              header: 'Update',
+              // code: 0,
+              message: `${response.body}`
+            }
+            this.responseNotifier.printNotification( body ) 
           },
           error: (err) => {
-            console.log("ERROR", err)
-            if (err.status == 401){
-              console.log('Session is out.')
-              this.userService.clearService()
-              this.router.navigate(['session-timeout'])
-            }
-            else {
-              this.responseMessage = err.error
-            }
+            console.warn(err)
+            this.responseNotifier.handleError( err )
           },
           complete: () => {}
         })
@@ -272,6 +255,8 @@ export class EditChatSettingsComponent implements OnInit {
         this.router.navigate(['session-timeout'])
     }
   }
+
+
 
 
   searchUser() {
@@ -320,16 +305,10 @@ export class EditChatSettingsComponent implements OnInit {
               console.log('No User found')
             }
           },
-          error: (error) => {
-            console.log("ERROR", error)
+          error: (err) => {
             this.foundUsers = new Array()  
-            if (error.status == 401){
-              console.log('Session is out.')
-              this.router.navigate(['session-timeout'])
-            }
-            else {
-              this.responseMessage = error.error
-            }
+            console.warn(err)
+            this.responseNotifier.handleError( err )
           },
           complete: () => {}
         })

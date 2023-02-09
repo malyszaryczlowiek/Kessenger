@@ -1,6 +1,7 @@
 import { Component, EventEmitter, OnDestroy, OnInit } from '@angular/core';
 import { Subscription } from 'rxjs';
 import { ChatData } from 'src/app/models/ChatData';
+import { ResponseNotifierService } from 'src/app/services/response-notifier.service';
 import { UserService } from 'src/app/services/user.service';
 
 @Component({
@@ -12,10 +13,10 @@ export class ChatComponent implements OnInit, OnDestroy {
 
   chats: ChatData[] = new Array<ChatData>()
   fetchingSubscription: Subscription | undefined
-  responseError: any | undefined
+  
 
 
-  constructor(private userService: UserService) { }
+  constructor(private userService: UserService, private responseNotifier: ResponseNotifierService) { }
 
   ngOnInit(): void {
     // tutaj // sprawdzić czy nie można zostawić samego fetchowania danych przez poniższy emmiter. 
@@ -45,7 +46,7 @@ export class ChatComponent implements OnInit, OnDestroy {
             else console.log(`getChat() got status ${response.status}`)
           },
           error: (e) => {
-            this.responseError = e.error
+            this.responseNotifier.handleError( e )
           },
           complete: () => {}
         })
@@ -66,10 +67,5 @@ export class ChatComponent implements OnInit, OnDestroy {
   }
 
 
-
-  clearError() {
-    this.responseError = undefined
-    this.userService.updateSession()
-  }
 
 }

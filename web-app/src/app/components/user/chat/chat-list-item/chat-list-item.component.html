@@ -1,7 +1,7 @@
 <div style="border: 1px solid blue;" *ngIf="chatData" >
     <h3 *ngIf="chatData.isNew">(NEW CHAT)</h3>
     <h3>{{ chatData.chat.chatName }}</h3>
-    <h2 *ngIf="chatData.unreadMessages.length > 0">({{ chatData.unreadMessages.length }}) New Messages</h2>
+    <h5 *ngIf="chatData.unreadMessages.length > 0">({{ chatData.unreadMessages.length }}) New Messages</h5>
     <!-- <div>
         Last Message: {{ chatData.chat.lastMessageTime }}   
        Last Message: {{ messageDate }}  

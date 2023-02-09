@@ -17,6 +17,7 @@ import { ChatOffsetUpdate } from '../models/ChatOffsetUpdate';
 import { Writing } from '../models/Writing';
 import { PartitionOffset } from '../models/PartitionOffset';
 import { UserOffsetUpdate } from '../models/UserOffsetUpdate';
+import { ResponseNotifierService } from './response-notifier.service';
 
 
 @Injectable({
@@ -38,6 +39,7 @@ export class UserService {
   logoutTimer: NodeJS.Timeout | undefined;
   logoutSeconds: number = this.settingsService.settings.sessionDuration / 1000    // number of seconds to logout
   logoutSecondsEmitter: EventEmitter<number>   = new EventEmitter()
+  logoutSubscription:   Subscription | undefined
 
   selectedChatEmitter:  EventEmitter<ChatData> = new EventEmitter<ChatData>()
 
@@ -53,8 +55,11 @@ export class UserService {
 
 
 
-  constructor(private connection: ConnectionService, private chats: ChatsDataService,
-    private settingsService: UserSettingsService, private router: Router) { 
+  constructor(private connection: ConnectionService, 
+              private chats: ChatsDataService,
+              private settingsService: UserSettingsService, 
+              private responseNotifier: ResponseNotifierService,
+              private router: Router) { 
 
     console.log('UserService constructor called.')
     this.assignSubscriptions()
@@ -229,6 +234,17 @@ export class UserService {
         ( bool ) => { this.dataFetched( 1 ) }
       )
     }
+
+    if ( ! this.logoutSubscription ) {
+      this.logoutSubscription = this.responseNotifier.logoutEmitter.subscribe(
+        (anyy) => {
+          this.clearService()
+          this.router.navigate(['session-timeout'])
+        }
+      )
+    }
+
+
   }
 
 
@@ -267,10 +283,10 @@ export class UserService {
       this.invitationSubscription.unsubscribe()
       this.invitationSubscription = undefined
     }
-    /* if (this.writingSubscription)     {
-      this.writingSubscription.unsubscribe()
-      this.writingSubscription = undefined
-    } */
+    if ( this.logoutSubscription ) {
+      this.logoutSubscription.unsubscribe()
+      this.logoutSubscription = undefined
+    }
     this.logoutTimer = undefined
     this.logoutSeconds = this.settingsService.settings.sessionDuration / 1000
     console.log('UserService clearservice')

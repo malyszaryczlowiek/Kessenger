@@ -16,6 +16,8 @@ import { Configuration } from '../models/Configuration';
 import { ChatOffsetUpdate } from '../models/ChatOffsetUpdate';
 import { PartitionOffset } from '../models/PartitionOffset';
 import { UserOffsetUpdate } from '../models/UserOffsetUpdate';
+import { LoadBalancerService } from './load-balancer.service';
+import { ResponseNotifierService } from './response-notifier.service';
 
 
 
@@ -44,6 +46,8 @@ export class ConnectionService {
 
   constructor(private http: HttpClient, 
               @Inject("API_URL") private api: string,
+              private responseNotifier: ResponseNotifierService,
+              private loadBalancer: LoadBalancerService,
               private session: SessionService) { }
 
 
@@ -350,6 +354,16 @@ export class ConnectionService {
         //w konfiguracji należy przesłać również informacje o sesji ???
         //tak aby server był w stanie sprawdzić czy user ma ważną sesję
 
+        if ( this.reconnectWS ) {
+          this.responseNotifier.printNotification(
+            {
+              header: 'Information',
+              // code: 0,
+              message: 'Connection retrieved.'
+            }
+          )
+        }
+
         this.reconnectWS = true
         this.restartWSEmitter.emit( false )
 
@@ -408,7 +422,17 @@ export class ConnectionService {
           clearInterval( this.wsPingSender )
           this.wsPingSender = undefined
         }
-        if ( this.reconnectWS ) this.restartWSEmitter.emit( this.reconnectWS )
+        if ( this.reconnectWS ) {
+          // toast, że straciliśmy połączenie
+          this.responseNotifier.printError(
+            {
+              header: 'Connection Error',
+              code: 1,
+              message: 'Connection lost, try in a few minutes.'
+            }
+          )
+          this.restartWSEmitter.emit( this.reconnectWS )
+        }
       };
       this.wsConnection.onerror = (error) => {
         console.error('error from web socket connection', error)

@@ -3,6 +3,7 @@ import { FormControl, FormGroup, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
 import { Subscription } from 'rxjs';
 import { Settings } from 'src/app/models/Settings';
+import { ResponseNotifierService } from 'src/app/services/response-notifier.service';
 import { UserSettingsService } from 'src/app/services/user-settings.service';
 import { UserService } from 'src/app/services/user.service';
 
@@ -18,7 +19,7 @@ export class EditAccountComponent implements OnInit, OnDestroy {
   settingsResponse:  any | undefined
   loginResponse:     any | undefined
   passwordResponse:  any | undefined  
-  returnedError:     any | undefined
+  
   fechingSubscription: Subscription | undefined
 
 
@@ -41,7 +42,10 @@ export class EditAccountComponent implements OnInit, OnDestroy {
   
 
 
-  constructor(private userService: UserService, private settingsService: UserSettingsService, private router: Router) { }
+  constructor(private userService: UserService, 
+              private settingsService: UserSettingsService, 
+              private responseNotifier: ResponseNotifierService,
+              private router: Router) { }
 
   ngOnInit(): void {
     this.userService.updateSession()
@@ -82,24 +86,13 @@ export class EditAccountComponent implements OnInit, OnDestroy {
         obs.subscribe({
           next: (response) => {
             this.settingsResponse = response.body
-            // this.userService.restartLogoutTimer() 
             this.userService.updateSession()
           },
           error: (error) => {
             this.settingsService.setSettings( oldSett )
-            console.log("ERROR", error)
-            if (error.status == 401){
-              console.log('Session is out.')
-              this.userService.clearService()
-              this.router.navigate(['session-timeout'])
-            }
-            else {
-              this.returnedError = error.error
-            }
+            this.responseNotifier.handleError( error ) 
           },
-          complete: () => {
-            console.log("completed")
-          }
+          complete: () => {}
         })
       } else {
         this.router.navigate(['session-timeout'])
@@ -120,27 +113,18 @@ export class EditAccountComponent implements OnInit, OnDestroy {
             const b = response.body
             if ( b ) { 
               this.userService.updateLogin(newLogin)
-              console.log(`new login ${b}`)
-              this.loginResponse = b
+              const print = {
+                header: 'Update',
+                //code: 0,
+                message: b.message
+              }
+              this.responseNotifier.printNotification( print )
+              
             }
           },
           error: (error) => {
             console.log("ERROR", error)
-            if (error.status == 401){
-              console.log('Session is out.')
-              this.userService.clearService()
-              this.router.navigate(['session-timeout'])
-            }
-            if (error.status == 400) {
-              this.loginResponse = error.error
-              /* if (error.error.message == 'Login taken. Try with another one.') {
-                this.loginTaken = true
-              }
-               */
-            }
-            else {
-              this.returnedError = error.error
-            }
+            this.responseNotifier.handleError( error )
           },
           complete: () => {},
         })
@@ -198,12 +182,7 @@ export class EditAccountComponent implements OnInit, OnDestroy {
     this.passwordResponse = undefined
   }
 
-  clearError() {
-    this.userService.updateSession()
-    this.returnedError = undefined
-  }
 
-  
 
 
 

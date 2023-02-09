@@ -1,6 +1,22 @@
 <div class="container-fluid vh-100" > 
     <app-header></app-header>
     <router-outlet></router-outlet>
+    <div class="toast-container position-fixed p-3 bottom-0 start-50 translate-middle-x">
+        <div id="error_user_toast" class="toast" role="alert" aria-live="assertive" aria-atomic="true">
+            <div class="toast-header">
+                <strong class="me-auto">{{ error?.header }}</strong>
+                <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
+            </div>
+            <div class="toast-body">
+                <div *ngIf="error?.code">
+                    <b>Error Code: {{ error?.code }}</b>
+                </div>
+                <div>
+                    {{ error?.message }}
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 
 

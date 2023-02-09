@@ -1,7 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import { FormControl, FormGroup, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
-import { HttpErrorHandlerService } from 'src/app/services/http-error-handler.service';
+import { ResponseNotifierService } from 'src/app/services/response-notifier.service';
 import { UserService } from 'src/app/services/user.service';
 
 @Component({
@@ -18,7 +18,7 @@ export class SignupComponent implements OnInit {
   });
 
   constructor(private userService: UserService, 
-              private httpErrorHandler: HttpErrorHandlerService,
+              private responseNotifier: ResponseNotifierService,
               private router: Router) { }
 
   
@@ -54,7 +54,7 @@ export class SignupComponent implements OnInit {
             }
           },
           error: (error) => {
-            this.httpErrorHandler.handle(error)
+            this.responseNotifier.handleError(error)
             console.log(error);
             console.log('clearing UserService.')
             this.userService.clearService();
