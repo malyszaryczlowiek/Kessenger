@@ -147,7 +147,10 @@ export class ChatPanelComponent implements OnInit, OnDestroy {
               if (this.chatModificationSubscription) this.chatModificationSubscription.unsubscribe()
               if ( this.chatData ) { // this subscription is only to reassign older messages
                 this.chatModificationSubscription = this.chatData.emitter.subscribe(
-                  (cd) => this.chatData = cd
+                  (cd) => { 
+                    console.warn('Adding older messages.')
+                    this.chatData = cd
+                  }
                 )  
               } 
             }
@@ -156,7 +159,7 @@ export class ChatPanelComponent implements OnInit, OnDestroy {
         if (position == 'top') {
           if (this.chatData) {
             console.log('fetching older messages')
-            // this.userService.fetchOlderMessages( this.chatData.chat.chatId )
+            this.userService.fetchOlderMessages( this.chatData.chat.chatId )
           }
         }
       } 

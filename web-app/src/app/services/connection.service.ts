@@ -522,7 +522,7 @@ export class ConnectionService {
 
   fetchOlderMessages(chatId: string) {
     if (this.wsConnection) {
-      console.log('sending New chat data to server to start listentning.');
+      console.log('sending request to fetch older messages.');
       const body = { chatId: chatId }
       this.wsConnection.send(JSON.stringify( body )); 
     } else {

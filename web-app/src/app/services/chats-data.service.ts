@@ -219,7 +219,9 @@ export class ChatsDataService {
     if ( chatId ) {
       const found = this.chatAndUsers.find( (cd, i , arr) => { return cd.chat.chatId == chatId } )
       if ( found ) {
-        m.forEach((mess, i, arr) => found.messages.push(mess))
+        m.forEach((mess, i, arr) => {
+          found.messages.push(mess)
+        })
         found.messages = found.messages.sort((a,b) => a.serverTime - b.serverTime )
         this.changeChat( found )
         found.emitter.emit( found )

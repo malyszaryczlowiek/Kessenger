@@ -219,28 +219,72 @@ class BrokerExecutor( private val out: ActorRef, private val db: Database, priva
       case Some(chatId) =>
         this.chats.find(kv => kv._1 == chatId) match {
           case Some((_,(maxFetched, _))) =>
+            // TODO zły dobór zakresów dlatego do listy nie jest dodawany, żaden message.
+            println(s"maxFetched: $maxFetched")
             val startFrom = fetchingOffsetShift( maxFetched )
+            println(s"startFrom: $startFrom")
             val tp: List[(TopicPartition, Long)] = startFrom.map(po => (new TopicPartition(chatId, po.partition), po.offset))
-            oldMessageConsumer.assign(CollectionConverters.asJava(tp.map(t => t._1)))
-            tp.foreach(t => oldMessageConsumer.seek(t._1, t._2))
-            val records = oldMessageConsumer.poll(java.time.Duration.ofMillis(0)) // we do not want wait
+            println(s"tp: ${tp.length}")
             val buffer: ListBuffer[Message] = ListBuffer.empty
-            records.forEach(
-              r => {
-                maxFetched.find(po => po.partition == r.partition()) match {
-                  case Some(po) =>
-                    if (po.offset > r.offset())
-                      buffer.addOne(r.value().copy(serverTime = r.timestamp(), partOff = Some(PartitionOffset(r.partition(), r.offset()))))
-                  case None =>
-                }
+            // lepiej zrobić assignment taki, że w każdym kolejnym wykonaniu iteracji pętli odpytujemy
+            // kolejny partition
+            tp.foreach( t => {
+              oldMessageConsumer.assign(CollectionConverters.asJava(List(t._1)))
+              oldMessageConsumer.seek(t._1, t._2)
+              var i = 3
+              while (i > 0) {
+                val records = oldMessageConsumer.poll(java.time.Duration.ofMillis(5))
+                records.forEach(
+                  r => {
+                    maxFetched.find(po => po.partition == r.partition()) match {
+                      case Some(po) =>
+                        println(s"partition: ${r.partition()}")
+                        if (po.offset > r.offset()) {
+                          println(s"Offset is lower")
+                          buffer.addOne(r.value().copy(serverTime = r.timestamp(), partOff = Some(PartitionOffset(r.partition(), r.offset()))))
+                        }
+                        // todo tuaj można zrobić, że jak offset wiadomości jest już za duży to przestaję subskrybować
+                      case None =>
+                    }
+                  }
+                )
+                i -= 1
               }
-            )
+              oldMessageConsumer.unsubscribe()
+            })
+
             val listToSent = buffer.toList
-            println(s"lista starych wiadomości do wysłania ma ${listToSent.length} długości.")
+            println(s"######## --->> lista starych wiadomości do wysłania ma ${listToSent.length} długości.")
             if ( listToSent.nonEmpty )  out ! Message.toOldMessagesWebsocketJSON(buffer.toList)
             updateOldMessagesOffset(chatId, startFrom)
             this.fetchFrom = None
-            oldMessageConsumer.unsubscribe()
+
+
+
+//            oldMessageConsumer.assign(CollectionConverters.asJava(tp.map(t => t._1)))
+//            tp.foreach(t => oldMessageConsumer.seek(t._1, t._2))
+//            val records = oldMessageConsumer.poll(java.time.Duration.ofMillis(2000)) // we do not want wait
+//
+//            records.forEach(
+//              r => {
+//                maxFetched.find(po => po.partition == r.partition()) match {
+//                  case Some(po) =>
+//                    println(s"partition: ${r.partition()}")
+//                    if (po.offset > r.offset()) {
+//                      println(s"Offset is lower")
+//                      buffer.addOne(r.value().copy(serverTime = r.timestamp(), partOff = Some(PartitionOffset(r.partition(), r.offset()))))
+//                    }
+//                  case None =>
+//                }
+//              }
+//            )
+//            val listToSent = buffer.toList
+//            println(s"######## --->> lista starych wiadomości do wysłania ma ${listToSent.length} długości.")
+//            if ( listToSent.nonEmpty )  out ! Message.toOldMessagesWebsocketJSON(buffer.toList)
+//            updateOldMessagesOffset(chatId, startFrom)
+//            println(s"######## --->> Old Messages Consumer unsubscribed.")
+//            this.fetchFrom = None
+//            oldMessageConsumer.unsubscribe()
           case None =>
             println(s"BrokerExecutor. nie znaleziono chatu o ID $chatId do fetchowania")
         }

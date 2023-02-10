@@ -68,6 +68,10 @@ class WebSocketActor( out: ActorRef, be: BrokerExecutor ) extends Actor {
                                 println(s"8. '$s' is different from PoisonPill.")
                             case Right(c) =>
                               println(s"7. GOT FETCHING OLDER MESSAGES REQUEST FROM: $c.chatId")
+
+                              // todo to trzeba wysłać do innego aktora wraz z referencją
+                              //  do aktora out tak aby odpowiedź mogła zostać odesłana z powrotem
+
                               this.be.fetchOlderMessages(c.chatId)
                           }
                         case Right(chat) =>
@@ -80,6 +84,7 @@ class WebSocketActor( out: ActorRef, be: BrokerExecutor ) extends Actor {
                   }
                 case Right(conf) =>
                   println(s"4. GOT CONFIGURATION: $conf")
+                  // todo tutaj jak mymy konfigurację to powinniśmy utworzyć aktora do fetchowania starych wiadomości.
                   this.be.initialize(conf)
               }
             case Right(message) =>
