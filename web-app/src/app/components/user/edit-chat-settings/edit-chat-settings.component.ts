@@ -42,7 +42,7 @@ export class EditChatSettingsComponent implements OnInit, OnDestroy {
                private userService: UserService) { }
   
 
-
+// /Users/malyszaryczlowiek/Library/Containers/com.docker.docker/Data/vms/0/data
 
 
 
