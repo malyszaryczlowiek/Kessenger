@@ -1,4 +1,4 @@
-import { Component, EventEmitter, OnInit } from '@angular/core';
+import { Component, EventEmitter, OnDestroy, OnInit } from '@angular/core';
 import { FormControl, FormGroup, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { debounceTime, distinctUntilChanged, of, share, startWith, Subject, Subscription, switchMap } from 'rxjs';
@@ -13,7 +13,7 @@ import { UserService } from 'src/app/services/user.service';
   templateUrl: './edit-chat-settings.component.html',
   styleUrls: ['./edit-chat-settings.component.css']
 })
-export class EditChatSettingsComponent implements OnInit {
+export class EditChatSettingsComponent implements OnInit, OnDestroy {
 
   chatSettings = new FormGroup({
     newChatName: new FormControl(''),
@@ -40,6 +40,7 @@ export class EditChatSettingsComponent implements OnInit {
                private activated: ActivatedRoute,
                private responseNotifier: ResponseNotifierService,
                private userService: UserService) { }
+  
 
 
 
@@ -49,8 +50,7 @@ export class EditChatSettingsComponent implements OnInit {
 
     this.fetchingUserSubscription = this.fetchingUserEmmiter.subscribe(
       () => {
-        todo // tutaj jest jakiś problem bo 'inserting users to chat' cały czas wyświetla. 
-        if ( this.chatData ) {
+        if ( this.chatData?.chat.groupChat || this.chatData?.users.length == 0 ) {
           const c = this.userService.getChatUsers(this.chatData.chat.chatId)
           if ( c ) {
             c.subscribe({
@@ -68,11 +68,8 @@ export class EditChatSettingsComponent implements OnInit {
               },
               error: (err) => {
                 this.responseNotifier.handleError( err )
-                
               },
-              complete: () => {
-                
-              },
+              complete: () => {},
             })
           } else {
             this.router.navigate(['session-timeout']) 
@@ -102,11 +99,13 @@ export class EditChatSettingsComponent implements OnInit {
     if ( this.userService.isWSconnected() ) this.userService.dataFetched( 1 )
   }
 
-  ngOnDelete() {
+  ngOnDestroy(): void {
     if (this.fetchingSubscription) this.fetchingSubscription.unsubscribe()
     if (this.fetchingUserSubscription) this.fetchingUserSubscription.unsubscribe()
     console.log('EditChatSettingsComponent.ngOnDelete() called.')
   }
+
+
   
 
 

@@ -13,7 +13,7 @@ export class SelectChatComponent implements OnInit {
 
   ngOnInit(): void {
     this.userService.updateSession()
-    this.htmlService.resizeSelectChat()
+    this.htmlService.resizeSelectChatImmediately()
   }
 
 }
