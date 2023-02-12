@@ -1,4 +1,5 @@
 import { Component, OnInit } from '@angular/core';
+import { HtmlService } from 'src/app/services/html.service';
 import { UserService } from 'src/app/services/user.service';
 
 @Component({
@@ -8,10 +9,11 @@ import { UserService } from 'src/app/services/user.service';
 })
 export class SelectChatComponent implements OnInit {
 
-  constructor(private userService: UserService) { }
+  constructor(private userService: UserService, private htmlService: HtmlService) { }
 
   ngOnInit(): void {
     this.userService.updateSession()
+    this.htmlService.resizeSelectChat()
   }
 
 }

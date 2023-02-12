@@ -28,7 +28,7 @@ export class ChatListComponent implements OnInit, OnDestroy {
     this.writingSubscription = this.userService.getWritingEmmiter().subscribe(
       (w: Writing | undefined) => { this.wrt = w }
     )
-    this.htmlService.resizeChatList2()
+    this.htmlService.resizeChatList()
   }
 
 

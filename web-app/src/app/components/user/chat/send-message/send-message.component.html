@@ -1,15 +1,15 @@
 
 <div class="col">
-    <form  [formGroup]="messageForm" (ngSubmit)="onSubmit()">
+    <form [formGroup]="messageForm" (ngSubmit)="onSubmit()">
         <div class="row">
-            <div class="col-11">
+            <div class="col-11 col-gap-1">
                  <div class="row">
                     <input formControlName="messageContent" type="text" placeholder="Your Message" (keypress)="onWriting()">
                 </div>
             </div>
             <div class="col-1">
                 <div class="row">
-                    <button type="button" class="btn btn-primary" [disabled]="!messageForm.valid" type="submit">Send</button>    
+                    <button type="button" class="btn ms-1 btn-primary border border-1 border-dark" [disabled]="!messageForm.valid" type="submit">Send</button>    
                 </div>
             </div>    
         </div>                

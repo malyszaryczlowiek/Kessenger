@@ -1,22 +1,126 @@
+<div class="container text-center">
+    
+    <div class="row border-top border-1 border-dark  justify-content-center">
+        <h1 class="mt-1">
+            <span class="badge rounded-pill text-bg-dark">{{ chatData?.chat?.chatName }} Chat Settings</span>
+        </h1>
+    </div>
+
+
+    <div class="row border-top border-dark border-1 mb-4">
+        <div class="col mt-4">
+            <form [formGroup]="chatSettings" (ngSubmit)="saveChanges()">
+                <div class="row">
+                    <div class="col">
+                        <h5 class="mt-1">
+                            <span class="badge rounded-pill text-bg-dark">New Chat Name</span>
+                        </h5>   
+                        <input type="text" formControlName="newChatName" id="chat-name" placeholder="Your New Chat Name">
+                    </div>
+                    <div class="col">
+                        <h5 class="mt-1">
+                            <span class="badge rounded-pill text-bg-dark">Silence</span>
+                        </h5> 
+                        <label>Silent Chat</label>
+                        <input type="checkbox" formControlName="silent">
+                    </div>
+                </div>
+                <button class="btn btn-success border border-1 border-dark mt-1" type="submit">Save Changes</button>
+            </form>
+        </div>
+    </div>
+
+
+    <div class="row mt-2 border-top border-dark border-1 mb-4 mt-4"  *ngIf="chatData && chatData.chat.groupChat">
+        <h3 class="mt-4">
+            <span class="badge rounded-pill text-bg-dark">Add New Users to Chat</span>
+        </h3>
+        
+        <div class="col">
+            <h4 class="mt-1">
+                <span class="badge rounded-pill text-bg-dark">Search New User</span>
+            </h4>
+            <form [formGroup]="searchUserForm" >
+                <input formControlName="login" (keyup)="searchUser()" type="text" id="find-user" placeholder="Find User">
+                <!-- [disabled]="selectedUsers.length == 1" -->
+                <!-- <button (click)="search()"></button> -->
+            </form>
+        </div>
+
+        <div class="col">
+            <h4 class="mt-1">
+                <span class="badge rounded-pill text-bg-dark">Found Users</span>
+            </h4>
+            <h5 *ngIf="foundUsers.length == 0">
+                <span class="badge rounded-pill text-bg-danger">No User Found</span>
+            </h5>
+            <div *ngFor="let found of foundUsers"  (click)="addToSelected(found)">
+                <h4>
+                    <span class="badge rounded-pill text-bg-primary">
+                        {{ found.login }}
+                    </span>
+                </h4>
+            </div>
+        </div>
+
+        <div class="col">
+            <h4 class="mt-1">
+                <span class="badge rounded-pill text-bg-dark">Selected Users</span>
+            </h4>
+            <h5 *ngIf="selectedUsers.length == 0">
+                <span class="badge rounded-pill text-bg-danger"> No User Selected</span>
+            </h5>
+            <div *ngFor="let selected of selectedUsers">
+                <h3>
+                    <span class="badge rounded-pill text-bg-primary">
+                        {{ selected.login }}
+                    </span>
+                    <button class="btn btn-danger btn-sm" (click)="unselect(selected)">X</button>
+                </h3>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col">
+                <button class="btn btn-success border border-1 border-dark mt-1" [disabled]="!(selectedUsers.length > 0)" (click)="addUsers()">Add</button>
+            </div>
+        </div>
+        
+    </div>
+
+
+    <div class="row mt-4 border-top border-dark border-1 mb-4" *ngIf="chatData && chatData.chat.groupChat">
+        <h3 class="mt-4">
+            <span class="badge rounded-pill text-bg-danger">Danger Arena</span>
+        </h3>
+        <div class="col">
+            <button class="btn btn-danger border border-1 border-dark mt-1" (click)="leaveChat()">Leave Chat</button>
+            Watch out! This operation cannot be undo.
+        </div>        
+    </div>
+
+
+    <div class="row mt-2 border-top border-dark border-1">
+        <div class="col mt-1">
+            <button class="btn btn-secondary border border-1 border-dark" (click)="backToChat()">Back to Chat</button>
+        </div>
+    </div>
+
+
+
+</div>
+
+<!-- 
 <div>
     <h3>Edit chat</h3>
     <p></p>
-    <form [formGroup]="chatSettings" (ngSubmit)="saveChanges()">
-        Set new chat name:
-        <input type="text" formControlName="newChatName" id="chat-name">
-        <p></p>
-        <label>Silent Chat</label>
-        <input type="checkbox" formControlName="silent">
-        <p></p>
-        <button type="submit">Save Changes</button>
-    </form>
+    
 </div>
 <p></p>
 <div *ngIf="chatData && chatData.chat.groupChat">
     <form [formGroup]="searchUserForm" >
         <input formControlName="login" (keyup)="searchUser()" type="text" id="find-user" placeholder="Find User">
-        <!-- [disabled]="selectedUsers.length == 1" -->
-        <!-- <button (click)="search()"></button> -->
+
     </form>
     <p></p>
     <p *ngIf="selectedUsers.length > 0">Selected Users:</p>
@@ -29,12 +133,7 @@
     <button [disabled]="!(selectedUsers.length > 0)" (click)="addUsers()">Add</button>
     <div>
         Select found user:
-        <p *ngIf="foundUsers.length == 0"> No User Found.</p>
-        <div *ngFor="let found of foundUsers"  (click)="addToSelected(found)">
-            <div  >
-                {{ found.login }}
-            </div>
-        </div>
+        
     </div>
 </div>
 
@@ -42,11 +141,7 @@
 <p></p>
 
 <div *ngIf="chatData && chatData.chat.groupChat">
-    <button  (click)="leaveChat()">Leave Chat</button>
-    Watch out! This operation cannot be undo.
-</div>
-<p></p>
-<div>
-    <button (click)="backToChat()">Back to Chat</button>
+    
 </div>
 
+ -->

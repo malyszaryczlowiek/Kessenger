@@ -49,6 +49,7 @@ export class EditChatSettingsComponent implements OnInit {
 
     this.fetchingUserSubscription = this.fetchingUserEmmiter.subscribe(
       () => {
+        todo // tutaj jest jakiś problem bo 'inserting users to chat' cały czas wyświetla. 
         if ( this.chatData ) {
           const c = this.userService.getChatUsers(this.chatData.chat.chatId)
           if ( c ) {

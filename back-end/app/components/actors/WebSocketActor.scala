@@ -80,6 +80,8 @@ class WebSocketActor( out: ActorRef, be: BrokerExecutor ) extends Actor {
                       }
                     case Right(update: ChatOffsetUpdate) =>
                       println(s"5. GOT CHAT_OFFSET_UPDATE: $update")
+                      // todo update bazy danych też może być wykonany w oddzielnym aktorze.
+
                       this.be.updateChatOffset(update)
                   }
                 case Right(conf) =>

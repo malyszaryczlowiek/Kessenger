@@ -17,8 +17,9 @@ export class HtmlService {
   constructor() {
     console.log('starting html service.')
     window.addEventListener("resize" , (event) => {
-      this.resizeMessageList()
-      this.resizeChatList()
+      this.resizeMessageListImmediately()
+      this.resizeChatListImmediately()
+      this.resizeSelectChatImmediately()
     })
   }
 
@@ -60,7 +61,7 @@ export class HtmlService {
 
   private assignScrollTimer(emit: boolean) {
     this.scrollInterval = setInterval( () => {
-      this.resizeMessageList()
+      this.resizeMessageListImmediately()
       const messages = document.getElementById('messages')
       if (messages) {
         messages.scrollTo(0, messages.scrollHeight)
@@ -146,13 +147,29 @@ export class HtmlService {
   }
 
 
-  resizeChatList() {
+
+
+
+
+
+
+  resizeChatListImmediately() {
     const header = document.getElementById('header')
     const chatList = document.getElementById('chat_list')
     if (header && chatList) {
       const h = window.innerHeight - header.offsetHeight 
       chatList.style.height = h + 'px'
     }
+  }
+
+  resizeSelectChatImmediately() {
+    const header = document.getElementById('header')
+    const select = document.getElementById('select_chat')
+    if (header && select) {
+      const h = window.innerHeight - header.offsetHeight 
+      
+      select.style.height = h + 'px'
+    }  
   }
   
   
@@ -162,17 +179,17 @@ export class HtmlService {
     if (this.resizeInterval) {
       clearInterval(this.resizeInterval)
       this.resizeInterval = setTimeout(() => {
-        this.resizeMessageList()        
+        this.resizeMessageListImmediately()        
       }, ms)
     } else {
       this.resizeInterval = setTimeout(() => {
-        this.resizeMessageList()        
+        this.resizeMessageListImmediately()        
       }, ms)
     }
   }
 
 
-  resizeMessageList(){
+  resizeMessageListImmediately(){
     const header = document.getElementById('header')
     const chatHeader = document.getElementById('chat_header')
     const messageList = document.getElementById('messages')
@@ -181,7 +198,7 @@ export class HtmlService {
       const h = window.innerHeight - 
         header.offsetHeight -
         chatHeader.offsetHeight - 
-        sendMessage.offsetHeight 
+        sendMessage.offsetHeight - 16
       messageList.style.height = h + 'px'
       // if we resize window but we are in the bottom of message list
       // we should keep this position during resizing
@@ -196,9 +213,18 @@ export class HtmlService {
     }
   }
 
+
+
+
+
+
+
+
+
+
   resizeChatListInterval: NodeJS.Timeout | undefined
 
-  resizeChatList2() {
+  resizeChatList() {
     if (this.resizeChatListInterval) {
       clearInterval(this.resizeChatListInterval)
       this.rcl()
@@ -222,6 +248,43 @@ export class HtmlService {
     }, 50)
   }
 
+
+
+
+
+
+
+
+
+
+  resizeSelectChatInterval: NodeJS.Timeout | undefined
+
+  resizeSelectChat() {
+    if (this.resizeSelectChatInterval) {
+      clearInterval(this.resizeSelectChatInterval)
+      this.rsc()
+    } else {
+      this.rsc()
+    }
+  }
+
+  private rsc() {
+    this.resizeSelectChatInterval = setTimeout( ()=>{
+      const header = document.getElementById('header')
+      const select = document.getElementById('select_chat')
+      // console.warn('wysokosc', h)
+      //console.warn('wysokosc', select)
+      if (header && select) {
+        const h = window.innerHeight - header.offsetHeight - 4
+        select.style.height = h + 'px'
+        console.warn('wysokosc', h)
+        if (this.resizeSelectChatInterval) {
+          clearInterval(this.resizeSelectChatInterval)
+          this.resizeSelectChatInterval = undefined
+        }
+      }
+    }, 10)
+  }
 
 
 

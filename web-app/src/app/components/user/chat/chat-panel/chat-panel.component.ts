@@ -39,9 +39,9 @@ export class ChatPanelComponent implements OnInit, OnDestroy {
       sprawdzić, że w http error response jest status 0 a status text 'Unknown Error' 
       to trzeba wyświetlić info, że servis in anavailable. 
 
-    2. zrobić fetchowanie wcześniejszych wiadomości.   
+    2. (DONE) zrobić fetchowanie wcześniejszych wiadomości.   
 
-    2a. jak wysyłamy wiadomość to wiadomość od nas ma zawsze trafić 
+    2a. (DONE) jak wysyłamy wiadomość to wiadomość od nas ma zawsze trafić 
         do folderu przeczytane  
 
     2b. ustawić że jak wysyłamy wiadomość a następnie ją odbieramy
@@ -131,7 +131,13 @@ export class ChatPanelComponent implements OnInit, OnDestroy {
 
     // we need to stay it because cannot insert Writing value via html. 
     this.writingSubscription = this.userService.getWritingEmmiter().subscribe(
-      (w: Writing | undefined) => { this.wrt = w }
+      (w: Writing | undefined) => { 
+        if (w && w.chatId == this.chatData?.chat.chatId) {
+          this.wrt = w 
+        } else {
+          this.wrt = undefined
+        }        
+      }
     )
 
 
