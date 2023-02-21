@@ -682,7 +682,7 @@ class KessengerController @Inject()
       Future.successful(
         request.headers.get("Origin") match {
           case Some(value) =>
-            println("Rządanie ma Origin header")
+            println("Request has Origin header")
             if (value == "http://localhost:4200") {  // todo change hardcoded origin value
               val f = Future {
                 db.withConnection( implicit connection => {
@@ -701,7 +701,7 @@ class KessengerController @Inject()
                         ActorFlow.actorRef { out =>
                           println(s"wszedłem w ActorFlow.")
                           val brokerExecutor = new BrokerExecutor( out, db, new KafkaProductionConfigurator, kafkaExecutionContext)
-                          WebSocketActor.props(out, brokerExecutor)
+                          WebSocketActor.props(out, kafkaExecutionContext, databaseExecutionContext, brokerExecutor)
                         }
                       )
                     } else Left(Unauthorized("Error XXX. No valid session."))
