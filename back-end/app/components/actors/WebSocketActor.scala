@@ -8,37 +8,38 @@ import io.github.malyszaryczlowiek.kessengerlibrary.model.ChatOffsetUpdate.parse
 import io.github.malyszaryczlowiek.kessengerlibrary.model.FetchMessagesFrom.parseFetchingOlderMessagesRequest
 import io.github.malyszaryczlowiek.kessengerlibrary.model.ChatPartitionsOffsets.parseChatPartitionOffsets
 import io.github.malyszaryczlowiek.kessengerlibrary.model.Writing.parseWriting
-import util.BrokerExecutor
+import util.{BrokerExecutor, KessengerAdmin}
 import akka.actor._
 import akka.actor.PoisonPill
+import components.actors.readers.{InvitationReader, NewMessageReader, OldMessageReader, WritingReader}
+import play.api.db.Database
 
 import collection.concurrent.TrieMap
 import java.util.UUID
-import java.util.concurrent.atomic.AtomicInteger
 import scala.concurrent.ExecutionContext
 
 object WebSocketActor {
-  def props(out: ActorRef, kec: ExecutionContext, dbec: ExecutionContext, be: BrokerExecutor): Props =
-    Props(new WebSocketActor(out, kec, dbec, be))
+  def props(out: ActorRef, ka: KessengerAdmin, kec: ExecutionContext, db: Database, dbec: ExecutionContext, be: BrokerExecutor): Props =
+    Props(new WebSocketActor(out, ka, kec, db, dbec, be))
 }
 
-class WebSocketActor( out: ActorRef, kec: ExecutionContext, dbec: ExecutionContext, be: BrokerExecutor ) extends Actor {
+class WebSocketActor( out: ActorRef, ka: KessengerAdmin, kec: ExecutionContext, db: Database, dbec: ExecutionContext, be: BrokerExecutor ) extends Actor {
 
-  sealed trait ActorName
-  case object NewMessageReader  extends ActorName
-  case object MessageSender     extends ActorName
-  case object OldMessageReader  extends ActorName
-  case object WritingSender     extends ActorName
-  case object InvitationReader  extends ActorName
-  case object ChatOffsetUpdater extends ActorName
-  case object WritingReader     extends ActorName
+  sealed trait ActorNameKey
+  case object NewMessageReaderKey  extends ActorNameKey
+  case object MessageSenderKey     extends ActorNameKey
+  case object OldMessageReaderKey  extends ActorNameKey
+  case object WritingSenderKey     extends ActorNameKey
+  case object InvitationReaderKey  extends ActorNameKey
+  case object ChatOffsetUpdaterKey extends ActorNameKey
+  case object WritingReaderKey     extends ActorNameKey
 
 
   private val actorId = UUID.randomUUID()
 
 
 
-  private val childrenActors: TrieMap[ActorName, ActorRef] = TrieMap.empty
+  private val childrenActors: TrieMap[ActorNameKey, ActorRef] = TrieMap.empty
 
 
   override def postStop(): Unit = {
@@ -80,21 +81,30 @@ class WebSocketActor( out: ActorRef, kec: ExecutionContext, dbec: ExecutionConte
                               //  do aktora out tak aby odpowiedź mogła zostać odesłana z powrotem
 
                               this.be.fetchOlderMessages(c.chatId)
+
+                              this.childrenActors.get(OldMessageReaderKey) match {
+                                case Some(ref) => ref ! c.chatId
+                                case None =>
+                              }
                           }
                         case Right(newChat: ChatPartitionsOffsets) =>
                           println(s"6. GOT NEW_CHAT_ID: $newChat")
                           this.be.addNewChat(newChat)
 
                           // we add new chat to listen new messages, old messages and writing
-                          this.childrenActors.get(NewMessageReader) match {
+                          this.childrenActors.get(NewMessageReaderKey) match {
                             case Some(ref) => ref ! newChat
                             case None =>
                           }
-                          this.childrenActors.get(OldMessageReader) match {
+                          this.childrenActors.get(OldMessageReaderKey) match {
                             case Some(ref) => ref ! newChat
                             case None =>
                           }
-                          this.childrenActors.get(WritingReader) match {
+                          this.childrenActors.get(WritingReaderKey) match {
+                            case Some(ref) => ref ! newChat
+                            case None =>
+                          }
+                          this.childrenActors.get(ChatOffsetUpdaterKey) match {
                             case Some(ref) => ref ! newChat
                             case None =>
                           }
@@ -102,7 +112,7 @@ class WebSocketActor( out: ActorRef, kec: ExecutionContext, dbec: ExecutionConte
                     case Right(update: ChatOffsetUpdate) =>
                       println(s"5. GOT CHAT_OFFSET_UPDATE: $update")
                       this.be.updateChatOffset(update)
-                      this.childrenActors.get(ChatOffsetUpdater) match {
+                      this.childrenActors.get(ChatOffsetUpdaterKey) match {
                         case Some(ref) => ref ! update
                         case None =>
                       }
@@ -116,20 +126,20 @@ class WebSocketActor( out: ActorRef, kec: ExecutionContext, dbec: ExecutionConte
                   // initialize all child actors
                   this.childrenActors.addAll(
                     List(
-                      (ChatOffsetUpdater, context.actorOf( ChatOffsetUpdateActor.props( conf, this.dbec )              )),
-                      (InvitationReader,  context.actorOf( InvitationReaderActor.props(out, conf, this.kec)  )),
-                      (NewMessageReader,  context.actorOf( NewMessageReaderActor.props(out, conf, this.kec)  )),
-                      (OldMessageReader,  context.actorOf( OldMessageReaderActor.props(out, conf, this.kec)  )),
-                      (MessageSender,     context.actorOf( SendMessageActor.props( conf )                   )),
-                      (WritingSender,     context.actorOf( SendWritingActor.props( conf )                   )),
-                      (WritingReader,     context.actorOf( WritingReaderActor.props( out, conf, this.kec )   )),
+                      (ChatOffsetUpdaterKey, context.actorOf( ChatOffsetUpdateActor.props( conf, db, dbec) )),
+                      (InvitationReaderKey,  context.actorOf( InvitationReaderActor.props(new InvitationReader(out, self, conf, this.ka, this.kec) ))),
+                      (NewMessageReaderKey,  context.actorOf( NewMessageReaderActor.props(new NewMessageReader(out, self, conf, this.ka, this.kec) ))),
+                      (OldMessageReaderKey,  context.actorOf( OldMessageReaderActor.props(new OldMessageReader(out, self, conf, this.ka, this.kec) ))),
+                      (MessageSenderKey,     context.actorOf( SendMessageActor.props(conf, ka) )),
+                      (WritingSenderKey,     context.actorOf( SendWritingActor.props(conf, ka) )),
+                      (WritingReaderKey,     context.actorOf( WritingReaderActor.props(   new WritingReader(out, self, conf, ka, this.kec)         ))),
                     )
                   )
               }
             case Right(message) =>
               println(s"3. GOT MESSAGE: $s")
               this.be.sendMessage(message)
-              this.childrenActors.get(MessageSender) match {
+              this.childrenActors.get(MessageSenderKey) match {
                 case Some(ref) => ref ! message
                 case None =>
               }
@@ -137,7 +147,7 @@ class WebSocketActor( out: ActorRef, kec: ExecutionContext, dbec: ExecutionConte
         case Right(w) =>
           println(s"2. GOT WRITING: $w")
           this.be.sendWriting( w )
-          this.childrenActors.get(WritingSender) match {
+          this.childrenActors.get(WritingSenderKey) match {
             case Some(ref) => ref ! w
             case None =>
           }
@@ -155,19 +165,6 @@ class WebSocketActor( out: ActorRef, kec: ExecutionContext, dbec: ExecutionConte
   println(s"0. Actor started")
 
 }
-
-
-
-
-/*
-zmiana systemu aktorów
-
-
-
- */
-
-
-
 
 
 

@@ -1,6 +1,7 @@
 package components.actors
 
 import akka.actor._
+import components.actors.readers.Reader
 import io.github.malyszaryczlowiek.kessengerlibrary.model.{ChatPartitionsOffsets, Configuration, Invitation}
 
 import scala.concurrent.ExecutionContext
@@ -8,22 +9,21 @@ import scala.concurrent.ExecutionContext
 
 object InvitationReaderActor {
 
-  def props(out: ActorRef, conf: Configuration, ec: ExecutionContext): Props =
-    Props(new InvitationReaderActor(out, conf, ec))
+  def props(reader: Reader): Props =
+    Props(new InvitationReaderActor(reader))
 
 }
 
 
 
-class InvitationReaderActor(out: ActorRef, conf: Configuration, private val ec: ExecutionContext) extends OffsetReader(out, conf, ec) with Actor {
+class InvitationReaderActor(reader: Reader) extends Actor {
 
   println(s"InvitationReaderActor started.")
 
-  this.startReading[Invitation](classOf[Invitation])
 
   override def postStop(): Unit = {
     println(s"InvitationReaderActor switch off")
-    this.stopReading()
+    reader.stopReading()
   }
 
   override def receive: Receive = {

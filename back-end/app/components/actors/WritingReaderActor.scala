@@ -1,34 +1,34 @@
 package components.actors
 
 import akka.actor._
+import components.actors.readers.Reader
 import io.github.malyszaryczlowiek.kessengerlibrary.model.{ChatPartitionsOffsets, Configuration, Writing}
 
 import scala.concurrent.ExecutionContext
 
 
 object WritingReaderActor {
-  def props(out: ActorRef, conf: Configuration, ec: ExecutionContext): Props =
-    Props(new WritingReaderActor(out, conf, ec))
+  def props(reader: Reader): Props =
+    Props(new WritingReaderActor(reader))
 }
 
 
-class WritingReaderActor(out: ActorRef, conf: Configuration, ec: ExecutionContext) extends NoOffsetReader(out, conf, ec) with Actor {
+class WritingReaderActor(reader: Reader) extends Actor {
 
 
   println(s"WritingReaderActor started.")
-  super.startReading[Writing](classOf[Writing])
 
 
   override def postStop(): Unit = {
     println(s"WritingReaderActor switch off")
-    this.stopReading()
+    reader.stopReading()
   }
 
 
   override def receive: Receive = {
     case newChat: ChatPartitionsOffsets =>
       println(s"WritingReaderActor adding new chat to read WRITING from, chatId: $newChat")
-      this.addNewChat(newChat)
+      reader.addNewChat(newChat)
   }
 
 

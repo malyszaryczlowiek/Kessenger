@@ -1,6 +1,7 @@
 package components.actors
 
 import akka.actor._
+import components.actors.readers.Reader
 import io.github.malyszaryczlowiek.kessengerlibrary.model.{ChatPartitionsOffsets, Configuration, Message}
 
 import scala.concurrent.ExecutionContext
@@ -9,33 +10,29 @@ import scala.concurrent.ExecutionContext
 
 object NewMessageReaderActor {
 
-  def props(out: ActorRef, conf: Configuration, ec: ExecutionContext): Props =
-    Props(new NewMessageReaderActor(out, conf, ec))
+  def props(reader: Reader): Props =
+    Props(new NewMessageReaderActor(reader))
 
 }
 
-class NewMessageReaderActor(out: ActorRef, conf: Configuration, ec: ExecutionContext) extends OffsetReader(out, conf, ec) with Actor {
+class NewMessageReaderActor(reader: Reader) extends Actor {
 
   println(s"NewMessageReaderActor started.")
 
+  // initialize i start reading powinny być uruchamiane w konstruktorze  Readera
 
-  // umieść go w startReading(consumer)
-  this.startReading[Message](classOf[Message])
-  // tam przyassignuj consumera do odpowiednich chatów
-
-  // zaimplementuj dodawanie nowego chatu z reassigningiem listy chatów
 
 
   override def postStop(): Unit = {
+    reader.stopReading()
     println(s"NewMessageReaderActor switch off")
-    this.stopReading()
   }
 
 
   override def receive: Receive = {
     case newChat: ChatPartitionsOffsets =>
       println(s"NewMessageReaderActor adding new chat to read new MESSAGES from, chatId: $newChat")
-      this.addNewChat( newChat )
+      reader.addNewChat( newChat )
   }
 
 

@@ -19,6 +19,7 @@ import scala.collection.mutable.ListBuffer
 import scala.jdk.javaapi.CollectionConverters
 import scala.util.{Failure, Success, Try, Using}
 
+@deprecated(s"Use components.actors package instead.")
 class BrokerExecutor( private val out: ActorRef, private val db: Database, private val env: KafkaConfigurator, private val ec: ExecutionContext) { // (implicit s: String)
 
   private val ka: KessengerAdmin = new KessengerAdmin(env)
