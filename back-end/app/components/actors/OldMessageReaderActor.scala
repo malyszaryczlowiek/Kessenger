@@ -1,7 +1,7 @@
 package components.actors
 
 import akka.actor._
-import io.github.malyszaryczlowiek.kessengerlibrary.model.Configuration
+import io.github.malyszaryczlowiek.kessengerlibrary.model.{Configuration, Message}
 
 import scala.concurrent.ExecutionContext
 
@@ -12,13 +12,15 @@ object OldMessageReaderActor {
 
 }
 
-class OldMessageReaderActor(out: ActorRef, conf: Configuration, ec: ExecutionContext) extends Actor {
+class OldMessageReaderActor(out: ActorRef, conf: Configuration, ec: ExecutionContext) extends OffsetReader(out, conf, ec) with Actor {
 
   println(s"OldMessageReaderActor started.")
+  this.startReading[Message](classOf[Message])
 
 
   override def postStop(): Unit = {
     println(s"OldMessageReaderActor switch off")
+    this.stopReading()
   }
 
 
