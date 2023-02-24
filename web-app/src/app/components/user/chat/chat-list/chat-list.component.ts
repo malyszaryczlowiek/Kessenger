@@ -34,6 +34,7 @@ export class ChatListComponent implements OnInit, OnDestroy {
 
   onClick(c: ChatData) {
     console.log('navigating to chat' + c.chat.chatName)
+    this.userService.fetchOlderMessages( c.chat.chatId )
     this.router.navigate(['user', 'chat', c.chat.chatId]) 
     this.userService.updateSession()
     this.userService.selectedChatEmitter.emit(c) 

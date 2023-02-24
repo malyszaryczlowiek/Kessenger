@@ -17,7 +17,7 @@ object NewMessageReaderActor {
 
 class NewMessageReaderActor(reader: Reader) extends Actor {
 
-  println(s"NewMessageReaderActor started.")
+  println(s"NewMessageReaderActor --> started.")
 
   // initialize i start reading powinny być uruchamiane w konstruktorze  Readera
 
@@ -25,13 +25,13 @@ class NewMessageReaderActor(reader: Reader) extends Actor {
 
   override def postStop(): Unit = {
     reader.stopReading()
-    println(s"NewMessageReaderActor switch off")
+    println(s"NewMessageReaderActor --> switch off")
   }
 
 
   override def receive: Receive = {
     case newChat: ChatPartitionsOffsets =>
-      println(s"NewMessageReaderActor adding new chat to read new MESSAGES from, chatId: $newChat")
+      println(s"NewMessageReaderActor --> adding new chat to read new MESSAGES from, chatId: $newChat")
       reader.addNewChat( newChat )
   }
 

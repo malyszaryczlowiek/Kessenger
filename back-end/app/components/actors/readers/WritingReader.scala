@@ -23,6 +23,9 @@ class WritingReader(out: ActorRef, parentActor: ActorRef, conf: Configuration, k
   private val continueReading: AtomicBoolean = new AtomicBoolean(true)
   private var fut: Option[Future[Unit]] = None
 
+  initializeChats()
+  startReading()
+
 
   private def initializeChats(): Unit = {
     this.chats.addAll(this.conf.chats.map(c => (c.chatId, {})))
@@ -43,12 +46,13 @@ class WritingReader(out: ActorRef, parentActor: ActorRef, conf: Configuration, k
         }
       } match {
         case Failure(exception) =>
+          println(s"WritingReader --> Future EXCEPTION ${exception.getMessage}")
           // if reading ended with error we need to close all actor system
           // and give a chance for web app to restart.
           out ! ResponseBody(44, "Kafka connection lost. Try refresh page in a few minutes.").toString
           Thread.sleep(250)
           parentActor ! PoisonPill
-        case Success(_) => println(s"koniec Using(writingConsumer)")
+        case Success(_) => println(s"WritingReader --> Future closed correctly.")
       }
     }(ec)
   }
@@ -79,7 +83,7 @@ class WritingReader(out: ActorRef, parentActor: ActorRef, conf: Configuration, k
 
 
   private def read(consumer: KafkaConsumer[String, Writing]): Unit = {
-    val writings: ConsumerRecords[String, Writing] = consumer.poll(java.time.Duration.ofMillis(0))
+    val writings: ConsumerRecords[String, Writing] = consumer.poll(java.time.Duration.ofMillis(100))
     writings.forEach(
       (r: ConsumerRecord[String, Writing]) => out ! Writing.toWebsocketJSON(r.value())
     )
@@ -106,6 +110,5 @@ class WritingReader(out: ActorRef, parentActor: ActorRef, conf: Configuration, k
 
 
   // we start reading strait away
-  initializeChats()
-  startReading()
+
 }

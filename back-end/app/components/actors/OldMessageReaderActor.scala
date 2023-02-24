@@ -15,22 +15,22 @@ object OldMessageReaderActor {
 
 class OldMessageReaderActor(reader: Reader) extends  Actor {
 
-  println(s"OldMessageReaderActor started.")
+  println(s"OldMessageReaderActor --> started.")
 
 
 
   override def postStop(): Unit = {
-    println(s"OldMessageReaderActor switch off")
+    println(s"OldMessageReaderActor --> switch off")
     reader.stopReading()
   }
 
 
   override def receive: Receive = {
     case newChat: ChatPartitionsOffsets =>
-      println(s"OldMessageReaderActor adding new chat to read new MESSAGES from, chatId: $newChat")
+      println(s"OldMessageReaderActor --> adding new chat to read new MESSAGES from, chatId: $newChat")
       reader.addNewChat(newChat)
     case chatId: String =>
-      println(s"OldMessageReaderActor fetching data from new chatId: $chatId")
+      println(s"OldMessageReaderActor --> fetching data from new chatId: $chatId")
       reader.fetchOlderMessages(chatId)
   }
 

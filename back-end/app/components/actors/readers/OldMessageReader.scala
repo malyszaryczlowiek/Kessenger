@@ -10,11 +10,9 @@ import util.KessengerAdmin
 import scala.annotation.tailrec
 import scala.collection.concurrent.TrieMap
 import scala.collection.mutable.ListBuffer
-import scala.concurrent.ExecutionContext
+import scala.concurrent.{ExecutionContext, Future}
 import scala.jdk.javaapi.CollectionConverters
-import scala.util.Try
-
-
+import scala.util.{Failure, Success, Try, Using}
 
 
 
@@ -23,30 +21,26 @@ class OldMessageReader(out: ActorRef, parentActor: ActorRef, conf: Configuration
 
 
   private val chats:    TrieMap[ChatId, (List[PartitionOffset], List[PartitionOffset])] = TrieMap.empty
-  private val consumer: KafkaConsumer[String, Message] = this.ka.createMessageConsumer(s"${this.conf.me.userId.toString}_old")
+  // private val consumer: KafkaConsumer[String, Message] = this.ka.createMessageConsumer(s"${this.conf.me.userId.toString}_old")
 
   this.chats.addAll(conf.chats.map(c => (c.chatId, (c.partitionOffset, c.partitionOffset))))
-
-
-
 
 
   override protected def initializeConsumer[Message](consumer: KafkaConsumer[String, Message]): Unit = {}
 
 
-  private def fetchingOffsetShift(l: List[PartitionOffset]): List[PartitionOffset] = {
-    l.map(po => {
-      if (po.offset < 5L) PartitionOffset(po.partition, 0L)
-      else PartitionOffset(po.partition, po.offset - 5L)
-    })
-  }
 
   override def startReading(): Unit = {}
 
 
+
   override def stopReading(): Unit = {
-    this.consumer.unsubscribe()
-    Try { this.consumer.close() }
+    println(s"OldMessageReader --> stopReading() ended normally.")
+//    this.consumer.unsubscribe()
+//    Try {
+//      this.consumer.close(java.time.Duration.ofMillis(5000L))
+//      println(s"OldMessageReader --> stopReading() ended normally.")
+//    }
   }
 
 
@@ -59,45 +53,72 @@ class OldMessageReader(out: ActorRef, parentActor: ActorRef, conf: Configuration
 
 
   override def fetchOlderMessages(chatId: ChatId): Unit = {
-    this.chats.get(chatId) match {
-      case Some( t ) =>
-        val partitions: Iterable[(TopicPartition, Long)] =
-          fetchingOffsetShift(t._1).map(po => (new TopicPartition(chatId, po.partition), po.offset))
-        consumer.assign(CollectionConverters.asJava(partitions.map(tt => tt._1).toList))
-        partitions.foreach(tt => consumer.seek(tt._1, tt._2))
-        readFromChat(t._1)
-        this.chats.get(chatId) match {
-          case Some(t) => this.chats.put(chatId, (fetchingOffsetShift(t._1), t._2))
-          case None =>
-        }
-        consumer.unsubscribe()
-      case None =>
-    }
+    Future {
+      this.chats.get(chatId) match {
+        case Some(t) =>
+          Using(this.ka.createMessageConsumer(s"${this.conf.me.userId.toString}_old")) {
+            consumer => {
+              if (t._1.map(_.offset).sum > 0L) {
+                val partitions: Iterable[(TopicPartition, Long)] =
+                  fetchingOffsetShift(t._1).map(po => (new TopicPartition(chatId, po.partition), po.offset))
+                println(s"OldMessageReader --> Wczytję od: ${fetchingOffsetShift(t._1)}")
+                consumer.assign(CollectionConverters.asJava(partitions.map(tt => tt._1).toList))
+                partitions.foreach(tt => consumer.seek(tt._1, tt._2))
+                readToOffset(consumer, t._1)
+                this.chats.get(chatId) match {
+                  case Some(t) => this.chats.put(chatId, (fetchingOffsetShift(t._1), t._2))
+                  case None =>
+                }
+              } else println(s"OldMessageReader --> Cannot load older messages. Sum of offset is 0.")
+            }
+          } match {
+            case Failure(exception) =>
+              println(s"OldMessageReader --> Future EXCEPTION ${exception.getMessage}")
+            case Success(_) =>
+              println(s"OldMessageReader --> Successfully closed Future")
+          }
+
+        case None =>
+      }
+    }(ec)
+
   }
 
 
 
   @tailrec
-  private def readFromChat(maxPartOff: List[PartitionOffset]): Unit = {
-    val messages: ConsumerRecords[String, Message] = consumer.poll(java.time.Duration.ofMillis(0L))
+  private def readToOffset(consumer: KafkaConsumer[String, Message], maxPartOff: List[PartitionOffset]): Unit = {
+    val messages: ConsumerRecords[String, Message] = consumer.poll(java.time.Duration.ofMillis(100L))
     val buffer = ListBuffer.empty[Message]
+    println(s"OldMessageReader --> Liczba Wiadomość ${messages.count()} .")
     messages.forEach(
       (r: ConsumerRecord[String, Message]) => {
+        val m = r.value().copy(serverTime = r.timestamp(), partOff = Some(PartitionOffset(r.partition(), r.offset())))
         maxPartOff.find(po => po.partition == r.partition() && po.offset > r.offset()) match {
           case Some(_) =>
-            buffer.addOne(r.value().copy(serverTime = r.timestamp(), partOff = Some(PartitionOffset(r.partition(), r.offset()))))
+            println(s"OldMessageReader --> Wiadomość dodana do bufforu.")
+            buffer.addOne(m)
           case None =>
+            println(s"OldMessageReader --> Wiadomość jest nowsza niż current limit.")
         }
       }
     )
     val messagesToSend = buffer.toList
     if (messagesToSend.nonEmpty) {
-      // filter not older than lower bandwidth
+      println(s"OldMessageReader --> Wsyłam wiadomości $messagesToSend")
       out ! Message.toOldMessagesWebsocketJSON(messagesToSend)
-      readFromChat(maxPartOff)
+      readToOffset(consumer, maxPartOff)
     }
   }
 
+
+
+  private def fetchingOffsetShift(l: List[PartitionOffset]): List[PartitionOffset] = {
+    l.map(po => {
+      if (po.offset < 5L) PartitionOffset(po.partition, 0L)
+      else PartitionOffset(po.partition, po.offset - 5L)
+    })
+  }
 
 
 

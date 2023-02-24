@@ -25,12 +25,9 @@ class NewMessageReader(out: ActorRef, parentActor: ActorRef, conf: Configuration
   private val continueReading: AtomicBoolean = new AtomicBoolean(true)
   private var fut: Option[Future[Unit]] = None
 
+  this.chats.addAll(this.conf.chats.map(c => (c.chatId, c.partitionOffset)))
 
-
-  private def initializeChats(): Unit = {
-    this.chats.addAll(this.conf.chats.map(c => (c.chatId, c.partitionOffset)))
-  }
-
+  startReading()
 
 
   override def startReading(): Unit = {
@@ -47,12 +44,13 @@ class NewMessageReader(out: ActorRef, parentActor: ActorRef, conf: Configuration
         }
       } match {
         case Failure(exception) =>
+          println(s"NewMessageReader --> Future EXCEPTION ${exception.getMessage}")
           // if reading ended with error we need to close all actor system
           // and give a chance for web app to restart.
           out ! ResponseBody(44, "Kafka connection lost. Try refresh page in a few minutes.").toString
           Thread.sleep(250)
           parentActor ! PoisonPill
-        case Success(_) => println(s"koniec Using(messageConsumer)")
+        case Success(_) => println(s"NewMessageReader --> Future closed normally.")
       }
     }(ec)
   }
@@ -102,11 +100,21 @@ class NewMessageReader(out: ActorRef, parentActor: ActorRef, conf: Configuration
 
 
   private def read(consumer: KafkaConsumer[String, Message]): Unit = {
-    val messages: ConsumerRecords[String, Message] = consumer.poll(java.time.Duration.ofMillis(500))
+    val messages: ConsumerRecords[String, Message] = consumer.poll(java.time.Duration.ofMillis(250))
     val buffer = ListBuffer.empty[Message]
     messages.forEach(
       (r: ConsumerRecord[String, Message]) => {
         val m = r.value().copy(serverTime = r.timestamp(), partOff = Some(PartitionOffset(r.partition(), r.offset())))
+        this.chats.get(m.chatId) match {
+          case Some(po) =>
+            val newPO = po.map(v => {
+              if (v.partition == r.partition() && v.offset <= r.offset() )
+                PartitionOffset(r.partition(), r.offset() + 1L)
+              else v
+            })
+            this.chats.put(m.chatId, newPO)
+          case None =>
+        }
         buffer.addOne(m)
       }
     )
@@ -138,7 +146,6 @@ class NewMessageReader(out: ActorRef, parentActor: ActorRef, conf: Configuration
 
 
   // we start reading strait away
-  initializeChats()
-  startReading()
+
 
 }

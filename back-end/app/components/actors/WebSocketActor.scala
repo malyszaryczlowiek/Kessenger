@@ -19,11 +19,13 @@ import java.util.UUID
 import scala.concurrent.ExecutionContext
 
 object WebSocketActor {
-  def props(out: ActorRef, ka: KessengerAdmin, kec: ExecutionContext, db: Database, dbec: ExecutionContext, be: BrokerExecutor): Props =
-    Props(new WebSocketActor(out, ka, kec, db, dbec, be))
+  //, be: BrokerExecutor
+  def props(out: ActorRef, ka: KessengerAdmin, kec: ExecutionContext, db: Database, dbec: ExecutionContext): Props =
+    Props(new WebSocketActor(out, ka, kec, db, dbec))
 }
 
-class WebSocketActor( out: ActorRef, ka: KessengerAdmin, kec: ExecutionContext, db: Database, dbec: ExecutionContext, be: BrokerExecutor ) extends Actor {
+// , be: BrokerExecutor
+class WebSocketActor( out: ActorRef, ka: KessengerAdmin, kec: ExecutionContext, db: Database, dbec: ExecutionContext ) extends Actor {
 
   sealed trait ActorNameKey
   case object NewMessageReaderKey  extends ActorNameKey
@@ -43,7 +45,7 @@ class WebSocketActor( out: ActorRef, ka: KessengerAdmin, kec: ExecutionContext, 
 
 
   override def postStop(): Unit = {
-    this.be.clearBroker()
+//     this.be.clearBroker()
     println(s"9. SWITCH OFF ACTOR.")
   }
 
@@ -80,7 +82,7 @@ class WebSocketActor( out: ActorRef, ka: KessengerAdmin, kec: ExecutionContext, 
                               // todo to trzeba wysłać do innego aktora wraz z referencją
                               //  do aktora out tak aby odpowiedź mogła zostać odesłana z powrotem
 
-                              this.be.fetchOlderMessages(c.chatId)
+                              // this.be.fetchOlderMessages(c.chatId)
 
                               this.childrenActors.get(OldMessageReaderKey) match {
                                 case Some(ref) => ref ! c.chatId
@@ -89,7 +91,7 @@ class WebSocketActor( out: ActorRef, ka: KessengerAdmin, kec: ExecutionContext, 
                           }
                         case Right(newChat: ChatPartitionsOffsets) =>
                           println(s"6. GOT NEW_CHAT_ID: $newChat")
-                          this.be.addNewChat(newChat)
+                          // this.be.addNewChat(newChat)
 
                           // we add new chat to listen new messages, old messages and writing
                           this.childrenActors.get(NewMessageReaderKey) match {
@@ -111,7 +113,7 @@ class WebSocketActor( out: ActorRef, ka: KessengerAdmin, kec: ExecutionContext, 
                       }
                     case Right(update: ChatOffsetUpdate) =>
                       println(s"5. GOT CHAT_OFFSET_UPDATE: $update")
-                      this.be.updateChatOffset(update)
+                      // this.be.updateChatOffset(update)
                       this.childrenActors.get(ChatOffsetUpdaterKey) match {
                         case Some(ref) => ref ! update
                         case None =>
@@ -121,7 +123,7 @@ class WebSocketActor( out: ActorRef, ka: KessengerAdmin, kec: ExecutionContext, 
                 case Right(conf: Configuration) =>
                   println(s"4. GOT CONFIGURATION: $conf")
                   // todo tutaj jak mymy konfigurację to powinniśmy utworzyć aktora do fetchowania starych wiadomości.
-                  this.be.initialize(conf)
+                  // this.be.initialize(conf)
 
                   // initialize all child actors
                   this.childrenActors.addAll(
@@ -132,13 +134,14 @@ class WebSocketActor( out: ActorRef, ka: KessengerAdmin, kec: ExecutionContext, 
                       (OldMessageReaderKey,  context.actorOf( OldMessageReaderActor.props(new OldMessageReader(out, self, conf, this.ka, this.kec) ))),
                       (MessageSenderKey,     context.actorOf( SendMessageActor.props(conf, ka) )),
                       (WritingSenderKey,     context.actorOf( SendWritingActor.props(conf, ka) )),
-                      (WritingReaderKey,     context.actorOf( WritingReaderActor.props(   new WritingReader(out, self, conf, ka, this.kec)         ))),
+                      (WritingReaderKey,     context.actorOf( WritingReaderActor.props(new WritingReader(out, self, conf, ka, this.kec) ))),
                     )
                   )
+                  out ! "{\"comm\":\"opened correctly\"}"
               }
             case Right(message) =>
               println(s"3. GOT MESSAGE: $s")
-              this.be.sendMessage(message)
+              // this.be.sendMessage(message)
               this.childrenActors.get(MessageSenderKey) match {
                 case Some(ref) => ref ! message
                 case None =>
@@ -146,7 +149,7 @@ class WebSocketActor( out: ActorRef, ka: KessengerAdmin, kec: ExecutionContext, 
           }
         case Right(w) =>
           println(s"2. GOT WRITING: $w")
-          this.be.sendWriting( w )
+          // this.be.sendWriting( w )
           this.childrenActors.get(WritingSenderKey) match {
             case Some(ref) => ref ! w
             case None =>
@@ -160,7 +163,7 @@ class WebSocketActor( out: ActorRef, ka: KessengerAdmin, kec: ExecutionContext, 
 
   }
 
-  this.be.setSelfReference( self )
+//   this.be.setSelfReference( self )
 
   println(s"0. Actor started")
 

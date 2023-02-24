@@ -27,18 +27,18 @@ class ChatOffsetUpdateActor(conf: Configuration, db: Database, dbec: ExecutionCo
 
 
 
-  println(s"ChatOffsetUpdateActor started.")
+  println(s"ChatOffsetUpdateActor --> started.")
 
 
 
   override def postStop(): Unit = {
-    println(s"ChatOffsetUpdateActor switch off")
+    println(s"ChatOffsetUpdateActor --> switch off")
   }
 
   override def receive: Receive = {
     // update chat
     case u: ChatOffsetUpdate =>
-      println(s"ChatOffsetUpdateActor updating chat offset, $u")
+
       this.chats.get(u.chatId) match {
         case Some(t) =>
           val isGrater = u.partitionOffsets.map(_.offset).sum > t.map(_.offset).sum
@@ -47,7 +47,8 @@ class ChatOffsetUpdateActor(conf: Configuration, db: Database, dbec: ExecutionCo
             Future {
               val dbExecutor = new DbExecutor(new KafkaProductionConfigurator)
               db.withConnection( implicit connection => {
-                dbExecutor.updateChatOffsetAndMessageTime(u.userId, u.chatId, u.lastMessageTime, u.partitionOffsets)
+                println(s"ChatOffsetUpdateActor --> sending chat offset update, $u to DB.")
+                dbExecutor.updateChatOffsetAndMessageTime(u.userId, u.chatId, u.lastMessageTime, shiftOffsetPerOne(u.partitionOffsets) )
               })
             }(dbec)
           }
@@ -55,9 +56,14 @@ class ChatOffsetUpdateActor(conf: Configuration, db: Database, dbec: ExecutionCo
       }
       // adding new chat to list
     case nChat: ChatPartitionsOffsets =>
-      println(s"ChatOffsetUpdateActor adding new chat to chats, $nChat")
+      println(s"ChatOffsetUpdateActor --> adding new chat to chats, $nChat")
       this.chats.addOne(nChat.chatId -> nChat.partitionOffset)
 
+  }
+
+
+  private def shiftOffsetPerOne(po: List[PartitionOffset]): List[PartitionOffset] = {
+    po.map(v => v.copy(offset = v.offset + 1L))
   }
 
 

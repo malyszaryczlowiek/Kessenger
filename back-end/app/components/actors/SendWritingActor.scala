@@ -7,6 +7,8 @@ import io.github.malyszaryczlowiek.kessengerlibrary.model.{Configuration, Writin
 import org.apache.kafka.clients.producer.{KafkaProducer, ProducerRecord}
 import util.KessengerAdmin
 
+import scala.util.Try
+
 object SendWritingActor {
 
   def props(conf: Configuration, ka: KessengerAdmin): Props =
@@ -16,17 +18,21 @@ object SendWritingActor {
 
 class SendWritingActor(conf: Configuration, ka: KessengerAdmin) extends Actor {
 
-  println(s"SendWritingActor started.")
+  println(s"SendWritingActor --> started.")
   private val writingProducer: KafkaProducer[String, Writing] = ka.createWritingProducer
 
   override def postStop(): Unit = {
-    println(s"SendWritingActor switch off")
+    println(s"SendWritingActor --> switch off")
+    Try {
+      this.writingProducer.close()
+      println(s"SendWritingActor --> postStop() closed normally.")
+    }
   }
 
 
   override def receive: Receive = {
     case w: Writing =>
-      println(s"SendWritingActor writing to send: $w")
+      println(s"SendWritingActor -->  writing to send: $w")
       val writingTopic = Domain.generateWritingId(w.chatId)
       writingProducer.send(new ProducerRecord[String, Writing](writingTopic, w))
   }
