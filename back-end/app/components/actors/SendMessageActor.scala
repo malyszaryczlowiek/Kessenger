@@ -4,19 +4,19 @@ package components.actors
 import akka.actor._
 import io.github.malyszaryczlowiek.kessengerlibrary.model.{Configuration, Message}
 import org.apache.kafka.clients.producer.{KafkaProducer, ProducerRecord}
-import util.KessengerAdmin
+import util.KafkaAdmin
 
 import scala.util.Try
 
 
 object SendMessageActor {
 
-  def props(conf: Configuration, ka: KessengerAdmin): Props =
+  def props(conf: Configuration, ka: KafkaAdmin): Props =
     Props(new SendMessageActor(conf, ka))
 
 }
 
-class SendMessageActor(conf: Configuration, ka: KessengerAdmin) extends Actor {
+class SendMessageActor(conf: Configuration, ka: KafkaAdmin) extends Actor {
 
   println(s"SendMessageActor --> started.")
 

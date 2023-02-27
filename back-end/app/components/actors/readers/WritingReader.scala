@@ -5,7 +5,7 @@ import io.github.malyszaryczlowiek.kessengerlibrary.domain.Domain
 import io.github.malyszaryczlowiek.kessengerlibrary.domain.Domain.ChatId
 import io.github.malyszaryczlowiek.kessengerlibrary.model._
 import org.apache.kafka.clients.consumer.{ConsumerRecord, ConsumerRecords, KafkaConsumer}
-import util.KessengerAdmin
+import util.KafkaAdmin
 
 import java.util.concurrent.atomic.AtomicBoolean
 import scala.annotation.tailrec
@@ -15,7 +15,7 @@ import scala.jdk.javaapi.CollectionConverters
 import scala.util.{Failure, Success, Using}
 
 
-class WritingReader(out: ActorRef, parentActor: ActorRef, conf: Configuration, ka: KessengerAdmin, ec: ExecutionContext) extends Reader {
+class WritingReader(out: ActorRef, parentActor: ActorRef, conf: Configuration, ka: KafkaAdmin, ec: ExecutionContext) extends Reader {
 
 
   private val chats: TrieMap[ChatId, Unit] = TrieMap.empty
@@ -33,7 +33,7 @@ class WritingReader(out: ActorRef, parentActor: ActorRef, conf: Configuration, k
 
 
   override def startReading(): Unit = {
-    this.fut = Option(futureBody())
+    if(this.chats.nonEmpty) this.fut = Option(futureBody())
   }
 
 
@@ -96,7 +96,13 @@ class WritingReader(out: ActorRef, parentActor: ActorRef, conf: Configuration, k
 
 
   override def addNewChat(newChat: ChatPartitionsOffsets): Unit = {
-    this.newChats.addOne(newChat.chatId -> {})
+    if (this.chats.isEmpty) {
+      this.chats.addOne(newChat.chatId -> {})
+      startReading()
+    }
+    else {
+      this.newChats.addOne(newChat.chatId -> {})
+    }
   }
 
 

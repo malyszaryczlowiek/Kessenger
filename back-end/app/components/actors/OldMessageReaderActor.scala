@@ -2,9 +2,8 @@ package components.actors
 
 import akka.actor._
 import components.actors.readers.Reader
-import io.github.malyszaryczlowiek.kessengerlibrary.model.{ChatPartitionsOffsets, Configuration, Message}
+import io.github.malyszaryczlowiek.kessengerlibrary.model.ChatPartitionsOffsets
 
-import scala.concurrent.ExecutionContext
 
 object OldMessageReaderActor {
 

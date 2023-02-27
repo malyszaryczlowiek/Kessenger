@@ -5,7 +5,7 @@ import io.github.malyszaryczlowiek.kessengerlibrary.domain.Domain.ChatId
 import io.github.malyszaryczlowiek.kessengerlibrary.model.{ChatPartitionsOffsets, Configuration, Message, PartitionOffset}
 import org.apache.kafka.clients.consumer.{ConsumerRecord, ConsumerRecords, KafkaConsumer}
 import org.apache.kafka.common.TopicPartition
-import util.KessengerAdmin
+import util.KafkaAdmin
 
 import scala.annotation.tailrec
 import scala.collection.concurrent.TrieMap
@@ -17,7 +17,7 @@ import scala.util.{Failure, Success, Try, Using}
 
 
 
-class OldMessageReader(out: ActorRef, parentActor: ActorRef, conf: Configuration, ka: KessengerAdmin, ec: ExecutionContext) extends Reader {
+class OldMessageReader(out: ActorRef, parentActor: ActorRef, conf: Configuration, ka: KafkaAdmin, ec: ExecutionContext) extends Reader {
 
 
   private val chats:    TrieMap[ChatId, (List[PartitionOffset], List[PartitionOffset])] = TrieMap.empty

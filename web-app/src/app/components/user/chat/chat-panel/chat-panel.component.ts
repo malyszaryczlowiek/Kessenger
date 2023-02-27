@@ -33,28 +33,13 @@ export class ChatPanelComponent implements OnInit, OnDestroy {
 
 
     /*
-    problemy 
+    TODO
 
-    1. (DONE) ustawić w każdej subskrybcji gdy odpytujemy endpointy
-      sprawdzić, że w http error response jest status 0 a status text 'Unknown Error' 
-      to trzeba wyświetlić info, że servis in anavailable. 
+    -- zminić KafkaConfiguration tak aby miał jedną partycję. 
+    
+    -- backend KessengerAdmin zrobić jako singleton.
 
-    2. (DONE) zrobić fetchowanie wcześniejszych wiadomości.   
-
-    2a. (DONE) jak wysyłamy wiadomość to wiadomość od nas ma zawsze trafić 
-        do folderu przeczytane  
-
-    2b. ustawić że jak wysyłamy wiadomość a następnie ją odbieramy
-        to automatycznie wysyłane jest też update offsetu.    
-
-    3. ustawić toast na user conmponent tak aby mógł wyświetlać 
-       informacje o błędach wraz z kodem. 
-
-    4. load balancer - napisać draft
-
-
-    w back-endzie. 
-    1.    
+    -- sprawdzić dodawanie nowego chatu
 
 
     */
@@ -95,6 +80,7 @@ export class ChatPanelComponent implements OnInit, OnDestroy {
                 }
               } else { // no new messages
                 this.chatData = currentChat
+                this.userService.markMessagesAsRead( this.chatData.chat.chatId )
                 this.htmlService.scrollDown( false )
                 console.warn('no new messages')
               }

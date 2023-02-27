@@ -5,7 +5,7 @@ import io.github.malyszaryczlowiek.kessengerlibrary.domain.Domain.ChatId
 import io.github.malyszaryczlowiek.kessengerlibrary.model._
 import org.apache.kafka.clients.consumer.{ConsumerRecord, ConsumerRecords, KafkaConsumer}
 import org.apache.kafka.common.TopicPartition
-import util.KessengerAdmin
+import util.KafkaAdmin
 
 import java.util.concurrent.atomic.AtomicBoolean
 import scala.annotation.tailrec
@@ -18,7 +18,7 @@ import scala.util.{Failure, Success, Using}
 
 
 
-class NewMessageReader(out: ActorRef, parentActor: ActorRef, conf: Configuration, ka: KessengerAdmin, ec: ExecutionContext) extends Reader {
+class NewMessageReader(out: ActorRef, parentActor: ActorRef, conf: Configuration, ka: KafkaAdmin, ec: ExecutionContext) extends Reader {
 
   private val chats: TrieMap[ChatId, List[PartitionOffset]] = TrieMap.empty
   private val newChats: TrieMap[ChatId, List[PartitionOffset]] = TrieMap.empty
@@ -31,7 +31,7 @@ class NewMessageReader(out: ActorRef, parentActor: ActorRef, conf: Configuration
 
 
   override def startReading(): Unit = {
-    this.fut = Option(futureBody())
+    if(this.chats.nonEmpty) this.fut = Option(futureBody())
   }
 
 
@@ -131,7 +131,16 @@ class NewMessageReader(out: ActorRef, parentActor: ActorRef, conf: Configuration
 
 
   override def addNewChat(newChat: ChatPartitionsOffsets): Unit = {
-    this.newChats.addOne(newChat.chatId -> newChat.partitionOffset)
+    if (this.chats.isEmpty) {
+      println(s"################ Adding new CHat. ")
+      this.chats.addOne(newChat.chatId -> newChat.partitionOffset)
+      println(s"################ Starting Future. ")
+      startReading()
+    }
+    else {
+      println(s"################ Added to newCHatList and Future should be started already: ${this.fut.nonEmpty}. ")
+      this.newChats.addOne(newChat.chatId -> newChat.partitionOffset)
+    }
   }
 
 
@@ -144,8 +153,6 @@ class NewMessageReader(out: ActorRef, parentActor: ActorRef, conf: Configuration
   //    this.fut.isDefined && ! this.fut.get.isCompleted && this.continueReading.get()
   //  }
 
-
-  // we start reading strait away
 
 
 }

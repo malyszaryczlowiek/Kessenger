@@ -1,21 +1,23 @@
 package util
 
 
-import io.github.malyszaryczlowiek.kessengerlibrary.domain.Domain.{ChatId, JoinId, UserID }
+import io.github.malyszaryczlowiek.kessengerlibrary.domain.Domain.{ChatId, JoinId, UserID}
 import io.github.malyszaryczlowiek.kessengerlibrary.domain.Domain
-import io.github.malyszaryczlowiek.kessengerlibrary.model.{Chat, Invitation, Message,  Writing}
-import io.github.malyszaryczlowiek.kessengerlibrary.kafka.errors.{KafkaError,KafkaErrorsHandler}
+import io.github.malyszaryczlowiek.kessengerlibrary.model.{Chat, Invitation, Message, Writing}
+import io.github.malyszaryczlowiek.kessengerlibrary.kafka.errors.{KafkaError, KafkaErrorsHandler}
 import io.github.malyszaryczlowiek.kessengerlibrary.kafka.configurators.KafkaConfigurator
 import io.github.malyszaryczlowiek.kessengerlibrary.kafka.errors._
-
 import org.apache.kafka.clients.admin.{Admin, AdminClientConfig, CreateTopicsResult, DeleteTopicsResult, NewTopic}
 import org.apache.kafka.clients.consumer.{ConsumerConfig, KafkaConsumer}
 import org.apache.kafka.clients.producer.{KafkaProducer, ProducerConfig}
 import org.apache.kafka.common.KafkaFuture
 import org.apache.kafka.common.config.TopicConfig
+import play.api.inject.ApplicationLifecycle
 
 import java.util.concurrent.TimeUnit
 import java.util.{Collections, Properties, UUID}
+import javax.inject.{Inject, Named, Singleton}
+import scala.concurrent.Future
 import scala.util.{Failure, Success, Try}
 import scala.jdk.javaapi.CollectionConverters
 
@@ -24,7 +26,12 @@ import scala.jdk.javaapi.CollectionConverters
  *
  *
  */
-class KessengerAdmin(configurator: KafkaConfigurator) {
+@Singleton
+class KafkaAdmin @Inject() (@Named("KafkaProdConf") configurator: KafkaConfigurator, val lifecycle: ApplicationLifecycle) {
+
+  lifecycle.addStopHook { () =>
+    Future.successful(this.closeAdmin())
+  }
 
   private val userSerializer   = "io.github.malyszaryczlowiek.kessengerlibrary.serdes.user.UserSerializer"
   private val userDeserializer = "io.github.malyszaryczlowiek.kessengerlibrary.serdes.user.UserDeserializer"
@@ -43,6 +50,7 @@ class KessengerAdmin(configurator: KafkaConfigurator) {
 
   val properties = new Properties
   properties.put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, configurator.EXTERNAL_SERVERS)
+  // properties.put(AdminClientConfig.CLIENT_ID_CONFIG, tutaj_ID )
   private val admin = Admin.create(properties)
 
 

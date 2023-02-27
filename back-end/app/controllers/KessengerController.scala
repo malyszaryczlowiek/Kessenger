@@ -6,7 +6,7 @@ import components.actors.WebSocketActor
 import components.db.MyDbExecutor
 import components.executioncontexts.{DatabaseExecutionContext, KafkaExecutionContext}
 import components.util.converters.{JsonParsers, PasswordConverter}
-import util.{BrokerExecutor, HeadersParser, KessengerAdmin}
+import util.{HeadersParser, KafkaAdmin}
 import io.github.malyszaryczlowiek.kessengerlibrary.db.queries.{DataProcessingError, LoginTaken, QueryError, UndefinedError, UnsupportedOperation}
 import io.github.malyszaryczlowiek.kessengerlibrary.domain.Domain
 import io.github.malyszaryczlowiek.kessengerlibrary.domain.Domain.{ChatId, Offset, UserID}
@@ -19,6 +19,7 @@ import io.github.malyszaryczlowiek.kessengerlibrary.model.User.toJSON
 import io.github.malyszaryczlowiek.kessengerlibrary.model.UserOffsetUpdate.parseUserOffsetUpdate
 import org.apache.kafka.clients.producer.ProducerRecord
 import play.api.db.Database
+import play.api.inject.ApplicationLifecycle
 import play.api.libs.streams.ActorFlow
 import play.api.mvc._
 
@@ -39,7 +40,9 @@ class KessengerController @Inject()
     val headersParser: HeadersParser,
     val databaseExecutionContext: DatabaseExecutionContext,
     val kafkaExecutionContext: KafkaExecutionContext,
+    val kafkaAdmin: KafkaAdmin,
     val configurator: KafkaProductionConfigurator,
+    val lifecycle: ApplicationLifecycle,
     implicit val system: ActorSystem,
 
     // val fc: FormsAndConstraint,
@@ -47,6 +50,11 @@ class KessengerController @Inject()
     // implicit val ec: MyExecutionContext,
     // val sessionConverter: SessionConverter,
   ) extends BaseController {
+
+
+  lifecycle.addStopHook { () =>
+    Future.successful(kafkaAdmin.closeAdmin())
+  }
 
 
 
@@ -79,15 +87,15 @@ class KessengerController @Inject()
                                 InternalServerError(ResponseBody(7, queryError.description.toString()).toString )
                               case Right(value) =>
                                 if (value == 3) {
-                                  val ka = new KessengerAdmin(new KafkaProductionConfigurator)
-                                  ka.createInvitationTopic(userId) match {
+                                  //val ka = new KafkaAdmin(new KafkaProductionConfigurator)
+                                  kafkaAdmin.createInvitationTopic(userId) match {
                                     case Left(_) =>
                                       println(s"nie udało się utworzyć invitation topic")
                                       dbExecutor.deleteUser(user.userId)
-                                      ka.closeAdmin()
+                                      //ka.closeAdmin()
                                       InternalServerError(ResponseBody(7, "Error 007. User Creation Error. Try again later").toString)
                                     case Right(_) =>
-                                      ka.closeAdmin()
+                                      //ka.closeAdmin()
                                       Ok(jsonParser.toJSON((user, settings)))
                                   }
                                 }
@@ -425,16 +433,16 @@ class KessengerController @Inject()
                   case Left(queryError) =>
                     InternalServerError(s"Error 013. ${queryError.description.toString()}")
                   case Right( createdChat ) =>
-                    val ka = new KessengerAdmin(new KafkaProductionConfigurator)
-                    ka.createChat(createdChat.head._1) match {
+                    //val ka = new KafkaAdmin(new KafkaProductionConfigurator)
+                    kafkaAdmin.createChat(createdChat.head._1) match {
                       case Left(_) => // not rechable
-                        ka.removeChat( createdChat.head._1 )
-                        ka.closeAdmin()
+                        kafkaAdmin.removeChat( createdChat.head._1 )
+                        //ka.closeAdmin()
                         dbExecutor.deleteChat( createdChat.head._1.chatId ) // delete chat from db
                         InternalServerError(ResponseBody(332, "Some Undefined Kafka Error.").toString)
                       case Right( t ) =>
                         if ( t._1 && t._2  ) { // if chat created we can send it to user
-                          val producer = ka.createInvitationProducer
+                          val producer = kafkaAdmin.createInvitationProducer
                           users.foreach( userId => {
                             val partitionOffsets = (0 until configurator.CHAT_TOPIC_PARTITIONS_NUMBER)
                               .map(i => PartitionOffset(i, 0L)).toList
@@ -444,11 +452,11 @@ class KessengerController @Inject()
                             producer.send(new ProducerRecord[String, Invitation](joiningTopic, i))
                           })
                           producer.close()
-                          ka.closeAdmin()
+                          //ka.closeAdmin()
                           Ok(jsonParser.chatsToJSON(createdChat))
                         } else {
-                          ka.removeChat( createdChat.head._1 )
-                          ka.closeAdmin()
+                          kafkaAdmin.removeChat( createdChat.head._1 )
+                          //ka.closeAdmin()
                           dbExecutor.deleteChat( createdChat.head._1.chatId )
                           InternalServerError(ResponseBody(333, "Cannot create new chat. Try again later.").toString)
                         }
@@ -487,7 +495,7 @@ class KessengerController @Inject()
     ).async( implicit request => {
       Future {
         db.withConnection(implicit connection => {
-          dbExecutor.findMyChats(userId) match {
+          dbExecutor.findMyChats(userId) match {  // todo prewiously findMyChats()
             case Left(_) => InternalServerError("Error 009. You are logged in with SessionChecker and SessionUpdater ")
             case Right(chats) =>
               //val c = chats.filter(t => !t._2._2).map(t => (t._1, t._2._1))
@@ -653,8 +661,8 @@ class KessengerController @Inject()
                 dbExecutor.addNewUsersToChat(users, chatId, chatName, partitionOffsets) match {
                   case Left(queryError) => InternalServerError(s"Error 019. ${queryError.description.toString()}")
                   case Right(value)     =>
-                    val ka = new KessengerAdmin(new KafkaProductionConfigurator)
-                    val producer = ka.createInvitationProducer
+                    // val ka = new KafkaAdmin(new KafkaProductionConfigurator)
+                    val producer = kafkaAdmin.createInvitationProducer
                     users.foreach( userId2 => {
                       val i = Invitation(inviters, userId2, chatName, chatId,
                         System.currentTimeMillis(), 0L, partitionOffsets, None)
@@ -662,7 +670,7 @@ class KessengerController @Inject()
                       producer.send(new ProducerRecord[String, Invitation](joiningTopic, i))
                     })
                     producer.close()
-                    ka.closeAdmin()
+                    // ka.closeAdmin()
                     Ok(ResponseBody(0,s"$value users added.").toString)
                 }
               }
@@ -702,7 +710,7 @@ class KessengerController @Inject()
                           println(s"wszedłem w ActorFlow.")
                           //val brokerExecutor = new BrokerExecutor( out, db, new KafkaProductionConfigurator, kafkaExecutionContext)
                           // WebSocketActor.props(out, new KessengerAdmin(configurator),  kafkaExecutionContext, db, databaseExecutionContext, brokerExecutor)
-                          WebSocketActor.props(out, new KessengerAdmin(configurator),  kafkaExecutionContext, db, databaseExecutionContext)
+                          WebSocketActor.props(out, kafkaAdmin,  kafkaExecutionContext, db, databaseExecutionContext)
                         }
                       )
                     } else Left(Unauthorized("Error XXX. No valid session."))

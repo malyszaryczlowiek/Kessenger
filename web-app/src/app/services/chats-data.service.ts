@@ -66,8 +66,9 @@ export class ChatsDataService {
         )
         chat.unreadMessages = new Array<Message>()
         chat.messages = chat.messages.sort((a,b) => a.serverTime - b.serverTime )
-        this.changeChat( chat )
+        // this.changeChat( chat )
       } 
+      this.changeChat( chat )
       return { cd: chat, num: num }
     } else {
       return undefined
@@ -87,6 +88,9 @@ export class ChatsDataService {
         return cd.chat.chatId == mm.chatId
       })
       if ( foundCD ) {
+
+        // tutaj jest problem ######################################################################################################################################################
+
         const unread = foundCD.partitionOffsets.some((po,i,arr) => {
           return po.partition == mm.partOff.partition && po.offset < mm.partOff.offset
         })

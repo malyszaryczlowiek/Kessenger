@@ -465,6 +465,7 @@ export class UserService {
 
 
 
+  // unused
   getUser(): Observable<HttpResponse<{user: User, settings: Settings}>> | undefined {
     if (this.user){ 
       this.updateSession()

@@ -8,7 +8,7 @@ import io.github.malyszaryczlowiek.kessengerlibrary.model.ChatOffsetUpdate.parse
 import io.github.malyszaryczlowiek.kessengerlibrary.model.FetchMessagesFrom.parseFetchingOlderMessagesRequest
 import io.github.malyszaryczlowiek.kessengerlibrary.model.ChatPartitionsOffsets.parseChatPartitionOffsets
 import io.github.malyszaryczlowiek.kessengerlibrary.model.Writing.parseWriting
-import util.{BrokerExecutor, KessengerAdmin}
+import util.KafkaAdmin
 import akka.actor._
 import akka.actor.PoisonPill
 import components.actors.readers.{InvitationReader, NewMessageReader, OldMessageReader, WritingReader}
@@ -20,12 +20,12 @@ import scala.concurrent.ExecutionContext
 
 object WebSocketActor {
   //, be: BrokerExecutor
-  def props(out: ActorRef, ka: KessengerAdmin, kec: ExecutionContext, db: Database, dbec: ExecutionContext): Props =
+  def props(out: ActorRef, ka: KafkaAdmin, kec: ExecutionContext, db: Database, dbec: ExecutionContext): Props =
     Props(new WebSocketActor(out, ka, kec, db, dbec))
 }
 
 // , be: BrokerExecutor
-class WebSocketActor( out: ActorRef, ka: KessengerAdmin, kec: ExecutionContext, db: Database, dbec: ExecutionContext ) extends Actor {
+class WebSocketActor(out: ActorRef, ka: KafkaAdmin, kec: ExecutionContext, db: Database, dbec: ExecutionContext ) extends Actor {
 
   sealed trait ActorNameKey
   case object NewMessageReaderKey  extends ActorNameKey

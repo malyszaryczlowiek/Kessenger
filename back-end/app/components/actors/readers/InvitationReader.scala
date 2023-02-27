@@ -6,7 +6,7 @@ import io.github.malyszaryczlowiek.kessengerlibrary.domain.Domain.ChatId
 import io.github.malyszaryczlowiek.kessengerlibrary.model._
 import org.apache.kafka.clients.consumer.{ConsumerRecord, ConsumerRecords, KafkaConsumer}
 import org.apache.kafka.common.TopicPartition
-import util.KessengerAdmin
+import util.KafkaAdmin
 
 import java.util.concurrent.atomic.AtomicBoolean
 import scala.annotation.tailrec
@@ -16,7 +16,7 @@ import scala.util.{Failure, Success, Using}
 
 
 
-class InvitationReader(out: ActorRef, parentActor: ActorRef, conf: Configuration, ka: KessengerAdmin, ec: ExecutionContext) extends Reader {
+class InvitationReader(out: ActorRef, parentActor: ActorRef, conf: Configuration, ka: KafkaAdmin, ec: ExecutionContext) extends Reader {
 
   private val continueReading: AtomicBoolean = new AtomicBoolean(true)
   private var fut: Option[Future[Unit]] = None
