@@ -59,14 +59,14 @@ export class HtmlService {
 
 
 
-  private assignScrollTimer(emit: boolean) {
+  private assignScrollTimer(moveDown: boolean) {
     this.scrollInterval = setInterval( () => {
       this.resizeMessageListImmediately()
       const messages = document.getElementById('messages')
       if (messages) {
         messages.scrollTo(0, messages.scrollHeight)
         this.maxScrollPosition = messages.scrollTop
-        if (emit) this.messageListScrollEventEmitter.emit('down')
+        if (moveDown) this.messageListScrollEventEmitter.emit('down')
         if( this.scrollInterval ) clearInterval( this.scrollInterval )
       }
       console.log('interval')
@@ -104,12 +104,12 @@ export class HtmlService {
 
   */
 
-  scrollDown(emit: boolean) {
+  scrollDown(moveDown: boolean) {
     if (this.scrollInterval){
       clearInterval( this.scrollInterval )
-      this.assignScrollTimer(emit)
+      this.assignScrollTimer(moveDown)
     } else {
-      this.assignScrollTimer(emit)
+      this.assignScrollTimer(moveDown)
     }
   }
 

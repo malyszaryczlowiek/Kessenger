@@ -4,6 +4,7 @@ import { Subscription } from 'rxjs';
 import { ChatData } from 'src/app/models/ChatData';
 import { Message } from 'src/app/models/Message';
 import { Writing } from 'src/app/models/Writing';
+import { ChatsDataService } from 'src/app/services/chats-data.service';
 import { HtmlService } from 'src/app/services/html.service';
 import { UserService } from 'src/app/services/user.service';
 
@@ -27,24 +28,9 @@ export class ChatPanelComponent implements OnInit, OnDestroy {
 
   constructor(private userService: UserService, 
               private htmlService: HtmlService, 
+              private chatService: ChatsDataService,
               private router: Router,
               private activated: ActivatedRoute) { }
-
-
-
-    /*
-    TODO
-
-    -- zminić KafkaConfiguration tak aby miał jedną partycję. 
-    
-    -- backend KessengerAdmin zrobić jako singleton.
-
-    -- sprawdzić dodawanie nowego chatu
-
-
-    */
-
-
 
   
 
@@ -86,6 +72,7 @@ export class ChatPanelComponent implements OnInit, OnDestroy {
               }
             } else {
               console.log('ChatPanelComponent.ngOnInit() fetchingSubscription chat not found in list.')
+              this.chatService.selectChat( undefined )
               this.router.navigate(['page-not-found']);
             }            
           } 
@@ -102,7 +89,9 @@ export class ChatPanelComponent implements OnInit, OnDestroy {
           if (this.chatModificationSubscription) this.chatModificationSubscription.unsubscribe()
           this.chatData = this.userService.markMessagesAsRead( cd.chat.chatId )
           if ( this.chatData ) {
+            this.htmlService.resizeMessageListImmediately()
             this.htmlService.scrollDown( false )
+            // tutaj trzeba wymusić resize chat listy do rozmiarów pasujących do okna. 
             this.chatModificationSubscription = this.chatData.emitter.subscribe(
               (cd) => { this.chatData = cd }
             )              
@@ -157,8 +146,30 @@ export class ChatPanelComponent implements OnInit, OnDestroy {
       } 
     )    
 
+
+    const chatId = this.activated.snapshot.paramMap.get('chatId');
+    if ( chatId ) { this.chatService.selectChat( chatId )}
     
-    if ( this.userService.isWSconnected() ) this.userService.dataFetched( 4 ) // here we need to only fetch to chat panel. 
+    /* if ( chatId ) { 
+      const currentChat = this.userService.getAllChats().find(  (chatData, index, arr) => {
+        return chatData.chat.chatId == chatId;
+      })
+      if ( currentChat ) {
+        this.chatService.selectChat( currentChat.chat.chatId )
+      } else {
+        this.chatService.selectChat( undefined )
+        this.router.navigate(['page-not-found']);
+      }
+    } */
+
+    
+    if ( this.userService.isWSconnected() ) {
+      this.userService.dataFetched( 4 ) // here we need to only fetch to chat panel. 
+    } 
+
+//     console.error('selected chat', this.chatService.selectedChat)
+
+    
     
     // tutaj // trzeba jeszcze sprawdzić czy current chat jest ustawiony
     // albo tez sprawdzić zcy już nie ma chatów w chat liście.     

@@ -89,27 +89,32 @@ export class ChatsDataService {
       })
       if ( foundCD ) {
 
-        // tutaj jest problem ######################################################################################################################################################
+//         tutaj jest problem ######################################################################################################################################################
+        // nalezy zrobić tak aby sprawdzać czy jak przychodzi wiadomość w nowo utworzonym chacie 
+        // to należy dodać te wiadomości do unread a nie do przeczytanych 
 
-        const unread = foundCD.partitionOffsets.some((po,i,arr) => {
-          return po.partition == mm.partOff.partition && po.offset < mm.partOff.offset
-        })
-        if ( unread ) foundCD.unreadMessages.push( mm ) 
-        else {
-          console.log('WIADOMOŚĆ DODANA DO PRZECZYTANYCH')
-          // if (code == 2) code = 1
-          foundCD.messages.push( mm )
-          foundCD.messages = foundCD.messages.sort((a,b) => a.serverTime - b.serverTime )
-          foundCD.partitionOffsets = foundCD.partitionOffsets.map(
-            (po, i, arr) => {
-              if (po.partition == mm.partOff.partition && po.offset < mm.partOff.offset){ 
-                po.offset = mm.partOff.offset
-                return po
-              } else  {
-                return po
+        if ( foundCD.isNew ) {
+          foundCD.unreadMessages.push( mm ) 
+        } else {
+          const unread = foundCD.partitionOffsets.some((po,i,arr) => {
+            return po.partition == mm.partOff.partition && po.offset < mm.partOff.offset
+          })
+          if ( unread ) foundCD.unreadMessages.push( mm ) 
+          else {
+            console.log('WIADOMOŚĆ DODANA DO PRZECZYTANYCH')
+            foundCD.messages.push( mm )
+            foundCD.messages = foundCD.messages.sort((a,b) => a.serverTime - b.serverTime )
+            foundCD.partitionOffsets = foundCD.partitionOffsets.map(
+              (po, i, arr) => {
+                if (po.partition == mm.partOff.partition && po.offset < mm.partOff.offset){ 
+                  po.offset = mm.partOff.offset
+                  return po
+                } else  {
+                  return po
+                }
               }
-            }
-          )
+            )
+          }  
         }
         if (foundCD.chat.lastMessageTime < mm.serverTime) foundCD.chat.lastMessageTime = mm.serverTime
         this.changeChat( foundCD )
@@ -142,7 +147,7 @@ export class ChatsDataService {
 
    
 
-  insertNewMessagesOld(m: Message[]): number {
+  insertNewMessages2(m: Message[]): number {
     let code = 2
     m.forEach((mm,i,arr) => {
       const foundCD = this.chatAndUsers.find((cd, i, arr) => {

@@ -56,7 +56,7 @@ export class UserService {
 
 
   constructor(private connection: ConnectionService, 
-              private chats: ChatsDataService,
+              private chatsService: ChatsDataService,
               private settingsService: UserSettingsService, 
               private responseNotifier: ResponseNotifierService,
               private router: Router) { 
@@ -78,7 +78,7 @@ export class UserService {
               this.setUserAndSettings(body.user, body.settings)
               this.logoutSeconds = this.settingsService.settings.sessionDuration / 1000
               this.restartLogoutTimer()
-              this.chats.initialize( body.chatList )
+              this.chatsService.initialize( body.chatList )
               this.connectViaWebsocket() 
             }
             else {
@@ -105,7 +105,7 @@ export class UserService {
     if ( ! this.newMessagesSubscription ) {
       this.newMessagesSubscription = this.connection.newMessagesEmitter.subscribe(
         (messageList: Message[]) => {
-          this.chats.insertNewMessages( messageList )
+          this.chatsService.insertNewMessages( messageList )
           this.dataFetched( 1 ) // both
           // this.dataFetched( this.chats.insertNewMessages( messageList ) ) 
         },
@@ -120,7 +120,7 @@ export class UserService {
       this.oldMessagesSubscription = this.connection.oldMessagesEmitter.subscribe(
         (messageList: Message[]) => {
           console.log(`old messages from emitter: ${messageList}`)
-          this.chats.insertOldMessages( messageList ) 
+          this.chatsService.insertOldMessages( messageList ) 
         },
         (error) => {
           console.log('Error in message emitter: ', error)
@@ -192,17 +192,6 @@ export class UserService {
       )
     }
 
-    /* if (! this.writingSubscription) {
-      this.writingSubscription = this.connection.writingEmitter.subscribe(
-        (wrt: Writing | undefined) => {
-          console.log(wrt)
-        },
-        (error) => {
-          console.error('Got errorn in writing subscription', error)
-        },
-        () => {} 
-      )
-    } */
 
     if (! this.restartWSSubscription ) {
       this.restartWSSubscription = this.connection.restartWSEmitter.subscribe(
@@ -214,13 +203,16 @@ export class UserService {
               this.reconnectWSTimer = setInterval( () => {
                 console.log('inside reconnectWSTimer trying to reconnect WS. ')
                 this.connectViaWebsocket()
-              }, 10000) // we try reconnect every 10s
+              }, 2000) // we try reconnect every 2s
             }          
           } else {
             // if we get false this means that we need to stop timer,
             // because we connected, 
             // or we disconnected and we do not need to reconnect
-            if ( this.reconnectWSTimer ) clearInterval( this.reconnectWSTimer )
+            if ( this.reconnectWSTimer ) {
+              clearInterval( this.reconnectWSTimer )
+              this.reconnectWSTimer = undefined
+            }
           }
         }
       )
@@ -231,7 +223,12 @@ export class UserService {
       // and WS connection is established 
       // so all fetching sobscribers can load data. 
       this.wsConnectionSubscription = this.connection.wsConnEmitter.subscribe(
-        ( bool ) => { this.dataFetched( 1 ) }
+        ( bool ) => { 
+          if ( this.chatsService.selectedChat ) {
+            this.fetchOlderMessages( this.chatsService.selectedChat )
+          } else console.error('selected chat is not selected. ')
+          this.dataFetched( 1 ) 
+        }
       )
     }
 
@@ -258,7 +255,7 @@ export class UserService {
   
   clearService() {
     this.user = undefined;
-    this.chats.clear() 
+    this.chatsService.clear() 
     this.settingsService.clearSettings();
     if (this.wsConnectionSubscription) {
       this.wsConnectionSubscription.unsubscribe()
@@ -359,42 +356,42 @@ export class UserService {
 
 
   getAllChats() {
-    return this.chats.chatAndUsers
+    return this.chatsService.chatAndUsers
   }
 
 
 
   addNewChat(c: ChatData) {
-    this.chats.addNewChat(c)
+    this.chatsService.addNewChat(c)
   }
 
 
 
   setChats(chats: ChatData[]) {
-    this.chats.initialize( chats )
+    this.chatsService.initialize( chats )
   }
 
 
 
   changeChat(chatD: ChatData) {
-    this.chats.changeChat(chatD)
+    this.chatsService.changeChat(chatD)
     this.dataFetched( 1 )
   }
 
 
 
   deleteChat(c: ChatData){
-    this.chats.deleteChat(c)
+    this.chatsService.deleteChat(c)
     this.dataFetched( 1 )
   }
 
   selectChat(chatId: string | undefined) {
-    this.chats.selectChat(chatId)
+    this.chatsService.selectChat(chatId)
   }
 
 
   insertChatUsers(chatId: string, u: User[]) {
-    this.chats.insertChatUsers(chatId, u)
+    this.chatsService.insertChatUsers(chatId, u)
   }
 
 
@@ -403,7 +400,7 @@ export class UserService {
   }
 
   markMessagesAsRead(chatId: string): ChatData | undefined {
-    const cd = this.chats.markMessagesAsRead(chatId)
+    const cd = this.chatsService.markMessagesAsRead(chatId)
     if ( this.user && cd ) {
       if ( cd.num > 0 ) {
         const chatOffsetUpdate: ChatOffsetUpdate = {
@@ -602,7 +599,7 @@ export class UserService {
       const conf: Configuration = {
         me: this.user,
         joiningOffset: this.settingsService.settings.joiningOffset,
-        chats: this.chats.chatAndUsers.map(
+        chats: this.chatsService.chatAndUsers.map(
           (c , i, arr) => {
             return {
               chatId: c.chat.chatId,

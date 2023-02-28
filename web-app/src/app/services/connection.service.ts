@@ -338,6 +338,10 @@ export class ConnectionService {
 
 
 
+
+
+
+
   /*
   WEBSOCKET
   */
@@ -409,7 +413,7 @@ export class ConnectionService {
         }
         if (body.num && body.message) {
           console.log('got ResponseBody()' + body.message )
-          if (body.num) this.reconnectWS = false
+          // if (body.num) this.reconnectWS = false
         }
         /* else {
           console.log('got other message: ', body)
@@ -432,10 +436,10 @@ export class ConnectionService {
             }
           )
           this.restartWSEmitter.emit( this.reconnectWS )
-        }
+        } else console.error('reconnectWS is set to FALSE')
       };
       this.wsConnection.onerror = (error) => {
-        console.error('error from web socket connection', error)
+        console.error('error from WS connection', error)
         // here probably we should close connection ??? and restart it ???
       };
     }
@@ -502,6 +506,9 @@ export class ConnectionService {
   }
 
 
+  sendSessionUpdate() {
+    implement // session update via WS
+  }
 
   
   startListeningFromNewChat(chatId: string, partOffsets: PartitionOffset[]) {

@@ -5,6 +5,7 @@ import { ChatData } from 'src/app/models/ChatData';
 import { Writing } from 'src/app/models/Writing';
 import { UserService } from 'src/app/services/user.service';
 import { HtmlService } from 'src/app/services/html.service';
+import { ChatsDataService } from 'src/app/services/chats-data.service';
 
 @Component({
   selector: 'app-chat-list',
@@ -19,7 +20,7 @@ export class ChatListComponent implements OnInit, OnDestroy {
   myUserId:                  string  | undefined
 
 
-  constructor(private userService: UserService, private router: Router, private htmlService: HtmlService ) {}
+  constructor(private userService: UserService, private chatService: ChatsDataService, private router: Router, private htmlService: HtmlService ) {}
   
 
   ngOnInit(): void {
@@ -34,8 +35,20 @@ export class ChatListComponent implements OnInit, OnDestroy {
 
   onClick(c: ChatData) {
     console.log('navigating to chat' + c.chat.chatName)
-    this.userService.fetchOlderMessages( c.chat.chatId )
+    //this.userService.fetchOlderMessages( c.chat.chatId )
+    //this.chatService.markMessagesAsRead( c.chat.chatId )
+    this.chatService.selectChat( c.chat.chatId )
+    
+    const selectedChat = this.userService.getAllChats().find(  (chatData, index, arr) => {
+      return chatData.chat.chatId == c.chat.chatId;
+    })
+    if ( selectedChat ) {
+      if ( selectedChat.messages.length == 0 && this.userService.isWSconnected() ) { // 
+        this.userService.fetchOlderMessages( c.chat.chatId )
+      }      
+    }
     this.router.navigate(['user', 'chat', c.chat.chatId]) 
+    console.warn('updating sesion')
     this.userService.updateSession()
     this.userService.selectedChatEmitter.emit(c) 
   }
