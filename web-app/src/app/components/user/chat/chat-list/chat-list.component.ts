@@ -36,9 +36,9 @@ export class ChatListComponent implements OnInit, OnDestroy {
   onClick(c: ChatData) {
     console.log('navigating to chat' + c.chat.chatName)
     //this.userService.fetchOlderMessages( c.chat.chatId )
-    //this.chatService.markMessagesAsRead( c.chat.chatId )
+    this.chatService.markMessagesAsRead( c.chat.chatId )
     this.chatService.selectChat( c.chat.chatId )
-    
+    this.userService.updateSession(true)
     const selectedChat = this.userService.getAllChats().find(  (chatData, index, arr) => {
       return chatData.chat.chatId == c.chat.chatId;
     })
@@ -48,8 +48,6 @@ export class ChatListComponent implements OnInit, OnDestroy {
       }      
     }
     this.router.navigate(['user', 'chat', c.chat.chatId]) 
-    console.warn('updating sesion')
-    this.userService.updateSession()
     this.userService.selectedChatEmitter.emit(c) 
   }
 

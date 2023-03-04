@@ -175,7 +175,7 @@ export class EditChatSettingsComponent implements OnInit, OnDestroy {
   // if we do not want change data we can navigate back to chat side
   onCancel() {
     if (this.chatData){
-      this.userService.updateSession()
+      this.userService.updateSession(true)
       this.router.navigate(['user', 'chat', `${this.chatData.chat.chatId}`]);
     } else {
       this.router.navigate(['user']);
@@ -186,7 +186,7 @@ export class EditChatSettingsComponent implements OnInit, OnDestroy {
 
   backToChat() {
     if (this.chatData){
-      this.userService.updateSession()
+      this.userService.updateSession(true)
       this.router.navigate(['user', 'chat', `${this.chatData.chat.chatId}`]);
     } else {
       this.router.navigate(['user']);
@@ -260,7 +260,6 @@ export class EditChatSettingsComponent implements OnInit, OnDestroy {
 
 
   searchUser() {
-    this.userService.updateSession()
     this.foundUsers = new Array<User>()
     this.foundUsers.find
     const searchLogin = this.searchUserForm.controls.login.value
@@ -285,6 +284,7 @@ export class EditChatSettingsComponent implements OnInit, OnDestroy {
               const users = response.body
               if ( users ) {
                 console.log('users in chat', this.chatData?.users)
+                this.userService.updateSession(true)
                 this.foundUsers = users.filter(
                   (user,i,arr) => {
                     const alreadySelected = this.selectedUsers.filter( (u, index,arr) => {

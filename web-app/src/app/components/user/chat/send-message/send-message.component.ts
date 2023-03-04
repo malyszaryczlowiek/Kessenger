@@ -2,7 +2,6 @@ import { Component, EventEmitter, Input, OnInit, Output } from '@angular/core';
 import { FormControl, FormGroup, Validators } from '@angular/forms';
 import { Chat } from 'src/app/models/Chat';
 import { Message } from 'src/app/models/Message';
-import { PartitionOffset } from 'src/app/models/PartitionOffset';
 import { Writing } from 'src/app/models/Writing';
 import { UserSettingsService } from 'src/app/services/user-settings.service';
 import { UserService } from 'src/app/services/user.service';
@@ -63,6 +62,7 @@ export class SendMessageComponent implements OnInit {
       }
       this.sendingMessage.emit( m );
       this.messageForm.controls.messageContent.setValue('')
+      this.userService.updateSession(true)
     } 
   }
 

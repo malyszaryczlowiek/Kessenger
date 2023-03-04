@@ -46,7 +46,7 @@ export class SessionService {
   setNewSession(userId: string) {
     // time is validity time of session. after this time session will be invalid 
     //   unless user will actualize  session making some request. 
-    const time: number = this.utcService.getUTCmilliSeconds() + this.userSettings.settings.sessionDuration; // current  time + 15 min
+    const time: number = this.utcService.getUTCmilliSeconds() + this.userSettings.settings.sessionDuration; 
     this.ksid = new Ksid(uuidv4(), userId , time);
     this.cookieService.set('KSID', this.ksid.toString(), this.getExpirationTime(), '/');
   }
@@ -55,13 +55,17 @@ export class SessionService {
   updateSession(userId: string) {
     this.fetchKsid();
     if ( this.ksid ) {
-      const time: number = this.utcService.getUTCmilliSeconds() + this.userSettings.settings.sessionDuration; // current  time + 15 min
+      const time: number = this.utcService.getUTCmilliSeconds() + this.userSettings.settings.sessionDuration; 
       this.ksid = new Ksid(this.ksid.sessId, userId, time);
       // this.cookieService.delete('KSID')
       this.cookieService.set('KSID', this.ksid.toString(), this.getExpirationTime(), '/');
     } else {
       this.router.navigate(['session-timeout'])
     }   
+  }
+
+  getKsid(): Ksid | undefined {
+    return this.ksid
   }
 
 

@@ -59,7 +59,7 @@ class KessengerController @Inject()
 
 
   // TODO write validator for json data login length and so one
-  def signup = Action.async { implicit request =>
+  def signup: Action[AnyContent] = Action.async { implicit request =>
     request.headers.get("KSID") match {
       case Some( ksid ) =>
         headersParser.parseKSID(ksid) match {

@@ -2,8 +2,9 @@
     
     <div class="card-body">
         <h4 class="card-title">{{ chatData.chat.chatName }}
-            <span *ngIf="chatData.unreadMessages.length > 0" class="badge rounded-pill bg-danger"> <!-- position-absolute top-25 start-75 translate-middle -->
-                {{ chatData.unreadMessages.length }}
+            <span *ngIf="getNumOfUnreadMessages() > 0" class="badge rounded-pill bg-danger"> <!-- position-absolute top-25 start-75 translate-middle -->
+                <!-- chatData.unreadMessages.length -->
+                {{ getNumOfUnreadMessages() }}
                 <span class="visually-hidden">unread messages</span>
             </span>
         </h4>

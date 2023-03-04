@@ -31,6 +31,10 @@ export class HeaderComponent implements OnInit, OnDestroy {
   logout() {
     this.userService.logout();
   }
+
+  updateSession() {
+    this.userService.updateSession(true)
+  }
   
 
 }

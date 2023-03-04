@@ -9,6 +9,7 @@ import { User } from '../models/User';
 export class ChatsDataService {
 
   selectedChat: string | undefined // chatId
+  myUserId: string = ''
   
   isRead = false 
 
@@ -16,7 +17,8 @@ export class ChatsDataService {
 
   constructor() { }
   
-  initialize(chats: ChatData[]) {
+  initialize(chats: ChatData[], userId: string) {
+    this.myUserId = userId
     this.chatAndUsers = chats.map(
       (cd) => {
         cd.users =  new Array<User>()
@@ -99,7 +101,7 @@ export class ChatsDataService {
           const unread = foundCD.partitionOffsets.some((po,i,arr) => {
             return po.partition == mm.partOff.partition && po.offset < mm.partOff.offset
           })
-          if ( unread ) foundCD.unreadMessages.push( mm ) 
+          if ( unread  ) foundCD.unreadMessages.push( mm )  // && mm.authorId != this.myUserId
           else {
             console.log('WIADOMOŚĆ DODANA DO PRZECZYTANYCH')
             foundCD.messages.push( mm )
@@ -118,35 +120,13 @@ export class ChatsDataService {
         }
         if (foundCD.chat.lastMessageTime < mm.serverTime) foundCD.chat.lastMessageTime = mm.serverTime
         this.changeChat( foundCD )
-
-
-
-/* 
-        if ( foundCD.chat.chatId == this.selectedChat) {
-          if (code == 2) code = 1
-          foundCD.messages.push( mm )
-          foundCD.messages = foundCD.messages.sort((a,b) => a.serverTime - b.serverTime )
-          foundCD.partitionOffsets = foundCD.partitionOffsets.map(
-            (po, i, arr) => {
-              if (po.partition == mm.partOff.partition && po.offset < mm.partOff.offset){ 
-                po.offset = mm.partOff.offset
-                return po
-              } else  {
-                return po
-              }
-            }
-          )
-        } else {
-          
-        } */
-        
       }
     })
-    // return code
   }
 
-   
 
+   
+  // deprecated
   insertNewMessages2(m: Message[]): number {
     let code = 2
     m.forEach((mm,i,arr) => {

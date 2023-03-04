@@ -16,10 +16,10 @@ export class EditAccountComponent implements OnInit, OnDestroy {
 
   settings: Settings | undefined
   zones: string[] = []
-  settingsResponse:  any | undefined
+  /* settingsResponse:  any | undefined
   loginResponse:     any | undefined
   passwordResponse:  any | undefined  
-  
+   */
   fechingSubscription: Subscription | undefined
 
 
@@ -48,7 +48,6 @@ export class EditAccountComponent implements OnInit, OnDestroy {
               private router: Router) { }
 
   ngOnInit(): void {
-    this.userService.updateSession()
     this.fechingSubscription = this.userService.fetchingUserDataFinishedEmmiter.subscribe(
       ( b ) => {
         if ( b ){
@@ -85,8 +84,14 @@ export class EditAccountComponent implements OnInit, OnDestroy {
       if ( obs ) {
         obs.subscribe({
           next: (response) => {
-            this.settingsResponse = response.body
-            this.userService.updateSession()
+            // this.settingsResponse = response.body
+            // this.userService.updateSession()
+            const print = {
+              header: 'Update',
+              //code: 0,
+              message: 'Settings saved.'
+            }
+            this.responseNotifier.printNotification( print )
           },
           error: (error) => {
             this.settingsService.setSettings( oldSett )
@@ -146,12 +151,24 @@ export class EditAccountComponent implements OnInit, OnDestroy {
         p.subscribe({
           next: (response) => {
             if (response.status == 200) {
-              this.passwordResponse = response.body
+              //this.passwordResponse = response.body
+              const print = {
+                header: 'Update',
+                //code: 0,
+                message: 'Password changed.'
+              }
+              this.responseNotifier.printNotification( print )
+
             }
           },
           error: (err) => {
             if (err.status == 400) {
-              this.passwordResponse = err.error
+              const print = {
+                header: 'Error',
+                code: err.error.num,
+                message: err.error.message
+              }
+              this.responseNotifier.printNotification( print )
             }
             if (err.status == 401){
               console.log('Session is out.')
@@ -167,13 +184,13 @@ export class EditAccountComponent implements OnInit, OnDestroy {
     }
   }
 
-  clearSettingsNotification() {
-    this.userService.updateSession()
+ /*  clearSettingsNotification() {
+    this.userService.updateSession(true)
     this.settingsResponse = undefined
   }
 
   clearLoginNotification() {
-    this.userService.updateSession()
+    this.userService.updateSession(true)
     this.loginResponse = undefined
   }
 
@@ -181,7 +198,7 @@ export class EditAccountComponent implements OnInit, OnDestroy {
     this.userService.updateSession()
     this.passwordResponse = undefined
   }
-
+ */
 
 
 

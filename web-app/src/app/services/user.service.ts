@@ -78,7 +78,7 @@ export class UserService {
               this.setUserAndSettings(body.user, body.settings)
               this.logoutSeconds = this.settingsService.settings.sessionDuration / 1000
               this.restartLogoutTimer()
-              this.chatsService.initialize( body.chatList )
+              this.chatsService.initialize( body.chatList, body.user.login )
               this.connectViaWebsocket() 
             }
             else {
@@ -323,9 +323,11 @@ export class UserService {
   }
 
 
-  updateSession() {
+
+  updateSession(sendUpdateToServer: boolean) {
     if (this.user) {
-      this.connection.updateSession(this.user.userId);
+      this.connection.updateSession(sendUpdateToServer)
+      //this.connection.updateSession(this.user.userId);
       this.restartLogoutTimer()
     }
   }
@@ -334,7 +336,8 @@ export class UserService {
 
 
   updateSessionViaUserId(userId: string) {
-    this.connection.updateSession(userId);
+    this.connection.updateSession(false)
+    //this.connection.updateSession(userId);
     this.restartLogoutTimer()
   }
 
@@ -368,7 +371,9 @@ export class UserService {
 
 
   setChats(chats: ChatData[]) {
-    this.chatsService.initialize( chats )
+    if (this.user) {
+      this.chatsService.initialize( chats, this.user.userId ) 
+    }    
   }
 
 
@@ -465,7 +470,7 @@ export class UserService {
   // unused
   getUser(): Observable<HttpResponse<{user: User, settings: Settings}>> | undefined {
     if (this.user){ 
-      this.updateSession()
+      this.updateSession(false)
       return this.connection.user(this.user.userId)
     }
     else 
@@ -476,7 +481,7 @@ export class UserService {
 
   updateJoiningOffset(body: UserOffsetUpdate) {
     if (this.user){ 
-      this.updateSession()
+      this.updateSession(false)
       return this.connection.updateJoiningOffset(this.user.userId, body)
     }
     else 
@@ -487,7 +492,7 @@ export class UserService {
 
   changeSettings(s: Settings): Observable<HttpResponse<any>> | undefined {
     if (this.user)  {
-      this.updateSession()
+      this.updateSession(false)
       return this.connection.changeSettings(this.user.userId, s)
     }      
     else 
@@ -498,7 +503,7 @@ export class UserService {
 
   changeLogin(newLogin: string): Observable<HttpResponse<any>> | undefined {
     if (this.user) {
-      this.updateSession()
+      this.updateSession(false)
       return this.connection.changeLogin(this.user.userId, newLogin)
     }
     else
@@ -509,7 +514,7 @@ export class UserService {
 
   changePassword(oldPassword: string, newPassword: string): Observable<HttpResponse<any>> | undefined {
     if (this.user) {
-      this.updateSession()
+      this.updateSession(false)
       return this.connection.changePassword(this.user.userId, oldPassword, newPassword);
     }
     else return undefined;  
@@ -518,7 +523,7 @@ export class UserService {
 
   searchUser(search: string): Observable<HttpResponse<User[]>> | undefined {
     if (this.user) {
-      this.updateSession()
+      this.updateSession(false)
       return this.connection.searchUser(this.user.userId, search);
     }
     else return undefined;
@@ -529,7 +534,7 @@ export class UserService {
 
   newChat(chatName: string, usersIds: string[]): Observable<HttpResponse<ChatData[]>> | undefined {
     if (this.user) {
-      this.updateSession()
+      this.updateSession(false)
       return this.connection.newChat(this.user, chatName, usersIds);
     } 
     else return undefined;    
@@ -538,7 +543,7 @@ export class UserService {
 
   getChats(): Observable<HttpResponse<ChatData[]>> | undefined {
     if ( this.user ) {
-      this.updateSession()
+      this.updateSession(false)
       return this.connection.getChats(this.user.userId);
     }
     else return undefined;
@@ -546,7 +551,7 @@ export class UserService {
 
   getChatData(chatId: string): Observable<HttpResponse<{chat: Chat, partitionOffsets: Array<{partition: number, offset: number}>}>> | undefined  {
     if (this.user) {
-      this.updateSession()
+      this.updateSession(false)
       return this.connection.getChatData(this.user.userId, chatId);
     }
     else return undefined;
@@ -555,7 +560,7 @@ export class UserService {
 
   getChatUsers(chatId: string): Observable<HttpResponse<User[]>> | undefined {
     if (this.user) {
-      this.updateSession()
+      this.updateSession(false)
       return this.connection.getChatUsers(this.user.userId, chatId);
     }
     else return undefined;
@@ -564,7 +569,7 @@ export class UserService {
 
   leaveChat(chatId: string): Observable<HttpResponse<any>> | undefined {
     if (this.user) {
-      this.updateSession()
+      this.updateSession(false)
       return this.connection.leaveChat(this.user.userId, chatId);
     }
     else return undefined;
@@ -573,7 +578,7 @@ export class UserService {
 
   setChatSettings(chat: Chat): Observable<HttpResponse<any>> | undefined {
     if (this.user) {
-      this.updateSession()
+      this.updateSession(false)
       return this.connection.setChatSettings(this.user.userId, chat);
     } 
     else return undefined;
@@ -582,7 +587,7 @@ export class UserService {
   
   addUsersToChat(chatId: string, chatName: string, usersIds: string[], partitionOffsets: PartitionOffset[]) {
     if (this.user)  {
-      this.updateSession()
+      this.updateSession(false)
       return this.connection.addUsersToChat(this.user.userId, this.user.login, chatId, chatName, usersIds, partitionOffsets);
     }    
     else return undefined;    
@@ -619,6 +624,7 @@ export class UserService {
     }
   }
 
+  
 
   sendMessage(msg: Message) {
     this.connection.sendMessage(msg);
@@ -629,25 +635,37 @@ export class UserService {
     this.connection.sendInvitation(inv)
   }
 
+
+
   sendWriting(w: Writing){
     this.connection.sendWriting( w )
   }
+
+
 
   sendChatOffsetUpdate(update: ChatOffsetUpdate) {
     this.connection.sendChatOffsetUpdate( update )
   }
 
+
+
   startListeningFromNewChat(chatId: string, partitionOffsets: PartitionOffset[]) {
     this.connection.startListeningFromNewChat( chatId , partitionOffsets)
   }
+
+
 
   fetchOlderMessages(chatId: string) {
     this.connection.fetchOlderMessages( chatId )
   }
   
+
+
   isWSconnected(): boolean {
     return this.connection.isWSconnected()
   }
+
+
 
   isWSconnectionDefined(): boolean {
     return this.connection.isWSconnectionDefined()
@@ -685,12 +703,6 @@ export class UserService {
     this.connection.callAngular();
   }
 
-
-  updateCookie() {
-    if (this.user)
-      this.connection.updateSession(this.user.userId)
-  }
-  
 
   createKSID(): string | undefined {
     return this.connection.getSessionToken();

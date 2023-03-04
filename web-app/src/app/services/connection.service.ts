@@ -506,9 +506,27 @@ export class ConnectionService {
   }
 
 
-  sendSessionUpdate() {
-    implement // session update via WS
+
+  
+  updateSession(sendUpdateToServer: boolean) {
+    if (this.wsConnection && this.myUserId) {
+      console.log('sending session update to server.');
+      this.session.updateSession(this.myUserId)
+      const ksid = this.session.getKsid()
+      if (ksid && sendUpdateToServer) {
+        const session = {
+          sessionId: ksid.sessId,
+          userId: ksid.userId,
+          validityTime: ksid.validityTime
+        }
+        this.wsConnection.send(JSON.stringify( session ));
+      }
+    } else {
+      console.error('Did not send data, open a connection first');
+    }  
   }
+
+
 
   
   startListeningFromNewChat(chatId: string, partOffsets: PartitionOffset[]) {
@@ -605,9 +623,11 @@ export class ConnectionService {
 
 
 
-  updateSession(userId: string) {
-    this.session.updateSession(userId);
-  }
+  // use sendSessionUpdate() insted
+
+  /* updateSession(userId: string) {
+    this.session.updateSession(userId); 
+  } */
 
 
 

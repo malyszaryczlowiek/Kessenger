@@ -45,7 +45,7 @@ export class SigninComponent implements OnInit {
                 );
                 // after successfull request we should update KSID cookie 
                 // to have correct userId
-                this.userService.updateSession()
+                this.userService.updateSession(false)
                 this.userService.setChats( response.body.chatList )
                 // this.userService.connectViaWebsocket() ttt
                 this.router.navigate(['user']);

@@ -5,6 +5,7 @@ import { debounceTime, distinctUntilChanged, of, share, startWith, Subject, swit
 import { ChatData } from 'src/app/models/ChatData';
 import { Message } from 'src/app/models/Message';
 import { User } from 'src/app/models/User';
+import { ResponseNotifierService } from 'src/app/services/response-notifier.service';
 import { UserService } from 'src/app/services/user.service';
 
 @Component({
@@ -32,19 +33,22 @@ export class CreateChatComponent implements OnInit, OnDestroy {
 
   public disableSubmitting: boolean = true;
   
-  returnedError: any | undefined
+  // returnedError: any | undefined
   createMessage: string | undefined
 
 
 
 
 
-  constructor(private userService: UserService, private router: Router) { }
+  constructor(
+    private userService: UserService,
+    private responseNotifier: ResponseNotifierService,
+    private router: Router) { }
 
 
   ngOnInit(): void {
     console.log('CreateChatComponent.ngOnInit()')
-    this.userService.updateSession()  
+    this.userService.updateSession(true)  
   }
 
   ngOnDestroy(): void {
@@ -92,20 +96,18 @@ export class CreateChatComponent implements OnInit, OnDestroy {
               console.log('Chat creation status != 200')
             }
           }, 
-          error: (error) => {
+          error: (err) => {
             this.createMessage = undefined
-            console.log("ERROR", error)
-            if (error.status == 401){
+            console.log("ERROR", err)
+            const print = {
+              header: 'Error',
+              code: err.error.num,
+              message: err.error.message
+            }
+            this.responseNotifier.printNotification( print )            
+            if (err.status == 401){
               console.log('Session is out.')
               this.router.navigate(['session-timeout'])
-            }
-            /* if (error.status == 400) {
-              if () {
-
-              }
-            } */
-            else {
-              this.returnedError = error.error
             }
           },
           complete: () => {}
@@ -121,7 +123,7 @@ export class CreateChatComponent implements OnInit, OnDestroy {
 
 
   search() {
-    this.userService.updateSession()
+    this.userService.updateSession(false)
     this.foundUsers = new Array<User>()
     this.foundUsers.find
     const searchLogin = this.searchUserForm.controls.login.value
@@ -161,15 +163,19 @@ export class CreateChatComponent implements OnInit, OnDestroy {
               console.log('No User found')
             }
           },
-          error: (error) => {
-            console.log("ERROR", error)
+          error: (err) => {
+            console.log("ERROR", err)
             this.foundUsers = new Array()  // todo to skasować CHYBA można
-            if (error.status == 401){
+            const print = {
+              header: 'Error',
+              code: err.error.num,
+              message: err.error.message
+            }
+            this.responseNotifier.printNotification( print )
+
+            if (err.status == 401){
               console.log('Session is out.')
               this.router.navigate(['session-timeout'])
-            }
-            else {
-              this.returnedError = error.error
             }
           },
           complete: () => {}
@@ -211,13 +217,13 @@ export class CreateChatComponent implements OnInit, OnDestroy {
 
   validateForm() {
     this.disableSubmitting = !( this.chatForm.valid && this.selectedUsers.length > 0 );
-    this.userService.updateSession()
+    this.userService.updateSession(true)
   }
 
-  clearError() {
-    this.userService.updateSession()
+  /* clearError() {
+    this.userService.updateSession(true)
     this.returnedError = undefined
-  }
+  } */
 
 
 }

@@ -8,6 +8,7 @@ import io.github.malyszaryczlowiek.kessengerlibrary.model.ChatOffsetUpdate.parse
 import io.github.malyszaryczlowiek.kessengerlibrary.model.FetchMessagesFrom.parseFetchingOlderMessagesRequest
 import io.github.malyszaryczlowiek.kessengerlibrary.model.ChatPartitionsOffsets.parseChatPartitionOffsets
 import io.github.malyszaryczlowiek.kessengerlibrary.model.Writing.parseWriting
+import io.github.malyszaryczlowiek.kessengerlibrary.model.SessionInfo.parseSessionInfo
 import util.KafkaAdmin
 import akka.actor._
 import akka.actor.PoisonPill
@@ -35,6 +36,7 @@ class WebSocketActor(out: ActorRef, ka: KafkaAdmin, kec: ExecutionContext, db: D
   case object InvitationReaderKey  extends ActorNameKey
   case object ChatOffsetUpdaterKey extends ActorNameKey
   case object WritingReaderKey     extends ActorNameKey
+  case object SessionUpdateKey     extends ActorNameKey
 
 
   private val actorId = UUID.randomUUID()
@@ -67,25 +69,29 @@ class WebSocketActor(out: ActorRef, ka: KafkaAdmin, kec: ExecutionContext, db: D
                       parseChatPartitionOffsets(s) match {
                         case Left(_) =>
                           println(s"6. CANNOT PARSE NewChatId")
-                          parseFetchingOlderMessagesRequest(s) match {
+                          parseSessionInfo(s) match {
                             case Left(_) =>
-                              println(s"7. CANNOT PARSE FetchingOlderMessages")
-                              if (s.equals("PoisonPill")) {
-                                println(s"8. GOT PoisonPill '$s'")
-                                self ! PoisonPill
+                              println(s"7. CANNOT PARSE SessionInfo")
+                              parseFetchingOlderMessagesRequest(s) match {
+                                case Left(_) =>
+                                  println(s"8. CANNOT PARSE FetchingOlderMessages")
+                                  if (s.equals("PoisonPill")) {
+                                    println(s"9. GOT PoisonPill '$s'")
+                                    self ! PoisonPill
+                                  }
+                                  else
+                                    println(s"9. '$s' is different from PoisonPill.")
+                                case Right(c) =>
+                                  println(s"8. GOT FETCHING OLDER MESSAGES REQUEST FROM: $c.chatId")
+                                  this.childrenActors.get(OldMessageReaderKey) match {
+                                    case Some(ref) => ref ! c.chatId
+                                    case None =>
+                                  }
                               }
-                              else
-                                println(s"8. '$s' is different from PoisonPill.")
-                            case Right(c) =>
-                              println(s"7. GOT FETCHING OLDER MESSAGES REQUEST FROM: $c.chatId")
-
-                              // todo to trzeba wysłać do innego aktora wraz z referencją
-                              //  do aktora out tak aby odpowiedź mogła zostać odesłana z powrotem
-
-                              // this.be.fetchOlderMessages(c.chatId)
-
-                              this.childrenActors.get(OldMessageReaderKey) match {
-                                case Some(ref) => ref ! c.chatId
+                            case Right(sessionInfo) =>
+                              println(s"7. GOT SessionInfo $sessionInfo")
+                              this.childrenActors.get(SessionUpdateKey) match {
+                                case Some(ref) => ref ! sessionInfo
                                 case None =>
                               }
                           }
@@ -122,19 +128,18 @@ class WebSocketActor(out: ActorRef, ka: KafkaAdmin, kec: ExecutionContext, db: D
                   }
                 case Right(conf: Configuration) =>
                   println(s"4. GOT CONFIGURATION: $conf")
-                  // todo tutaj jak mymy konfigurację to powinniśmy utworzyć aktora do fetchowania starych wiadomości.
                   // this.be.initialize(conf)
-
                   // initialize all child actors
                   this.childrenActors.addAll(
                     List(
-                      (ChatOffsetUpdaterKey, context.actorOf( ChatOffsetUpdateActor.props( conf, db, dbec) )),
+                      (ChatOffsetUpdaterKey, context.actorOf( ChatOffsetUpdateActor.props(conf, db, dbec) )),
                       (InvitationReaderKey,  context.actorOf( InvitationReaderActor.props(new InvitationReader(out, self, conf, this.ka, this.kec) ))),
                       (NewMessageReaderKey,  context.actorOf( NewMessageReaderActor.props(new NewMessageReader(out, self, conf, this.ka, this.kec) ))),
                       (OldMessageReaderKey,  context.actorOf( OldMessageReaderActor.props(new OldMessageReader(out, self, conf, this.ka, this.kec) ))),
-                      (MessageSenderKey,     context.actorOf( SendMessageActor.props(conf, ka) )),
-                      (WritingSenderKey,     context.actorOf( SendWritingActor.props(conf, ka) )),
-                      (WritingReaderKey,     context.actorOf( WritingReaderActor.props(new WritingReader(out, self, conf, ka, this.kec) ))),
+                      (MessageSenderKey,     context.actorOf( SendMessageActor.props(     conf, ka) )),
+                      (WritingSenderKey,     context.actorOf( SendWritingActor.props(     conf, ka) )),
+                      (WritingReaderKey,     context.actorOf( WritingReaderActor.props(   new WritingReader(out, self, conf, ka, this.kec) ))),
+                      (SessionUpdateKey,     context.actorOf( SessionUpdateActor.props(   db, dbec ))),
                     )
                   )
                   out ! "{\"comm\":\"opened correctly\"}"

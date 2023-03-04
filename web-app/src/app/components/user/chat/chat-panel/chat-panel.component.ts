@@ -150,32 +150,11 @@ export class ChatPanelComponent implements OnInit, OnDestroy {
     const chatId = this.activated.snapshot.paramMap.get('chatId');
     if ( chatId ) { this.chatService.selectChat( chatId )}
     
-    /* if ( chatId ) { 
-      const currentChat = this.userService.getAllChats().find(  (chatData, index, arr) => {
-        return chatData.chat.chatId == chatId;
-      })
-      if ( currentChat ) {
-        this.chatService.selectChat( currentChat.chat.chatId )
-      } else {
-        this.chatService.selectChat( undefined )
-        this.router.navigate(['page-not-found']);
-      }
-    } */
 
     
     if ( this.userService.isWSconnected() ) {
       this.userService.dataFetched( 4 ) // here we need to only fetch to chat panel. 
     } 
-
-//     console.error('selected chat', this.chatService.selectedChat)
-
-    
-    
-    // tutaj // trzeba jeszcze sprawdzić czy current chat jest ustawiony
-    // albo tez sprawdzić zcy już nie ma chatów w chat liście.     
-    // todo  // fetchowanie może się wykonać trzy razy
-    // 1. jest info o chacie z bazy danych ale nie ma żadnych wiadomości         np nowo utworzony chat
-    // 2. przychodzi pierwszy pakiet wiadomości w tym chacie
     
   }
 
@@ -196,7 +175,7 @@ export class ChatPanelComponent implements OnInit, OnDestroy {
 
   sendMessage(m: Message) {
     console.log('sending message', m)
-    this.userService.updateSession()
+    this.userService.updateSession(true)
     this.userService.sendMessage( m )                        
   }
 
@@ -204,7 +183,7 @@ export class ChatPanelComponent implements OnInit, OnDestroy {
 
 
   goToChatSettings() {
-    this.userService.updateSession()
+    this.userService.updateSession(true)
     this.router.navigate(['user', 'editChat', `${this.chatData?.chat.chatId}`])
   }
 

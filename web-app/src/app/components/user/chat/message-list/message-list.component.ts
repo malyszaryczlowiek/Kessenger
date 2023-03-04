@@ -23,6 +23,7 @@ export class MessageListComponent implements OnInit, OnDestroy {
     this.messageListScrollSubscription = this.htmlService.messageListScrollEventEmitter.subscribe(
       (s) => {
         if (s == 'top') {
+          this.userService.updateSession(true)
           console.log('MessageListComponent.messageListScrollSubscription : scrolled to top')
         }
         if (s == 'down') {
@@ -30,6 +31,7 @@ export class MessageListComponent implements OnInit, OnDestroy {
         }          
       }
     )
+    this.htmlService.resizeMessageListAfter(100)
   }
 
 
