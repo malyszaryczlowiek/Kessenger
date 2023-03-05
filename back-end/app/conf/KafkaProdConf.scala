@@ -9,4 +9,6 @@ class KafkaProdConf extends KafkaProductionConfigurator {
 
   override def CHAT_TOPIC_PARTITIONS_NUMBER: Int = 1
 
+  override def EXTERNAL_SERVERS: String = super.INTERNAL_SERVERS
+
 }

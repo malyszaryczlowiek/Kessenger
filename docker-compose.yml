@@ -101,6 +101,21 @@ services:
       - '5438:5432'
 
 
+  play-app:
+    container_name: play-app
+    build: ./back-end
+    depends_on:
+      - db
+      - kafka1
+      - kafka2
+      - kafka3
+    ports:
+      - '9000:9000'
+    networks:
+      - my-simple-network
+
+
+
   pgadmin:
     container_name: pgadmin
     image: dpage/pgadmin4:6.15
@@ -116,6 +131,8 @@ services:
     restart: unless-stopped
     logging:
       driver: "none"
+
+
 
 
   # Kafka streams chat Analyser

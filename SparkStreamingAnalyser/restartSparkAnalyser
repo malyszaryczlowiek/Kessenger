@@ -1,0 +1,16 @@
+#!/bin/zsh
+
+#docker stop spark-worker-1
+#docker rm -v spark-worker-1
+#docker rmi kessenger_spark-worker-1
+
+
+docker stop spark-master
+docker rm -v spark-master
+docker rmi kessenger_spark-master
+
+sbt assembly
+
+cd ..
+docker-compose up -d # --build
+cd SparkStreamingAnalyser

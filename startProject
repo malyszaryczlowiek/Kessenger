@@ -2,5 +2,7 @@
 # before starting project we need generate JAR file of kafka streams analyser and spark streaming analyser
 #./KafkaStreamsChatAnalyser/generateJAR
 #./SparkStreamingAnalyser/generateJAR
+rm -rf ./back-end/target/universal
+./back-end/generateBin
 docker-compose up -d # --build
 #./ClientCliApp/generateJAR

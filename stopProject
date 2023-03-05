@@ -3,6 +3,22 @@
 
 function close_required {
 
+  docker stop play-app
+  docker rm -v play-app
+  docker rmi kessenger_play-app
+
+#  docker stop kafka_streams_chat_analyser
+#  docker rm -v kafka_streams_chat_analyser
+#  docker rmi  kessenger_kafka_streams
+
+
+}
+
+
+function close_other {
+  docker stop pgadmin
+  docker rm -v pgadmin
+
   docker stop KessengerDB
   docker rm -v KessengerDB
   docker rmi kessenger_db      ##   delete unused image
@@ -29,12 +45,7 @@ function close_required {
 
   docker stop kafka3
   docker rm -v kafka3
-}
 
-
-function close_other {
-  docker stop pgadmin
-  docker rm -v pgadmin
 
   docker stop zookeeper
   docker rm -v zookeeper
