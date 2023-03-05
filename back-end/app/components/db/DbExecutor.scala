@@ -3,7 +3,7 @@ package components.db
 import io.github.malyszaryczlowiek.kessengerlibrary.db.queries._
 import io.github.malyszaryczlowiek.kessengerlibrary.db.queries.ERROR
 import io.github.malyszaryczlowiek.kessengerlibrary.domain.Domain
-import io.github.malyszaryczlowiek.kessengerlibrary.model.{Chat, ChatPartitionsOffsets, PartitionOffset, SessionInfo, Settings, User}
+import io.github.malyszaryczlowiek.kessengerlibrary.model.{Chat, PartitionOffset, SessionInfo, Settings, User}
 import io.github.malyszaryczlowiek.kessengerlibrary.domain.Domain.{ChatId, ChatName, DbResponse, Login, Offset, Partition, Password, UserID}
 import io.github.malyszaryczlowiek.kessengerlibrary.kafka.configurators.KafkaConfigurator
 
