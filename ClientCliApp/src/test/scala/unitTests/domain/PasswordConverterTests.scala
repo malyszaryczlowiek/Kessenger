@@ -1,7 +1,7 @@
-package com.github.malyszaryczlowiek
+package io.github.malyszaryczlowiek
 package unitTests.domain
 
-import com.github.malyszaryczlowiek.util.PasswordConverter
+import io.github.malyszaryczlowiek.util.PasswordConverter
 import kessengerlibrary.domain.Domain.Password
 
 

@@ -1,4 +1,4 @@
-package com.github.malyszaryczlowiek
+package io.github.malyszaryczlowiek
 package integrationTests
 
 trait IntegrationTestsTrait :

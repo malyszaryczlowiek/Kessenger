@@ -1,0 +1,49 @@
+<div>
+
+    <h2>Your Settings</h2>
+    <div>
+        <form [formGroup]="settingsGroup" (ngSubmit)="saveSettings()">
+            Session Time: 
+            <input formControlName="sessionControl" type="number" min="1" max="15" placeholder=""> 
+            (Minutes < min: 1, max: 15>)     
+            <br>
+            Your Zone:
+            <select formControlName="zoneControl" > 
+                <option *ngIf="settings">{{ settings.zoneId }}</option>
+                <!-- <option >Select Your Zone</option> -->
+                <option *ngFor="let zone of zones">{{ zone }}</option>
+            </select>
+            <p></p>
+            <button type="submit" [disabled]="!settingsGroup.valid">Save</button>
+        </form>
+        
+    </div>
+    <p *ngIf="settingsChanged">Your Settings Successfully Changed!!!</p>
+    
+    
+    
+    <h4>Change Your Login</h4>
+    <div>
+        <form [formGroup]="loginFormGroup" (ngSubmit)="saveLogin()">
+            <input formControlName="loginForm" type="text" placeholder="Your New Login"><br>
+            <button type="submit" [disabled]="!loginFormGroup.valid">Change</button>
+        </form>
+    </div>
+    <p *ngIf="loginSuccessfullChanged">Login Successfully changed!!!</p>
+    <p *ngIf="loginTaken">Login Taken, Try With Another One!!!</p>
+    <p></p>
+
+
+
+    <h4>Change Password</h4>
+    <div>
+        <form [formGroup]="passGroup" (ngSubmit)="changePassword()">
+            <input formControlName="old" placeholder="Your Old Password"><br>
+            <input formControlName="neww" placeholder="Your New Password"><br>
+            <button type="submit" [disabled]="!passGroup.valid" >Change</button>
+        </form>
+    </div>
+    <p *ngIf="passwordSuccessfullChanged">Password Successfully changed!!!</p>
+    <p> </p>
+    <button routerLink="/user" routerLinkActive="active" ariaCurrentWhenActive="page">Back to Chats</button>
+</div>

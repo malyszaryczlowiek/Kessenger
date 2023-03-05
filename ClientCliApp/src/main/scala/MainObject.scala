@@ -1,6 +1,6 @@
-package com.github.malyszaryczlowiek
+package io.github.malyszaryczlowiek
 
-import com.github.malyszaryczlowiek.programExecution.ProgramExecutor
+import programExecution.ProgramExecutor
 
 import scala.util.control.Breaks.break
 

@@ -1,0 +1,46 @@
+<div  *ngIf="chatData" class="card m-1 text-center text-light bg-primary border border-3 border-dark">
+    
+    <div class="card-body">
+        <h4 class="card-title">{{ chatData.chat.chatName }}
+            <span *ngIf="getNumOfUnreadMessages() > 0" class="badge rounded-pill bg-danger"> <!-- position-absolute top-25 start-75 translate-middle -->
+                <!-- chatData.unreadMessages.length -->
+                {{ getNumOfUnreadMessages() }}
+                <span class="visually-hidden">unread messages</span>
+            </span>
+        </h4>
+        <h4 *ngIf="chatData.isNew" >
+            <span class="badge bg-warning">New Chat</span>
+        </h4>
+        <h6>
+            {{ calculateDate(chatData.chat.lastMessageTime) }}  
+        </h6>
+        <h6 *ngIf="wrt && print(wrt)">
+            {{ wrt.writerLogin }} is writing...
+        </h6>
+    </div>
+</div>
+
+<!-- 
+<div style="border: 1px solid blue;" *ngIf="chatData" >
+    <span *ngIf="chatData.unreadMessages.length > 0" class="position-absolute top-50 start-50 translate-middle badge rounded-pill bg-danger">
+        {{ chatData.unreadMessages.length }}
+        <span class="visually-hidden">unread messages</span>
+      </span>
+    <h6 *ngIf="chatData.isNew" >
+        <span class="badge bg-success">New Chat</span>
+    </h6>
+    <h3>{{ chatData.chat.chatName }}</h3>
+    <div *ngIf="wrt && print(wrt)">
+        {{ wrt.writerLogin }} is writing...
+    </div>
+    <div>
+        Last Message: {{ calculateDate(chatData.chat.lastMessageTime) }}  
+     </div>
+</div>
+
+ -->
+    <!-- <h5 *ngIf="chatData.unreadMessages.length > 0">() New Messages</h5> -->
+    <!-- <div>
+        Last Message: {{ chatData.chat.lastMessageTime }}   
+       Last Message: {{ messageDate }}  
+    </div> -->

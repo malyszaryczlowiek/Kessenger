@@ -1,0 +1,40 @@
+<div class="container-fluid text-center"> 
+    <div class="d-flex flex-column vh-100">
+        <div class="row ">
+            <h1 class="mt-1">
+                <span class="badge rounded-pill text-bg-dark">Kessenger</span>
+            </h1>
+        </div>
+        <div class="row justify-content-evenly">
+            <div class="col">
+                <h3 id="id_sign_up">
+                    <span class="badge rounded-pill text-bg-dark">Sign Up</span>
+                </h3>
+                <app-signup></app-signup>
+            </div>
+            <div class="col">
+                <h3 id="id_sign_in">
+                    <span class="badge rounded-pill text-bg-dark">Sign In</span>
+                </h3>
+                <app-signin></app-signin> 
+            </div>
+        </div>
+        <div class="row">
+            <div class="toast-container position-fixed p-3 bottom-0 start-50 translate-middle-x ">
+                <div id="error_main_toast" class="toast" role="alert" aria-live="assertive" aria-atomic="true">
+                    <div class="toast-header bg-warning border border-dark border-1">
+                        <strong class="me-auto text-black">{{ error?.header }}</strong>
+                        <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
+                    </div>
+                    <div class="toast-body bg-warning border border-dark border-1">
+                        {{ error?.message }}
+                    </div>
+                </div>
+            </div>            
+        </div>
+    </div>    
+</div>
+ 
+
+
+

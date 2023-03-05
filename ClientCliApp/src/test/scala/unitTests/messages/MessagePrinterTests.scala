@@ -1,12 +1,12 @@
-package com.github.malyszaryczlowiek
+package io.github.malyszaryczlowiek
 package unitTests.messages
 
 import kessengerlibrary.domain.{Chat, User}
 import messages.MessagePrinter
 import messages.MessagePrinter.messagePrinterReverseOrdering
 
-import com.github.malyszaryczlowiek.kessengerlibrary.domain.Domain.{Offset, Partition}
-import com.github.malyszaryczlowiek.kessengerlibrary.kafka.configurators.KafkaConfigurator
+import io.github.malyszaryczlowiek.kessengerlibrary.domain.Domain.{Offset, Partition}
+import io.github.malyszaryczlowiek.kessengerlibrary.kafka.configurators.KafkaConfigurator
 
 import java.time.{LocalDateTime, Month}
 import java.util.UUID

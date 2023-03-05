@@ -1,0 +1,15 @@
+
+<div class="d-flex flex-column mt-1 mb-1 overflow-auto " id="messages" > <!-- align-items-center -->
+    <app-message-item *ngFor="let m of messages" [message]="m"></app-message-item>    
+</div>
+    
+
+
+<!--
+
+<div *ngFor="let m of messages" style="border: 4px solid orange;"> 
+    <app-message-item [message]="m"></app-message-item>    
+    <p></p>
+</div>
+
+-->

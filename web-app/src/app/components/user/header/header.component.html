@@ -1,0 +1,13 @@
+<div class="row " id="header">
+    <div class="col">
+        <button (click)="updateSession()" type="button" class="btn mt-1 me-1 mb-1 btn-secondary border border-1 border-dark" routerLink="./createChat" routerLinkActive="active" ariaCurrentWhenActive="page">Create New Chat</button> <!-- to po lewej-->
+        <button (click)="updateSession()" type="button" class="btn btn-secondary border border-1 border-dark" routerLink="./settings" routerLinkActive="active" ariaCurrentWhenActive="page">Settings</button> 
+    </div>
+
+    <div class="col-8 mt-2 text-end align-self-center">
+        <h6 (click)="updateSession()">{{ logoutSeconds }} seconds to Logout</h6>        
+    </div>
+    <div class="col-1">
+        <button type="button" class="btn mt-1 btn-secondary border border-1 border-dark" (click)="logout()">Logout</button> 
+    </div>
+</div>

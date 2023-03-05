@@ -1,0 +1,12 @@
+<div class="d-flex flex-column align-items-center overflow-auto border border-1 border-dark" id="chat_list" >
+    <app-chat-list-item  [wrt]="wrt" *ngFor="let c of chats; let i = index" [chatData]="c" (click)="onClick(c)"></app-chat-list-item>
+</div>
+
+
+
+
+<!--  
+
+    <app-chat-list-item  [wrt]="wrt" *ngFor="let c of chats; let i = index" [chatData]="c" (click)="onClick(c)"></app-chat-list-item>
+
+-->

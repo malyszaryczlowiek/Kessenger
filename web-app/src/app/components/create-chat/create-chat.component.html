@@ -1,0 +1,107 @@
+<div class="container text-center">
+    <div class="row border-top border-1 border-dark  justify-content-center">
+        <h1 class="mt-1">
+            <span class="badge rounded-pill text-bg-dark">Create Chat</span>
+        </h1>
+    </div>
+    <div class="row">
+        
+        <div class="col">
+            <h3>
+                <span class="badge rounded-pill text-bg-dark">Search Users</span>
+            </h3>
+            <form [formGroup]="searchUserForm" >
+                <input formControlName="login" (keyup)="search()" type="text" id="find-user" placeholder="Find User">
+                <!-- [disabled]="selectedUsers.length == 1" -->
+                <!-- <button (click)="search()"></button> -->
+            </form>
+            <h5 >
+                <span class="badge rounded-pill text-bg-light border border-dark mt-1">Select found user:</span>
+            </h5>
+            <h5 *ngIf="foundUsers.length == 0">
+                <span class="badge rounded-pill text-bg-danger">No User Found</span>
+            </h5>
+            <!-- <p *ngIf="foundUsers.length == 0"> No User Found.</p> -->
+            <div *ngFor="let found of foundUsers"  (click)="addToSelected(found)">
+                <h4>
+                    <span class="badge rounded-pill text-bg-primary">
+                        {{ found.login }}
+                    </span>
+                </h4>
+            </div>
+        </div>
+
+
+        <div class="col">
+            <h3>
+                <span class="badge rounded-pill text-bg-dark">Selected Users</span>
+            </h3>
+            <h4 *ngIf="selectedUsers.length == 0">
+                <span class="badge rounded-pill text-bg-danger"> No User Selected</span>
+            </h4>
+            <!-- <h4 *ngIf="selectedUsers.length == 0">
+                <span class="badge rounded-pill text-bg-danger"> No User Selected</span>
+            </h4>
+            
+            <p *ngIf="selectedUsers.length > 0">Selected Users:</p> -->
+            
+            <div *ngFor="let selected of selectedUsers">
+                <h3>
+                    <span class="badge rounded-pill text-bg-primary">
+                        {{ selected.login }}
+                    </span>
+                    <button class="btn btn-danger btn-sm" (click)="unselect(selected)">X</button>
+                </h3>
+            </div>
+        </div>
+
+
+        <div class="col">
+            <h3>
+                <span class="badge rounded-pill text-bg-dark">Set Chat Name</span>
+            </h3>
+            <form [formGroup]="chatForm" (ngSubmit)="create()" >
+                <input (keyup)="validateForm()" formControlName="chatName" type="text" id="chat-name" placeholder="Chat Name">
+                <br>
+                <!-- <label>Group Chat</label>
+                <input formControlName="groupChat" type="checkbox" id="group-chat" value="false">
+                <br> -->
+
+                <button class="btn btn-success border border-1 border-dark mt-1" type="submit" [disabled]="disableSubmitting" type="submit">Create Chat</button>
+            </form>
+            
+        </div>
+        
+    </div>
+    <div class="row border-top border-1 border-dark justify-content-center">
+        <div class="col mt-1">
+            <button class="btn btn-secondary border border-1 border-dark" routerLink="/user" routerLinkActive="active" ariaCurrentWhenActive="page">Cancel</button>
+        </div>
+        
+    </div>
+</div>
+
+
+
+<!-- <div>
+    
+</div>
+<p></p>
+<p></p>
+<div>
+    
+</div>
+<p></p>
+<div>
+    
+</div>
+<p></p>
+
+<div *ngIf="createMessage">
+    <p>CreateMessage:  {{ createMessage }}</p>
+</div>
+<p></p>
+<div *ngIf="returnedError" (click)="clearError()">
+    Error: {{ returnedError.num }} Message: {{ returnedError.message }} 
+</div> -->
+

@@ -1,4 +1,4 @@
-package com.github.malyszaryczlowiek
+package io.github.malyszaryczlowiek
 package programExecution
 
 
@@ -98,7 +98,7 @@ object ProgramExecutor :
     // validate if login does not match punctation characters:
     // !#%&'()*+,-./:;<=>?@[\\]^_`{|}~.\"$
     // and does not contain only numbers
-    val loginRegex = "([\\p{Alnum}]*[\\p{Punct}]+[\\p{Alnum}]*)|([0-9]+)".r
+    val loginRegex = "([\\p{Alnum}\\p{Punct}]*[\\p{Punct}]+[\\p{Alnum}\\p{Punct}]*)|([0-9]+)".r
     //if so we need to repeat question.
     if "".equals(login) then
       println(s"Login cannot be empty.")
@@ -226,7 +226,7 @@ object ProgramExecutor :
         (chatIndex: (Chat, Int)) => {
           val numOfUnreadMessages = manager.getNumOfUnreadMessages(chatIndex._1)
           val numOfReadMessages   = manager.getNumOfReadMessages(chatIndex._1)
-          if numOfReadMessages = 0L then
+          if numOfReadMessages == 0L then
             println(s"${chatIndex._2 + 1}) ${chatIndex._1.chatName} (New Chat) ($numOfUnreadMessages new message(s))")
           else if numOfReadMessages > 0L && numOfUnreadMessages > 0L then
             println(s"${chatIndex._2 + 1}) ${chatIndex._1.chatName} ($numOfUnreadMessages new message(s))")

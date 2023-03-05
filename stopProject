@@ -12,6 +12,12 @@ function close_required {
   docker rm -v kafka_streams_chat_analyser
   docker rmi  kessenger_kafka_streams
 
+
+  docker stop spark-master
+  docker rm -v spark-master
+  docker rmi kessenger_spark-master
+
+
   docker stop kafka1
   docker rm -v kafka1
   #docker rmi kessenger_kafka1
@@ -24,9 +30,6 @@ function close_required {
   docker stop kafka3
   docker rm -v kafka3
 }
-
-# we start closing some docker containers
-close_required
 
 
 function close_other {
@@ -47,6 +50,8 @@ function ask_argument {
 }
 
 
+# we start closing some docker containers
+close_required
 
 if [[ $# -eq 1 && "--all" == $1 ]] ; then
   close_other

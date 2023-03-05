@@ -1,0 +1,3 @@
+package modules
+
+trait SomeTrait

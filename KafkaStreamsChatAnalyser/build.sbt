@@ -4,10 +4,10 @@ ThisBuild / scalaVersion := "3.1.1"
 lazy val root = (project in file("."))
   .settings(
     name := "KafkaStreamsChatAnalyser",
-    idePackagePrefix := Some("com.github.malyszaryczlowiek"),
+    idePackagePrefix := Some("io.github.malyszaryczlowiek"),
     assembly / assemblyJarName := s"${name.value}-${version.value}.jar",
 
-    externalResolvers += "KessengerLibrary packages" at "https://maven.pkg.github.com/malyszaryczlowiek/KessengerLibrary",
+    // externalResolvers += "KessengerLibrary packages" at "https://maven.pkg.github.com/malyszaryczlowiek/KessengerLibrary",
 
     libraryDependencies ++= Seq(
 
@@ -16,11 +16,9 @@ lazy val root = (project in file("."))
       ("org.apache.kafka" %% "kafka-streams-scala" % "3.1.0").cross(CrossVersion.for3Use2_13),
       "org.apache.kafka"  % "kafka-clients"        % "3.1.0",
 
-
-
       // Own library with util and domain classes.
-      // https://github.com/malyszaryczlowiek/KessengerLibrary
-      "com.github.malyszaryczlowiek" %% "KessengerLibrary" % "0.1.19",
+      // https://github.com/malyszaryczlowiek/kessenger-lib
+      "io.github.malyszaryczlowiek" %% "kessenger-lib" % "0.2.1",
 
 
       // to switch off logging from slf4j
@@ -39,7 +37,7 @@ lazy val root = (project in file("."))
   )
 
 // for build JAR executable.
-assembly / mainClass := Some("com.github.malyszaryczlowiek.StreamsChatAnalyser")
+assembly / mainClass := Some("io.github.malyszaryczlowiek.StreamsChatAnalyser")
 assembly / assemblyMergeStrategy := {
   case PathList("META-INF", xs @ _*) => MergeStrategy.discard
   case x => MergeStrategy.first
@@ -47,6 +45,3 @@ assembly / assemblyMergeStrategy := {
 
 Compile / run := Defaults.runTask(Compile / fullClasspath, Compile / run / mainClass, Compile / run / runner).evaluated
 
-
-
-// ("org.apache.kafka" %% "kafka-streams-scala" % "3.1.0").cross(CrossVersion.for3Use2_13)

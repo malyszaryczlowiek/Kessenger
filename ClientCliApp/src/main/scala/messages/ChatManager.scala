@@ -1,4 +1,4 @@
-package com.github.malyszaryczlowiek
+package io.github.malyszaryczlowiek
 package messages
 
 import account.MyAccount
@@ -6,6 +6,7 @@ import db.ExternalDB
 
 import kessengerlibrary.db.queries.QueryErrors
 import kessengerlibrary.domain.{Chat, Domain, User}
+import kessengerlibrary.domain.Chat.orderChatWithDate
 import kessengerlibrary.domain.Domain.*
 import kessengerlibrary.messages.Message
 import kessengerlibrary.kafka.configurators.KafkaConfigurator
@@ -140,7 +141,7 @@ class ChatManager(var me: User):
    * <p>
    * if {@link  tryToCreateJoiningTopic tryToCreateJoiningTopic()}
    * returns Left object with error other then
-   * {@link com.github.malyszaryczlowiek.kessengerlibrary.kafka.errors.KafkaErrorMessage.ChatExistsError KafkaErrorMessage.ChatExistsError}
+   * {@link io.github.malyszaryczlowiek.kessengerlibrary.kafka.errors.KafkaErrorMessage.ChatExistsError KafkaErrorMessage.ChatExistsError}
    * (which means that joining topic already exists),
    * this means that there is some problems with kafka broker,
    * and this method should not be called.

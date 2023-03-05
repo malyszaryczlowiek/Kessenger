@@ -1,4 +1,4 @@
-package com.github.malyszaryczlowiek
+package io.github.malyszaryczlowiek
 package messages
 
 import kessengerlibrary.domain.Domain.{ChatId, JoinId, UserID, WritingId}
@@ -26,8 +26,6 @@ import scala.jdk.javaapi.CollectionConverters
 /**
  *
  *
- * Note:
- * Future implementation will use custom serdes.
  */
 object KessengerAdmin :
 
@@ -36,10 +34,10 @@ object KessengerAdmin :
   private var admin: Admin = _
   private var configurator: KafkaConfigurator = _
 
-  private val userSerializer      = "com.github.malyszaryczlowiek.kessengerlibrary.serdes.UserSerializer"
-  private val userDeserializer    = "com.github.malyszaryczlowiek.kessengerlibrary.serdes.UserDeserializer"
-  private val messageSerializer   = "com.github.malyszaryczlowiek.kessengerlibrary.serdes.MessageSerializer"
-  private val messageDeserializer = "com.github.malyszaryczlowiek.kessengerlibrary.serdes.MessageDeserializer"
+  private val userSerializer      = "io.github.malyszaryczlowiek.kessengerlibrary.serdes.UserSerializer"
+  private val userDeserializer    = "io.github.malyszaryczlowiek.kessengerlibrary.serdes.UserDeserializer"
+  private val messageSerializer   = "io.github.malyszaryczlowiek.kessengerlibrary.serdes.MessageSerializer"
+  private val messageDeserializer = "io.github.malyszaryczlowiek.kessengerlibrary.serdes.MessageDeserializer"
   private val stringSerializer    = "org.apache.kafka.common.serialization.StringSerializer"
   private val stringDeserializer  = "org.apache.kafka.common.serialization.StringDeserializer"
 
@@ -47,7 +45,7 @@ object KessengerAdmin :
   def startAdmin(conf: KafkaConfigurator): Unit =
     configurator = conf
     val properties = new Properties
-    properties.put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, configurator.SERVERS)
+    properties.put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, configurator.EXTERNAL_SERVERS)
     admin = Admin.create(properties)
     status.synchronized { status = Running }
 
@@ -132,7 +130,7 @@ object KessengerAdmin :
   def createChatProducer: KafkaProducer[String, Message] =
     val properties = new Properties
     // ProducerConfig.RETRIES_CONFIG which is default set to Integer.MAX_VALUE id required by idempotence.
-    properties.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG     , configurator.SERVERS)
+    properties.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG     , configurator.EXTERNAL_SERVERS)
     properties.put(ProducerConfig.ACKS_CONFIG                  , "all")  // (1) this configuration specifies the minimum number of replicas that must acknowledge a write for the write to be considered successful
     properties.put(ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG    , "true") // we do not need duplicates in partitions
     properties.put(ProducerConfig.LINGER_MS_CONFIG             , "0") // we do not wait to fill the buffer and send message immediately
@@ -164,7 +162,7 @@ object KessengerAdmin :
    */
   def createChatConsumer(userId: String): KafkaConsumer[String, Message] =
     val props: Properties = new Properties();
-    props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG       , configurator.SERVERS)
+    props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG       , configurator.EXTERNAL_SERVERS)
     props.put(ConsumerConfig.GROUP_ID_CONFIG                , userId)
     props.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG      , "false")
     props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG  , stringDeserializer)
@@ -216,7 +214,7 @@ object KessengerAdmin :
    */
   def createJoiningProducer: KafkaProducer[String, Message] = //???
     val properties = new Properties
-    properties.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG     , configurator.SERVERS)
+    properties.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG     , configurator.EXTERNAL_SERVERS)
     properties.put(ProducerConfig.ACKS_CONFIG                  , "all")    // (1) this configuration specifies the minimum number of replicas that must acknowledge a write for the write to be considered successful
     properties.put(ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG    , "true")   // we do not need duplicates in partitions
     properties.put(ProducerConfig.LINGER_MS_CONFIG             , "0")      // we do not wait to fill the buffer and send message immediately
@@ -237,7 +235,7 @@ object KessengerAdmin :
    */
   def createJoiningConsumer(groupId: String): KafkaConsumer[String, Message] =
     val props: Properties = new Properties();
-    props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG       , configurator.SERVERS)
+    props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG       , configurator.EXTERNAL_SERVERS)
     props.put(ConsumerConfig.GROUP_ID_CONFIG                , groupId)
     props.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG      , "false")
     props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG  , stringDeserializer)

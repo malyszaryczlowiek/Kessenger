@@ -4,10 +4,10 @@ ThisBuild / scalaVersion := "3.1.1"
 lazy val root = (project in file("."))
   .settings(
     name := "ClientCliApp",
-    idePackagePrefix := Some("com.github.malyszaryczlowiek"),
+    idePackagePrefix := Some("io.github.malyszaryczlowiek"),
     assembly / assemblyJarName := s"${name.value}-${version.value}.jar",
 
-    externalResolvers += "KessengerLibrary packages" at "https://maven.pkg.github.com/malyszaryczlowiek/KessengerLibrary",
+    //externalResolvers += "KessengerLibrary packages" at "https://maven.pkg.github.com/malyszaryczlowiek/KessengerLibrary",
 
     libraryDependencies ++= Seq(
 
@@ -25,11 +25,11 @@ lazy val root = (project in file("."))
 
 
       // for connecting to PostgreSQL db
-      "org.postgresql" % "postgresql" % "42.3.3" ,
+      "org.postgresql" % "postgresql" % "42.3.3",
 
 
       // logging api
-      "org.apache.logging.log4j" % "log4j-api" % "2.18.0",
+      "org.apache.logging.log4j" % "log4j-api"  % "2.18.0",
       "org.apache.logging.log4j" % "log4j-core" % "2.18.0",
 
 
@@ -38,8 +38,8 @@ lazy val root = (project in file("."))
 
 
       // Own library with util and domain classes.
-      // https://github.com/malyszaryczlowiek/KessengerLibrary
-      "com.github.malyszaryczlowiek" %% "KessengerLibrary" % "0.1.19",
+      // https://github.com/malyszaryczlowiek/kessenger-lib
+      "io.github.malyszaryczlowiek" %% "kessenger-lib" % "0.2.1",
 
 
       // For Tests
@@ -50,7 +50,7 @@ lazy val root = (project in file("."))
 
 
 // for build JAR executable.
-assembly / mainClass := Some("com.github.malyszaryczlowiek.MainObject")
+assembly / mainClass := Some("io.github.malyszaryczlowiek.MainObject")
 assembly / assemblyMergeStrategy := {
   case PathList("META-INF", xs @ _*) => MergeStrategy.discard
   case x => MergeStrategy.first
