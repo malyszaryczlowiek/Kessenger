@@ -18,6 +18,7 @@ import io.github.malyszaryczlowiek.kessengerlibrary.model.Chat.parseJSONtoChat
 import io.github.malyszaryczlowiek.kessengerlibrary.model.User.toJSON
 import io.github.malyszaryczlowiek.kessengerlibrary.model.UserOffsetUpdate.parseUserOffsetUpdate
 import org.apache.kafka.clients.producer.ProducerRecord
+import play.api.{ConfigLoader, Configuration}
 import play.api.db.Database
 import play.api.inject.ApplicationLifecycle
 import play.api.libs.streams.ActorFlow
@@ -43,13 +44,22 @@ class KessengerController @Inject()
     val kafkaAdmin: KafkaAdmin,
     val configurator: KafkaProductionConfigurator,
     val lifecycle: ApplicationLifecycle,
+    val conf: Configuration,
     implicit val system: ActorSystem,
+    //implicit val stringLoader: ConfigLoader[String]
 
     // val fc: FormsAndConstraint,
     // implicit val futures: Futures, // do async
     // implicit val ec: MyExecutionContext,
     // val sessionConverter: SessionConverter,
   ) extends BaseController {
+
+//  val config = Configuration.load(Environment.simple(new File("./conf/application.conf"), Mode.Dev))
+//  val foo = config.  getString("kessenger.kafka.broker.hosts").getOrElse("NIE MA")
+
+  println("##########################################")
+  println(conf.get("kessenger.kafka.broker.hosts")(ConfigLoader.stringLoader))
+  println("##########################################")
 
 
   lifecycle.addStopHook { () =>

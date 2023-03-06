@@ -1,7 +1,7 @@
 FROM adoptopenjdk/openjdk11:jdk-11.0.11_9
 COPY target/universal/back-end-1.0-SNAPSHOT /opt/back-end
 COPY generatedKey /opt/back-end
-CMD ["/opt/back-end/bin/back-end", "-Dplay.http.secret.key=$(cut /opt/back-end/generatedKey)"]
+CMD ["/opt/back-end/bin/back-end", "-Dplay.http.secret.key=$(cut /opt/back-end/generatedKey)", "-Dconfig.resource=prod.conf"]
 
 
 
