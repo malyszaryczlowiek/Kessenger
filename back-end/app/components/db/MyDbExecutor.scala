@@ -1,10 +1,9 @@
 package components.db
 
-import io.github.malyszaryczlowiek.kessengerlibrary.kafka.configurators.{KafkaConfigurator, KafkaProductionConfigurator}
-
+import conf.KafkaConf
 import javax.inject.{Inject, Named}
 
 
-class MyDbExecutor @Inject() (@Named("KafkaProdConf") conf: KafkaConfigurator) extends DbExecutor(conf) {
+class MyDbExecutor @Inject() (@Named("KafkaConfiguration") conf: KafkaConf) extends DbExecutor(conf) {
 
 }

@@ -1,11 +1,11 @@
 package components.db
 
+import conf.KafkaConf
 import io.github.malyszaryczlowiek.kessengerlibrary.db.queries._
 import io.github.malyszaryczlowiek.kessengerlibrary.db.queries.ERROR
 import io.github.malyszaryczlowiek.kessengerlibrary.domain.Domain
 import io.github.malyszaryczlowiek.kessengerlibrary.model.{Chat, PartitionOffset, SessionInfo, Settings, User}
 import io.github.malyszaryczlowiek.kessengerlibrary.domain.Domain.{ChatId, ChatName, DbResponse, Login, Offset, Partition, Password, UserID}
-import io.github.malyszaryczlowiek.kessengerlibrary.kafka.configurators.KafkaConfigurator
 
 import java.sql.{Connection, PreparedStatement, ResultSet, Savepoint, Statement}
 import java.time.ZoneId
@@ -17,7 +17,7 @@ import scala.util.{Failure, Success, Try, Using}
 
 
 
-class DbExecutor(val kafkaConfigurator: KafkaConfigurator) {
+class DbExecutor(val kafkaConfigurator: KafkaConf) {
 
 
   def createUser(user: User, pass: Password, settings: Settings, sessionData: SessionInfo)(implicit connection: Connection): DbResponse[Int] = {

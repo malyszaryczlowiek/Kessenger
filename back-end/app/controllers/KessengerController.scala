@@ -6,19 +6,17 @@ import components.actors.WebSocketActor
 import components.db.MyDbExecutor
 import components.executioncontexts.{DatabaseExecutionContext, KafkaExecutionContext}
 import components.util.converters.{JsonParsers, PasswordConverter}
+import conf.KafkaConf
 import util.{HeadersParser, KafkaAdmin}
 import io.github.malyszaryczlowiek.kessengerlibrary.db.queries.{DataProcessingError, LoginTaken, QueryError, UndefinedError, UnsupportedOperation}
 import io.github.malyszaryczlowiek.kessengerlibrary.domain.Domain
-import io.github.malyszaryczlowiek.kessengerlibrary.domain.Domain.{ChatId, Offset, UserID}
-import io.github.malyszaryczlowiek.kessengerlibrary.kafka.configurators.KafkaProductionConfigurator
-import io.github.malyszaryczlowiek.kessengerlibrary.kafka.errors.{ChatExistsError, KafkaError}
-import io.github.malyszaryczlowiek.kessengerlibrary.model.{Chat, Invitation, PartitionOffset, ResponseBody, Settings, User, UserOffsetUpdate}
+import io.github.malyszaryczlowiek.kessengerlibrary.domain.Domain.{ChatId, UserID}
+import io.github.malyszaryczlowiek.kessengerlibrary.model.{Chat, Invitation, PartitionOffset, ResponseBody, Settings, User}
 import io.github.malyszaryczlowiek.kessengerlibrary.model.Settings.parseJSONtoSettings
 import io.github.malyszaryczlowiek.kessengerlibrary.model.Chat.parseJSONtoChat
 import io.github.malyszaryczlowiek.kessengerlibrary.model.User.toJSON
 import io.github.malyszaryczlowiek.kessengerlibrary.model.UserOffsetUpdate.parseUserOffsetUpdate
 import org.apache.kafka.clients.producer.ProducerRecord
-import play.api.{ConfigLoader, Configuration}
 import play.api.db.Database
 import play.api.inject.ApplicationLifecycle
 import play.api.libs.streams.ActorFlow
@@ -28,7 +26,7 @@ import java.util.UUID
 import javax.inject._
 import scala.concurrent.duration.{Duration, SECONDS}
 import scala.concurrent.{Await, Future}
-import scala.util.{Failure, Success, Try}
+
 
 
 class KessengerController @Inject()
@@ -42,9 +40,8 @@ class KessengerController @Inject()
     val databaseExecutionContext: DatabaseExecutionContext,
     val kafkaExecutionContext: KafkaExecutionContext,
     val kafkaAdmin: KafkaAdmin,
-    val configurator: KafkaProductionConfigurator,
+    @Named("KafkaConfiguration") implicit val configurator: KafkaConf,
     val lifecycle: ApplicationLifecycle,
-    val conf: Configuration,
     implicit val system: ActorSystem,
     //implicit val stringLoader: ConfigLoader[String]
 
@@ -58,7 +55,7 @@ class KessengerController @Inject()
 //  val foo = config.  getString("kessenger.kafka.broker.hosts").getOrElse("NIE MA")
 
   println("##########################################")
-  println(conf.get("kessenger.kafka.broker.hosts")(ConfigLoader.stringLoader))
+  println()
   println("##########################################")
 
 
@@ -451,7 +448,7 @@ class KessengerController @Inject()
                         dbExecutor.deleteChat( createdChat.head._1.chatId ) // delete chat from db
                         InternalServerError(ResponseBody(332, "Some Undefined Kafka Error.").toString)
                       case Right( t ) =>
-                        if ( t._1 && t._2  ) { // if chat created we can send it to user
+                        if ( t._1 && t._2  ) { // if chat created we can send invitations it to user
                           val producer = kafkaAdmin.createInvitationProducer
                           users.foreach( userId => {
                             val partitionOffsets = (0 until configurator.CHAT_TOPIC_PARTITIONS_NUMBER)

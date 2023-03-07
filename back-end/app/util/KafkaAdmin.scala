@@ -1,12 +1,13 @@
 package util
 
 
+import conf.KafkaConf
 import io.github.malyszaryczlowiek.kessengerlibrary.domain.Domain.{ChatId, JoinId, UserID}
 import io.github.malyszaryczlowiek.kessengerlibrary.domain.Domain
 import io.github.malyszaryczlowiek.kessengerlibrary.model.{Chat, Invitation, Message, Writing}
 import io.github.malyszaryczlowiek.kessengerlibrary.kafka.errors.{KafkaError, KafkaErrorsHandler}
-import io.github.malyszaryczlowiek.kessengerlibrary.kafka.configurators.KafkaConfigurator
 import io.github.malyszaryczlowiek.kessengerlibrary.kafka.errors._
+
 import org.apache.kafka.clients.admin.{Admin, AdminClientConfig, CreateTopicsResult, DeleteTopicsResult, NewTopic}
 import org.apache.kafka.clients.consumer.{ConsumerConfig, KafkaConsumer}
 import org.apache.kafka.clients.producer.{KafkaProducer, ProducerConfig}
@@ -27,29 +28,29 @@ import scala.jdk.javaapi.CollectionConverters
  *
  */
 @Singleton
-class KafkaAdmin @Inject() (@Named("KafkaProdConf") configurator: KafkaConfigurator, val lifecycle: ApplicationLifecycle) {
+class KafkaAdmin @Inject() (@Named("KafkaConfiguration") configurator: KafkaConf, val lifecycle: ApplicationLifecycle) {
 
   lifecycle.addStopHook { () =>
     Future.successful(this.closeAdmin())
   }
 
-  private val userSerializer   = "io.github.malyszaryczlowiek.kessengerlibrary.serdes.user.UserSerializer"
-  private val userDeserializer = "io.github.malyszaryczlowiek.kessengerlibrary.serdes.user.UserDeserializer"
+//  private val userSerializer   = "io.github.malyszaryczlowiek.kessengerlibrary.serdes.user.UserSerializer"
+//  private val userDeserializer = "io.github.malyszaryczlowiek.kessengerlibrary.serdes.user.UserDeserializer"
 
-  private val invitationSerializer   = "io.github.malyszaryczlowiek.kessengerlibrary.serdes.invitation.InvitationSerializer"
-  private val invitationDeserializer = "io.github.malyszaryczlowiek.kessengerlibrary.serdes.invitation.InvitationDeserializer"
+  private val invitationSerializer   = configurator.JOINING_TOPIC_INVITATION_SERIALIZER // "io.github.malyszaryczlowiek.kessengerlibrary.serdes.invitation.InvitationSerializer"
+  private val invitationDeserializer = configurator.JOINING_TOPIC_INVITATION_DESERIALIZER //"io.github.malyszaryczlowiek.kessengerlibrary.serdes.invitation.InvitationDeserializer"
 
-  private val messageSerializer   = "io.github.malyszaryczlowiek.kessengerlibrary.serdes.message.MessageSerializer"
-  private val messageDeserializer = "io.github.malyszaryczlowiek.kessengerlibrary.serdes.message.MessageDeserializer"
+  private val messageSerializer   = configurator.CHAT_TOPIC_MESSAGE_SERIALIZER // "io.github.malyszaryczlowiek.kessengerlibrary.serdes.message.MessageSerializer"
+  private val messageDeserializer = configurator.CHAT_TOPIC_MESSAGE_DESERIALIZER // "io.github.malyszaryczlowiek.kessengerlibrary.serdes.message.MessageDeserializer"
 
-  private val writingSerializer   = "io.github.malyszaryczlowiek.kessengerlibrary.serdes.writing.WritingSerializer"
-  private val writingDeserializer = "io.github.malyszaryczlowiek.kessengerlibrary.serdes.writing.WritingDeserializer"
+  private val writingSerializer   = configurator.WRITING_TOPIC_WRITING_SERIALIZER // "io.github.malyszaryczlowiek.kessengerlibrary.serdes.writing.WritingSerializer"
+  private val writingDeserializer = configurator.WRITING_TOPIC_WRITING_DESERIALIZER // "io.github.malyszaryczlowiek.kessengerlibrary.serdes.writing.WritingDeserializer"
 
   private val stringSerializer   = "org.apache.kafka.common.serialization.StringSerializer"
   private val stringDeserializer = "org.apache.kafka.common.serialization.StringDeserializer"
 
   val properties = new Properties
-  properties.put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, configurator.EXTERNAL_SERVERS)
+  properties.put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, configurator.BOOTSTRAP_SERVERS)
   // properties.put(AdminClientConfig.CLIENT_ID_CONFIG, tutaj_ID )
   private val admin = Admin.create(properties)
 
@@ -180,7 +181,7 @@ class KafkaAdmin @Inject() (@Named("KafkaProdConf") configurator: KafkaConfigura
   def createMessageProducer: KafkaProducer[String, Message] = {
     val properties = new Properties
     // ProducerConfig.RETRIES_CONFIG which is default set to Integer.MAX_VALUE id required by idempotence.
-    properties.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, configurator.EXTERNAL_SERVERS)
+    properties.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, configurator.BOOTSTRAP_SERVERS)
     properties.put(ProducerConfig.ACKS_CONFIG, "all") // (1) this configuration specifies the minimum number of replicas that must acknowledge a write for the write to be considered successful
     properties.put(ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG, "true") // we do not need duplicates in partitions
     properties.put(ProducerConfig.LINGER_MS_CONFIG, "0") // we do not wait to fill the buffer and send message immediately
@@ -212,7 +213,7 @@ class KafkaAdmin @Inject() (@Named("KafkaProdConf") configurator: KafkaConfigura
    */
   def createMessageConsumer(userId: String): KafkaConsumer[String, Message] = {
     val props: Properties = new Properties();
-    props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, configurator.EXTERNAL_SERVERS)
+    props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, configurator.BOOTSTRAP_SERVERS)
     props.put(ConsumerConfig.GROUP_ID_CONFIG, userId)
     props.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, "false")
     props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, stringDeserializer)
@@ -264,7 +265,7 @@ class KafkaAdmin @Inject() (@Named("KafkaProdConf") configurator: KafkaConfigura
    */
   def createInvitationProducer: KafkaProducer[String, Invitation] = {
     val properties = new Properties
-    properties.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, configurator.EXTERNAL_SERVERS)
+    properties.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, configurator.BOOTSTRAP_SERVERS)
     properties.put(ProducerConfig.ACKS_CONFIG, "all") // (1) this configuration specifies the minimum number of replicas that must acknowledge a write for the write to be considered successful
     properties.put(ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG, "true") // we do not need duplicates in partitions
     properties.put(ProducerConfig.LINGER_MS_CONFIG, "0") // we do not wait to fill the buffer and send message immediately
@@ -287,7 +288,7 @@ class KafkaAdmin @Inject() (@Named("KafkaProdConf") configurator: KafkaConfigura
    */
   def createInvitationConsumer(groupId: String): KafkaConsumer[String, Invitation] = {
     val props: Properties = new Properties();
-    props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, configurator.EXTERNAL_SERVERS)
+    props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, configurator.BOOTSTRAP_SERVERS)
     props.put(ConsumerConfig.GROUP_ID_CONFIG, groupId )
     props.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, "false")
     props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, stringDeserializer)
@@ -329,7 +330,7 @@ class KafkaAdmin @Inject() (@Named("KafkaProdConf") configurator: KafkaConfigura
   def createWritingProducer: KafkaProducer[String, Writing] = {
     val properties = new Properties
     // properties.put(ProducerConfig.)
-    properties.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, configurator.EXTERNAL_SERVERS )
+    properties.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, configurator.BOOTSTRAP_SERVERS )
     properties.put(ProducerConfig.ACKS_CONFIG, "0") // No replica must confirm - send and forget
     properties.put(ProducerConfig.LINGER_MS_CONFIG, "0") // we do not wait to fill the buffer and send immediately
     properties.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, stringSerializer)
@@ -339,7 +340,7 @@ class KafkaAdmin @Inject() (@Named("KafkaProdConf") configurator: KafkaConfigura
 
   def createWritingConsumer(userId: String): KafkaConsumer[String, Writing] = {
     val props: Properties = new Properties();
-    props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, configurator.EXTERNAL_SERVERS)
+    props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, configurator.BOOTSTRAP_SERVERS)
     props.put(ConsumerConfig.GROUP_ID_CONFIG, userId )
     props.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, "false")
     props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, stringDeserializer)
@@ -348,47 +349,6 @@ class KafkaAdmin @Inject() (@Named("KafkaProdConf") configurator: KafkaConfigura
   }
 
 }
-
-
-
-
-
-//    further implementation used in UI version of program
-
-//      val whoWriteConfig: java.util.Map[String, String] =
-//        CollectionConverters.asJava(
-//          Map(
-//            TopicConfig.CLEANUP_POLICY_CONFIG -> TopicConfig.CLEANUP_POLICY_DELETE,
-//            TopicConfig.RETENTION_MS_CONFIG -> "1000",   // keeps logs only by 1s.
-//            TopicConfig.MESSAGE_TIMESTAMP_DIFFERENCE_MAX_MS_CONFIG -> "1000" // difference to assume that log is too late
-//          )
-//        )
-//          ,new NewTopic(writingId, 1, 3.shortValue()).configs(whoWriteConfig)
-// Call values() to get the result for a specific topic
-// val whoFuture: KafkaFuture[Void] = result.values().get(writingId)
-// Call get() to block until the topic creation is complete or has failed
-// if creation failed the ExecutionException wraps the underlying cause.
-//      whoFuture.get()
-
-
-//  def removeChat(chatId: ChatId, writingId: WritingId): Map[String, KafkaFuture[Void]] =
-//    val deleteTopicResult: DeleteTopicsResult = admin.deleteTopics(java.util.List.of(chatId, writingId))
-//    CollectionConverters.asScala[String, KafkaFuture[Void]](deleteTopicResult.topicNameValues()).toMap
-
-
-//    with UI implementation
-//  def createWritingProducer(): KafkaProducer[String, String] =
-//    val properties = new Properties
-//    properties.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, "localhost:9093,localhost:9094")
-//    properties.put(ProducerConfig.ACKS_CONFIG, "0")  // No replica must confirm - send and forget
-//    properties.put(ProducerConfig.LINGER_MS_CONFIG, "0") // we do not wait to fill the buffer and send immediately
-//    properties.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, "org.apache.kafka.common.serialization.StringSerializer")
-//    properties.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, "org.apache.kafka.common.serialization.StringSerializer")
-//    new KafkaProducer[String, String](properties)
-//
-//  def createWritingConsumer: KafkaConsumer[String, String] = ???
-
-
 
 
 

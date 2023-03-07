@@ -11,7 +11,7 @@ import scala.concurrent.{ExecutionContext, Future}
 
 
 /**
- * Simple header filter which rejects requests without KSID filter
+ * Simple header filter which rejects requests without KSID header
  * @param mat
  * @param ec
  */

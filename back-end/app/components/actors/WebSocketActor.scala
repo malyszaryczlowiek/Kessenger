@@ -13,6 +13,7 @@ import util.KafkaAdmin
 import akka.actor._
 import akka.actor.PoisonPill
 import components.actors.readers.{InvitationReader, NewMessageReader, OldMessageReader, WritingReader}
+import conf.KafkaConf
 import play.api.db.Database
 
 import collection.concurrent.TrieMap
@@ -21,12 +22,12 @@ import scala.concurrent.ExecutionContext
 
 object WebSocketActor {
   //, be: BrokerExecutor
-  def props(out: ActorRef, ka: KafkaAdmin, kec: ExecutionContext, db: Database, dbec: ExecutionContext): Props =
+  def props(out: ActorRef, ka: KafkaAdmin, kec: ExecutionContext, db: Database, dbec: ExecutionContext)(implicit configurator: KafkaConf): Props =
     Props(new WebSocketActor(out, ka, kec, db, dbec))
 }
 
 // , be: BrokerExecutor
-class WebSocketActor(out: ActorRef, ka: KafkaAdmin, kec: ExecutionContext, db: Database, dbec: ExecutionContext ) extends Actor {
+class WebSocketActor(out: ActorRef, ka: KafkaAdmin, kec: ExecutionContext, db: Database, dbec: ExecutionContext )(implicit configurator: KafkaConf) extends Actor {
 
   sealed trait ActorNameKey
   case object NewMessageReaderKey  extends ActorNameKey

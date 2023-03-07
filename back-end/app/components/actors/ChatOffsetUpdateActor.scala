@@ -2,23 +2,25 @@ package components.actors
 
 import akka.actor._
 import components.db.DbExecutor
+import conf.KafkaConf
 import io.github.malyszaryczlowiek.kessengerlibrary.domain.Domain.ChatId
 import io.github.malyszaryczlowiek.kessengerlibrary.kafka.configurators.KafkaProductionConfigurator
 import io.github.malyszaryczlowiek.kessengerlibrary.model.{ChatOffsetUpdate, ChatPartitionsOffsets, Configuration, PartitionOffset}
 import play.api.db.Database
 
+import javax.inject.Inject
 import scala.collection.concurrent.TrieMap
 // import scala.collection.mutable.{Map => mMap}
 import scala.concurrent.{ExecutionContext, Future}
 
 object ChatOffsetUpdateActor {
 
-  def props(conf: Configuration, db: Database, dbec: ExecutionContext): Props =
+  def props(conf: Configuration, db: Database, dbec: ExecutionContext)(implicit configurator: KafkaConf): Props =
     Props(new ChatOffsetUpdateActor(conf, db, dbec))
 
 }
 
-class ChatOffsetUpdateActor(conf: Configuration, db: Database, dbec: ExecutionContext) extends Actor {
+class ChatOffsetUpdateActor(conf: Configuration, db: Database, dbec: ExecutionContext)(implicit configurator: KafkaConf) extends Actor {
 
 
   private val chats: TrieMap[ChatId, List[PartitionOffset]] = TrieMap.empty
@@ -45,7 +47,7 @@ class ChatOffsetUpdateActor(conf: Configuration, db: Database, dbec: ExecutionCo
           if (isGrater) {
             this.chats.put(u.chatId, u.partitionOffsets)
             Future {
-              val dbExecutor = new DbExecutor(new KafkaProductionConfigurator)
+              val dbExecutor = new DbExecutor(configurator)
               db.withConnection( implicit connection => {
                 println(s"ChatOffsetUpdateActor --> sending chat offset update, $u to DB.")
                 dbExecutor.updateChatOffsetAndMessageTime(u.userId, u.chatId, u.lastMessageTime, shiftOffsetPerOne(u.partitionOffsets) )
