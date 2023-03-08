@@ -4,11 +4,10 @@ import akka.actor._
 import components.db.DbExecutor
 import conf.KafkaConf
 import io.github.malyszaryczlowiek.kessengerlibrary.domain.Domain.ChatId
-import io.github.malyszaryczlowiek.kessengerlibrary.kafka.configurators.KafkaProductionConfigurator
+
 import io.github.malyszaryczlowiek.kessengerlibrary.model.{ChatOffsetUpdate, ChatPartitionsOffsets, Configuration, PartitionOffset}
 import play.api.db.Database
 
-import javax.inject.Inject
 import scala.collection.concurrent.TrieMap
 // import scala.collection.mutable.{Map => mMap}
 import scala.concurrent.{ExecutionContext, Future}

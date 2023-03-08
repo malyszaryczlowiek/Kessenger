@@ -22,3 +22,12 @@ trait KafkaConf {
 
 
 }
+
+/*
+TODO
+ 1. skonfigurować logger zarówno dla prod jak i dev.
+ 2. przetestować czy Controller może być oznaczony jako @Singleton
+ 3. we frontendzie po wejściu w ustawienia sprawdzić dlaczego nie ma stref czasowych
+ 4. przygotować wersję produkcyjną fronendu.
+ 5. napiasć skrypt uruchamiający beckend jako: run -Dhttp.port=9000 tak aby można było uruchomić kilka jako dev mode.
+ */

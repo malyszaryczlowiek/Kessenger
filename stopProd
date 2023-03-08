@@ -37,9 +37,5 @@ docker stop kafka3
 docker rm -v kafka3
 
 
-docker stop kafka3
-docker rm -v kafka3
-
-
 docker stop zookeeper
 docker rm -v zookeeper

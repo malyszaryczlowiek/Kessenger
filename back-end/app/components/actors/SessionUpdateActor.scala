@@ -8,9 +8,6 @@ import scala.concurrent.{ExecutionContext, Future}
 import components.db.DbExecutor
 import conf.KafkaConf
 import io.github.malyszaryczlowiek.kessengerlibrary.model.SessionInfo
-import io.github.malyszaryczlowiek.kessengerlibrary.kafka.configurators.KafkaProductionConfigurator
-
-
 
 
 object SessionUpdateActor {

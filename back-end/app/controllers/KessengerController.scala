@@ -1,6 +1,7 @@
 package controllers
 
 import akka.actor.ActorSystem
+import ch.qos.logback.classic.Logger
 import components.actions.{SessionChecker, SessionUpdater}
 import components.actors.WebSocketActor
 import components.db.MyDbExecutor
@@ -17,6 +18,7 @@ import io.github.malyszaryczlowiek.kessengerlibrary.model.Chat.parseJSONtoChat
 import io.github.malyszaryczlowiek.kessengerlibrary.model.User.toJSON
 import io.github.malyszaryczlowiek.kessengerlibrary.model.UserOffsetUpdate.parseUserOffsetUpdate
 import org.apache.kafka.clients.producer.ProducerRecord
+import org.slf4j.LoggerFactory
 import play.api.db.Database
 import play.api.inject.ApplicationLifecycle
 import play.api.libs.streams.ActorFlow
@@ -54,9 +56,8 @@ class KessengerController @Inject()
 //  val config = Configuration.load(Environment.simple(new File("./conf/application.conf"), Mode.Dev))
 //  val foo = config.  getString("kessenger.kafka.broker.hosts").getOrElse("NIE MA")
 
-  println("##########################################")
-  println()
-  println("##########################################")
+
+
 
 
   lifecycle.addStopHook { () =>
