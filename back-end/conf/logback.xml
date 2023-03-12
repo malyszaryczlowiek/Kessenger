@@ -1,9 +1,16 @@
 <!-- https://www.playframework.com/documentation/latest/SettingsLogger -->
-<configuration scan="true" scanPeriod="20 seconds" >
+<configuration  > <!-- scan="true" scanPeriod="20 seconds" -->
 
   <conversionRule conversionWord="coloredLevel" converterClass="play.api.libs.logback.ColoredLevel" />
 
-  <if condition='property("KESSENGER_LOGBACK_ENV").equals("PROD")'> <!-- isDefined("KESSENGER_LOGBACK_ENV") -->
+  <!-- DOCUMENTATION -->
+  <!-- https://www.playframework.com/documentation/2.8.x/SettingsLogger -->
+  <!-- https://logback.qos.ch/manual/index.html -->
+  <!-- https://www.baeldung.com/logback -->
+
+
+
+  <if condition='property("KESSENGER_LOGBACK_ENV").equals("PROD")'>
     <then>
       <!-- Here prod configuration -->
 
@@ -35,8 +42,8 @@
         <appender-ref ref="STDOUT" />
       </appender>
 
-<!--      <logger name="play" level="INFO" />-->
-      <logger name="application" level="DEBUG" />
+      <logger name="play" level="WARN" />
+      <logger name="application" level="WARN" />
 
 
       <!-- Root logger sends WARN and ERROR to ASYNCFILE and ASYNCSTDOUT appenders -->
@@ -83,8 +90,8 @@
         <appender-ref ref="STDOUT" />
       </appender>
 
-      <logger name="play" level="INFO" />
-      <logger name="application" level="DEBUG" />
+      <logger name="play" level="WARN" />
+      <logger name="application" level="WARN" />
 
 
       <!-- Root logger sends WARN and ERROR to ASYNCFILE and ASYNCSTDOUT appenders -->

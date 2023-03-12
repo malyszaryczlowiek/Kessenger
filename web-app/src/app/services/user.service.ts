@@ -29,7 +29,7 @@ export class UserService {
   user: User | undefined;
 
   /* codes:
-  0. do not update data
+  0. do not chat list and chatPanel
   1. update both, chat list and chatPanel
   2. update chat list
   3. update chatPanel 
@@ -624,7 +624,7 @@ export class UserService {
     }
   }
 
-  
+
 
   sendMessage(msg: Message) {
     this.connection.sendMessage(msg);
@@ -676,48 +676,4 @@ export class UserService {
   
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-  /*
-  Methods to delete.
-  */
-
-  
-  callAngular() {
-    this.connection.callAngular();
-  }
-
-
-  createKSID(): string | undefined {
-    return this.connection.getSessionToken();
-  }
-
-
-  getUsers() { 
-    return this.connection.getUsers()
-  }
-
-  postNothing() {
-    return this.connection.postNothing();
-  }
-
-  postUser() {
-    return this.connection.postUser();
-  }
 }

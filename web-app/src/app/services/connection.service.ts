@@ -45,7 +45,7 @@ export class ConnectionService {
 
 
   constructor(private http: HttpClient, 
-              @Inject("API_URL") private api: string,
+              // @Inject("API_URL") private api: string,
               private responseNotifier: ResponseNotifierService,
               private loadBalancer: LoadBalancerService,
               private session: SessionService) { }
@@ -74,8 +74,9 @@ export class ConnectionService {
       userId: ''
     };
     const token = this.session.getSessionToken()
-    if ( token ) {
-      return this.http.post<{user: User, settings: Settings}>(this.api + '/signup', body, {
+    const server = this.loadBalancer.currentServer
+    if ( token && server) {
+      return this.http.post<{user: User, settings: Settings}>(server.getURIwithPath('/signup'), body, {
         headers:  new HttpHeaders()
           .set('KSID', token),
         observe: 'response', 
@@ -96,8 +97,9 @@ export class ConnectionService {
       userId: ''
     };
     const token = this.session.getSessionToken()
-    if ( token ) {
-      return this.http.post<{user: User, settings: Settings, chatList: Array<ChatData>}>(this.api + '/signin', body, {
+    const server = this.loadBalancer.currentServer
+    if ( token && server ) {
+      return this.http.post<{user: User, settings: Settings, chatList: Array<ChatData>}>(server.getURIwithPath('/signin'), body, {
         headers:  new HttpHeaders()
           .set('KSID', token),
         observe: 'response', 
@@ -111,8 +113,9 @@ export class ConnectionService {
 
   logout(): Observable<HttpResponse<string>> | undefined {
     const token = this.session.getSessionToken()
-    if ( token ) {
-      return this.http.get<string>(this.api + '/logout',{
+    const server = this.loadBalancer.currentServer
+    if ( token && server ) {
+      return this.http.get<string>(server.getURIwithPath('/logout'),{
         headers:  new HttpHeaders()
           .set('KSID', token),
         observe: 'response', 
@@ -126,8 +129,9 @@ export class ConnectionService {
 
   user(userId: string): Observable<HttpResponse<{user: User, settings: Settings, chatList: Array<ChatData>}>> | undefined {
     const token = this.session.getSessionToken()
-    if ( token ) {
-      return this.http.get<{user: User, settings: Settings, chatList: Array<ChatData>}>(this.api + `/user/${userId}`, {
+    const server = this.loadBalancer.currentServer
+    if ( token  && server) {
+      return this.http.get<{user: User, settings: Settings, chatList: Array<ChatData>}>(server.getURIwithPath(`/user/${userId}`), {
         headers: new HttpHeaders()
           .set('KSID', token),
         observe: 'response', 
@@ -142,8 +146,9 @@ export class ConnectionService {
 
   updateJoiningOffset(userId: string, body: UserOffsetUpdate): Observable<HttpResponse<any>> | undefined {
     const token = this.session.getSessionToken()
-    if ( token ) {
-      return this.http.put<any>(this.api + `/user/${userId}/updateJoiningOffset`,  body , { 
+    const server = this.loadBalancer.currentServer
+    if ( token && server ) {
+      return this.http.put<any>(server.getURIwithPath(`/user/${userId}/updateJoiningOffset`),  body , { 
         headers: new HttpHeaders()
           .set('KSID', token),
         observe: 'response', 
@@ -158,8 +163,9 @@ export class ConnectionService {
   
   changeSettings(userId: string, s: Settings): Observable<HttpResponse<any>> | undefined  {
     const token = this.session.getSessionToken()
-    if ( token ) {
-      return this.http.put<any>(this.api + `/user/${userId}/changeSettings`, s, { 
+    const server = this.loadBalancer.currentServer
+    if ( token && server ) {
+      return this.http.put<any>(server.getURIwithPath(`/user/${userId}/changeSettings`), s, { 
         headers:  new HttpHeaders()
           .set('KSID', token),
         observe: 'response', 
@@ -173,8 +179,9 @@ export class ConnectionService {
 
   changeLogin(userId: string, newLogin: string): Observable<HttpResponse<any>> | undefined {
     const token = this.session.getSessionToken()
-    if ( token ) {
-      return this.http.put<any>(this.api + `/user/${userId}/changeLogin`, newLogin, { 
+    const server = this.loadBalancer.currentServer
+    if ( token && server ) {
+      return this.http.put<any>(server.getURIwithPath(`/user/${userId}/changeLogin`), newLogin, { 
         headers:  new HttpHeaders()
           .set('KSID', token),
         observe: 'response',
@@ -188,12 +195,13 @@ export class ConnectionService {
   
   changePassword(userId: string, oldPassword: string, newPassword: string): Observable<HttpResponse<any>> | undefined {
     const token = this.session.getSessionToken()
-    if ( token ) {
+    const server = this.loadBalancer.currentServer
+    if ( token && server ) {
       const body = {
         oldPass: oldPassword,
         newPass: newPassword
       }
-      return this.http.put<any>(this.api + `/user/${userId}/changePassword`, body, { 
+      return this.http.put<any>(server.getURIwithPath(`/user/${userId}/changePassword`), body, { 
         headers:  new HttpHeaders()
           .set('KSID', token),
         observe: 'response',
@@ -207,8 +215,9 @@ export class ConnectionService {
 
   searchUser(userId: string, search: string) : Observable<HttpResponse<User[]>> | undefined {
     const token = this.session.getSessionToken()
-    if ( token ) {
-      return this.http.get<User[]>(this.api + `/user/${userId}/searchUser`, { 
+    const server = this.loadBalancer.currentServer
+    if ( token && server ) {
+      return this.http.get<User[]>(server.getURIwithPath(`/user/${userId}/searchUser`), { 
         headers:  new HttpHeaders()
           .set('KSID', token),
         observe: 'response',
@@ -223,13 +232,14 @@ export class ConnectionService {
     
   newChat(me: User, chatName: string, users: string[]): Observable<HttpResponse<ChatData[]>> | undefined  {
     const token = this.session.getSessionToken()
-    if ( token ) {
+    const server = this.loadBalancer.currentServer
+    if ( token && server ) {
       const body = {
         me: me,
         users: users,
         chatName: chatName
       }
-      return this.http.post<ChatData[]>(this.api + `/user/${me.userId}/newChat`, body, {
+      return this.http.post<ChatData[]>(server.getURIwithPath(`/user/${me.userId}/newChat`), body, {
         headers: new HttpHeaders()
           .set('KSID', token),
         observe: 'response', 
@@ -242,8 +252,9 @@ export class ConnectionService {
 
   getChats(userId: string): Observable<HttpResponse<Array<ChatData>>> | undefined {
     const token = this.session.getSessionToken()
-    if ( token ) {
-      return this.http.get<Array<ChatData>>(this.api + `/user/${userId}/chats`, {
+    const server = this.loadBalancer.currentServer
+    if ( token && server ) {
+      return this.http.get<Array<ChatData>>(server.getURIwithPath(`/user/${userId}/chats`), {
         headers:  new HttpHeaders()
           .set('KSID', token),
         observe: 'response', 
@@ -257,8 +268,9 @@ export class ConnectionService {
 
   getChatData(userId: string, chatId: string): Observable<HttpResponse<{chat: Chat, partitionOffsets: Array<{partition: number, offset: number}>}>> | undefined {
     const token = this.session.getSessionToken()
-    if ( token ) {
-      return this.http.get<{chat: Chat, partitionOffsets: Array<{partition: number, offset: number}>}>(this.api + `/user/${userId}/chats/${chatId}`, {
+    const server = this.loadBalancer.currentServer
+    if ( token && server ) {
+      return this.http.get<{chat: Chat, partitionOffsets: Array<{partition: number, offset: number}>}>(server.getURIwithPath(`/user/${userId}/chats/${chatId}`), {
         headers:  new HttpHeaders()
           .set('KSID', token),
         observe: 'response', 
@@ -272,8 +284,9 @@ export class ConnectionService {
   
   leaveChat(userId: string, chatId: string): Observable<HttpResponse<any>> | undefined {
     const token = this.session.getSessionToken()
-    if ( token ) {
-      return this.http.delete<any>(this.api + `/user/${userId}/chats/${chatId}`, {
+    const server = this.loadBalancer.currentServer
+    if ( token && server ) {
+      return this.http.delete<any>(server.getURIwithPath(`/user/${userId}/chats/${chatId}`), {
         headers: new HttpHeaders()
           .set('KSID', token),
         observe: 'response', 
@@ -287,8 +300,9 @@ export class ConnectionService {
 
   getChatUsers(userId: string, chatId: string): Observable<HttpResponse<User[]>> | undefined {
     const token = this.session.getSessionToken()
-    if ( token ) {
-      return this.http.get<User[]>(this.api + `/user/${userId}/chats/${chatId}/users`, {
+    const server = this.loadBalancer.currentServer
+    if ( token && server ) {
+      return this.http.get<User[]>(server.getURIwithPath(`/user/${userId}/chats/${chatId}/users`), {
         headers:  new HttpHeaders()
           .set('KSID', token),
         observe: 'response', 
@@ -302,8 +316,9 @@ export class ConnectionService {
 
   setChatSettings(userId: string, chat: Chat): Observable<HttpResponse<any>> | undefined {
     const token = this.session.getSessionToken()
-    if ( token ) {
-      return this.http.put<any>(this.api + `/user/${userId}/chats/${chat.chatId}/chatSettings`, chat, {
+    const server = this.loadBalancer.currentServer
+    if ( token && server ) {
+      return this.http.put<any>(server.getURIwithPath(`/user/${userId}/chats/${chat.chatId}/chatSettings`), chat, {
         headers: new HttpHeaders()
           .set('KSID', token),
         observe: 'response', 
@@ -317,14 +332,15 @@ export class ConnectionService {
 
   addUsersToChat(userId: string, login: string, chatId: string, chatName: string, userIds: string[], pOffsets: PartitionOffset[]): Observable<HttpResponse<any>> | undefined {
     const token = this.session.getSessionToken()
-    if ( token ) {
+    const server = this.loadBalancer.currentServer
+    if ( token && server ) {
       const body = {
         invitersLogin: login,
         chatName: chatName,
         users: userIds,
         partitionOffsets: pOffsets
       }
-      return this.http.post<any>(this.api + `/user/${userId}/chats/${chatId}/addNewUsers`, body, {
+      return this.http.post<any>(server.getURIwithPath(`/user/${userId}/chats/${chatId}/addNewUsers`), body, {
         headers: new HttpHeaders()
           .set('KSID', token),
         observe: 'response', 
@@ -348,9 +364,11 @@ export class ConnectionService {
 
 
   connectViaWS(conf: Configuration) {
-    if (this.wsConnection === undefined) {
-      console.log('Initializing Connection via WebSocket.')
-      this.wsConnection = new WebSocket(`ws://localhost:9000/user/${conf.me.userId}/ws`);
+    const server = this.loadBalancer.currentServer
+    if (this.wsConnection === undefined && server) {
+      console.log(`Initializing Connection via WebSocket to: ws://${server.getURIwithoutProtocol()}`)
+      this.wsConnection = new WebSocket(`ws://${server.getURIwithoutProtocol()}/user/${conf.me.userId}/ws`);
+      // this.wsConnection = new WebSocket(`ws://localhost:9000/user/${conf.me.userId}/ws`);
       this.wsConnection.onopen = () => {
         console.log('WebSocket connection opened.');
         this.wsConnection?.send( JSON.stringify( conf ) )
@@ -427,7 +445,8 @@ export class ConnectionService {
           this.wsPingSender = undefined
         }
         if ( this.reconnectWS ) {
-          // toast, że straciliśmy połączenie
+          this.loadBalancer.rebalance()
+          // toast, that we lost connection
           this.responseNotifier.printError(
             {
               header: 'Connection Error',
@@ -657,176 +676,4 @@ export class ConnectionService {
 
 
 
-
-  
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-  /*
-
-     Methods to delete
-
-  */
-
-
-
-
-
-// todo na dzisiaj
-// 1. napisać rządanie które będzie wysyłało w nagłówku header ksid
-// 2 napisać w backendzie endpoint przyjmujący rządanie z nagłówkiem ksid
-// 3. dodać obiekt ksid, który będzie sprawdzany 
-
-
-
-    // returns observable
-    getUsers(): Observable<User[]> {
-      let array = new Array<User>();
-      this.http.get<User[]>( this.api + '/angular/users',  //this.api
-        {
-          headers: new HttpHeaders()
-            .set('MY_KESSENGER_HEADER', 'true'),
-          observe: 'response', 
-          responseType: 'json'
-        })
-        .subscribe( {
-          // on normal response
-          next: (response) => {
-            // this.userss = 
-            if (response.body) {
-              console.log('body is not null');
-              response.body.forEach(u => array.push(u));
-              
-              // this.users$ = of()
-              //this.userss.concat(response.body)
-            } else {
-              console.warn('body is NULL.')
-            }
-            
-            /* response.headers.keys.arguments.forEach((key: string) => {
-              console.log('header key: ' + key)
-            }); */
-            console.warn('headers size: ' + response.headers.keys.length)
-            let k = response.headers.get('Set-Cookie')
-            if (k) { console.log('set cookie: ' + k); }
-            else console.log('has not COOKIE')
-  
-            console.log('headers: ' + response.headers.getAll)  
-/*             const play = this.cookie.get('PLAY_SESSION')
-            console.log(`PLAY_SESSION: ${play}`)
-
-            const kes = this.cookie.get('KESSENGER_SID')
-            console.log(`KESSENGER_SID: ${kes}`) */
-    
-            //console.log('status is: ' + response.status) 
-          } , 
-    
-          // on error
-          error: (error) => console.error(error),       
-    
-          // on complete
-          complete: () => console.log('Request Completed')       
-        })
-      return of(array);  
-    }
-  
-  
-  
-  
-    postNothing(): Observable<string> {
-      const options = {
-        responseType: 'text' as const,
-      };
-      return this.http.post(this.api + '/angular/post',{},{responseType:'text'});
-    }
-
-    postUser(): Observable<string> {
-      const userToSend: User = {
-        login: 'login',
-        userId: uuidv4()
-      }
-      return this.http.post(this.api + '/jsonpost', userToSend , {responseType:'text'});
-    }
-
-    getStream(): Observable<User[]> {
-      return this.http.get<User[]>( this.api + '/angular/users/stream')
-    }
-
-    callAngular() {
-      this.http.get<string>(this.api + '/angular/users').subscribe()
-    }
-
-
-
-  parseToMessage(m: any): Message | undefined {
-    try {
-      const body = JSON.parse( m )
-      
-      const content: string | null     = body.content;
-      const authorId: string | null    = body.authorId;
-      const authorLogin: string | null = body.authorLogin;
-      const chatId: string | null     = body.chatId;
-      const chatName: string   | null = body.chatName;
-      const groupChat: boolean | null = body.groupChat;    
-      const utcTime: number | null    = body.utcTime;
-      const zoneId: string | null     = body.zoneId;
-      
-      const isValid: boolean = (content != null) && 
-        (authorId != null) && 
-        (authorLogin != null) &&
-        (chatId != null) && 
-        (chatName != null) && 
-        (groupChat != null) &&
-        (utcTime != null) &&
-        (zoneId != null)
-      if ( isValid ) 
-        console.log('Message is valid')
-      else
-        console.log('Message is NOT valid')
-
-
-
-
-
-      const p: Message | undefined = <Message> JSON.parse( m ) as Message | undefined
-      return m 
-    } catch (error){
-      console.log(`cannot parse to selected type`, error)
-      return undefined
-    }
-  }
-
-  parseToInvitation(m: any): Invitation | undefined {
-    try {
-      const p: Invitation | undefined =  <Invitation>  m  as Invitation | undefined
-      return m 
-    } catch (error){
-      console.log(`cannot parse to selected type`, error)
-      return undefined
-    }
-  }
-
-   parseTo<T>(m: any): T | undefined {
-    try {
-      const p: T | undefined = <T> m as T | undefined  // m as T
-      return p
-    } catch (error){
-      console.log(`cannot parse to selected type`, error)
-      return undefined
-    }
-  } 
 }

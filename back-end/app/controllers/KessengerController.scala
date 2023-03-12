@@ -30,7 +30,7 @@ import scala.concurrent.duration.{Duration, SECONDS}
 import scala.concurrent.{Await, Future}
 
 
-
+@Singleton
 class KessengerController @Inject()
   (
     val controllerComponents: ControllerComponents,

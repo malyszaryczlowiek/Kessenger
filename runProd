@@ -1,5 +1,5 @@
 #!/bin/zsh
 
-rm -rf ./back-end/target/universal
-./back-end/generateBin
+#rm -rf ./back-end/target/universal
+#./back-end/generateBin
 docker-compose -f docker-compose.prod.yml up -d

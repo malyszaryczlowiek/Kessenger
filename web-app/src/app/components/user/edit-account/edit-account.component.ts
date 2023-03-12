@@ -32,7 +32,7 @@ export class EditAccountComponent implements OnInit, OnDestroy {
     loginForm: new FormControl('', [Validators.required, Validators.minLength(4)])
   });
 
-  // TODO write validators
+  // TODO write custom validators
   passGroup = new FormGroup({
     old: new FormControl('', [Validators.required, Validators.minLength(8)]),
     neww: new FormControl('', [Validators.required, Validators.minLength(8)])
@@ -50,7 +50,7 @@ export class EditAccountComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     this.fechingSubscription = this.userService.fetchingUserDataFinishedEmmiter.subscribe(
       ( b ) => {
-        if ( b ){
+        if ( b >= 0 ){
           this.zones = this.settingsService.zones
           this.settings = this.settingsService.settings
           this.settingsGroup.controls.zoneControl.setValue( this.settings.zoneId )
@@ -66,7 +66,7 @@ export class EditAccountComponent implements OnInit, OnDestroy {
     if (this.fechingSubscription) this.fechingSubscription.unsubscribe()
   }
 
-
+ 
 
 
   saveSettings() {

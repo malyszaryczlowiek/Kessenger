@@ -101,8 +101,8 @@ services:
       - '5438:5432'
 
 
-  play-app:
-    container_name: play-app
+  play-app-1:
+    container_name: play-app-1
     build: ./back-end
     depends_on:
       - db
@@ -111,6 +111,32 @@ services:
       - kafka3
     ports:
       - '9000:9000'
+    networks:
+      - my-simple-network
+
+
+  play-app-2:
+    container_name: play-app-2
+    build: ./back-end
+    depends_on:
+      - db
+      - kafka1
+      - kafka2
+      - kafka3
+    ports:
+      - '9001:9000'
+    networks:
+      - my-simple-network
+
+
+
+  web-app:
+    container_name: web-app
+    build: ./web-app
+    depends_on:
+      - play-app-1
+    ports:
+      - '4200:4200'
     networks:
       - my-simple-network
 
