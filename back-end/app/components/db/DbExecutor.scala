@@ -1074,26 +1074,6 @@ class DbExecutor(val kafkaConfigurator: KafkaConf) {
   }
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-  /**
-   * DEPRECATED METHODS
-   */
-
-  @deprecated(s"use getUserData() instead")
   def findMyChats(userUUID: UserID)(implicit connection: Connection): DbResponse[Map[Chat, Map[Partition, Offset]]] = {
     val numOfPartitions = kafkaConfigurator.CHAT_TOPIC_PARTITIONS_NUMBER
     val range = 0 until numOfPartitions
@@ -1150,6 +1130,20 @@ class DbExecutor(val kafkaConfigurator: KafkaConf) {
       case Success(either) => either
     }
   }
+
+
+
+
+
+
+
+
+
+
+  /**
+   * DEPRECATED METHODS
+   */
+
 
 
   @deprecated

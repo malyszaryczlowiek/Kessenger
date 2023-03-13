@@ -12,7 +12,7 @@ object LoginCredentials {
   implicit object encoder extends Encoder[LoginCredentials] {
     override def apply(a: LoginCredentials): Json = {
       a.userId match {
-        case Some(userID) =>
+        case Some(_) =>
           Json.obj(
             ("login",  Json.fromString(a.login)),
             ("pass",   Json.fromString(a.pass)),

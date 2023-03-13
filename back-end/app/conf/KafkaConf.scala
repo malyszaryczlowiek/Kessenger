@@ -23,9 +23,11 @@ trait KafkaConf {
 
 }
 
+
 /*
 TODO
- ...
- 5. napiasć skrypt uruchamiający beckend jako: sbt run -Dhttp.port=9000 tak aby można było uruchomić kilka jako dev mode.
- 6. LOAD BALANCER we frontendzie.
+ - napisać loggery i skonfigurować je tak aby w dv wyświtlały do poziomu debug a w prod do poziomu WARN
+ - poszukać informacji o hashowaniu danych w node/angular a następnie przeimplementować to do backendu.
+ - narysować schemat architektury i uzupełnić opis w READ.ME
+
  */

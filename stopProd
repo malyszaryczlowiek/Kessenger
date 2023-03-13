@@ -3,17 +3,20 @@
 docker stop pgadmin
 docker rm -v pgadmin
 
-docker stop play-app-1
-docker rm -v play-app-1
-docker rmi kessenger_play-app-1
-
-docker stop play-app-2
-docker rm -v play-app-2
-docker rmi kessenger_play-app-2
 
 docker stop web-app
 docker rm -v web-app
 docker rmi kessenger_web-app
+
+
+docker stop play-app-1
+docker rm -v play-app-1
+docker rmi kessenger_play-app-1
+
+
+docker stop play-app-2
+docker rm -v play-app-2
+docker rmi kessenger_play-app-2
 
 
 docker stop KessengerDB

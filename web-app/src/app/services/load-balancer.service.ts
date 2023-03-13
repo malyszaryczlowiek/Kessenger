@@ -48,20 +48,6 @@ export class LoadBalancerService {
     }    
   }
 
-  /*
-
-    if (this.working.length == 0) {
-      this.assignServers()
-      return false;
-    } else {
-      if (this.currentServer) {
-        
-      }
-      else return false      
-    }    
-
-  */
-  
   
   
   selectNewServer() {
