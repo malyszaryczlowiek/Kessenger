@@ -477,13 +477,6 @@ class KessengerController @Inject()
     })
 
 
-  /*
-  TODO zmienić
-    1. zmienić kessengerAdmin na singleton
-    2. dodać shutdownhook dla kessenger admin'a
-    3. KafkaConfigurator oznaczyć jako
-
-   */
 
 
 

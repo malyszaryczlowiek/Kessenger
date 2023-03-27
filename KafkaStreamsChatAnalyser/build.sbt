@@ -1,5 +1,6 @@
 ThisBuild / version := "0.1.0"
-ThisBuild / scalaVersion := "3.1.1"
+// ThisBuild / scalaVersion := "3.1.1"
+ThisBuild / scalaVersion := "2.13.10"
 
 lazy val root = (project in file("."))
   .settings(
@@ -12,17 +13,26 @@ lazy val root = (project in file("."))
     libraryDependencies ++= Seq(
 
       // Kafka Repos
-      ("org.apache.kafka" %% "kafka"               % "3.1.0").cross(CrossVersion.for3Use2_13),
-      ("org.apache.kafka" %% "kafka-streams-scala" % "3.1.0").cross(CrossVersion.for3Use2_13),
-      "org.apache.kafka"  % "kafka-clients"        % "3.1.0",
+//      ("org.apache.kafka" %% "kafka"               % "3.1.0").cross(CrossVersion.for3Use2_13),
+//      ("org.apache.kafka" %% "kafka-streams-scala" % "3.1.0").cross(CrossVersion.for3Use2_13),
+      "org.apache.kafka" %% "kafka" % "3.1.0",
+      "org.apache.kafka" %% "kafka-streams-scala" % "3.1.0",
+      "org.apache.kafka"  % "kafka-clients"       % "3.1.0",
 
       // Own library with util and domain classes.
       // https://github.com/malyszaryczlowiek/kessenger-lib
-      "io.github.malyszaryczlowiek" %% "kessenger-lib" % "0.2.1",
+      "io.github.malyszaryczlowiek" %% "kessenger-lib" % "0.3.23",
+
+      "com.typesafe" % "config" % "1.4.2",
 
 
       // to switch off logging from slf4j
       "org.slf4j" % "slf4j-nop" % "1.7.36",
+//      "org.apache.logging.log4j" % "log4j-api" % "2.20.0",
+//      "org.apache.logging.log4j" % "log4j-core" % "2.20.0",
+      // "org.slf4j" % "slf4j-nop" % "2.0.5",
+      // "org.slf4j" % "slf4j-api" % "2.0.5",
+      // "ch.qos.logback" % "logback-core" % "1.4.6",
 
 
       // For Tests

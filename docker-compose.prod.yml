@@ -127,6 +127,20 @@ services:
       - '9001:9000'
     networks:
       - my-simple-network
+        
+  
+#  reverse-proxy:
+#    container_name: reverse-proxy
+#    build: ./reverse-proxy
+##    depends_on:
+##      - db
+##      - kafka1
+##      - kafka2
+##      - kafka3
+#    ports:
+#      - '8999:9000'
+#    networks:
+#      - my-simple-network
 
 
 

@@ -1,12 +1,14 @@
 package io.github.malyszaryczlowiek
 
-import kessengerlibrary.domain.{Chat, User}
+
 import kessengerlibrary.env.Environment
 import kessengerlibrary.kafka.errors.{KafkaError, KafkaErrorsHandler}
-import kessengerlibrary.kafka.TopicCreator
-import kessengerlibrary.messages.Message
-import kessengerlibrary.serdes.{MessageSerde, UserSerde}
+import kessengerlibrary.model.Message
+import kessengerlibrary.serdes.message.MessageSerde
 
+import util.TopicCreator
+
+import com.typesafe.config.{Config, ConfigFactory}
 import org.apache.kafka.clients.admin.{Admin, CreateTopicsResult, NewTopic}
 import org.apache.kafka.clients.producer.ProducerConfig
 import org.apache.kafka.common.KafkaFuture
@@ -17,7 +19,6 @@ import org.apache.kafka.streams.kstream.{Grouped, TimeWindows, Windowed}
 import org.apache.kafka.streams.{KafkaStreams, StreamsConfig, Topology}
 import org.apache.kafka.streams.scala.StreamsBuilder
 import org.apache.kafka.streams.scala.kstream.{Consumed, KGroupedStream, KStream, KTable, Materialized, Produced}
-import org.apache.kafka.streams.scala.serialization.Serdes
 import org.apache.kafka.streams.scala.serialization.Serdes.{longSerde, stringSerde}
 
 import java.util.Properties
@@ -36,25 +37,44 @@ object StreamsChatAnalyser {
    * counted messages per zoneid in time unit
    */
   private val MESSAGE_NUM_PER_ZONE = "message-num-per-zone"
+  private var config: Config = null
+  private val env = System.getenv("KAFKA_STREAMS_ENV")
+  private val confPath = "application.conf"
+
+  if (env != null) {
+    if (env.equals("PROD"))
+      config = ConfigFactory.load(confPath).getConfig("kafka.streams.prod")
+    else if (env.equals("DEV"))
+      config = ConfigFactory.load(confPath).getConfig("kafka.streams.dev")
+    else
+      // System.exit(1)
+      config = ConfigFactory.load(confPath).getConfig("kafka.streams.dev")
+  } else
+    config = ConfigFactory.load(confPath).getConfig("kafka.streams.dev")
+    // System.exit(2)
+
+
+
 
 
   /**
    *
    *
    */
-  def main(args: Array[String]): Unit =
+  def main(args: Array[String]): Unit = {
+    val servers = config.getString("bootstrap-servers")
+    val applicationId = config.getString("application-id")
 
 
     // Define properties for KafkaStreams object
     val properties: Properties = new Properties()
-    properties.put(StreamsConfig.APPLICATION_ID_CONFIG, "chat-analyser")
-    properties.put(StreamsConfig.BOOTSTRAP_SERVERS_CONFIG, "kafka1:9092,kafka2:9092,kafka3:9092")
+    properties.put( StreamsConfig.APPLICATION_ID_CONFIG,    applicationId)
+    properties.put( StreamsConfig.BOOTSTRAP_SERVERS_CONFIG, servers)
 
 
 
     // we try to create collecting topic
-    TopicCreator.createTopic( MESSAGE_NUM_PER_ZONE, Environment.Prod )
-
+    TopicCreator.createTopic(MESSAGE_NUM_PER_ZONE, config)
 
 
     // we will read from ALL chat topics.
@@ -62,20 +82,17 @@ object StreamsChatAnalyser {
     val pattern: Pattern = Pattern.compile(s"chat--([\\p{Alnum}-]*)")
 
 
-
     // define builder
     val builder: StreamsBuilder = new StreamsBuilder()
 
 
-
     // define serde
-    val userSerde:    Serde[User]    = new UserSerde
+    // val userSerde:    Serde[User]    = new UserSerde
     val messageSerde: Serde[Message] = new MessageSerde
 
 
-
     // we define topic we read from
-    val sourceStream: KStream[String, Message] = builder.stream(pattern)(Consumed `with` (stringSerde, messageSerde))
+    val sourceStream: KStream[String, Message] = builder.stream(pattern)(Consumed `with`(stringSerde, messageSerde))
 
 
 
@@ -95,11 +112,9 @@ object StreamsChatAnalyser {
     val grouped = Grouped.`with`("repartitioned", stringSerde, messageSerde)
 
 
-
     // we are grouping all messages per sending zone
     val groupedStream: KGroupedStream[String, Message] =
       sourceStream.groupBy((user, message) => message.zoneId.getId)(grouped)
-
 
 
     // and collect only from last 10 seconds and wait 1s for
@@ -112,8 +127,7 @@ object StreamsChatAnalyser {
           java.time.Duration.ofSeconds(10)
         )
       )
-      .count()(Materialized.as( MESSAGE_NUM_PER_ZONE )(stringSerde, longSerde))
-
+      .count()(Materialized.as(MESSAGE_NUM_PER_ZONE)(stringSerde, longSerde))
 
 
     // convert ktable to kstream (extracting key from Window object)
@@ -123,19 +137,16 @@ object StreamsChatAnalyser {
 
     // print results to docker container console
     // only for testing purposes
-    streamToPrint.peek((s,l) => println(s"$s: $l"))
+    streamToPrint.peek((s, l) => println(s"$s: $l"))
 
 
       // and save number of messages per zone in time unit
       // to MESSAGE_NUM_PER_ZONE topic
-      .to( MESSAGE_NUM_PER_ZONE )(Produced `with` (stringSerde, longSerde))
-
+      .to(MESSAGE_NUM_PER_ZONE)(Produced `with`(stringSerde, longSerde))
 
 
     // we build topology of the streams
     val topology: Topology = builder.build()
-
-
 
 
     /*
@@ -153,14 +164,14 @@ object StreamsChatAnalyser {
 
       // we initialize shutdownhook only once.
       // if initializeShutDownHook then
-        Runtime.getRuntime.addShutdownHook( new Thread("closing_stream_thread") {
-          override
-          def run(): Unit =
-            streams.close()
-            println(s"Streams closed from ShutdownHook.")
-          //latch.countDown()
-        })
-        //initializeShutDownHook = false
+      Runtime.getRuntime.addShutdownHook(new Thread("closing_stream_thread") {
+        override
+        def run(): Unit =
+          streams.close()
+          println(s"Streams closed from ShutdownHook.")
+        //latch.countDown()
+      })
+      //initializeShutDownHook = false
 
 
       // we starting streams
@@ -178,5 +189,7 @@ object StreamsChatAnalyser {
       streams.close()
       println(s"Streams closed.")
     }
+
+  }
 
 }

@@ -1,9 +1,11 @@
 package io.github.malyszaryczlowiek
 package unitTests
 
-import kessengerlibrary.domain.User
-import kessengerlibrary.messages.Message
-import kessengerlibrary.serdes.{MessageSerde, UserSerde}
+import kessengerlibrary.model.Message
+import kessengerlibrary.model.User
+import kessengerlibrary.serdes.message.MessageSerde
+import kessengerlibrary.serdes.user.UserSerde
+
 
 import org.apache.kafka.streams.kstream.Suppressed.BufferConfig.unbounded
 import org.apache.kafka.streams.kstream.internals.SessionWindow
@@ -42,21 +44,28 @@ class StreamTests extends munit.FunSuite {
 
 
 
-  override def beforeAll(): Unit =
+  override def beforeAll(): Unit = {
     super.beforeAll()
-  end beforeAll
+  }
 
 
 
-  override def beforeEach(context: BeforeEach): Unit =
+
+
+  override def beforeEach(context: BeforeEach): Unit = {
     super.beforeEach(context)
-  end beforeEach
+  }
 
 
 
-  override def afterEach(context: AfterEach): Unit =
+
+
+  override def afterEach(context: AfterEach): Unit = {
     testDriver.close()
     super.afterEach(context)
+  }
+
+
 
 
   /**
@@ -117,9 +126,9 @@ class StreamTests extends munit.FunSuite {
     val user1 = User(uuid1, "User1")
     val user2 = User(uuid2, "User1")
 
-    val message1 = Message("", user1.userId, user1.login, 0L, ZoneId.of("Europe/Warsaw"), "", "", false)
-    val message2 = Message("", user1.userId, user1.login, 0L, ZoneId.of("Europe/Paris"), "", "", false)
-    val message3 = Message("", user1.userId, user1.login, 0L, ZoneId.of("Europe/Paris"), "", "", false)
+    val message1 = Message("", user1.userId, user1.login, 0L, 0L, ZoneId.of("Europe/Warsaw"), "", "", false, None)
+    val message2 = Message("", user1.userId, user1.login, 0L, 0L,  ZoneId.of("Europe/Paris"), "", "", false, None)
+    val message3 = Message("", user1.userId, user1.login, 0L, 0L, ZoneId.of("Europe/Paris"), "", "", false, None)
 
 
     inputTopic.pipeInput(user1, message1)
@@ -233,9 +242,9 @@ class StreamTests extends munit.FunSuite {
     val user1 = User(uuid1, "User1")
     val user2 = User(uuid2, "User1")
 
-    val message1 = Message("", user1.userId,user1.login, 0L, ZoneId.of("Europe/Warsaw"), "", "", false)
-    val message2 = Message("", user1.userId,user1.login, 0L, ZoneId.of("Europe/Paris"), "", "", false)
-    val message3 = Message("", user1.userId,user1.login, 0L, ZoneId.of("Europe/Paris"), "", "", false)
+    val message1 = Message("", user1.userId, user1.login, 0L, 0L, ZoneId.of("Europe/Warsaw"), "", "", false, None)
+    val message2 = Message("", user1.userId, user1.login, 0L, 0L,  ZoneId.of("Europe/Paris"), "", "", false, None)
+    val message3 = Message("", user1.userId, user1.login, 0L, 0L, ZoneId.of("Europe/Paris"), "", "", false, None)
 
 
     inputTopic.pipeInput(user1, message1)
@@ -271,61 +280,6 @@ class StreamTests extends munit.FunSuite {
 
 
   }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-  test("test") {
-
-
-
-//    inputTopic.pipeInput("key", 42L)
-//    assert(outputTopic.readKeyValue.equals(new KeyValue[String, Long]("key", 42L)))
-//    assert(outputTopic.isEmpty)
-
-//    testDriver.advanceWallClockTime(java.time.Duration.ofSeconds(20))
-//    val store: KeyValueStore[String, Long] = testDriver.getKeyValueStore("store-name")
-  }
-
 
 
 

@@ -24,10 +24,3 @@ trait KafkaConf {
 }
 
 
-/*
-TODO
- - napisać loggery i skonfigurować je tak aby w dv wyświtlały do poziomu debug a w prod do poziomu WARN
- - poszukać informacji o hashowaniu danych w node/angular a następnie przeimplementować to do backendu.
- - narysować schemat architektury i uzupełnić opis w READ.ME
-
- */
