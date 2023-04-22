@@ -2,7 +2,7 @@ package components.actors.readers
 
 import akka.actor._
 import io.github.malyszaryczlowiek.kessengerlibrary.domain.Domain.ChatId
-import io.github.malyszaryczlowiek.kessengerlibrary.model.{ChatPartitionsOffsets, Configuration, Message, PartitionOffset}
+import io.github.malyszaryczlowiek.kessengerlibrary.model.{ChatPartitionsOffsets, Configuration, Message, PartitionOffset, User}
 import org.apache.kafka.clients.consumer.{ConsumerRecord, ConsumerRecords, KafkaConsumer}
 import org.apache.kafka.common.TopicPartition
 import util.KafkaAdmin
@@ -26,7 +26,7 @@ class OldMessageReader(out: ActorRef, parentActor: ActorRef, conf: Configuration
   this.chats.addAll(conf.chats.map(c => (c.chatId, (c.partitionOffset, c.partitionOffset))))
 
 
-  override protected def initializeConsumer[Message](consumer: KafkaConsumer[String, Message]): Unit = {}
+  override protected def initializeConsumer[User, Message](consumer: KafkaConsumer[User, Message]): Unit = {}
 
 
 
@@ -87,12 +87,12 @@ class OldMessageReader(out: ActorRef, parentActor: ActorRef, conf: Configuration
 
 
   @tailrec
-  private def readToOffset(consumer: KafkaConsumer[String, Message], maxPartOff: List[PartitionOffset]): Unit = {
-    val messages: ConsumerRecords[String, Message] = consumer.poll(java.time.Duration.ofMillis(100L))
+  private def readToOffset(consumer: KafkaConsumer[User, Message], maxPartOff: List[PartitionOffset]): Unit = {
+    val messages: ConsumerRecords[User, Message] = consumer.poll(java.time.Duration.ofMillis(100L))
     val buffer = ListBuffer.empty[Message]
     println(s"OldMessageReader --> Liczba Wiadomość ${messages.count()} .")
     messages.forEach(
-      (r: ConsumerRecord[String, Message]) => {
+      (r: ConsumerRecord[User, Message]) => {
         val m = r.value().copy(serverTime = r.timestamp(), partOff = Some(PartitionOffset(r.partition(), r.offset())))
         maxPartOff.find(po => po.partition == r.partition() && po.offset > r.offset()) match {
           case Some(_) =>

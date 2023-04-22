@@ -5,7 +5,7 @@ import io.circe.Decoder.Result
 import io.circe.{Decoder, Encoder, Error, HCursor, Json}
 import io.circe.syntax._
 import io.circe.parser.decode
-import io.github.malyszaryczlowiek.kessengerlibrary.model.{Chat, PartitionOffset, Settings, User}
+import io.github.malyszaryczlowiek.kessengerlibrary.model.{Chat, Message, PartitionOffset, Settings, User}
 import io.github.malyszaryczlowiek.kessengerlibrary.domain.Domain.{Offset, Partition}
 
 import java.util.UUID
@@ -13,6 +13,18 @@ import java.util.UUID
 
 
 class JsonParsers {
+
+
+  private implicit object userAndMessageDecoder extends Decoder[(User, Message)] {
+    override def apply(c: HCursor): Result[(User, Message)] = {
+      for {
+        user    <- c.downField("user").as[User]
+        message <- c.downField("message").as[Message]
+      } yield {
+        (user, message)
+      }
+    }
+  }
 
 
   private implicit object newChatJSONDecoder extends Decoder[(User, List[UUID], String)] {
@@ -123,6 +135,8 @@ class JsonParsers {
   def parseNewChatUsers(json: String): Either[Error, (String, String, List[UUID], List[PartitionOffset])] =
     decode[(String, String, List[UUID], List[PartitionOffset])](json)(newChatUsersJSONDecoder)
   def parseNewPass(json: String): Either[Error, (String, String)] = decode[(String, String)](json)(newPassDecoder)
+
+  def parseUserAndMessage(json: String): Either[Error, (User, Message)] = decode[(User, Message)](json)(userAndMessageDecoder)
 
 
 }

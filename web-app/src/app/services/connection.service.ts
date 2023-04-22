@@ -479,10 +479,10 @@ export class ConnectionService {
 
 
 
-  sendMessage(message: Message) {
+  sendMessage(body: {user: User, message: Message}) {
     if (this.wsConnection) {
       console.log('sending data to server.');
-      this.wsConnection.send(JSON.stringify( message ));
+      this.wsConnection.send(JSON.stringify( body ));
     } else {
       console.error('Did not send data, open a connection first');
     }

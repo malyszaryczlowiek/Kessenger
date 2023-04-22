@@ -13,6 +13,7 @@ import util.KafkaAdmin
 import akka.actor._
 import akka.actor.PoisonPill
 import components.actors.readers.{InvitationReader, NewMessageReader, OldMessageReader, WritingReader}
+import components.util.converters.JsonParsers
 import conf.KafkaConf
 import play.api.db.Database
 
@@ -41,6 +42,7 @@ class WebSocketActor(out: ActorRef, ka: KafkaAdmin, kec: ExecutionContext, db: D
 
 
   private val actorId = UUID.randomUUID()
+  private val jsonParser: JsonParsers = new JsonParsers
 
 
 
@@ -58,7 +60,8 @@ class WebSocketActor(out: ActorRef, ka: KafkaAdmin, kec: ExecutionContext, db: D
       parseWriting( s ) match {
         case Left(_) =>
           println(s"2. CANNOT PARSE WRITING")
-          parseMessage(s) match {
+          jsonParser.parseUserAndMessage(s) match {
+//          parseMessage(s) match {
             case Left(_) =>
               println(s"3. CANNOT PARSE MESSAGE")
               parseConfiguration(s) match {
@@ -145,11 +148,11 @@ class WebSocketActor(out: ActorRef, ka: KafkaAdmin, kec: ExecutionContext, db: D
                   )
                   out ! "{\"comm\":\"opened correctly\"}"
               }
-            case Right(message) =>
+            case Right((user, message)) =>
               println(s"3. GOT MESSAGE: $s")
               // this.be.sendMessage(message)
               this.childrenActors.get(MessageSenderKey) match {
-                case Some(ref) => ref ! message
+                case Some(ref) => ref ! (user, message)
                 case None =>
               }
           }

@@ -58,7 +58,7 @@ class WritingReader(out: ActorRef, parentActor: ActorRef, conf: Configuration, k
   }
 
 
-  override protected def initializeConsumer[Writing](consumer: KafkaConsumer[String, Writing]): Unit = {
+  override protected def initializeConsumer[String, Writing](consumer: KafkaConsumer[String, Writing]): Unit = {
     val writingTopics = this.chats.map(t => Domain.generateWritingId(t._1))
     consumer.subscribe(CollectionConverters.asJavaCollection(writingTopics))
   }

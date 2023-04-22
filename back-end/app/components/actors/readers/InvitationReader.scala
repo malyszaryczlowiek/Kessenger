@@ -51,7 +51,7 @@ class InvitationReader(out: ActorRef, parentActor: ActorRef, conf: Configuration
 
 
 
-  override protected def initializeConsumer[Invitation](consumer: KafkaConsumer[String, Invitation]): Unit = {
+  override protected def initializeConsumer[String, Invitation](consumer: KafkaConsumer[String, Invitation]): Unit = {
     val myJoinTopic = new TopicPartition(Domain.generateJoinId(conf.me.userId), 0)
     // assign this toopic to kafka consumer
     consumer.assign(java.util.List.of(myJoinTopic))

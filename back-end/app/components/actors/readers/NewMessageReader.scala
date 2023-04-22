@@ -57,7 +57,7 @@ class NewMessageReader(out: ActorRef, parentActor: ActorRef, conf: Configuration
 
 
 
-  override protected def initializeConsumer[Message](consumer: KafkaConsumer[String, Message]): Unit = {
+  override protected def initializeConsumer[User, Message](consumer: KafkaConsumer[User, Message]): Unit = {
     val partitions: Iterable[(TopicPartition, Long)] = this.chats.flatMap(
       kv => kv._2.map(po => (new TopicPartition(kv._1, po.partition), po.offset))
     )
@@ -72,7 +72,7 @@ class NewMessageReader(out: ActorRef, parentActor: ActorRef, conf: Configuration
 
 
   @tailrec
-  private def readingLoop(consumer: KafkaConsumer[String, Message]): Unit = {
+  private def readingLoop(consumer: KafkaConsumer[User, Message]): Unit = {
     if (this.newChats.nonEmpty) reassignConsumer(consumer)
     if (this.continueReading.get()) {
       read(consumer)
@@ -82,7 +82,7 @@ class NewMessageReader(out: ActorRef, parentActor: ActorRef, conf: Configuration
 
 
 
-  private def reassignConsumer(consumer: KafkaConsumer[String, Message]): Unit = {
+  private def reassignConsumer(consumer: KafkaConsumer[User, Message]): Unit = {
     consumer.unsubscribe()
     newChats.foreach(kv => this.chats.put(kv._1, kv._2))
     val partitions: Iterable[(TopicPartition, Long)] = this.chats.flatMap(
@@ -99,11 +99,11 @@ class NewMessageReader(out: ActorRef, parentActor: ActorRef, conf: Configuration
 
 
 
-  private def read(consumer: KafkaConsumer[String, Message]): Unit = {
-    val messages: ConsumerRecords[String, Message] = consumer.poll(java.time.Duration.ofMillis(250))
+  private def read(consumer: KafkaConsumer[User, Message]): Unit = {
+    val messages: ConsumerRecords[User, Message] = consumer.poll(java.time.Duration.ofMillis(250))
     val buffer = ListBuffer.empty[Message]
     messages.forEach(
-      (r: ConsumerRecord[String, Message]) => {
+      (r: ConsumerRecord[User, Message]) => {
         val m = r.value().copy(serverTime = r.timestamp(), partOff = Some(PartitionOffset(r.partition(), r.offset())))
         this.chats.get(m.chatId) match {
           case Some(po) =>

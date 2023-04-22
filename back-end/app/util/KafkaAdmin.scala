@@ -4,10 +4,9 @@ package util
 import conf.KafkaConf
 import io.github.malyszaryczlowiek.kessengerlibrary.domain.Domain.{ChatId, JoinId, UserID}
 import io.github.malyszaryczlowiek.kessengerlibrary.domain.Domain
-import io.github.malyszaryczlowiek.kessengerlibrary.model.{Chat, Invitation, Message, Writing}
+import io.github.malyszaryczlowiek.kessengerlibrary.model.{Chat, Invitation, Message, User, Writing}
 import io.github.malyszaryczlowiek.kessengerlibrary.kafka.errors.{KafkaError, KafkaErrorsHandler}
 import io.github.malyszaryczlowiek.kessengerlibrary.kafka.errors._
-
 import org.apache.kafka.clients.admin.{Admin, AdminClientConfig, CreateTopicsResult, DeleteTopicsResult, NewTopic}
 import org.apache.kafka.clients.consumer.{ConsumerConfig, KafkaConsumer}
 import org.apache.kafka.clients.producer.{KafkaProducer, ProducerConfig}
@@ -34,20 +33,20 @@ class KafkaAdmin @Inject() (@Named("KafkaConfiguration") configurator: KafkaConf
     Future.successful(this.closeAdmin())
   }
 
-//  private val userSerializer   = "io.github.malyszaryczlowiek.kessengerlibrary.serdes.user.UserSerializer"
-//  private val userDeserializer = "io.github.malyszaryczlowiek.kessengerlibrary.serdes.user.UserDeserializer"
+  private val userSerializer         = configurator.USER_SERIALIZER // "io.github.malyszaryczlowiek.kessengerlibrary.serdes.user.UserSerializer"
+  private val userDeserializer       = configurator.USER_DESERIALIZER // "io.github.malyszaryczlowiek.kessengerlibrary.serdes.user.UserDeserializer"
 
-  private val invitationSerializer   = configurator.JOINING_TOPIC_INVITATION_SERIALIZER // "io.github.malyszaryczlowiek.kessengerlibrary.serdes.invitation.InvitationSerializer"
-  private val invitationDeserializer = configurator.JOINING_TOPIC_INVITATION_DESERIALIZER //"io.github.malyszaryczlowiek.kessengerlibrary.serdes.invitation.InvitationDeserializer"
+  private val invitationSerializer   = configurator.INVITATION_SERIALIZER // "io.github.malyszaryczlowiek.kessengerlibrary.serdes.invitation.InvitationSerializer"
+  private val invitationDeserializer = configurator.INVITATION_DESERIALIZER //"io.github.malyszaryczlowiek.kessengerlibrary.serdes.invitation.InvitationDeserializer"
 
-  private val messageSerializer   = configurator.CHAT_TOPIC_MESSAGE_SERIALIZER // "io.github.malyszaryczlowiek.kessengerlibrary.serdes.message.MessageSerializer"
-  private val messageDeserializer = configurator.CHAT_TOPIC_MESSAGE_DESERIALIZER // "io.github.malyszaryczlowiek.kessengerlibrary.serdes.message.MessageDeserializer"
+  private val messageSerializer      = configurator.MESSAGE_SERIALIZER // "io.github.malyszaryczlowiek.kessengerlibrary.serdes.message.MessageSerializer"
+  private val messageDeserializer    = configurator.MESSAGE_DESERIALIZER // "io.github.malyszaryczlowiek.kessengerlibrary.serdes.message.MessageDeserializer"
 
-  private val writingSerializer   = configurator.WRITING_TOPIC_WRITING_SERIALIZER // "io.github.malyszaryczlowiek.kessengerlibrary.serdes.writing.WritingSerializer"
-  private val writingDeserializer = configurator.WRITING_TOPIC_WRITING_DESERIALIZER // "io.github.malyszaryczlowiek.kessengerlibrary.serdes.writing.WritingDeserializer"
+  private val writingSerializer      = configurator.WRITING_SERIALIZER // "io.github.malyszaryczlowiek.kessengerlibrary.serdes.writing.WritingSerializer"
+  private val writingDeserializer    = configurator.WRITING_DESERIALIZER // "io.github.malyszaryczlowiek.kessengerlibrary.serdes.writing.WritingDeserializer"
 
-  private val stringSerializer   = "org.apache.kafka.common.serialization.StringSerializer"
-  private val stringDeserializer = "org.apache.kafka.common.serialization.StringDeserializer"
+  private val stringSerializer       = "org.apache.kafka.common.serialization.StringSerializer"
+  private val stringDeserializer     = "org.apache.kafka.common.serialization.StringDeserializer"
 
   val properties = new Properties
   properties.put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, configurator.BOOTSTRAP_SERVERS)
@@ -178,7 +177,7 @@ class KafkaAdmin @Inject() (@Named("KafkaConfiguration") configurator: KafkaConf
    *
    * @return
    */
-  def createMessageProducer: KafkaProducer[String, Message] = {
+  def createMessageProducer: KafkaProducer[User, Message] = {
     val properties = new Properties
     // ProducerConfig.RETRIES_CONFIG which is default set to Integer.MAX_VALUE id required by idempotence.
     properties.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, configurator.BOOTSTRAP_SERVERS)
@@ -186,9 +185,9 @@ class KafkaAdmin @Inject() (@Named("KafkaConfiguration") configurator: KafkaConf
     properties.put(ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG, "true") // we do not need duplicates in partitions
     properties.put(ProducerConfig.LINGER_MS_CONFIG, "0") // we do not wait to fill the buffer and send message immediately
     //properties.put(ProducerConfig.DELIVERY_TIMEOUT_MS_CONFIG   , "3000") // we try to resend every message via 3000 ms
-    properties.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, stringSerializer) // "org.apache.kafka.common.serialization.StringSerializer"
+    properties.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG,   userSerializer) // "org.apache.kafka.common.serialization.StringSerializer"
     properties.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, messageSerializer)
-    new KafkaProducer[String, Message](properties)
+    new KafkaProducer[User, Message](properties)
   }
 
 
@@ -211,14 +210,14 @@ class KafkaAdmin @Inject() (@Named("KafkaConfiguration") configurator: KafkaConf
    *
    * @param userId this is normally user-id. So all chat users are in different consumer group,
    */
-  def createMessageConsumer(userId: String): KafkaConsumer[String, Message] = {
+  def createMessageConsumer(userId: String): KafkaConsumer[User, Message] = {
     val props: Properties = new Properties();
     props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, configurator.BOOTSTRAP_SERVERS)
     props.put(ConsumerConfig.GROUP_ID_CONFIG, userId)
     props.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, "false")
-    props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, stringDeserializer)
+    props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, userDeserializer)
     props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, messageDeserializer)
-    new KafkaConsumer[String, Message](props)
+    new KafkaConsumer[User, Message](props)
   }
 
 
@@ -337,6 +336,8 @@ class KafkaAdmin @Inject() (@Named("KafkaConfiguration") configurator: KafkaConf
     properties.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, writingSerializer)
     new KafkaProducer[String, Writing](properties)
   }
+
+
 
   def createWritingConsumer(userId: String): KafkaConsumer[String, Writing] = {
     val props: Properties = new Properties();

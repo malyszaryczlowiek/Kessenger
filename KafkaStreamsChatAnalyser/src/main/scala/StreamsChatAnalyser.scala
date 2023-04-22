@@ -1,20 +1,13 @@
 package io.github.malyszaryczlowiek
 
 
-import kessengerlibrary.env.Environment
-import kessengerlibrary.kafka.errors.{KafkaError, KafkaErrorsHandler}
-import kessengerlibrary.model.Message
+import kessengerlibrary.model.{Message, User}
 import kessengerlibrary.serdes.message.MessageSerde
-
 import util.TopicCreator
 
 import com.typesafe.config.{Config, ConfigFactory}
-import org.apache.kafka.clients.admin.{Admin, CreateTopicsResult, NewTopic}
-import org.apache.kafka.clients.producer.ProducerConfig
-import org.apache.kafka.common.KafkaFuture
-import org.apache.kafka.common.config.TopicConfig
+import io.github.malyszaryczlowiek.kessengerlibrary.serdes.user.UserSerde
 import org.apache.kafka.common.serialization.Serde
-import org.apache.kafka.common.serialization.Serdes.StringSerde
 import org.apache.kafka.streams.kstream.{Grouped, TimeWindows, Windowed}
 import org.apache.kafka.streams.{KafkaStreams, StreamsConfig, Topology}
 import org.apache.kafka.streams.scala.StreamsBuilder
@@ -22,12 +15,15 @@ import org.apache.kafka.streams.scala.kstream.{Consumed, KGroupedStream, KStream
 import org.apache.kafka.streams.scala.serialization.Serdes.{longSerde, stringSerde}
 
 import java.util.Properties
-import java.util.concurrent.{CountDownLatch, TimeUnit}
 import java.util.regex.Pattern
-import scala.jdk.javaapi.CollectionConverters
-import scala.util.{Failure, Success, Using}
 
 
+
+/*
+TODO
+ - przetestować logback
+ - zmienić na scala 3.
+ */
 
 
 object StreamsChatAnalyser {
@@ -87,18 +83,18 @@ object StreamsChatAnalyser {
 
 
     // define serde
-    // val userSerde:    Serde[User]    = new UserSerde
+    val userSerde:    Serde[User]    = new UserSerde
     val messageSerde: Serde[Message] = new MessageSerde
 
 
     // we define topic we read from
-    val sourceStream: KStream[String, Message] = builder.stream(pattern)(Consumed `with`(stringSerde, messageSerde))
+    val sourceStream: KStream[User, Message] = builder.stream(pattern)(Consumed `with`(userSerde, messageSerde))
 
 
 
     // for testing purposes
     // we simply print every message
-    sourceStream.peek((nullString, message) => println(s"Message: $message"))
+    sourceStream.peek((user, message) => println(s"User: $user, Message: $message"))
 
 
     // define where we write output
@@ -117,14 +113,14 @@ object StreamsChatAnalyser {
       sourceStream.groupBy((user, message) => message.zoneId.getId)(grouped)
 
 
-    // and collect only from last 10 seconds and wait 1s for
-    // delayed messages.
+    // and collect only from last 10 seconds
+    // and wait 10s for delayed messages.
     // in production we should collect data by one hour or longer period
     val lastFiveMinutes: KTable[Windowed[String], Long] = groupedStream
       .windowedBy(
         TimeWindows.ofSizeAndGrace(
-          java.time.Duration.ofSeconds(10),
-          java.time.Duration.ofSeconds(10)
+          java.time.Duration.ofSeconds(10), // collect from 10 s
+          java.time.Duration.ofSeconds(10)  // wait max 10 s for delayed messages
         )
       )
       .count()(Materialized.as(MESSAGE_NUM_PER_ZONE)(stringSerde, longSerde))

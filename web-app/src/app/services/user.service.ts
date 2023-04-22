@@ -627,7 +627,13 @@ export class UserService {
 
 
   sendMessage(msg: Message) {
-    this.connection.sendMessage(msg);
+    if (this.user) {
+      const body = {
+        user:    this.user,
+        message: msg
+      }
+      this.connection.sendMessage( body );
+    }    
   }
 
 

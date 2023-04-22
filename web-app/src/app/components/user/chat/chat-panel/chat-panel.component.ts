@@ -174,7 +174,7 @@ export class ChatPanelComponent implements OnInit, OnDestroy {
 
 
   sendMessage(m: Message) {
-    console.log('sending message', m)
+    console.log(`sending message: ${m}`, m)
     this.userService.updateSession(true)
     this.userService.sendMessage( m )                        
   }
