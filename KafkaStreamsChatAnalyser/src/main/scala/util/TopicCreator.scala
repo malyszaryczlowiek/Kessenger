@@ -66,36 +66,3 @@ object TopicCreator {
 }
 
 
-
-/*
-
-
-
-ERROR StatusLogger Log4j2 could not find a logging implementation. Please add log4j-core to the classpath. Using SimpleLogger to log to the console...
-
-ERROR StatusLogger Log4j2 could not find a logging implementation. Please add log4j-core to the classpath. Using SimpleLogger to log to the console...
-
-ERROR StatusLogger Log4j2 could not find a logging implementation. Please add log4j-core to the classpath. Using SimpleLogger to log to the console...
-
-ERROR StatusLogger Log4j2 could not find a logging implementation. Please add log4j-core to the classpath. Using SimpleLogger to log to the console...
-
-Topic message-num-per-zone created.
-
-Streams closed from ShutdownHook.
-
-ERROR: java.lang.IllegalStateException: Stream-client chat-analyser-ff954e95-b7f0-447b-9611-32ed1ff2180b: Unexpected state transition from NOT_RUNNING to REBALANCING
-
-Cannot create topic. Chat already exists Error.
-
-Streams closed from ShutdownHook.
-
-ERROR: java.lang.IllegalStateException: Stream-client chat-analyser-ff954e95-b7f0-447b-9611-32ed1ff2180b: Unexpected state transition from NOT_RUNNING to REBALANCING
-
-Cannot create topic. Chat already exists Error.
-
-Streams closed from ShutdownHook.
-
-ERROR: java.lang.IllegalStateException: Stream-client chat-analyser-ff954e95-b7f0-447b-9611-32ed1ff2180b: Unexpected state transition from NOT_RUNNING to REBALANCING
-
-Cannot create topic. Chat already exists Error.
- */

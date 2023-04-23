@@ -5,6 +5,7 @@ import kessengerlibrary.model.{Message, User}
 import kessengerlibrary.serdes.message.MessageSerde
 import kessengerlibrary.serdes.user.UserSerde
 
+import io.github.malyszaryczlowiek.util.averagenum.{AverageNum, AverageWordsNumSerde}
 import org.apache.kafka.streams.kstream.{Grouped, Named, TimeWindows, Windowed}
 import org.apache.kafka.streams.scala.StreamsBuilder
 import org.apache.kafka.streams.scala.kstream._
@@ -31,6 +32,7 @@ class StreamTests extends munit.FunSuite {
 
   private val userSerde    = new UserSerde
   private val messageSerde = new MessageSerde
+  private val avgNumSerde  = new AverageWordsNumSerde
 
   private var topology:        Topology                      = _
   private var inputTopic:      TestInputTopic[User, Message] = _
@@ -39,6 +41,8 @@ class StreamTests extends munit.FunSuite {
   private var messagesPerZone:   TestOutputTopic[String, Long] = _
   private var numOfUserMessages: TestOutputTopic[User,   Long] = _
   private var outputTopic:       TestOutputTopic[String, Long] = _
+  private var outputTopic2:      TestOutputTopic[User, String] = _
+  private var outputTopic3:      TestOutputTopic[String, String] = _
 
 
 
@@ -486,15 +490,14 @@ class StreamTests extends munit.FunSuite {
 
 
   /**
-   * "number of all messages per time unit (2s) per zone"
+   * "number of all messages per time unit (2s) per user"
    */
   test("number of all messages per time unit (2s) per user") {
 
     val streamBuilder: StreamsBuilder = new StreamsBuilder()
 
     val outputStream = streamBuilder.stream("input-topic")(Consumed.`with`(userSerde, messageSerde))
-      //.map((user, message) => (message.zoneId.getId, 0.toShort))
-      .groupByKey(Grouped.as("g1").withKeySerde(userSerde).withValueSerde(messageSerde))
+      .groupByKey(Grouped.as("messages-per-user").withKeySerde(userSerde).withValueSerde(messageSerde))
       .windowedBy(TimeWindows.ofSizeAndGrace(jDuration.ofSeconds(2L), jDuration.ofMillis(250L)))
       .count()(Materialized.`with`(userSerde, longSerde))
       .toStream(
@@ -527,6 +530,372 @@ class StreamTests extends munit.FunSuite {
     inputTopic.pipeInput(user2, message3, instant.plusMillis(350L))
     inputTopic.pipeInput(user1, message1, instant.plusMillis(30L))
     inputTopic.pipeInput(user1, message1, instant.plusMillis(30L).plusSeconds(10L))
+
+    outputTopic.readKeyValuesToList().forEach(c => println(s"key: ${c.key},\t\tvalue: ${c.value}"))
+  }
+
+
+
+
+
+  /**
+   * "number of all messages per time unit (2s) per type chat"
+   */
+  test("number of all messages per time unit (2s) per type (group or single) chat") {
+
+    val streamBuilder: StreamsBuilder = new StreamsBuilder()
+
+    val outputStream = streamBuilder.stream("input-topic")(Consumed.`with`(userSerde, messageSerde))
+      .groupBy((u,m) => {
+        if (m.groupChat) 1.toShort
+        else 0.toShort
+      })(Grouped.`with`("grouped-by-group_chat", shortSerde, messageSerde))
+      .windowedBy(TimeWindows.ofSizeAndGrace(jDuration.ofSeconds(2L), jDuration.ofMillis(250L)))
+      .count()(Materialized.`with`(shortSerde, longSerde))
+      .toStream(
+        (windowed, num) => s"${windowed.window().startTime().toString}___${windowed.key()}"
+      )
+
+    outputStream.to("output-topic")(Produced.`with`(stringSerde, longSerde))
+
+    topology    = streamBuilder.build()
+    testDriver  = new TopologyTestDriver(topology)
+    inputTopic  = testDriver.createInputTopic("input-topic", userSerde.serializer, messageSerde.serializer)
+    outputTopic = testDriver.createOutputTopic("output-topic", stringSerde.deserializer(), longSerde.deserializer)
+
+    val uuid1 = UUID.randomUUID()
+    val uuid2 = UUID.randomUUID()
+
+    val user1 = User(uuid1, "User1")
+    val user2 = User(uuid2, "User2")
+
+    val message1 = Message("", user1.userId, user1.login, 0L, 0L, ZoneId.of("Europe/Warsaw"), "", "", false, None)
+    val message2 = Message("", user1.userId, user1.login, 0L, 0L, ZoneId.of("Europe/Paris"), "", "", false, None)
+    val message3 = Message("", user1.userId, user1.login, 0L, 0L, ZoneId.of("Europe/Paris"), "", "", false, None)
+
+    val instant = Instant.now()
+
+    inputTopic.pipeInput(user1, message1, instant)
+    inputTopic.pipeInput(user2, message2, instant)
+    inputTopic.pipeInput(user2, message3, instant.plusMillis(390L)) // .plusMillis(500L))
+    inputTopic.pipeInput(user2, message3, instant.plusMillis(350L))
+    inputTopic.pipeInput(user1, message1, instant.plusMillis(30L))
+    inputTopic.pipeInput(user1, message1, instant.plusMillis(30L).plusSeconds(10L))
+
+    outputTopic.readKeyValuesToList().forEach(c => println(s"key: ${c.key},\t\tvalue: ${c.value}"))
+  }
+
+
+
+
+
+  /**
+   * "average number of words in message per user"
+   */
+  test("average number of words in message per user") {
+
+    val streamBuilder: StreamsBuilder = new StreamsBuilder()
+
+    val outputStream = streamBuilder.stream("input-topic")(Consumed.`with`(userSerde, messageSerde))
+      .mapValues(_.content.trim.split("\\s").length)
+      .groupByKey(Grouped.`with`("d", userSerde, intSerde))
+      .aggregate(AverageNum())((user, numOfWords, agg) => AverageNum.add(agg, numOfWords) )(Materialized.`with`(userSerde, avgNumSerde))
+      .mapValues(agg => agg.toString())
+      .toStream
+
+    outputStream.to("output-topic")(Produced.`with`(userSerde, stringSerde))
+
+    topology = streamBuilder.build()
+    testDriver = new TopologyTestDriver(topology)
+    inputTopic = testDriver.createInputTopic("input-topic", userSerde.serializer, messageSerde.serializer)
+    outputTopic2 = testDriver.createOutputTopic("output-topic", userSerde.deserializer(), stringSerde.deserializer)
+
+    val uuid1 = UUID.randomUUID()
+    val uuid2 = UUID.randomUUID()
+
+    val user1 = User(uuid1, "User1")
+    val user2 = User(uuid2, "User2")
+
+    val message1 = Message("one, two, tree,", user1.userId, user1.login, 0L, 0L, ZoneId.of("Europe/Warsaw"), "", "", false, None)
+    val message2 = Message("one", user1.userId, user1.login, 0L, 0L, ZoneId.of("Europe/Paris"), "", "", false, None)
+    val message3 = Message("one two", user1.userId, user1.login, 0L, 0L, ZoneId.of("Europe/Paris"), "", "", false, None)
+
+    val instant = Instant.now()
+
+    inputTopic.pipeInput(user1, message1, instant)
+    inputTopic.pipeInput(user2, message2, instant)
+    inputTopic.pipeInput(user2, message3, instant.plusMillis(390L)) // .plusMillis(500L))
+    inputTopic.pipeInput(user2, message3, instant.plusMillis(350L))
+    inputTopic.pipeInput(user1, message1, instant.plusMillis(30L))
+    inputTopic.pipeInput(user1, message1, instant.plusMillis(30L).plusSeconds(10L))
+
+    outputTopic2.readKeyValuesToList().forEach(c => println(s"key: ${c.key},\t\tvalue: ${c.value}"))
+  }
+
+
+  /**
+   * "average number of words in message in period of time per user"
+   */
+  test("average number of words in message in period of time per user") {
+
+    val streamBuilder: StreamsBuilder = new StreamsBuilder()
+
+    val outputStream = streamBuilder.stream("input-topic")(Consumed.`with`(userSerde, messageSerde))
+      .mapValues(_.content.trim.split("\\s").length)
+      .groupByKey(Grouped.`with`("d", userSerde, intSerde))
+      //.groupBy((u, m) => m.zoneId.getId)(Grouped.`with`("d2", stringSerde, messageSerde))
+      .windowedBy(TimeWindows.ofSizeAndGrace(jDuration.ofSeconds(2L), jDuration.ofMillis(250L)))
+      .aggregate(AverageNum())(
+        (user, num, agg) => AverageNum.add(agg, num)
+      )(Materialized.`with`(userSerde, avgNumSerde))
+      .mapValues(agg => agg.toString())
+      .toStream
+      .map(
+        (timeKey, value) =>
+          (s"${timeKey.window().startTime().toString}___${timeKey.key().login}", value) //change to timeKey.key().userId
+      )
+
+    outputStream.to("output-topic")(Produced.`with`(stringSerde, stringSerde))
+
+    topology = streamBuilder.build()
+    testDriver = new TopologyTestDriver(topology)
+    inputTopic = testDriver.createInputTopic("input-topic", userSerde.serializer, messageSerde.serializer)
+    outputTopic3 = testDriver.createOutputTopic("output-topic", stringSerde.deserializer(), stringSerde.deserializer)
+
+    val uuid1 = UUID.randomUUID()
+    val uuid2 = UUID.randomUUID()
+
+    val user1 = User(uuid1, "User1")
+    val user2 = User(uuid2, "User2")
+
+    val message1 = Message("one, two, tree,", user1.userId, user1.login, 0L, 0L, ZoneId.of("Europe/Warsaw"), "", "", false, None)
+    val message2 = Message("one", user1.userId, user1.login, 0L, 0L, ZoneId.of("Europe/Paris"), "", "", false, None)
+    val message3 = Message("one two", user1.userId, user1.login, 0L, 0L, ZoneId.of("Europe/Warsaw"), "", "", false, None)
+
+    val instant = Instant.now()
+
+    inputTopic.pipeInput(user1, message1, instant)
+    inputTopic.pipeInput(user2, message3, instant.plusMillis(390L)) // .plusMillis(500L))
+    inputTopic.pipeInput(user2, message3, instant.plusMillis(350L))
+    inputTopic.pipeInput(user1, message1, instant.plusMillis(30L))
+
+    inputTopic.pipeInput(user2, message2, instant.plusSeconds(3L))
+
+    inputTopic.pipeInput(user1, message1, instant.plusMillis(30L).plusSeconds(10L))
+
+
+    outputTopic3.readKeyValuesToList().forEach(c => println(s"key: ${c.key},\t\tvalue: ${c.value}"))
+  }
+
+
+
+
+  /**
+   * "average number of words in message per zone"
+   */
+  test("average number of words in message per zone") {
+
+    val streamBuilder: StreamsBuilder = new StreamsBuilder()
+
+    val outputStream = streamBuilder.stream("input-topic")(Consumed.`with`(userSerde, messageSerde))
+      .groupBy((u, m) => m.zoneId.getId)(Grouped.`with`("d2", stringSerde, messageSerde))
+      .aggregate(AverageNum())((zone, message, agg) => AverageNum.add(agg, message.content.trim.split("\\s").length))(Materialized.`with`(stringSerde, avgNumSerde))
+      .mapValues(agg => agg.toString())
+      .toStream
+
+    outputStream.to("output-topic")(Produced.`with`(stringSerde, stringSerde))
+
+    topology = streamBuilder.build()
+    testDriver = new TopologyTestDriver(topology)
+    inputTopic = testDriver.createInputTopic("input-topic", userSerde.serializer, messageSerde.serializer)
+    outputTopic3 = testDriver.createOutputTopic("output-topic", stringSerde.deserializer(), stringSerde.deserializer)
+
+    val uuid1 = UUID.randomUUID()
+    val uuid2 = UUID.randomUUID()
+
+    val user1 = User(uuid1, "User1")
+    val user2 = User(uuid2, "User2")
+
+    val message1 = Message("one, two, tree,", user1.userId, user1.login, 0L, 0L, ZoneId.of("Europe/Warsaw"), "", "", false, None)
+    val message2 = Message("one", user1.userId, user1.login, 0L, 0L, ZoneId.of("Europe/Paris"), "", "", false, None)
+    val message3 = Message("one two", user1.userId, user1.login, 0L, 0L, ZoneId.of("Europe/Paris"), "", "", false, None)
+
+    val instant = Instant.now()
+
+    inputTopic.pipeInput(user1, message1, instant)
+    inputTopic.pipeInput(user2, message2, instant)
+    inputTopic.pipeInput(user2, message3, instant.plusMillis(390L)) // .plusMillis(500L))
+    inputTopic.pipeInput(user2, message3, instant.plusMillis(350L))
+    inputTopic.pipeInput(user1, message1, instant.plusMillis(30L))
+    inputTopic.pipeInput(user1, message1, instant.plusMillis(30L).plusSeconds(10L))
+
+    outputTopic3.readKeyValuesToList().forEach(c => println(s"key: ${c.key},\t\tvalue: ${c.value}"))
+  }
+
+
+
+
+  /**
+   * "average number of words in message in period of time per zone"
+   */
+  test("average number of words in message in period of time per zone") {
+
+    val streamBuilder: StreamsBuilder = new StreamsBuilder()
+
+    val outputStream = streamBuilder.stream("input-topic")(Consumed.`with`(userSerde, messageSerde))
+      .groupBy((u, m) => m.zoneId.getId)(Grouped.`with`("d2", stringSerde, messageSerde))
+      .windowedBy(TimeWindows.ofSizeAndGrace(jDuration.ofSeconds(2L), jDuration.ofMillis(250L)))
+      .aggregate(AverageNum())(
+        (zone, message, agg) => AverageNum.add(agg, message.content.trim.split("\\s").length)
+      )(Materialized.`with`(stringSerde, avgNumSerde))
+      .mapValues( agg => agg.toString())
+      .toStream
+      .map(
+        (timeKey, value) =>
+          (s"${timeKey.window().startTime().toString}___${timeKey.key()}", value )
+      )
+
+    outputStream.to("output-topic")(Produced.`with`(stringSerde, stringSerde))
+
+    topology = streamBuilder.build()
+    testDriver = new TopologyTestDriver(topology)
+    inputTopic = testDriver.createInputTopic("input-topic", userSerde.serializer, messageSerde.serializer)
+    outputTopic3 = testDriver.createOutputTopic("output-topic", stringSerde.deserializer(), stringSerde.deserializer)
+
+    val uuid1 = UUID.randomUUID()
+    val uuid2 = UUID.randomUUID()
+
+    val user1 = User(uuid1, "User1")
+    val user2 = User(uuid2, "User2")
+
+    val message1 = Message("one, two, tree,", user1.userId, user1.login, 0L, 0L, ZoneId.of("Europe/Warsaw"), "", "", false, None)
+    val message2 = Message("one", user1.userId, user1.login, 0L, 0L, ZoneId.of("Europe/Paris"), "", "", false, None)
+    val message3 = Message("one two", user1.userId, user1.login, 0L, 0L, ZoneId.of("Europe/Warsaw"), "", "", false, None)
+
+    val instant = Instant.now()
+
+    inputTopic.pipeInput(user1, message1, instant)
+    inputTopic.pipeInput(user2, message3, instant.plusMillis(390L)) // .plusMillis(500L))
+    inputTopic.pipeInput(user2, message3, instant.plusMillis(350L))
+    inputTopic.pipeInput(user1, message1, instant.plusMillis(30L))
+
+    inputTopic.pipeInput(user2, message2, instant.plusSeconds(3L))
+
+    inputTopic.pipeInput(user1, message1, instant.plusMillis(30L).plusSeconds(10L))
+
+
+
+    outputTopic3.readKeyValuesToList().forEach(c => println(s"key: ${c.key},\t\tvalue: ${c.value}"))
+  }
+
+  /*
+  - średnia liczba wiadomości w czacie na jednostkę czasu
+  - średnia długść wiadomości w czacie na jednostkę czasu
+  */
+
+
+  /**
+   * "average number of words in message in period of time per chat"
+   */
+  test("average number of words in message in period of time per chat") {
+
+    val streamBuilder: StreamsBuilder = new StreamsBuilder()
+
+    val outputStream = streamBuilder.stream("input-topic")(Consumed.`with`(userSerde, messageSerde))
+      .groupBy((u, m) => m.chatId)(Grouped.`with`("d2", stringSerde, messageSerde))
+      .windowedBy(TimeWindows.ofSizeAndGrace(jDuration.ofSeconds(2L), jDuration.ofMillis(250L)))
+      .aggregate(AverageNum())(
+        (chatId, message, agg) => AverageNum.add(agg, message.content.trim.split("\\s").length)
+      )(Materialized.`with`(stringSerde, avgNumSerde))
+      .mapValues(agg => agg.toString())
+      .toStream
+      .map(
+        (timeKey, value) =>
+          (s"${timeKey.window().startTime().toString}___${timeKey.key()}", value)
+      )
+
+    outputStream.to("output-topic")(Produced.`with`(stringSerde, stringSerde))
+
+    topology = streamBuilder.build()
+    testDriver = new TopologyTestDriver(topology)
+    inputTopic = testDriver.createInputTopic("input-topic", userSerde.serializer, messageSerde.serializer)
+    outputTopic3 = testDriver.createOutputTopic("output-topic", stringSerde.deserializer(), stringSerde.deserializer)
+
+    val uuid1 = UUID.randomUUID()
+    val uuid2 = UUID.randomUUID()
+
+    val user1 = User(uuid1, "User1")
+    val user2 = User(uuid2, "User2")
+
+    val message1 = Message("one, two, tree,", user1.userId, user1.login, 0L, 0L, ZoneId.of("Europe/Warsaw"), "Chat1", "", false, None)
+    val message2 = Message("one",             user1.userId, user1.login, 0L, 0L, ZoneId.of("Europe/Paris"),  "Chat2", "", false, None)
+    val message3 = Message("one two",         user1.userId, user1.login, 0L, 0L, ZoneId.of("Europe/Warsaw"), "Chat2", "", false, None)
+
+    val instant = Instant.now()
+
+    inputTopic.pipeInput(user1, message1, instant)
+    inputTopic.pipeInput(user2, message3, instant.plusMillis(390L)) // .plusMillis(500L))
+    inputTopic.pipeInput(user2, message3, instant.plusMillis(350L))
+    inputTopic.pipeInput(user1, message1, instant.plusMillis(30L))
+
+    inputTopic.pipeInput(user2, message2, instant.plusSeconds(3L))
+
+    inputTopic.pipeInput(user1, message1, instant.plusMillis(30L).plusSeconds(10L))
+
+
+    outputTopic3.readKeyValuesToList().forEach(c => println(s"key: ${c.key},\t\tvalue: ${c.value}"))
+  }
+
+
+  /**
+   * "number of words in message in period of time per chat"
+   */
+  test("number of messages in period of time per chat") {
+
+    val streamBuilder: StreamsBuilder = new StreamsBuilder()
+
+    val outputStream = streamBuilder.stream("input-topic")(Consumed.`with`(userSerde, messageSerde))
+      .groupBy((u, m) => m.chatId)(Grouped.`with`("d2", stringSerde, messageSerde))
+      .windowedBy(TimeWindows.ofSizeAndGrace(jDuration.ofSeconds(2L), jDuration.ofMillis(250L)))
+      .count()(Materialized.`with`(stringSerde, longSerde))
+//      .aggregate(AverageNum())(
+//        (chatId, message, agg) => AverageNum.add(agg, message.content.trim.split("\\s").length)
+//      )(Materialized.`with`(stringSerde, avgNumSerde))
+//      .mapValues(agg => agg.toString())
+      .toStream
+      .map(
+        (timeKey, value) =>
+          (s"${timeKey.window().startTime().toString}___${timeKey.key()}", value)
+      )
+
+    outputStream.to("output-topic")(Produced.`with`(stringSerde, longSerde))
+
+    topology    = streamBuilder.build()
+    testDriver  = new TopologyTestDriver(topology)
+    inputTopic  = testDriver.createInputTopic("input-topic", userSerde.serializer, messageSerde.serializer)
+    outputTopic = testDriver.createOutputTopic("output-topic", stringSerde.deserializer(), longSerde.deserializer)
+
+    val uuid1 = UUID.randomUUID()
+    val uuid2 = UUID.randomUUID()
+
+    val user1 = User(uuid1, "User1")
+    val user2 = User(uuid2, "User2")
+
+    val message1 = Message("one, two, tree,", user1.userId, user1.login, 0L, 0L, ZoneId.of("Europe/Warsaw"), "Chat1", "", false, None)
+    val message2 = Message("one", user1.userId, user1.login, 0L, 0L, ZoneId.of("Europe/Paris"), "Chat2", "", false, None)
+    val message3 = Message("one two", user1.userId, user1.login, 0L, 0L, ZoneId.of("Europe/Warsaw"), "Chat2", "", false, None)
+
+    val instant = Instant.now()
+
+    inputTopic.pipeInput(user1, message1, instant)
+    inputTopic.pipeInput(user2, message3, instant.plusMillis(390L)) // .plusMillis(500L))
+    inputTopic.pipeInput(user2, message3, instant.plusMillis(350L))
+    inputTopic.pipeInput(user1, message1, instant.plusMillis(30L))
+
+    inputTopic.pipeInput(user2, message2, instant.plusSeconds(3L))
+
+    inputTopic.pipeInput(user1, message1, instant.plusMillis(30L).plusSeconds(10L))
+
 
     outputTopic.readKeyValuesToList().forEach(c => println(s"key: ${c.key},\t\tvalue: ${c.value}"))
   }
