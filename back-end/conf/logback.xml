@@ -46,16 +46,13 @@
       <logger name="application" level="WARN" />
 
 
+
       <!-- Root logger sends WARN and ERROR to ASYNCFILE and ASYNCSTDOUT appenders -->
 
       <root level="WARN">
-        <appender-ref ref="ASYNCFILE" />
+<!--        <appender-ref ref="ASYNCFILE" />-->
         <appender-ref ref="ASYNCSTDOUT" />
       </root>
-
-
-
-
 
     </then>
     <else>
@@ -77,7 +74,9 @@
         <encoder>
           <charset>UTF-8</charset>
           <pattern>
-            %d{yyyy-MM-dd HH:mm:ss} %highlight(%-5level) %cyan(%logger{36}) %magenta(%X{akkaSource}) %msg%n
+            <!-- %logger{50}.%M\(%line\) -->
+<!--            %d{yyyy-MM-dd HH:mm:ss} %highlight(%-5level) %cyan(%logger{36}.%method %line ) %magenta(%X{akkaSource}) %msg%n-->
+            %d{yyyy-MM-dd HH:mm:ss} %highlight(%-5level) %cyan(%logger{50}) %magenta(%X{akkaSource}) %msg%n
           </pattern>
         </encoder>
       </appender>
@@ -93,11 +92,20 @@
       <logger name="play" level="WARN" />
       <logger name="application" level="WARN" />
 
+      <logger name="controllers.HomeController" level="ERROR" />
+
+
+      <logger name="controllers.KessengerController"   level="TRACE" />
+      <logger name="util.HeadersParser"                level="TRACE" />
+      <logger name="components.actions.SessionChecker" level="TRACE" />
+      <logger name="components.actions.SessionUpdater" level="TRACE" />
+
+
 
       <!-- Root logger sends WARN and ERROR to ASYNCFILE and ASYNCSTDOUT appenders -->
 
       <root level="WARN">
-        <appender-ref ref="ASYNCFILE" />
+<!--        <appender-ref ref="ASYNCFILE" />-->
         <appender-ref ref="ASYNCSTDOUT" />
       </root>
 

@@ -14,8 +14,8 @@ import org.slf4j.LoggerFactory
 @Singleton
 class HomeController @Inject()(val controllerComponents: ControllerComponents) extends BaseController {
 
-  val logger: Logger = LoggerFactory.getLogger(classOf[HomeController]).asInstanceOf[Logger]
-  logger.setLevel(Level.TRACE)
+  private val logger: Logger = LoggerFactory.getLogger(classOf[HomeController]).asInstanceOf[Logger]
+  // logger.setLevel(Level.TRACE)
   logger.trace(s"LOGUJĘ :D")
   logger.debug(s"LOGUJĘ :D")
   logger.info(s"LOGUJĘ :D")

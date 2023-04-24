@@ -18,7 +18,6 @@ import io.github.malyszaryczlowiek.kessengerlibrary.model.Chat.parseJSONtoChat
 import io.github.malyszaryczlowiek.kessengerlibrary.model.User.toJSON
 import io.github.malyszaryczlowiek.kessengerlibrary.model.UserOffsetUpdate.parseUserOffsetUpdate
 import org.apache.kafka.clients.producer.ProducerRecord
-import org.slf4j.LoggerFactory
 import play.api.db.Database
 import play.api.inject.ApplicationLifecycle
 import play.api.libs.streams.ActorFlow
@@ -28,6 +27,9 @@ import java.util.UUID
 import javax.inject._
 import scala.concurrent.duration.{Duration, SECONDS}
 import scala.concurrent.{Await, Future}
+
+import org.slf4j.LoggerFactory
+import ch.qos.logback.classic.{Level, Logger}
 
 
 @Singleton
@@ -58,6 +60,8 @@ class KessengerController @Inject()
 
 
 
+  private val logger: Logger = LoggerFactory.getLogger(classOf[KessengerController]).asInstanceOf[Logger]
+
 
 
   lifecycle.addStopHook { () =>
@@ -75,12 +79,16 @@ class KessengerController @Inject()
             request.body.asJson.map(json => jsonParser.parseCredentials(json.toString())) match {
               case Some( parsedJSONbody )  =>
                 parsedJSONbody match {
-                  case Left(_) => Future.successful(BadRequest("Error 004. Cannot parse JSON payload."))
+                  case Left(_) =>
+                    logger.error(s"Cannot parse JSON payload.")
+                    Future.successful(BadRequest(ResponseBody(1, "Bad Request.").toString))
                   case Right( loginCredentials ) =>
                     val login = loginCredentials.login
                     val userId = UUID.randomUUID() // here we create another userId
                     passwordConverter.convert(loginCredentials.pass) match {
-                      case Left(_) => Future.successful(InternalServerError("Error 005. Encoding password failed"))
+                      case Left(_) =>
+                        logger.error(s"Encoding password failed")
+                        Future.successful(InternalServerError(ResponseBody(7, "Internal Server Error.").toString))
                       case Right( encodedPass ) =>
                         val settings = Settings(sessionDuration = 900000L)
                         // todo zmienić w kessenger-lib że nie ma wartości początkowej
@@ -90,34 +98,44 @@ class KessengerController @Inject()
                           db.withConnection(implicit connection => {
                             dbExecutor.createUser(user, encodedPass, settings, sessionData) match {
                               case Left(QueryError(_, LoginTaken)) =>
+                                logger.trace(s"Login Taken. userId(${userId.toString})")
                                 BadRequest(ResponseBody(6, LoginTaken.toString()).toString)
                               case Left(queryError: QueryError) =>
+                                logger.error(s"Database Error: ${queryError.description.toString()}. userId(${userId.toString})")
                                 InternalServerError(ResponseBody(7, queryError.description.toString()).toString )
                               case Right(value) =>
                                 if (value == 3) {
-                                  //val ka = new KafkaAdmin(new KafkaProductionConfigurator)
                                   kafkaAdmin.createInvitationTopic(userId) match {
                                     case Left(_) =>
-                                      println(s"nie udało się utworzyć invitation topic")
+                                      logger.error(s"Kafka Error: Cannot create invitation topic. userId(${userId.toString})")
                                       dbExecutor.deleteUser(user.userId)
-                                      //ka.closeAdmin()
-                                      InternalServerError(ResponseBody(7, "Error 007. User Creation Error. Try again later").toString)
+                                      InternalServerError(ResponseBody(7, "User Creation Error. Try again later").toString)
                                     case Right(_) =>
-                                      //ka.closeAdmin()
+                                      logger.trace(s"User created successfully. userId(${userId.toString})")
                                       Ok(jsonParser.toJSON((user, settings)))
                                   }
                                 }
-                                else InternalServerError(ResponseBody(7, "Error 007. User Creation Error. ").toString)
+                                else {
+                                  logger.error(s"Cannot create new user. userId(${userId.toString})")
+                                  InternalServerError(ResponseBody(7, "Error. Cannot create new user.").toString)
+                                }
+
                             }
                           })
                         }(databaseExecutionContext)
                     }
                 } // no payload
-              case None => Future.successful(BadRequest("Error 010. No payload."))
+              case None =>
+                logger.error(s"SignUp. Creating new user Error. No payload.")
+                Future.successful(BadRequest(ResponseBody(10, s"Bad Request").toString))
             } // invalid KSID header
-          case None => Future.successful(Unauthorized("Error 009. Invalid Request."))
+          case None =>
+            logger.error(s"SignUp. Failed KSID header parsing.")
+            Future.successful(Unauthorized(ResponseBody(9, s"Unauthorized").toString))
         } // no KSID header
-      case None => Future.successful(Unauthorized("Error 008. Try to reload page. "))
+      case None =>
+        logger.error(s"SignUp. No KSID header.")
+        Future.successful(Unauthorized(ResponseBody(8, s"Unauthorized").toString))
     }
   }
 
@@ -125,7 +143,6 @@ class KessengerController @Inject()
 
 
 
-  // TODO this works
   /**
    * sprawdź login i hasło jeśli pasują w db to należy
    * @return
@@ -138,35 +155,54 @@ class KessengerController @Inject()
             request.body.asJson.map(json => jsonParser.parseCredentials(json.toString())) match {
               case Some( parsedJSONbody ) =>
                 parsedJSONbody match {
-                  case Left(_) => Future.successful(BadRequest("Error 011. Cannot parse JSON payload."))
+                  case Left(_) =>
+                    logger.error(s"SignIn. Cannot parse payload.")
+                    Future.successful(BadRequest(ResponseBody(11, s"Bad Request").toString()))
                   case Right(loginCredentials) =>
                     passwordConverter.convert(loginCredentials.pass) match {
-                      case Left(_) => Future.successful( InternalServerError("Error 012. Encoding password failed") )
+                      case Left(_) =>
+                        logger.error(s"SignIn. Encoding password failed. userId(${loginCredentials.userId})")
+                        Future.successful(InternalServerError(ResponseBody(12, "Internal Server Error.").toString))
                       case Right(encodedPass) =>
                         Future {
                           db.withConnection(implicit connection => {
                             dbExecutor.findUser(loginCredentials.login, encodedPass) match {
-                              case Left(_) => BadRequest(ResponseBody(13, "Login or Password not match.").toString)
+                              case Left(QueryError(_, DataProcessingError)) =>
+                                logger.error(s"SignIn. Database Processing Error. userId(${loginCredentials.userId})")
+                                BadRequest(ResponseBody(13, "Login or Password not match.").toString)
+                              case Left(qe) =>
+                                logger.error(s"SignIn. Database Error: ${qe.description.toString()}. userId(${loginCredentials.userId})")
+                                InternalServerError(ResponseBody(133, "Database Error.").toString)
                               case Right((user, settings, chatList)) =>
                                 val validityTime = System.currentTimeMillis() + settings.sessionDuration
                                 dbExecutor.createSession(sessionData.sessionId, user.userId, validityTime) match {
                                   case Left(_) =>
-                                    InternalServerError("Error 014. Cannot Create session in DB.")
+                                    logger.error(s"SignIn. Database Error. Cannot create user Session. userId(${loginCredentials.userId})")
+                                    InternalServerError(ResponseBody(14, "Internal Server Error.").toString)
                                   case Right(v) =>
                                     dbExecutor.removeAllExpiredUserSessions(user.userId, System.currentTimeMillis())
                                     if (v == 1) Ok(jsonParser.toJSON((user, settings, chatList)))
-                                    else InternalServerError("Error 015. Not matching row affected.")
+                                    else {
+                                      logger.error(s"SignIn. Cannot create user Session. userId(${loginCredentials.userId})")
+                                      InternalServerError(ResponseBody(15, "Internal Server Error.").toString)
+                                    }
                                 }
                             }
                           })
                         }(databaseExecutionContext)
                     }
                 } // no payload
-              case None => Future.successful(BadRequest("Error 010. No payload."))
+              case None =>
+                logger.error(s"SignIn. Creating new user Error. No payload.")
+                Future.successful(BadRequest(ResponseBody(10, s"Bad Request").toString))
             } // invalid KSID header
-          case None => Future.successful(Unauthorized("Error 009. Invalid Request."))
+          case None =>
+            logger.error(s"SignIn. Failed KSID header parsing.")
+            Future.successful(Unauthorized(ResponseBody(9, s"Unauthorized").toString))
         } // no KSID header
-      case None => Future.successful(Unauthorized("Error 008. Try to reload page. "))
+      case None =>
+        logger.error(s"SignIn. No KSID header.")
+        Future.successful(Unauthorized(ResponseBody(8, s"Unauthorized").toString))
     }
   }
 
@@ -190,9 +226,13 @@ class KessengerController @Inject()
               })
             }(databaseExecutionContext)
           // invalid KSID header
-          case None => Future.successful(Unauthorized("Error 017. Invalid Request."))
+          case None =>
+            logger.error(s"Logout. Failed KSID header parsing.")
+            Future.successful(Unauthorized(ResponseBody(17, s"Unauthorized").toString))
         } // no KSID header
-      case None => Future.successful(Unauthorized("Error 016. Try to reload page. "))
+      case None =>
+        logger.trace(s"Logout. No KSID header.")
+        Future.successful(Accepted(ResponseBody(16, s"Logout accepted without credentials.").toString))
     }
   }
 
@@ -711,7 +751,7 @@ class KessengerController @Inject()
                           println(s"wszedłem w ActorFlow.")
                           //val brokerExecutor = new BrokerExecutor( out, db, new KafkaProductionConfigurator, kafkaExecutionContext)
                           // WebSocketActor.props(out, new KessengerAdmin(configurator),  kafkaExecutionContext, db, databaseExecutionContext, brokerExecutor)
-                          WebSocketActor.props(out, kafkaAdmin,  kafkaExecutionContext, db, databaseExecutionContext)
+                          WebSocketActor.props(out, kafkaAdmin,  kafkaExecutionContext, db, databaseExecutionContext, userId)
                         }
                       )
                     } else Left(Unauthorized("Error XXX. No valid session."))

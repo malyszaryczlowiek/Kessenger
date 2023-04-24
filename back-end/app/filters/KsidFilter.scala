@@ -22,9 +22,14 @@ class KsidFilter @Inject() (implicit val mat: Materializer, ec: ExecutionContext
     requestHeader.headers.get("KSID") match {
       case Some(_) => nextFilter(requestHeader)
       case None =>
-        Future.successful(
-          new Result(ResponseHeader.apply(401, reasonPhrase = Option(ResponseBody(1, "Sorry... Request rejected.").toString  )), HttpEntity.NoEntity)
-        )
+        if (requestHeader.path.contains(s"logout")) {
+          tutaj kontynuować
+        } else {
+          Future.successful(
+            new Result(ResponseHeader.apply(401, reasonPhrase = Option(ResponseBody(1, "Sorry... Request rejected.").toString)), HttpEntity.NoEntity)
+          )
+        }
+
     }
   }
 

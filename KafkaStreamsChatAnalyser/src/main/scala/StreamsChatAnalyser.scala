@@ -19,11 +19,6 @@ import java.util.regex.Pattern
 
 
 
-/*
-TODO
- - przetestować logback
- - zmienić na scala 3.
- */
 
 
 object StreamsChatAnalyser {

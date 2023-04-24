@@ -5,7 +5,7 @@ import kessengerlibrary.model.{Message, User}
 import kessengerlibrary.serdes.message.MessageSerde
 import kessengerlibrary.serdes.user.UserSerde
 
-import io.github.malyszaryczlowiek.util.averagenum.{AverageNum, AverageWordsNumSerde}
+import util.averagenum.{AverageNum, AverageWordsNumSerde}
 import org.apache.kafka.streams.kstream.{Grouped, Named, TimeWindows, Windowed}
 import org.apache.kafka.streams.scala.StreamsBuilder
 import org.apache.kafka.streams.scala.kstream._

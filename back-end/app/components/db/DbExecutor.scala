@@ -1061,9 +1061,9 @@ class DbExecutor(val kafkaConfigurator: KafkaConf) {
     else if (ex.getMessage.toLowerCase.contains("timeout")) {
       Left(QueryError(ERROR, TimeOutDBError))
     }
-    else if (ex.getMessage == "Incorrect login or password") {
-      Left(QueryError(ERROR, IncorrectLoginOrPassword))
-    }
+//    else if (ex.getMessage == "Incorrect login or password") {
+//      Left(QueryError(ERROR, IncorrectLoginOrPassword))
+//    }
     else if (ex.getMessage.contains("duplicate key value violates unique constraint")
       || ex.getMessage == "Data processing error."
       || ex.getMessage.contains("violates foreign key constraint")) {
