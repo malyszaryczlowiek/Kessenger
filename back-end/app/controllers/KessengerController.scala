@@ -218,10 +218,18 @@ class KessengerController @Inject()
             Future {
               db.withConnection(implicit connection => {
                 dbExecutor.removeSession(sessionData.sessionId, sessionData.userId) match {
-                  case Left(_) => InternalServerError("Error 018. Db Error. ")
+                  case Left(_) =>
+                    logger.warn(s"Cannot remove current session from DB.")
+                    InternalServerError("Error 018. Db Error. ")
                   case Right(v) =>
-                    if (v == 1) Ok(ResponseBody(0, "Logout successfully.").toString)
-                    else Accepted(ResponseBody(0, "Not matching session.").toString)
+                    if (v == 1) {
+                      logger.trace(s"Successfull logout. userId(${sessionData.userId.toString})")
+                      Ok(ResponseBody(0, "Logout successfully.").toString)
+                    }
+                    else {
+                      logger.warn(s"Logout accepted, but no matching session in DB. userId(${sessionData.userId.toString})")
+                      Accepted(ResponseBody(0, "Not matching session.").toString)
+                    }
                 }
               })
             }(databaseExecutionContext)
@@ -257,8 +265,12 @@ class KessengerController @Inject()
       Future {
         db.withConnection(implicit connection => {
           dbExecutor.getUserData( userId ) match {
-            case Left(_) => InternalServerError("Error 009. You are logged in with SessionChecker and SessionUpdater ")
-            case Right(t) => Ok(jsonParser.toJSON( t ))
+            case Left(qe) =>
+              logger.warn(s"Cannot get user's data. Error ${qe.description.toString()}. userId(${userId.toString})")
+              InternalServerError(ResponseBody(9,s"${qe.description.toString()}").toString())
+            case Right(t) =>
+              logger.trace(s"Returning user's data normally. userId(${userId.toString})")
+              Ok(jsonParser.toJSON( t ))
           }
         })
       }(databaseExecutionContext)
@@ -284,22 +296,32 @@ class KessengerController @Inject()
       request.body.asJson.map( s => {
         parseUserOffsetUpdate(s.toString()) match {
           case Left(_) =>
-            Future.successful(InternalServerError(s"Error 333. Cannot parse payload data. "))
+            logger.error(s"Cannot parse user's offset update data. userId(${userId.toString})")
+            Future.successful(InternalServerError(ResponseBody(333, s"Internal Server Error.").toString()))
           case Right(uou) =>
             if (uou.joiningOffset > 0L) {
               Future {
                 db.withConnection(implicit connection => {
                   dbExecutor.updateJoiningOffset(userId, uou.joiningOffset) match {
-                    case Left(_) => InternalServerError(ResponseBody(44, s"Database Error. Cannot update offset.").toString)
-                    case Right(_) => Ok
+                    case Left(qe) =>
+                      logger.warn(s"Cannot update user's offset. userId(${userId.toString})")
+                      InternalServerError(ResponseBody(44, s"Database Error: ${qe.description.toString()}.").toString)
+                    case Right(_) =>
+                      logger.trace(s"User's offset updated. userId(${userId.toString})")
+                      Ok
                   }
                 })
               }(databaseExecutionContext)
             }
-            else
+            else {
+              logger.warn(s"Incompatible user's offset value = ${uou.joiningOffset}. userId(${userId.toString})")
               Future.successful(BadRequest(ResponseBody(45, s"Offset value should be above 0.").toString))
+            }
         }
-      }).getOrElse(Future.successful(InternalServerError(s"Error 028. Cannot parse payload data. ")))
+      }).getOrElse({
+        logger.error(s"UpdateJoiningOffset. Cannot parse payload. userId(${userId.toString})")
+        Future.successful(BadRequest(ResponseBody(28, s"Request failed.").toString())) // s"Error 028. Cannot parse payload data. "
+      })
     })
 
 
@@ -322,20 +344,33 @@ class KessengerController @Inject()
     ).async( implicit request => {
       request.body.asJson.map( s => {
         parseJSONtoSettings(s.toString()) match {
-          case Left(_) => Future.successful(InternalServerError(s"Error 028. Cannot parse payload data. "))
+          case Left(_) =>
+            logger.error(s"changeSettings. Cannot parse payload. userId(${userId.toString})")
+            Future.successful(BadRequest(ResponseBody(28, s"Request failed.").toString()))
           case Right(settings) =>
             Future {
               db.withConnection( implicit connection => {
                 dbExecutor.updateSettings(userId, settings) match {
-                  case Left(_) => InternalServerError(s"Error XXX")
+                  case Left(qe) =>
+                    logger.warn(s"Cannot update user's offset. userId(${userId.toString})")
+                    InternalServerError(ResponseBody(44, s"Database Error: ${qe.description.toString()}.").toString)
                   case Right(v) =>
-                    if (v == 1) Ok(ResponseBody(0, s"New Settings Saved.").toString)
-                    else Accepted(s"Nothing to updated.") // something bad
+                    if (v == 1) {
+                      logger.trace(s"ChangeSettings. New settings updated in DB. userId(${userId.toString})")
+                      Ok(ResponseBody(0, s"New Settings Saved.").toString)
+                    }
+                    else {
+                      logger.trace(s"ChangeSettings. Nothing updated in DB. userId(${userId.toString})")
+                      Accepted(ResponseBody(0, s"Nothing to updated.").toString)
+                    }
                 }
               })
             }(databaseExecutionContext)
         }
-      }).getOrElse(Future.successful(InternalServerError(s"Error 028. Cannot parse payload data. ")))
+      }).getOrElse({
+        logger.error(s"ChangeSettings. Cannot parse payload. userId(${userId.toString})")
+        Future.successful(BadRequest(ResponseBody(28, s"Request failed.").toString())) // s"Error 028. Cannot parse payload data. "
+      })
     })
 
 
@@ -363,16 +398,29 @@ class KessengerController @Inject()
             dbExecutor.updateMyLogin(userId, newLogin) match {
               case Left(QueryError(_, m)) =>
                 m match {
-                  case LoginTaken => BadRequest(ResponseBody(29, "Login taken. Try with another one.").toString  )
-                  case _ => InternalServerError("Error 030.")
+                  case LoginTaken =>
+                    logger.trace(s"Cannot change login, login is taken. userId(${userId.toString})")
+                    BadRequest(ResponseBody(29, "Login taken. Try with another one.").toString  )
+                  case _ =>
+                    logger.warn(s"ChangeLogin. Database Error: ${m.toString()}. userId(${userId.toString})")
+                    InternalServerError(ResponseBody(30, s"Database Error: ${m.toString()}").toString)
                 }
               case Right(i) =>
-                if (i == 1) Ok(ResponseBody(0, "Login successfully changed!!!").toString)
-                else BadRequest(ResponseBody(31, "Oppsss, User not found???").toString)
+                if (i == 1) {
+                  logger.trace(s"New Login updated. userId(${userId.toString})")
+                  Ok(ResponseBody(0, "Login successfully changed!!!").toString)
+                }
+                else {
+                  logger.warn(s"Cannot update login. userId(${userId.toString})")
+                  BadRequest(ResponseBody(31, "Oppsss, User not found???").toString)
+                }
             }
           })
         }(databaseExecutionContext)
-      }).getOrElse(Future.successful(InternalServerError(s"Error 028. Cannot parse payload data. ")))
+      }).getOrElse({
+        logger.error(s"ChangeLogin. Cannot parse payload. userId(${userId.toString})")
+        Future.successful(BadRequest(ResponseBody(28, s"Request failed.").toString())) // s"Error 028. Cannot parse payload data. "
+      })
     })
 
 
@@ -396,7 +444,9 @@ class KessengerController @Inject()
     ).async(implicit request => {
       request.body.asJson.map( json => {
         jsonParser.parseNewPass(json.toString()) match {
-          case Left(_) => Future.successful(InternalServerError(s"Error 028. Cannot parse payload data. "))
+          case Left(_) =>
+            logger.error(s"changePassword. Cannot parse payload. userId(${userId.toString})")
+            Future.successful(BadRequest(ResponseBody(28, s"Request failed.").toString()))
           case Right((oldP, newP)) =>
             val (o,n) = (
               passwordConverter.convert(oldP),
@@ -407,17 +457,30 @@ class KessengerController @Inject()
                 Future {
                   db.withConnection(implicit connection => {
                     dbExecutor.updateUsersPassword(userId, old, neww) match {
-                      case Left(_) => InternalServerError(s"Error XXX")
+                      case Left(qe) =>
+                        logger.warn(s"changePassword. Database Error: ${qe.description.toString()}. userId(${userId.toString})")
+                        InternalServerError(ResponseBody(30, s"Database Error: ${qe.description.toString()}").toString)
                       case Right(v) =>
-                        if (v == 1) Ok(ResponseBody(0,s"New Password Saved.").toString)
-                        else BadRequest(ResponseBody(22,  s"Old Password does not match.").toString)
+                        if (v == 1) {
+                          logger.trace(s"changePassword. New password updated. userId(${userId.toString})")
+                          Ok(ResponseBody(0, "New Password saved.").toString)
+                        }
+                        else {
+                          logger.warn(s"changePassword. Cannot update password. userId(${userId.toString})")
+                          BadRequest(ResponseBody(22,  s"Old Password does not match.").toString)
+                        }
                     }
                   })
                 }(databaseExecutionContext)
-              case _ => Future.successful(InternalServerError(s"Error XXX. Conversion Error."))
+              case _ =>
+                logger.error(s"changePassword. Cannot parse one or two passwords. userId(${userId.toString})")
+                Future.successful(InternalServerError(ResponseBody(28, s"Request failed.").toString()))
             }
         }
-      }).getOrElse(Future.successful(InternalServerError(s"Error 028. Cannot parse payload data. ")))
+      }).getOrElse({
+        logger.error(s"changePassword. Cannot parse payload. userId(${userId.toString})")
+        Future.successful(BadRequest(ResponseBody(28, s"Request failed.").toString()))
+      })
     })
 
 
@@ -441,11 +504,17 @@ class KessengerController @Inject()
       Future {
         db.withConnection(implicit connection => {
           dbExecutor.findUser(u) match {
-            case Left(_) =>
-              InternalServerError("Error 010.")
+            case Left(qe) =>
+              logger.warn(s"searchUser. Database Error: ${qe.description.toString()}. userId(${userId.toString})")
+              InternalServerError(ResponseBody(10, s"Database Error: ${qe.description.toString()}").toString)
             case Right(found) =>
-              if (found.isEmpty) NoContent
-              else Ok(toJSON(found))
+              if (found.isEmpty) {
+                logger.trace(s"searchUser. No user found. userId(${userId.toString})")
+                NoContent
+              } else {
+                logger.trace(s"searchUser. User '$u' found. userId(${userId.toString})")
+                Ok(toJSON(found))
+              }
           }
         })
       }(databaseExecutionContext)
@@ -471,12 +540,16 @@ class KessengerController @Inject()
     ).async( implicit request => {
       request.body.asJson.map(json => {
         jsonParser.parseNewChat(json.toString()) match {
-          case Left(_) => Future.successful(BadRequest("Error 011. Cannot parse JSON payload."))
+          case Left(_) =>
+            logger.error(s"changePassword. Cannot parse payload. userId(${userId.toString})")
+            Future.successful(BadRequest(ResponseBody(11, s"Request failed.").toString()))
           case Right((me, users, chatName)) =>
             Future {
               db.withConnection(implicit connection => {
                 dbExecutor.createChat(me, users, chatName) match {
                   case Left(QueryError(_, UnsupportedOperation)) =>
+                    tutuaj
+                    logger.
                     BadRequest(ResponseBody(12, "Chat already exists.").toString)
                   case Left(queryError) =>
                     InternalServerError(s"Error 013. ${queryError.description.toString()}")

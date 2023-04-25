@@ -51,7 +51,7 @@ class WebSocketActor(out: ActorRef, ka: KafkaAdmin, kec: ExecutionContext, db: D
 
 
   override def postStop(): Unit = {
-    logger.info(s"SWITCH OFF ACTOR ${actorId.toString}")
+    logger.trace(s"SWITCH OFF ACTOR ${actorId.toString}")
   }
 
   def receive: Receive = {
@@ -81,6 +81,9 @@ class WebSocketActor(out: ActorRef, ka: KafkaAdmin, kec: ExecutionContext, db: D
                                   if (s.equals("PoisonPill")) {
                                     logger.trace(s"got PoisonPill in actor ${actorId.toString}")
                                     self ! PoisonPill
+                                  }
+                                  else if (s.equals("ping")) {
+                                    logger.trace(s"Ping message in actor ${actorId.toString}")
                                   }
                                   else
                                     logger.warn(s"cannot parse message ${s} in actor ${actorId.toString}")

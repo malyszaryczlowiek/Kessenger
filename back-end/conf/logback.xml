@@ -97,6 +97,7 @@
 
       <logger name="controllers.KessengerController"   level="TRACE" />
       <logger name="util.HeadersParser"                level="TRACE" />
+      <logger name="filters.KsidFilter"                level="TRACE" />
       <logger name="components.actions.SessionChecker" level="TRACE" />
       <logger name="components.actions.SessionUpdater" level="TRACE" />
 

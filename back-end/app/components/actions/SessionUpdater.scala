@@ -47,7 +47,7 @@ case class SessionUpdater @Inject()(parserr: BodyParser[AnyContent], userId: Use
         }(ec)
         Await.result(f, Duration.create(10L, SECONDS)) match {
           case Left(e) =>
-            logger.error(s"$Error ${e.description.toString()}. userId($userId)")
+            logger.error(s"Error ${e.description.toString()}. userId($userId)")
             block(request)
           case Right(_) =>
             block(request)

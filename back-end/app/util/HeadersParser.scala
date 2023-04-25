@@ -34,7 +34,10 @@ class HeadersParser {
       case Some(ksid) =>
         parseKSID(ksid) match {
           case Some(sessionData) =>
-            if (sessionData.userId == userId) body(request, sessionData)
+            if (sessionData.userId == userId) {
+              logger.trace(s"KSID header parsed correctly. userId(${userId.toString})")
+              body(request, sessionData)
+            }
             else {
               logger.error(s"Not compatible request path with KSID header data. userId(${userId.toString})")
               Future.successful(Unauthorized(ResponseBody(13, "Unauthorized").toString()).discardingHeader("KSID"))
