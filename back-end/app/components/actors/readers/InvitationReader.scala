@@ -35,6 +35,7 @@ class InvitationReader(out: ActorRef, parentActor: ActorRef, conf: Configuration
         consumer => {
           initializeConsumer(consumer)
           poolInvitations(consumer)
+          error
         }
       } match {
         case Failure(exception) =>
