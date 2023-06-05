@@ -8,18 +8,23 @@ import scala.concurrent.{ExecutionContext, Future}
 import components.db.DbExecutor
 import conf.KafkaConf
 import io.github.malyszaryczlowiek.kessengerlibrary.model.SessionInfo
+import org.slf4j.LoggerFactory
+import ch.qos.logback.classic.{Level, Logger}
+
+import java.util.UUID
 
 
 object SessionUpdateActor {
 
-  def props(db: Database, dbec: ExecutionContext)(implicit configurator: KafkaConf): Props =
-    Props(new SessionUpdateActor(db, dbec))
+  def props(db: Database, dbec: ExecutionContext, actorGroupID: UUID)(implicit configurator: KafkaConf): Props =
+    Props(new SessionUpdateActor(db, dbec, actorGroupID))
 
 }
 
-class SessionUpdateActor(db: Database, dbec: ExecutionContext)(implicit configurator: KafkaConf) extends Actor{
+class SessionUpdateActor(db: Database, dbec: ExecutionContext, actorGroupID: UUID)(implicit configurator: KafkaConf) extends Actor{
 
-  println(s"SessionUpdateActor --> started.")
+  private val logger: Logger = LoggerFactory.getLogger(classOf[SessionUpdateActor]).asInstanceOf[Logger]
+  logger.trace(s"SessionUpdateActor. Starting actor. actorGroupID(${actorGroupID.toString})")
 
 
   override def postStop(): Unit = {

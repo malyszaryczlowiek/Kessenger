@@ -7,21 +7,27 @@ import io.github.malyszaryczlowiek.kessengerlibrary.model._
 import kafka.KafkaAdmin
 import org.apache.kafka.clients.consumer.{ConsumerRecord, ConsumerRecords, KafkaConsumer}
 
+import java.util.UUID
 import java.util.concurrent.atomic.AtomicBoolean
 import scala.annotation.tailrec
 import scala.collection.concurrent.TrieMap
 import scala.concurrent.{ExecutionContext, Future}
 import scala.jdk.javaapi.CollectionConverters
 import scala.util.{Failure, Success, Using}
+import org.slf4j.LoggerFactory
+import ch.qos.logback.classic.{Level, Logger}
 
 
-class WritingReader(out: ActorRef, parentActor: ActorRef, conf: Configuration, ka: KafkaAdmin, ec: ExecutionContext) extends Reader {
+class WritingReader(out: ActorRef, parentActor: ActorRef, conf: Configuration, ka: KafkaAdmin,
+                    ec: ExecutionContext, actorGroupID: UUID) extends Reader {
 
 
   private val chats: TrieMap[ChatId, Unit] = TrieMap.empty
   private val newChats: TrieMap[ChatId, Unit] = TrieMap.empty
   private val continueReading: AtomicBoolean = new AtomicBoolean(true)
   private var fut: Option[Future[Unit]] = None
+  private val logger: Logger = LoggerFactory.getLogger(classOf[WritingReader]).asInstanceOf[Logger]
+  logger.trace(s"WritingReader. Starting reader. actorGroupID(${actorGroupID.toString})")
 
   initializeChats()
   startReading()

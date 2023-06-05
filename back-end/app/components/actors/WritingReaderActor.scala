@@ -1,21 +1,32 @@
 package components.actors
 
 import akka.actor._
-import components.actors.readers.Reader
-import io.github.malyszaryczlowiek.kessengerlibrary.model.ChatPartitionsOffsets
+import components.actors.readers.{Reader, WritingReader}
+import io.github.malyszaryczlowiek.kessengerlibrary.model.{ChatPartitionsOffsets, Configuration}
+import kafka.KafkaAdmin
+
+import java.util.UUID
+import scala.concurrent.ExecutionContext
+import org.slf4j.LoggerFactory
+import ch.qos.logback.classic.{Level, Logger}
 
 
 
 object WritingReaderActor {
-  def props(reader: Reader): Props =
-    Props(new WritingReaderActor(reader))
+  def props(out: ActorRef, parentActor: ActorRef, conf: Configuration, ka: KafkaAdmin,
+            ec: ExecutionContext, actorGroupID: UUID): Props =
+    Props(new WritingReaderActor(out, parentActor, conf, ka, ec, actorGroupID))
 }
 
 
-class WritingReaderActor(reader: Reader) extends Actor {
+class WritingReaderActor(out: ActorRef, parentActor: ActorRef, conf: Configuration, ka: KafkaAdmin,
+                         ec: ExecutionContext, actorGroupID: UUID) extends Actor {
 
 
-  println(s"WritingReaderActor started.")
+  private val logger: Logger = LoggerFactory.getLogger(classOf[WritingReaderActor]).asInstanceOf[Logger]
+  logger.trace(s"WritingReaderActor. Starting actor. actorGroupID(${actorGroupID.toString})")
+
+  private val reader = new WritingReader(out, parentActor, conf, ka, ec, actorGroupID)
 
 
   override def postStop(): Unit = {

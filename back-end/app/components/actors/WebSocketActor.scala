@@ -21,7 +21,7 @@ import org.slf4j.LoggerFactory
 import ch.qos.logback.classic.{Level, Logger}
 import kafka.KafkaAdmin
 
-import javax.inject.Inject
+
 import scala.concurrent.ExecutionContext
 
 object WebSocketActor {
@@ -140,10 +140,10 @@ class WebSocketActor(out: ActorRef, ka: KafkaAdmin, kec: ExecutionContext, db: D
                       (InvitationReaderKey,  context.actorOf( InvitationReaderActor.props(out, self, conf, ka, kec, actorGroupID) )),
                       (NewMessageReaderKey,  context.actorOf( NewMessageReaderActor.props(out, self, conf, ka, kec, actorGroupID) )),
                       (OldMessageReaderKey,  context.actorOf( OldMessageReaderActor.props(out, self, conf, ka, kec, actorGroupID) )),
-                      (MessageSenderKey,     context.actorOf( SendMessageActor.props(     conf, ka) )),
-                      (WritingSenderKey,     context.actorOf( SendWritingActor.props(     conf, ka) )),
-                      (WritingReaderKey,     context.actorOf( WritingReaderActor.props(   new WritingReader(out, self, conf, ka, this.kec) ))),
-                      (SessionUpdateKey,     context.actorOf( SessionUpdateActor.props(   db, dbec ))),
+                      (MessageSenderKey,     context.actorOf( SendMessageActor.     props(ka, actorGroupID)                       )),
+                      (WritingSenderKey,     context.actorOf( SendWritingActor.     props(ka, actorGroupID)                       )),
+                      (WritingReaderKey,     context.actorOf( WritingReaderActor.props(   ))),
+                      (SessionUpdateKey,     context.actorOf( SessionUpdateActor.   props(db, dbec, actorGroupID )                )),
                     )
                   )
                   out ! "{\"comm\":\"opened correctly\"}"

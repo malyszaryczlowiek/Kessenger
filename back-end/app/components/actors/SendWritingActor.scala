@@ -8,18 +8,23 @@ import kafka.KafkaAdmin
 import org.apache.kafka.clients.producer.{KafkaProducer, ProducerRecord}
 
 import scala.util.Try
+import org.slf4j.LoggerFactory
+import ch.qos.logback.classic.{Level, Logger}
+
+import java.util.UUID
 
 object SendWritingActor {
 
-  def props(conf: Configuration, ka: KafkaAdmin): Props =
-    Props(new SendWritingActor(conf, ka))
+  def props(ka: KafkaAdmin, actorGroupID: UUID): Props =
+    Props(new SendWritingActor(ka, actorGroupID))
 
 }
 
-class SendWritingActor(conf: Configuration, ka: KafkaAdmin) extends Actor {
+class SendWritingActor(ka: KafkaAdmin, actorGroupID: UUID) extends Actor {
 
-  println(s"SendWritingActor --> started.")
   private val writingProducer: KafkaProducer[String, Writing] = ka.createWritingProducer
+  private val logger: Logger = LoggerFactory.getLogger(classOf[SendWritingActor]).asInstanceOf[Logger]
+  logger.trace(s"SendWritingActor. Starting actor. actorGroupID(${actorGroupID.toString})")
 
   override def postStop(): Unit = {
     println(s"SendWritingActor --> switch off")

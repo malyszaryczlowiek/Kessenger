@@ -7,18 +7,23 @@ import kafka.KafkaAdmin
 import org.apache.kafka.clients.producer.{KafkaProducer, ProducerRecord}
 
 import scala.util.Try
+import org.slf4j.LoggerFactory
+import ch.qos.logback.classic.{Level, Logger}
+
+import java.util.UUID
 
 
 object SendMessageActor {
 
-  def props(conf: Configuration, ka: KafkaAdmin): Props =
-    Props(new SendMessageActor(conf, ka))
+  def props( ka: KafkaAdmin, actorGroupID: UUID): Props =
+    Props(new SendMessageActor(ka, actorGroupID))
 
 }
 
-class SendMessageActor(conf: Configuration, ka: KafkaAdmin) extends Actor {
+class SendMessageActor(ka: KafkaAdmin, actorGroupID: UUID) extends Actor {
 
-  println(s"SendMessageActor --> started.")
+  private val logger: Logger = LoggerFactory.getLogger(classOf[SendMessageActor]).asInstanceOf[Logger]
+  logger.trace(s"SendMessageActor. Starting actor. actorGroupID(${actorGroupID.toString})")
 
   private val messageProducer: KafkaProducer[User, Message] = ka.createMessageProducer
 

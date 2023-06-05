@@ -24,8 +24,7 @@ class OldMessageReader(out: ActorRef, parentActor: ActorRef, conf: Configuration
                        ec: ExecutionContext, actorGroupID: UUID) extends Reader {
 
 
-  private val chats:    TrieMap[ChatId, (List[PartitionOffset], List[PartitionOffset])] = TrieMap.empty
-  // private val consumer: KafkaConsumer[String, Message] = this.ka.createMessageConsumer(s"${this.conf.me.userId.toString}_old")
+  private val chats:  TrieMap[ChatId, (List[PartitionOffset], List[PartitionOffset])] = TrieMap.empty
   private val logger: Logger = LoggerFactory.getLogger(classOf[OldMessageReader]).asInstanceOf[Logger]
   logger.trace(s"OldMessageReader. Starting reader. actorGroupID(${actorGroupID.toString})")
 
@@ -42,11 +41,6 @@ class OldMessageReader(out: ActorRef, parentActor: ActorRef, conf: Configuration
 
   override def stopReading(): Unit = {
     println(s"OldMessageReader --> stopReading() ended normally.")
-//    this.consumer.unsubscribe()
-//    Try {
-//      this.consumer.close(java.time.Duration.ofMillis(5000L))
-//      println(s"OldMessageReader --> stopReading() ended normally.")
-//    }
   }
 
 
