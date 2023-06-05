@@ -139,7 +139,7 @@ class WebSocketActor(out: ActorRef, ka: KafkaAdmin, kec: ExecutionContext, db: D
                       (ChatOffsetUpdaterKey, context.actorOf( ChatOffsetUpdateActor.props(conf, db, dbec, actorGroupID)           )),
                       (InvitationReaderKey,  context.actorOf( InvitationReaderActor.props(out, self, conf, ka, kec, actorGroupID) )),
                       (NewMessageReaderKey,  context.actorOf( NewMessageReaderActor.props(out, self, conf, ka, kec, actorGroupID) )),
-                      (OldMessageReaderKey,  context.actorOf( OldMessageReaderActor.props(new OldMessageReader(out, self, conf, this.ka, this.kec) ))),
+                      (OldMessageReaderKey,  context.actorOf( OldMessageReaderActor.props(out, self, conf, ka, kec, actorGroupID) )),
                       (MessageSenderKey,     context.actorOf( SendMessageActor.props(     conf, ka) )),
                       (WritingSenderKey,     context.actorOf( SendWritingActor.props(     conf, ka) )),
                       (WritingReaderKey,     context.actorOf( WritingReaderActor.props(   new WritingReader(out, self, conf, ka, this.kec) ))),

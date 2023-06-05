@@ -7,21 +7,27 @@ import kafka.KafkaAdmin
 import org.apache.kafka.clients.consumer.{ConsumerRecord, ConsumerRecords, KafkaConsumer}
 import org.apache.kafka.common.TopicPartition
 
+import java.util.UUID
 import scala.annotation.tailrec
 import scala.collection.concurrent.TrieMap
 import scala.collection.mutable.ListBuffer
 import scala.concurrent.{ExecutionContext, Future}
 import scala.jdk.javaapi.CollectionConverters
 import scala.util.{Failure, Success, Try, Using}
+import org.slf4j.LoggerFactory
+import ch.qos.logback.classic.{Level, Logger}
 
 
 
 
-class OldMessageReader(out: ActorRef, parentActor: ActorRef, conf: Configuration, ka: KafkaAdmin, ec: ExecutionContext) extends Reader {
+class OldMessageReader(out: ActorRef, parentActor: ActorRef, conf: Configuration, ka: KafkaAdmin,
+                       ec: ExecutionContext, actorGroupID: UUID) extends Reader {
 
 
   private val chats:    TrieMap[ChatId, (List[PartitionOffset], List[PartitionOffset])] = TrieMap.empty
   // private val consumer: KafkaConsumer[String, Message] = this.ka.createMessageConsumer(s"${this.conf.me.userId.toString}_old")
+  private val logger: Logger = LoggerFactory.getLogger(classOf[OldMessageReader]).asInstanceOf[Logger]
+  logger.trace(s"OldMessageReader. Starting reader. actorGroupID(${actorGroupID.toString})")
 
   this.chats.addAll(conf.chats.map(c => (c.chatId, (c.partitionOffset, c.partitionOffset))))
 
