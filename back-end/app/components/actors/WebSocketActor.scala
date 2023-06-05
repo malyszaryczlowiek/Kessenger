@@ -136,9 +136,9 @@ class WebSocketActor(out: ActorRef, ka: KafkaAdmin, kec: ExecutionContext, db: D
                   logger.trace(s"WebSocketActor. got Configuration. actorGroupID(${actorGroupID.toString})")
                   this.childrenActors.addAll(
                     List(
-                      (ChatOffsetUpdaterKey, context.actorOf( ChatOffsetUpdateActor.props(conf, db, dbec, actorGroupID) )),
-                      (InvitationReaderKey,  context.actorOf( InvitationReaderActor.props(new InvitationReader(out, self, conf, this.ka, this.kec), actorGroupID ))),
-                      (NewMessageReaderKey,  context.actorOf( NewMessageReaderActor.props(new NewMessageReader(out, self, conf, this.ka, this.kec) ))),
+                      (ChatOffsetUpdaterKey, context.actorOf( ChatOffsetUpdateActor.props(conf, db, dbec, actorGroupID)           )),
+                      (InvitationReaderKey,  context.actorOf( InvitationReaderActor.props(out, self, conf, ka, kec, actorGroupID) )),
+                      (NewMessageReaderKey,  context.actorOf( NewMessageReaderActor.props(out, self, conf, ka, kec, actorGroupID) )),
                       (OldMessageReaderKey,  context.actorOf( OldMessageReaderActor.props(new OldMessageReader(out, self, conf, this.ka, this.kec) ))),
                       (MessageSenderKey,     context.actorOf( SendMessageActor.props(     conf, ka) )),
                       (WritingSenderKey,     context.actorOf( SendWritingActor.props(     conf, ka) )),

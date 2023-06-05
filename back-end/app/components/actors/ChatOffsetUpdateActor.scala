@@ -29,7 +29,7 @@ class ChatOffsetUpdateActor(conf: Configuration, db: Database, dbec: ExecutionCo
   private val chats: TrieMap[ChatId, List[PartitionOffset]] = TrieMap.empty
   this.chats.addAll(conf.chats.map(c => (c.chatId, c.partitionOffset)))
 
-  private val logger: Logger = LoggerFactory.getLogger(classOf[WebSocketActor]).asInstanceOf[Logger]
+  private val logger: Logger = LoggerFactory.getLogger(classOf[ChatOffsetUpdateActor]).asInstanceOf[Logger]
   logger.trace(s"ChatOffsetUpdateActor. Starting actor. actorGroupID(${actorGroupID.toString})")
 
   override def postStop(): Unit = {

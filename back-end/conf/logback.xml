@@ -105,6 +105,8 @@
       <logger name="components.actors.ChatOffsetUpdateActor" level="TRACE" />
       <logger name="components.actors.InvitationReaderActor" level="TRACE" />
 
+      <!-- dodać resztę Actorów i Readerów -->
+
 
 
       <logger name="util.HeadersParser"                level="TRACE" />

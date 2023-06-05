@@ -8,18 +8,25 @@ import kafka.KafkaAdmin
 import org.apache.kafka.clients.consumer.{ConsumerRecord, ConsumerRecords, KafkaConsumer}
 import org.apache.kafka.common.TopicPartition
 
+import java.util.UUID
 import java.util.concurrent.atomic.AtomicBoolean
 import scala.annotation.tailrec
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success, Using}
+import org.slf4j.LoggerFactory
+import ch.qos.logback.classic.{Level, Logger}
 
 
 
 
-class InvitationReader(out: ActorRef, parentActor: ActorRef, conf: Configuration, ka: KafkaAdmin, ec: ExecutionContext) extends Reader {
+class InvitationReader(out: ActorRef, parentActor: ActorRef, conf: Configuration, ka: KafkaAdmin,
+                       ec: ExecutionContext, actorGroupID: UUID) extends Reader {
 
   private val continueReading: AtomicBoolean = new AtomicBoolean(true)
   private var fut: Option[Future[Unit]] = None
+  private val logger: Logger = LoggerFactory.getLogger(classOf[InvitationReader]).asInstanceOf[Logger]
+  logger.trace(s"InvitationReader. Starting reader. actorGroupID(${actorGroupID.toString})")
+
   startReading()
 
 
@@ -35,7 +42,6 @@ class InvitationReader(out: ActorRef, parentActor: ActorRef, conf: Configuration
         consumer => {
           initializeConsumer(consumer)
           poolInvitations(consumer)
-          error
         }
       } match {
         case Failure(exception) =>
