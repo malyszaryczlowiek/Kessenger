@@ -1,12 +1,12 @@
-package components.util.converters
+package util
 
-import components.util.LoginCredentials.LoginCredentials
+import components.model.LoginCredentials
 import io.circe.Decoder.Result
-import io.circe.{Decoder, Encoder, Error, HCursor, Json}
-import io.circe.syntax._
 import io.circe.parser.decode
-import io.github.malyszaryczlowiek.kessengerlibrary.model.{Chat, Message, PartitionOffset, Settings, User}
+import io.circe.syntax._
+import io.circe.{Decoder, Encoder, Error, HCursor, Json}
 import io.github.malyszaryczlowiek.kessengerlibrary.domain.Domain.{Offset, Partition}
+import io.github.malyszaryczlowiek.kessengerlibrary.model._
 
 import java.util.UUID
 

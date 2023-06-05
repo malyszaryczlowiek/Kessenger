@@ -34,8 +34,8 @@ class StreamTests extends munit.FunSuite {
   private val messageSerde = new MessageSerde
   private val avgNumSerde  = new AverageWordsNumSerde
 
-  private var topology:        Topology                      = _
-  private var inputTopic:      TestInputTopic[User, Message] = _
+  private var topology:   Topology                      = _
+  private var inputTopic: TestInputTopic[User, Message] = _
 
   // output topics
   private var messagesPerZone:   TestOutputTopic[String, Long] = _

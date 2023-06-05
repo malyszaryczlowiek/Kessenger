@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { Settings } from '../models/Settings';
-import { ConnectionService } from './connection.service';
+// import { ConnectionService } from './connection.service';
 
 @Injectable({
   providedIn: 'root'
@@ -16,12 +16,7 @@ export class UserSettingsService {
   public initialized = false;
   
 
-  constructor() { 
-
-    // todo tutaj w konstruktorze dodać rządanie o ustawienia ???
-
-
-  }
+  constructor() { }
 
   setSettings(s: Settings) {
     this.settings = s;

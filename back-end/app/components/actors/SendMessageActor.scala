@@ -3,8 +3,8 @@ package components.actors
 
 import akka.actor._
 import io.github.malyszaryczlowiek.kessengerlibrary.model.{Configuration, Message, User}
+import kafka.KafkaAdmin
 import org.apache.kafka.clients.producer.{KafkaProducer, ProducerRecord}
-import util.KafkaAdmin
 
 import scala.util.Try
 

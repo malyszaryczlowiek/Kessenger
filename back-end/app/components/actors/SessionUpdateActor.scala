@@ -27,7 +27,7 @@ class SessionUpdateActor(db: Database, dbec: ExecutionContext)(implicit configur
   }
 
   override def receive: Receive = {
-    case sessionData: SessionInfo  =>
+    case sessionData: SessionInfo =>
       println(s"SessionUpdateActor --> GOT SESSION UPDATE.")
       Future {
         db.withConnection( implicit connection => {

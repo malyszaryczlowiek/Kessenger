@@ -1,9 +1,8 @@
-package components.util.converters
+package util
 
 import io.github.malyszaryczlowiek.kessengerlibrary.model.SessionInfo
-
-import play.api.mvc.{AnyContent, Request, Result, Session}
 import play.api.mvc.Results._
+import play.api.mvc.{AnyContent, Request, Result, Session}
 
 import java.util.UUID
 

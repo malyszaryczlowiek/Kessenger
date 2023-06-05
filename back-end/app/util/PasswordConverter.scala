@@ -1,8 +1,7 @@
-package components.util.converters
+package util
 
 import com.github.t3hnar.bcrypt
 import com.github.t3hnar.bcrypt._
-
 import io.github.malyszaryczlowiek.kessengerlibrary.domain.Domain.Password
 
 import scala.util.{Failure, Success, Try}

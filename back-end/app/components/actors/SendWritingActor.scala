@@ -4,8 +4,8 @@ package components.actors
 import akka.actor._
 import io.github.malyszaryczlowiek.kessengerlibrary.domain.Domain
 import io.github.malyszaryczlowiek.kessengerlibrary.model.{Configuration, Writing}
+import kafka.KafkaAdmin
 import org.apache.kafka.clients.producer.{KafkaProducer, ProducerRecord}
-import util.KafkaAdmin
 
 import scala.util.Try
 

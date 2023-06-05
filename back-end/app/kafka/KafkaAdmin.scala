@@ -1,25 +1,23 @@
-package util
-
+package kafka
 
 import conf.KafkaConf
-import io.github.malyszaryczlowiek.kessengerlibrary.domain.Domain.{ChatId, JoinId, UserID}
 import io.github.malyszaryczlowiek.kessengerlibrary.domain.Domain
-import io.github.malyszaryczlowiek.kessengerlibrary.model.{Chat, Invitation, Message, User, Writing}
-import io.github.malyszaryczlowiek.kessengerlibrary.kafka.errors.{KafkaError, KafkaErrorsHandler}
+import io.github.malyszaryczlowiek.kessengerlibrary.domain.Domain.{ChatId, JoinId, UserID}
 import io.github.malyszaryczlowiek.kessengerlibrary.kafka.errors._
-import org.apache.kafka.clients.admin.{Admin, AdminClientConfig, CreateTopicsResult, DeleteTopicsResult, NewTopic}
+import io.github.malyszaryczlowiek.kessengerlibrary.model._
+import org.apache.kafka.clients.admin._
 import org.apache.kafka.clients.consumer.{ConsumerConfig, KafkaConsumer}
 import org.apache.kafka.clients.producer.{KafkaProducer, ProducerConfig}
 import org.apache.kafka.common.KafkaFuture
 import org.apache.kafka.common.config.TopicConfig
 import play.api.inject.ApplicationLifecycle
 
+import java.util.Properties
 import java.util.concurrent.TimeUnit
-import java.util.{Collections, Properties, UUID}
 import javax.inject.{Inject, Named, Singleton}
 import scala.concurrent.Future
-import scala.util.{Failure, Success, Try}
 import scala.jdk.javaapi.CollectionConverters
+import scala.util.{Failure, Success, Try}
 
 
 /**

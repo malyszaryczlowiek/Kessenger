@@ -756,7 +756,7 @@ class DbExecutor(val kafkaConfigurator: KafkaConf) {
 
 
 
-  def createGroupChat(me: User, users: List[UUID], chatId: ChatId, chatName: ChatName )(implicit connection: Connection): DbResponse[Map[Chat,Map[Int, Long]]] = {
+  private def createGroupChat(me: User, users: List[UUID], chatId: ChatId, chatName: ChatName )(implicit connection: Connection): DbResponse[Map[Chat,Map[Int, Long]]] = {
     val listSize = users.length
     if (listSize < 2)
       Left(QueryError(ERROR, AtLeastTwoUsers))

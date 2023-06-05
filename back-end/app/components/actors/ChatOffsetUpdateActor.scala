@@ -4,42 +4,41 @@ import akka.actor._
 import components.db.DbExecutor
 import conf.KafkaConf
 import io.github.malyszaryczlowiek.kessengerlibrary.domain.Domain.ChatId
-
 import io.github.malyszaryczlowiek.kessengerlibrary.model.{ChatOffsetUpdate, ChatPartitionsOffsets, Configuration, PartitionOffset}
 import play.api.db.Database
 
+import java.util.UUID
 import scala.collection.concurrent.TrieMap
 // import scala.collection.mutable.{Map => mMap}
 import scala.concurrent.{ExecutionContext, Future}
 
+import org.slf4j.LoggerFactory
+import ch.qos.logback.classic.{Level, Logger}
+
+
 object ChatOffsetUpdateActor {
 
-  def props(conf: Configuration, db: Database, dbec: ExecutionContext)(implicit configurator: KafkaConf): Props =
-    Props(new ChatOffsetUpdateActor(conf, db, dbec))
+  def props(conf: Configuration, db: Database, dbec: ExecutionContext, actorGroupID: UUID)(implicit configurator: KafkaConf): Props =
+    Props(new ChatOffsetUpdateActor(conf, db, dbec, actorGroupID))
 
 }
 
-class ChatOffsetUpdateActor(conf: Configuration, db: Database, dbec: ExecutionContext)(implicit configurator: KafkaConf) extends Actor {
+class ChatOffsetUpdateActor(conf: Configuration, db: Database, dbec: ExecutionContext, actorGroupID: UUID)(implicit configurator: KafkaConf) extends Actor {
 
 
   private val chats: TrieMap[ChatId, List[PartitionOffset]] = TrieMap.empty
-
   this.chats.addAll(conf.chats.map(c => (c.chatId, c.partitionOffset)))
 
-
-
-  println(s"ChatOffsetUpdateActor --> started.")
-
-
+  private val logger: Logger = LoggerFactory.getLogger(classOf[WebSocketActor]).asInstanceOf[Logger]
+  logger.trace(s"ChatOffsetUpdateActor. Starting actor. actorGroupID(${actorGroupID.toString})")
 
   override def postStop(): Unit = {
-    println(s"ChatOffsetUpdateActor --> switch off")
+    logger.trace(s"ChatOffsetUpdateActor. Stopping actor. actorGroupID(${actorGroupID.toString})")
   }
 
   override def receive: Receive = {
     // update chat
     case u: ChatOffsetUpdate =>
-
       this.chats.get(u.chatId) match {
         case Some(t) =>
           val isGrater = u.partitionOffsets.map(_.offset).sum > t.map(_.offset).sum
@@ -48,7 +47,7 @@ class ChatOffsetUpdateActor(conf: Configuration, db: Database, dbec: ExecutionCo
             Future {
               val dbExecutor = new DbExecutor(configurator)
               db.withConnection( implicit connection => {
-                println(s"ChatOffsetUpdateActor --> sending chat offset update, $u to DB.")
+                logger.trace(s"ChatOffsetUpdateActor. Updating chat offset. actorGroupID(${actorGroupID.toString})")
                 dbExecutor.updateChatOffsetAndMessageTime(u.userId, u.chatId, u.lastMessageTime, shiftOffsetPerOne(u.partitionOffsets) )
               })
             }(dbec)
@@ -57,7 +56,7 @@ class ChatOffsetUpdateActor(conf: Configuration, db: Database, dbec: ExecutionCo
       }
       // adding new chat to list
     case nChat: ChatPartitionsOffsets =>
-      println(s"ChatOffsetUpdateActor --> adding new chat to chats, $nChat")
+      logger.trace(s"ChatOffsetUpdateActor. Adding new chat to chat list. actorGroupID(${actorGroupID.toString})")
       this.chats.addOne(nChat.chatId -> nChat.partitionOffset)
 
   }

@@ -2,21 +2,26 @@ package components.actors
 
 import akka.actor._
 import components.actors.readers.Reader
+import org.slf4j.LoggerFactory
+import ch.qos.logback.classic.{Level, Logger}
+
+import java.util.UUID
 
 
 object InvitationReaderActor {
-  def props(reader: Reader): Props =
-    Props(new InvitationReaderActor(reader))
+  def props(reader: Reader, actorGroupID: UUID): Props =
+    Props(new InvitationReaderActor(reader, actorGroupID))
 }
 
 
-class InvitationReaderActor(reader: Reader) extends Actor {
+class InvitationReaderActor(reader: Reader, actorGroupID: UUID) extends Actor {
 
-  println(s"InvitationReaderActor --> started.")
+  private val logger: Logger = LoggerFactory.getLogger(classOf[InvitationReaderActor]).asInstanceOf[Logger]
+  logger.trace(s"InvitationReaderActor. Starting actor. actorGroupID(${actorGroupID.toString})")
 
 
   override def postStop(): Unit = {
-    println(s"InvitationReaderActor --> switch off")
+    logger.trace(s"InvitationReaderActor. Stopping actor. actorGroupID(${actorGroupID.toString})")
     reader.stopReading()
   }
 

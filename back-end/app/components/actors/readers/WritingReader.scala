@@ -4,8 +4,8 @@ import akka.actor._
 import io.github.malyszaryczlowiek.kessengerlibrary.domain.Domain
 import io.github.malyszaryczlowiek.kessengerlibrary.domain.Domain.ChatId
 import io.github.malyszaryczlowiek.kessengerlibrary.model._
+import kafka.KafkaAdmin
 import org.apache.kafka.clients.consumer.{ConsumerRecord, ConsumerRecords, KafkaConsumer}
-import util.KafkaAdmin
 
 import java.util.concurrent.atomic.AtomicBoolean
 import scala.annotation.tailrec

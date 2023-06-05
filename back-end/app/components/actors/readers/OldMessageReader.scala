@@ -3,9 +3,9 @@ package components.actors.readers
 import akka.actor._
 import io.github.malyszaryczlowiek.kessengerlibrary.domain.Domain.ChatId
 import io.github.malyszaryczlowiek.kessengerlibrary.model.{ChatPartitionsOffsets, Configuration, Message, PartitionOffset, User}
+import kafka.KafkaAdmin
 import org.apache.kafka.clients.consumer.{ConsumerRecord, ConsumerRecords, KafkaConsumer}
 import org.apache.kafka.common.TopicPartition
-import util.KafkaAdmin
 
 import scala.annotation.tailrec
 import scala.collection.concurrent.TrieMap

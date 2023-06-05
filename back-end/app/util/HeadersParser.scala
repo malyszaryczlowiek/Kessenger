@@ -39,7 +39,7 @@ class HeadersParser {
               body(request, sessionData)
             }
             else {
-              logger.error(s"Not compatible request path with KSID header data. userId(${userId.toString})")
+              logger.error(s"Not compatible request path with KSID header. userId(${userId.toString})")
               Future.successful(Unauthorized(ResponseBody(13, "Unauthorized").toString()).discardingHeader("KSID"))
             }
           case None =>

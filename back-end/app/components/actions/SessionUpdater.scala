@@ -30,7 +30,6 @@ case class SessionUpdater @Inject()(parserr: BodyParser[AnyContent], userId: Use
   override def parser: BodyParser[AnyContent] = parserr
 
   private val logger: Logger = LoggerFactory.getLogger(classOf[SessionUpdater]).asInstanceOf[Logger]
-  // logger.setLevel(Level.TRACE)
 
 
   override def invokeBlock[A](request: Request[A], block: Request[A] => Future[Result]): Future[Result] = {
@@ -47,9 +46,10 @@ case class SessionUpdater @Inject()(parserr: BodyParser[AnyContent], userId: Use
         }(ec)
         Await.result(f, Duration.create(10L, SECONDS)) match {
           case Left(e) =>
-            logger.error(s"Error ${e.description.toString()}. userId($userId)")
+            logger.error(s"SessionUpdater. Error ${e.description.toString()}. userId($userId)")
             block(request)
           case Right(_) =>
+            logger.trace(s"SessionUpdater. Processed normally. userId($userId)")
             block(request)
         }
       }

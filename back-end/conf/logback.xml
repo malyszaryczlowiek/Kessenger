@@ -92,14 +92,23 @@
       <logger name="play" level="WARN" />
       <logger name="application" level="WARN" />
 
-      <logger name="controllers.HomeController" level="ERROR" />
+      <logger name="controllers.HomeController"        level="ERROR" />
+      <logger name="controllers.ChatsController"       level="TRACE" />
+      <logger name="controllers.UserController"        level="TRACE" />
+      <logger name="controllers.WebSocketController"   level="TRACE" />
 
-
-      <logger name="controllers.KessengerController"   level="TRACE" />
-      <logger name="util.HeadersParser"                level="TRACE" />
       <logger name="filters.KsidFilter"                level="TRACE" />
+
       <logger name="components.actions.SessionChecker" level="TRACE" />
       <logger name="components.actions.SessionUpdater" level="TRACE" />
+
+      <logger name="components.actors.ChatOffsetUpdateActor" level="TRACE" />
+      <logger name="components.actors.InvitationReaderActor" level="TRACE" />
+
+
+
+      <logger name="util.HeadersParser"                level="TRACE" />
+
 
 
 

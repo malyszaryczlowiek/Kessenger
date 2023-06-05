@@ -1,7 +1,6 @@
 package filters
 
 import akka.stream.Materializer
-import components.util.converters.JsonParsers
 import io.github.malyszaryczlowiek.kessengerlibrary.model.ResponseBody
 import play.api.http.HttpEntity
 import play.api.mvc.{Filter, RequestHeader, ResponseHeader, Result}
@@ -10,10 +9,12 @@ import javax.inject.Inject
 import scala.concurrent.{ExecutionContext, Future}
 import org.slf4j.LoggerFactory
 import ch.qos.logback.classic.{Level, Logger}
+import util.JsonParsers
 
 
 /**
  * Simple header filter which rejects requests without KSID header
+ *
  * @param mat
  * @param ec
  */
