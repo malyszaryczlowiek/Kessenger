@@ -15,7 +15,7 @@ import scala.concurrent.{ExecutionContext, Future}
 import scala.jdk.javaapi.CollectionConverters
 import scala.util.{Failure, Success, Using}
 import org.slf4j.LoggerFactory
-import ch.qos.logback.classic.{Level, Logger}
+import ch.qos.logback.classic.Logger
 
 
 class WritingReader(out: ActorRef, parentActor: ActorRef, conf: Configuration, ka: KafkaAdmin,
@@ -35,11 +35,13 @@ class WritingReader(out: ActorRef, parentActor: ActorRef, conf: Configuration, k
 
   private def initializeChats(): Unit = {
     this.chats.addAll(this.conf.chats.map(c => (c.chatId, {})))
+    logger.trace(s"WritingReader. Chats initialized. actorGroupID(${actorGroupID.toString})")
   }
 
 
   override def startReading(): Unit = {
     if(this.chats.nonEmpty) this.fut = Option(futureBody())
+    logger.trace(s"WritingReader. Reading started. actorGroupID(${actorGroupID.toString})")
   }
 
 
@@ -52,13 +54,14 @@ class WritingReader(out: ActorRef, parentActor: ActorRef, conf: Configuration, k
         }
       } match {
         case Failure(exception) =>
-          println(s"WritingReader --> Future EXCEPTION ${exception.getMessage}")
+          logger.error(s"WritingReader. Exception during reading: ${exception.getMessage}. actorGroupID(${actorGroupID.toString})")
           // if reading ended with error we need to close all actor system
           // and give a chance for web app to restart.
           out ! ResponseBody(44, "Kafka connection lost. Try refresh page in a few minutes.").toString
           Thread.sleep(250)
           parentActor ! PoisonPill
-        case Success(_) => println(s"WritingReader --> Future closed correctly.")
+        case Success(_) =>
+          logger.trace(s"WritingReader. Future closed normally. actorGroupID(${actorGroupID.toString})")
       }
     }(ec)
   }
@@ -114,13 +117,5 @@ class WritingReader(out: ActorRef, parentActor: ActorRef, conf: Configuration, k
 
   override def fetchOlderMessages(chatId: ChatId): Unit = {}
 
-
-
-  //  def isReading: Boolean = {
-  //    this.fut.isDefined && ! this.fut.get.isCompleted && this.continueReading.get()
-  //  }
-
-
-  // we start reading strait away
 
 }

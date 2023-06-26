@@ -19,13 +19,12 @@ docker rm -v spark-master
 docker rmi kessenger_spark-master
 
 
+docker stop kafka2
+docker rm -v kafka2
+
 docker stop kafka1
 docker rm -v kafka1
 #docker rmi kessenger_kafka1
-
-
-docker stop kafka2
-docker rm -v kafka2
 
 
 docker stop zookeeper

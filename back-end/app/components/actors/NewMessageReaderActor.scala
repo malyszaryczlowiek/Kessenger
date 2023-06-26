@@ -34,13 +34,13 @@ class NewMessageReaderActor(out: ActorRef, parentActor: ActorRef,
 
   override def postStop(): Unit = {
     reader.stopReading()
-    println(s"NewMessageReaderActor --> switch off")
+    logger.trace(s"NewMessageReaderActor. Stopping actor. actorGroupID(${actorGroupID.toString})")
   }
 
 
   override def receive: Receive = {
     case newChat: ChatPartitionsOffsets =>
-      println(s"NewMessageReaderActor --> adding new chat to read new MESSAGES from, chatId: $newChat")
+      logger.trace(s"NewMessageReaderActor. Adding new chat. actorGroupID(${actorGroupID.toString})")
       reader.addNewChat( newChat )
   }
 

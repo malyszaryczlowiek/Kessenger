@@ -28,12 +28,12 @@ class SessionUpdateActor(db: Database, dbec: ExecutionContext, actorGroupID: UUI
 
 
   override def postStop(): Unit = {
-    println(s"SessionUpdateActor --> switch off")
+    logger.trace(s"SessionUpdateActor. Stopping actor. actorGroupID(${actorGroupID.toString})")
   }
 
   override def receive: Receive = {
     case sessionData: SessionInfo =>
-      println(s"SessionUpdateActor --> GOT SESSION UPDATE.")
+      logger.trace(s"SessionUpdateActor. Updating session info. actorGroupID(${actorGroupID.toString})")
       Future {
         db.withConnection( implicit connection => {
           val dbExecutor = new DbExecutor(configurator)

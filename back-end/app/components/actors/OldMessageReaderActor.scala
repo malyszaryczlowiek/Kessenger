@@ -29,17 +29,17 @@ class OldMessageReaderActor(out: ActorRef, parentActor: ActorRef, conf: Configur
 
 
   override def postStop(): Unit = {
-    println(s"OldMessageReaderActor --> switch off")
     reader.stopReading()
+    logger.trace(s"OldMessageReaderActor. Stopping actor. actorGroupID(${actorGroupID.toString})")
   }
 
 
   override def receive: Receive = {
     case newChat: ChatPartitionsOffsets =>
-      println(s"OldMessageReaderActor --> adding new chat to read new MESSAGES from, chatId: $newChat")
+      logger.trace(s"OldMessageReaderActor. Adding new chat. actorGroupID(${actorGroupID.toString})")
       reader.addNewChat(newChat)
     case chatId: String =>
-      println(s"OldMessageReaderActor --> fetching data from new chatId: $chatId")
+      logger.trace(s"OldMessageReaderActor. Fetching data from new chatId: $chatId. actorGroupID(${actorGroupID.toString})")
       reader.fetchOlderMessages(chatId)
   }
 

@@ -8,7 +8,7 @@ import java.util.UUID
 import scala.concurrent.Future
 
 import org.slf4j.LoggerFactory
-import ch.qos.logback.classic.{Level, Logger}
+import ch.qos.logback.classic.Logger
 
 class HeadersParser {
 

@@ -52,13 +52,14 @@ class NewMessageReader(out: ActorRef, parentActor: ActorRef, conf: Configuration
         }
       } match {
         case Failure(exception) =>
-          println(s"NewMessageReader --> Future EXCEPTION ${exception.getMessage}")
+          logger.error(s"NewMessageReader. Exception thrown: ${exception.getMessage}. actorGroupID(${actorGroupID.toString})")
           // if reading ended with error we need to close all actor system
           // and give a chance for web app to restart.
           out ! ResponseBody(44, "Kafka connection lost. Try refresh page in a few minutes.").toString
           Thread.sleep(250)
           parentActor ! PoisonPill
-        case Success(_) => println(s"NewMessageReader --> Future closed normally.")
+        case Success(_) =>
+          logger.trace(s"NewMessageReader. Consumer closed normally. actorGroupID(${actorGroupID.toString})")
       }
     }(ec)
   }
@@ -75,6 +76,7 @@ class NewMessageReader(out: ActorRef, parentActor: ActorRef, conf: Configuration
     // offset is always set as last read message offset + 1
     // so we dont have duplicated messages.
     partitions.foreach(t => consumer.seek(t._1, t._2))
+    logger.trace(s"NewMessageReader. Consumer initialized normally. actorGroupID(${actorGroupID.toString})")
   }
 
 
@@ -137,16 +139,14 @@ class NewMessageReader(out: ActorRef, parentActor: ActorRef, conf: Configuration
   }
 
 
-
   override def addNewChat(newChat: ChatPartitionsOffsets): Unit = {
     if (this.chats.isEmpty) {
-      println(s"################ Adding new CHat. ")
       this.chats.addOne(newChat.chatId -> newChat.partitionOffset)
-      println(s"################ Starting Future. ")
+      logger.trace(s"NewMessageReader. Adding new chat, chat list is empty. actorGroupID(${actorGroupID.toString})")
       startReading()
     }
     else {
-      println(s"################ Added to newCHatList and Future should be started already: ${this.fut.nonEmpty}. ")
+      logger.trace(s"NewMessageReader. Adding new chat, chat list is NOT empty. actorGroupID(${actorGroupID.toString})")
       this.newChats.addOne(newChat.chatId -> newChat.partitionOffset)
     }
   }
@@ -155,11 +155,6 @@ class NewMessageReader(out: ActorRef, parentActor: ActorRef, conf: Configuration
 
   override def fetchOlderMessages(chatId: ChatId): Unit = {}
 
-
-
-  //  def isReading: Boolean = {
-  //    this.fut.isDefined && ! this.fut.get.isCompleted && this.continueReading.get()
-  //  }
 
 
 

@@ -28,17 +28,16 @@ class SendMessageActor(ka: KafkaAdmin, actorGroupID: UUID) extends Actor {
   private val messageProducer: KafkaProducer[User, Message] = ka.createMessageProducer
 
   override def postStop(): Unit = {
-    println(s"SendMessageActor --> switch off")
     Try {
       messageProducer.close()
-      println(s"SendMessageActor --> postStop closed normally.")
+      logger.trace(s"SendMessageActor. messageProducer closed normally. actorGroupID(${actorGroupID.toString})")
     }
   }
 
 
   override def receive: Receive = {
     case m: (User, Message) =>
-      println(s"SendMessageActor --> Message to send: $m")
+      logger.trace(s"SendMessageActor. Message to send: $m. actorGroupID(${actorGroupID.toString})")
       messageProducer.send(new ProducerRecord[User, Message](m._2.chatId, m._1, m._2))
   }
 

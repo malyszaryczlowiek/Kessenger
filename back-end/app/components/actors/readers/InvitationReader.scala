@@ -45,13 +45,14 @@ class InvitationReader(out: ActorRef, parentActor: ActorRef, conf: Configuration
         }
       } match {
         case Failure(exception) =>
-          println(s"InvitationReader --> Future EXCEPTION ${exception.getMessage}")
+          logger.error(s"InvitationReader. Exception thrown: ${exception.getMessage}. actorGroupID(${actorGroupID.toString})")
           // if reading ended with error we need to close all actor system
           // and give a chance for web app to restart.
           out ! ResponseBody(44, "Kafka connection lost. Try refresh page in a few minutes.").toString
           Thread.sleep(250)
           parentActor ! PoisonPill
-        case Success(_) => println(s"InvitationReader --> Future closed correctly.")
+        case Success(_) =>
+          logger.trace(s"InvitationReader. Consumer closed normally. actorGroupID(${actorGroupID.toString})")
       }
     }(ec)
   }
@@ -64,7 +65,7 @@ class InvitationReader(out: ActorRef, parentActor: ActorRef, conf: Configuration
     consumer.assign(java.util.List.of(myJoinTopic))
     // and assign offset for that topic partition
     consumer.seek(myJoinTopic, conf.joiningOffset)
-    println(s"InvitationReader --> Invitation consumer initialized. ")
+    logger.trace(s"InvitationReader. Consumer initialized normally. actorGroupID(${actorGroupID.toString})")
   }
 
 
@@ -76,7 +77,7 @@ class InvitationReader(out: ActorRef, parentActor: ActorRef, conf: Configuration
       invitations.forEach(
         (r: ConsumerRecord[String, Invitation]) => {
           val i: Invitation = r.value().copy(myJoiningOffset = Option(r.offset() + 1L))
-          println(s"InvitationReader --> sending Invitation to web app.")
+          logger.trace(s"InvitationReader. Got Invitation. actorGroupID(${actorGroupID.toString})")
           out ! Invitation.toWebsocketJSON(i)
         }
       )

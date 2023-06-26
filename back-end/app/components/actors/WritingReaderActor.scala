@@ -1,7 +1,7 @@
 package components.actors
 
 import akka.actor._
-import components.actors.readers.{Reader, WritingReader}
+import components.actors.readers.WritingReader
 import io.github.malyszaryczlowiek.kessengerlibrary.model.{ChatPartitionsOffsets, Configuration}
 import kafka.KafkaAdmin
 
@@ -30,8 +30,8 @@ class WritingReaderActor(out: ActorRef, parentActor: ActorRef, conf: Configurati
 
 
   override def postStop(): Unit = {
-    println(s"WritingReaderActor --> switch off")
     reader.stopReading()
+    logger.trace(s"WritingReaderActor. Stopping actor. actorGroupID(${actorGroupID.toString})")
   }
 
 
@@ -39,6 +39,7 @@ class WritingReaderActor(out: ActorRef, parentActor: ActorRef, conf: Configurati
     case newChat: ChatPartitionsOffsets =>
       println(s"WritingReaderActor --> adding new chat to read WRITING from, chatId: $newChat")
       reader.addNewChat(newChat)
+      logger.trace(s"WritingReaderActor. adding new chat to getting WRITING messages from. actorGroupID(${actorGroupID.toString})")
   }
 
 

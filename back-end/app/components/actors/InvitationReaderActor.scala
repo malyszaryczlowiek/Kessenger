@@ -3,7 +3,7 @@ package components.actors
 import akka.actor._
 import components.actors.readers.InvitationReader
 import org.slf4j.LoggerFactory
-import ch.qos.logback.classic.{Level, Logger}
+import ch.qos.logback.classic.Logger
 import io.github.malyszaryczlowiek.kessengerlibrary.model.Configuration
 import kafka.KafkaAdmin
 
@@ -34,7 +34,6 @@ class InvitationReaderActor(out: ActorRef, self: ActorRef, conf: Configuration,
 
   override def receive: Receive = {
     case _: Any =>
-      println(s"InvitationReaderActor --> We should do nothing. ")
   }
 
 }

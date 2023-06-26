@@ -50,7 +50,7 @@
       <!-- Root logger sends WARN and ERROR to ASYNCFILE and ASYNCSTDOUT appenders -->
 
       <root level="WARN">
-<!--        <appender-ref ref="ASYNCFILE" />-->
+        <!-- <appender-ref ref="ASYNCFILE" />-->
         <appender-ref ref="ASYNCSTDOUT" />
       </root>
 
@@ -89,7 +89,10 @@
         <appender-ref ref="STDOUT" />
       </appender>
 
-      <logger name="play" level="WARN" />
+
+      <!-- loggers -->
+
+      <logger name="play"        level="WARN" />
       <logger name="application" level="WARN" />
 
       <logger name="controllers.HomeController"        level="ERROR" />
@@ -98,18 +101,27 @@
       <logger name="controllers.WebSocketController"   level="TRACE" />
 
       <logger name="filters.KsidFilter"                level="TRACE" />
+      <logger name="util.HeadersParser"                level="TRACE" />
 
       <logger name="components.actions.SessionChecker" level="TRACE" />
       <logger name="components.actions.SessionUpdater" level="TRACE" />
 
       <logger name="components.actors.ChatOffsetUpdateActor" level="TRACE" />
       <logger name="components.actors.InvitationReaderActor" level="TRACE" />
+      <logger name="components.actors.NewMessageReaderActor" level="TRACE" />
+      <logger name="components.actors.OldMessageReaderActor" level="TRACE" />
+      <logger name="components.actors.SendMessageActor"      level="TRACE" />
+      <logger name="components.actors.SendWritingActor"      level="TRACE" />
+      <logger name="components.actors.SessionUpdateActor"    level="TRACE" />
+      <logger name="components.actors.WebSocketActor"        level="TRACE" />
+      <logger name="components.actors.WritingReaderActor"    level="TRACE" />
 
-      <!-- dodać resztę Actorów i Readerów -->
+      <logger name="components.actors.readers.InvitationReader" level="TRACE" />
+      <logger name="components.actors.readers.NewMessageReader" level="TRACE" />
+      <logger name="components.actors.readers.OldMessageReader" level="TRACE" />
+      <logger name="components.actors.readers.WritingReader"    level="TRACE" />
 
 
-
-      <logger name="util.HeadersParser"                level="TRACE" />
 
 
 

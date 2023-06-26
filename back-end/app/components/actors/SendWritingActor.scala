@@ -3,15 +3,16 @@ package components.actors
 
 import akka.actor._
 import io.github.malyszaryczlowiek.kessengerlibrary.domain.Domain
-import io.github.malyszaryczlowiek.kessengerlibrary.model.{Configuration, Writing}
+import io.github.malyszaryczlowiek.kessengerlibrary.model.Writing
 import kafka.KafkaAdmin
 import org.apache.kafka.clients.producer.{KafkaProducer, ProducerRecord}
 
 import scala.util.Try
 import org.slf4j.LoggerFactory
-import ch.qos.logback.classic.{Level, Logger}
+import ch.qos.logback.classic.Logger
 
 import java.util.UUID
+
 
 object SendWritingActor {
 
@@ -27,17 +28,16 @@ class SendWritingActor(ka: KafkaAdmin, actorGroupID: UUID) extends Actor {
   logger.trace(s"SendWritingActor. Starting actor. actorGroupID(${actorGroupID.toString})")
 
   override def postStop(): Unit = {
-    println(s"SendWritingActor --> switch off")
     Try {
       this.writingProducer.close()
-      println(s"SendWritingActor --> postStop() closed normally.")
+      logger.trace(s"SendWritingActor. writingProducer closed normally. actorGroupID(${actorGroupID.toString})")
     }
   }
 
 
   override def receive: Receive = {
     case w: Writing =>
-      println(s"SendWritingActor -->  writing to send: $w")
+      logger.trace(s"SendWritingActor. Writing to send: $w. actorGroupID(${actorGroupID.toString})")
       val writingTopic = Domain.generateWritingId(w.chatId)
       writingProducer.send(new ProducerRecord[String, Writing](writingTopic, w))
   }

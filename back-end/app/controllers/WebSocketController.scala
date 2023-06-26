@@ -48,7 +48,7 @@ class WebSocketController @Inject()
 
   private val logger: Logger = LoggerFactory.getLogger(classOf[WebSocketController]).asInstanceOf[Logger]
 
-  // dokończyć definiowanie websocketa
+
   //  https://www.playframework.com/documentation/2.8.x/ScalaWebSockets
   def ws(userId: UUID): WebSocket =
     WebSocket.acceptOrResult[String, String] { request =>

@@ -1,6 +1,5 @@
 package components.actors
 
-
 import io.github.malyszaryczlowiek.kessengerlibrary.model.{ChatOffsetUpdate, ChatPartitionsOffsets, Configuration}
 import io.github.malyszaryczlowiek.kessengerlibrary.model.Configuration.parseConfiguration
 import io.github.malyszaryczlowiek.kessengerlibrary.model.ChatOffsetUpdate.parseChatOffsetUpdate
@@ -8,21 +7,21 @@ import io.github.malyszaryczlowiek.kessengerlibrary.model.FetchMessagesFrom.pars
 import io.github.malyszaryczlowiek.kessengerlibrary.model.ChatPartitionsOffsets.parseChatPartitionOffsets
 import io.github.malyszaryczlowiek.kessengerlibrary.model.Writing.parseWriting
 import io.github.malyszaryczlowiek.kessengerlibrary.model.SessionInfo.parseSessionInfo
-import util.JsonParsers
-import akka.actor._
-import akka.actor.PoisonPill
-import components.actors.readers.{InvitationReader, NewMessageReader, OldMessageReader, WritingReader}
-import conf.KafkaConf
-import play.api.db.Database
 
-import collection.concurrent.TrieMap
-import java.util.UUID
-import org.slf4j.LoggerFactory
-import ch.qos.logback.classic.{Level, Logger}
+import util.JsonParsers
 import kafka.KafkaAdmin
 
-
+import akka.actor._
+import akka.actor.PoisonPill
+import ch.qos.logback.classic.Logger
+import collection.concurrent.TrieMap
+import conf.KafkaConf
+import java.util.UUID
+import org.slf4j.LoggerFactory
+import play.api.db.Database
 import scala.concurrent.ExecutionContext
+
+
 
 object WebSocketActor {
   def props(out: ActorRef, ka: KafkaAdmin, kec: ExecutionContext, db: Database,
@@ -90,7 +89,7 @@ class WebSocketActor(out: ActorRef, ka: KafkaAdmin, kec: ExecutionContext, db: D
                                     logger.trace(s"WebSocketActor. Ping message. ${actorGroupID.toString})")
                                   }
                                   else
-                                    logger.warn(s"WebSocketActor. cannot parse message ${s}. actorGroupID(${actorGroupID.toString})")
+                                    logger.warn(s"WebSocketActor. cannot parse message $s. actorGroupID(${actorGroupID.toString})")
                                 case Right(c) =>
                                   logger.trace(s"WebSocketActor. got FetchingOlderMessages. actorGroupID(${actorGroupID.toString})")
                                   this.childrenActors.get(OldMessageReaderKey) match {
@@ -142,7 +141,7 @@ class WebSocketActor(out: ActorRef, ka: KafkaAdmin, kec: ExecutionContext, db: D
                       (OldMessageReaderKey,  context.actorOf( OldMessageReaderActor.props(out, self, conf, ka, kec, actorGroupID) )),
                       (MessageSenderKey,     context.actorOf( SendMessageActor.     props(ka, actorGroupID)                       )),
                       (WritingSenderKey,     context.actorOf( SendWritingActor.     props(ka, actorGroupID)                       )),
-                      (WritingReaderKey,     context.actorOf( WritingReaderActor.props(   ))),
+                      (WritingReaderKey,     context.actorOf( WritingReaderActor.   props(out, self, conf, ka, kec, actorGroupID  ))),
                       (SessionUpdateKey,     context.actorOf( SessionUpdateActor.   props(db, dbec, actorGroupID )                )),
                     )
                   )
@@ -165,7 +164,7 @@ class WebSocketActor(out: ActorRef, ka: KafkaAdmin, kec: ExecutionContext, db: D
 
     case _ =>
       logger.warn(s"WebSocketActor. Unreadable message. actorGroupID(${actorGroupID.toString})")
-      out ! ("Got Unreadable message")
+      out ! "Got Unreadable message"
       self ! PoisonPill
 
   }

@@ -18,6 +18,8 @@ import javax.inject.{Inject, Named, Singleton}
 import scala.concurrent.Future
 import scala.jdk.javaapi.CollectionConverters
 import scala.util.{Failure, Success, Try}
+import org.slf4j.LoggerFactory
+import ch.qos.logback.classic.Logger
 
 
 /**
@@ -31,22 +33,25 @@ class KafkaAdmin @Inject() (@Named("KafkaConfiguration") configurator: KafkaConf
     Future.successful(this.closeAdmin())
   }
 
-  private val userSerializer         = configurator.USER_SERIALIZER // "io.github.malyszaryczlowiek.kessengerlibrary.serdes.user.UserSerializer"
+  private val logger: Logger = LoggerFactory.getLogger(classOf[KafkaAdmin]).asInstanceOf[Logger]
+  logger.trace(s"KafkaAdmin. Starting KafkaAdmin.")
+
+  private val userSerializer         = configurator.USER_SERIALIZER   // "io.github.malyszaryczlowiek.kessengerlibrary.serdes.user.UserSerializer"
   private val userDeserializer       = configurator.USER_DESERIALIZER // "io.github.malyszaryczlowiek.kessengerlibrary.serdes.user.UserDeserializer"
 
-  private val invitationSerializer   = configurator.INVITATION_SERIALIZER // "io.github.malyszaryczlowiek.kessengerlibrary.serdes.invitation.InvitationSerializer"
+  private val invitationSerializer   = configurator.INVITATION_SERIALIZER   // "io.github.malyszaryczlowiek.kessengerlibrary.serdes.invitation.InvitationSerializer"
   private val invitationDeserializer = configurator.INVITATION_DESERIALIZER //"io.github.malyszaryczlowiek.kessengerlibrary.serdes.invitation.InvitationDeserializer"
 
-  private val messageSerializer      = configurator.MESSAGE_SERIALIZER // "io.github.malyszaryczlowiek.kessengerlibrary.serdes.message.MessageSerializer"
+  private val messageSerializer      = configurator.MESSAGE_SERIALIZER   // "io.github.malyszaryczlowiek.kessengerlibrary.serdes.message.MessageSerializer"
   private val messageDeserializer    = configurator.MESSAGE_DESERIALIZER // "io.github.malyszaryczlowiek.kessengerlibrary.serdes.message.MessageDeserializer"
 
-  private val writingSerializer      = configurator.WRITING_SERIALIZER // "io.github.malyszaryczlowiek.kessengerlibrary.serdes.writing.WritingSerializer"
+  private val writingSerializer      = configurator.WRITING_SERIALIZER   // "io.github.malyszaryczlowiek.kessengerlibrary.serdes.writing.WritingSerializer"
   private val writingDeserializer    = configurator.WRITING_DESERIALIZER // "io.github.malyszaryczlowiek.kessengerlibrary.serdes.writing.WritingDeserializer"
 
   private val stringSerializer       = "org.apache.kafka.common.serialization.StringSerializer"
   private val stringDeserializer     = "org.apache.kafka.common.serialization.StringDeserializer"
 
-  val properties = new Properties
+  private val properties = new Properties
   properties.put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, configurator.BOOTSTRAP_SERVERS)
   // properties.put(AdminClientConfig.CLIENT_ID_CONFIG, tutaj_ID )
   private val admin = Admin.create(properties)
@@ -61,7 +66,8 @@ class KafkaAdmin @Inject() (@Named("KafkaConfiguration") configurator: KafkaConf
     Try {
       if (admin != null) admin.close()
     } match {
-      case Failure(_) => {}
+      case Failure(ex) =>
+        logger.error(s"KafkaAdmin. Exception thrown: ${ex.getMessage}")
       case Success(_) => {}
     }
   }
@@ -98,13 +104,15 @@ class KafkaAdmin @Inject() (@Named("KafkaConfiguration") configurator: KafkaConf
     Try {
       chatFuture.get(10L, TimeUnit.SECONDS)
     } match {
-      case Failure(exception) =>  // do nothing
+      case Failure(ex) =>
+        logger.error(s"createChat. Creating chat topic. Exception thrown: ${ex.getMessage}")
       case Success(value) => toReturn = (true, false)
     }
     Try {
       writingFuture.get() // we do not need wait // otherwise 10L, TimeUnit.SECONDS
     } match {
-      case Failure(exception) => // do nothing
+      case Failure(ex) =>
+        logger.error(s"createChat. Creating writing topic. Exception thrown: ${ex.getMessage}")
       case Success(value) => toReturn = (toReturn._1, true)
     }
 
@@ -117,6 +125,7 @@ class KafkaAdmin @Inject() (@Named("KafkaConfiguration") configurator: KafkaConf
   /**
    * topic creation
    */
+  @deprecated
   def createChatTopic(chat: Chat): Either[KafkaError, Chat] = // , writingId: WritingId
     Try {
       val partitionsNum: Int = configurator.CHAT_TOPIC_PARTITIONS_NUMBER
@@ -136,7 +145,9 @@ class KafkaAdmin @Inject() (@Named("KafkaConfiguration") configurator: KafkaConf
       talkFuture.get(5L, TimeUnit.SECONDS)
       Right(chat)
     } match {
-      case Failure(ex) => KafkaErrorsHandler.handleWithErrorMessage[Chat](ex)
+      case Failure(ex) =>
+        logger.error(s"createChatTopic. Exception thrown: ${ex.getMessage}")
+        KafkaErrorsHandler.handleWithErrorMessage[Chat](ex)
       case Success(rightChat) => rightChat
     }
 
@@ -165,7 +176,9 @@ class KafkaAdmin @Inject() (@Named("KafkaConfiguration") configurator: KafkaConf
       else Left(KafkaError(FatalError, UndefinedError))
     } match {
       case Success(either) => either
-      case Failure(ex) => KafkaErrorsHandler.handleWithErrorMessage[Chat](ex)
+      case Failure(ex) =>
+        logger.error(s"removeChat. Exception thrown: ${ex.getMessage}")
+        KafkaErrorsHandler.handleWithErrorMessage[Chat](ex)
     }
   }
 
@@ -248,7 +261,9 @@ class KafkaAdmin @Inject() (@Named("KafkaConfiguration") configurator: KafkaConf
       // normally (when we call get()) it takes ~30s
       joinFuture.get(5_000, TimeUnit.MILLISECONDS)
     } match {
-      case Failure(ex) => KafkaErrorsHandler.handleWithErrorMessage[Unit](ex)
+      case Failure(ex) =>
+        logger.error(s"createInvitationTopic. Exception thrown: ${ex.getMessage}")
+        KafkaErrorsHandler.handleWithErrorMessage[Unit](ex)
       case Success(_) => Right({}) //val unit: Unit = ()
     }
   }
@@ -318,7 +333,9 @@ class KafkaAdmin @Inject() (@Named("KafkaConfiguration") configurator: KafkaConf
       // normally (when we call get()) it takes ~30s
       joinFuture.get(5_000, TimeUnit.MILLISECONDS)
     } match {
-      case Failure(ex) => KafkaErrorsHandler.handleWithErrorMessage[Unit](ex)
+      case Failure(ex) =>
+        logger.error(s"createWritingTopic. Exception thrown: ${ex.getMessage}")
+        KafkaErrorsHandler.handleWithErrorMessage[Unit](ex)
       case Success(_) => Right({}) //val unit: Unit = ()
     }
   }

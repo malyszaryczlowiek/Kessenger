@@ -1,0 +1,55 @@
+#!/bin/zsh
+
+
+kessenger_mode="prod"
+restart_spark=false
+restart_kafka_streams=false
+close_all=true
+
+
+for ar in $@ ; do
+  if [[ $ar = "--kafka" ]] ; then
+    restart_kafka_streams=true
+    close_all=false
+  fi
+  if [[ $ar = "--spark" ]] ; then
+    restart_spark=true
+    close_all=false
+  fi
+  if [[ $ar = "--env=dev" ]] ; then
+    kessenger_mode="dev"
+  fi
+done
+
+
+if [[ $kessenger_mode = "dev" ]] ; then
+  if [[ $restart_kafka_streams = true ]] ; then
+    echo "restarting kafka streams"
+    docker stop kafka_streams_chat_analyser
+    docker rm -v kafka_streams_chat_analyser
+    docker rmi  kessenger_kafka_streams
+    ./KafkaStreamsChatAnalyser/generateJAR
+    docker-compose -f docker-compose.dev.yml up -d
+  fi
+  if [[ $restart_spark = true ]] ; then
+    echo "restarting sparka"
+    docker stop spark-master
+    docker rm -v spark-master
+    docker rmi kessenger_spark-master
+    ./SparkStreamingAnalyser/generateJAR
+    docker-compose -f docker-compose.dev.yml up -d
+  fi
+  if [[ $close_all = true ]]  ; then
+    ./scripts/stopDev
+  else
+    if [[ $restart_kafka_streams = true ]] ; then
+      echo "kafka streams restarted"
+    fi
+    if [[ $restart_spark = true ]] ; then
+      echo "spark restarted"
+    fi
+  fi
+else
+  echo "Closing prod"
+  ./scripts/stopProd
+fi

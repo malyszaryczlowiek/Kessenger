@@ -1,0 +1,51 @@
+#!/bin/zsh
+
+
+chmod +x ./back-end/generateBin
+chmod +x ./SparkStreamingAnalyser/generateJAR
+chmod +x ./KafkaStreamsChatAnalyser/generateJAR
+chmod +x ./scripts/stopDev
+chmod +x ./scripts/stopProd
+chmod +x ./scripts/inspectTopics
+
+kessenger_mode="prod"
+generate_backend=true
+generate_spark=true
+generate_kafka_streams=true
+
+
+for arr in $@ ; do
+  if [[ $arr = "--gen-backend-bin=false" ]] ; then
+    echo "Not generating backend binaries."
+    generate_backend=false
+  else
+    ./back-end/generateBin
+  fi
+  if [[ $arr = "--gen-spark-bin=false" ]] ; then
+    echo "Not generating spark streaming binaries."
+    generate_spark=false
+  else
+    ./SparkStreamingAnalyser/generateJAR
+  fi
+  if [[ $arr = "--gen-kafka-streams-bin=false" ]] ; then
+    echo "Not generating kafka streams binaries."
+    generate_kafka_streams=false
+  else
+    ./KafkaStreamsChatAnalyser/generateJAR
+  fi
+  if [[ $arr = "--env=dev" ]] ; then
+    kessenger_mode="prod"
+  fi
+done
+
+
+
+if [[ $kessenger_mode = "dev" ]] ; then
+  docker-compose -f docker-compose.dev.yml up -d
+else
+  docker-compose -f docker-compose.prod.yml up -d
+fi
+
+
+
+exit 0

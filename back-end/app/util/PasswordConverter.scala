@@ -5,12 +5,15 @@ import com.github.t3hnar.bcrypt._
 import io.github.malyszaryczlowiek.kessengerlibrary.domain.Domain.Password
 
 import scala.util.{Failure, Success, Try}
+import play.api.{ConfigLoader, Configuration}
+
+import javax.inject.Inject
 
 
-class PasswordConverter {
+class PasswordConverter @Inject() (conf: Configuration) {
   def generateSalt: String = bcrypt.generateSalt
 
-  private val defaultSalt = "$2a$10$8K1p/a0dL1LXMIgoEDFrwO"
+  private val defaultSalt = conf.get("kessenger.util.passwordconverter.salt")(ConfigLoader.stringLoader)
 
   def convert (pas: => String, salt: => String = defaultSalt): Either[String, Password] = {
     pas.bcryptSafeBounded(salt) match {
