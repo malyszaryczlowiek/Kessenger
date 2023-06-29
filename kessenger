@@ -8,35 +8,86 @@ chmod +x ./scripts/stopDev
 chmod +x ./scripts/stopProd
 chmod +x ./scripts/inspectTopics
 
+
 kessenger_mode="prod"
 generate_backend=true
 generate_spark=true
 generate_kafka_streams=true
+restart_kessenger=false
 
 
 for arr in $@ ; do
+
   if [[ $arr = "--gen-backend-bin=false" ]] ; then
     echo "Not generating backend binaries."
     generate_backend=false
-  else
-    ./back-end/generateBin
   fi
+
   if [[ $arr = "--gen-spark-bin=false" ]] ; then
     echo "Not generating spark streaming binaries."
     generate_spark=false
-  else
-    ./SparkStreamingAnalyser/generateJAR
   fi
+
   if [[ $arr = "--gen-kafka-streams-bin=false" ]] ; then
     echo "Not generating kafka streams binaries."
     generate_kafka_streams=false
-  else
-    ./KafkaStreamsChatAnalyser/generateJAR
   fi
+
   if [[ $arr = "--env=dev" ]] ; then
     kessenger_mode="prod"
   fi
+
+  if [[ $arr = "--restart" ]] ; then
+    restart_kessenger=false
+  fi
 done
+
+
+if [[ $generate_kafka_streams = true ]] ; then
+  rm -rf ./KafkaStreamsChatAnalyser/target/scala-2.13
+  ./KafkaStreamsChatAnalyser/generateJAR
+fi
+if [[ $generate_spark = true ]] ; then
+  rm -rf ./SparkStreamingAnalyser/target/scala-2.12/
+  ./SparkStreamingAnalyser/generateJAR
+fi
+
+
+if [[ $kessenger_mode = "prod" ]] ; then
+  if [[ $generate_backend = true ]] ; then
+    rm -rf ./back-end/target/universal
+    ./back-end/generateBin
+  fi
+fi
+
+if [[ $restart_kessenger = true ]] ; then
+  if [[ $generate_kafka_streams = true ]] ; then
+    echo "restarting kafka streams"
+    docker stop kafka_streams_chat_analyser
+    docker rm -v kafka_streams_chat_analyser
+    docker rmi  kessenger_kafka_streams
+  fi
+  if [[ $generate_spark = true ]] ; then
+    echo "restarting sparka"
+    docker stop spark-master
+    docker rm -v spark-master
+    docker rmi kessenger_spark-master
+  fi
+  if [[ $kessenger_mode = "prod" ]] ; then
+    if [[ $generate_backend = true ]] ; then
+      echo "restarting backend"
+
+      docker stop play-app-1
+      docker rm -v play-app-1
+      docker rmi kessenger_play-app-1
+
+      docker stop play-app-2
+      docker rm -v play-app-2
+      docker rmi kessenger_play-app-2
+
+    fi
+  fi
+fi
 
 
 

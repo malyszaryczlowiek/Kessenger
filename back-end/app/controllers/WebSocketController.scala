@@ -22,6 +22,10 @@ import scala.concurrent.{Await, Future}
 import org.slf4j.LoggerFactory
 
 
+// gdzie
+// todo zweryfikować czy dobrze są zapisywane logi do plików
+//  w modzie prod.
+//  spark streaming generuje logi do folderu outputs -- ZMIENIĆ TO
 
 
 @Singleton

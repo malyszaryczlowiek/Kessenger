@@ -15,7 +15,9 @@
       <!-- Here prod configuration -->
 
       <appender name="FILE" class="ch.qos.logback.core.FileAppender">
-        <file>${application.home:-.}/logs/application.log</file>
+        <!-- todo tutaj zmieniam lokalizaję pliku z logami -->
+        <file>/logs/application.log</file>
+<!--        <file>${application.home:-.}/logs/application.log</file>-->
         <encoder>
         <charset>UTF-8</charset>
         <pattern>
@@ -50,7 +52,7 @@
       <!-- Root logger sends WARN and ERROR to ASYNCFILE and ASYNCSTDOUT appenders -->
 
       <root level="WARN">
-        <!-- <appender-ref ref="ASYNCFILE" />-->
+        <appender-ref ref="ASYNCFILE" />
         <appender-ref ref="ASYNCSTDOUT" />
       </root>
 
@@ -123,9 +125,6 @@
 
 
 
-
-
-
       <!-- Root logger sends WARN and ERROR to ASYNCFILE and ASYNCSTDOUT appenders -->
 
       <root level="WARN">
@@ -138,3 +137,9 @@
   </if>
 
 </configuration>
+
+
+
+
+
+

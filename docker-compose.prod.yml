@@ -113,6 +113,8 @@ services:
       - '9000:9000'
     networks:
       - my-simple-network
+    volumes:
+      - ${HOME}/kessenger/beckend_1/logs:/logs
 
 
   play-app-2:
@@ -127,7 +129,9 @@ services:
       - '9001:9000'
     networks:
       - my-simple-network
-        
+    volumes:
+      - ${HOME}/kessenger/beckend_2/logs:/logs
+
   
 #  reverse-proxy:
 #    container_name: reverse-proxy
