@@ -23,7 +23,7 @@ import org.slf4j.LoggerFactory
 
 
 // gdzie
-// todo zweryfikować czy dobrze są zapisywane logi do plików
+// todo zweryfikować czy dobrze są zapisywane log'i do plików
 //  w modzie prod.
 //  spark streaming generuje logi do folderu outputs -- ZMIENIĆ TO
 

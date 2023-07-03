@@ -16,7 +16,7 @@
 
       <appender name="FILE" class="ch.qos.logback.core.FileAppender">
         <!-- todo tutaj zmieniam lokalizaję pliku z logami -->
-        <file>/logs/application.log</file>
+        <file>/var/logs/application.log</file>
 <!--        <file>${application.home:-.}/logs/application.log</file>-->
         <encoder>
         <charset>UTF-8</charset>
@@ -62,7 +62,8 @@
 
 
       <appender name="FILE" class="ch.qos.logback.core.FileAppender">
-        <file>${application.home:-.}/logs/application.log</file>
+        <file>${home}/kessenger/dev/logs/backend/application.log</file>
+<!--        <file>${application.home:-.}/logs/application.log</file>-->
         <encoder>
           <charset>UTF-8</charset>
           <pattern>

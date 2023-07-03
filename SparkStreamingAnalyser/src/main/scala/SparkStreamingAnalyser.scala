@@ -1,12 +1,9 @@
 package io.github.malyszaryczlowiek
 
-import org.apache.log4j.{Level, Logger}
 import org.apache.spark.sql.{Dataset, Row, SparkSession}
 import org.apache.spark.sql.functions.{avg, count, window}
-
 import encoders.RichMessage
-
-import kessengerlibrary.messages.{Message, MessagesPerZone}
+import kessengerlibrary.model.{Message, MessagesPerZone}
 import kessengerlibrary.serdes.message.MessageDeserializer
 import kessengerlibrary.kafka.TopicCreator
 import kessengerlibrary.env.Prod
@@ -15,8 +12,15 @@ import kessengerlibrary.serdes.messagesperzone.MessagesPerZoneSerializer
 import java.sql.Timestamp
 import java.time.Instant
 
+import ch.qos.logback.classic.Logger
+import org.slf4j.LoggerFactory
+
+
+class  SparkStreamingAnalyser
 
 object SparkStreamingAnalyser {
+
+  private val logger: Logger = LoggerFactory.getLogger(classOf[SparkStreamingAnalyser]).asInstanceOf[Logger]
 
   // topic names
   val outputTopicName     = s"analysis--num-of-messages-per-1min-per-zone"
@@ -107,7 +111,7 @@ object SparkStreamingAnalyser {
       val messageDeserializer = new MessageDeserializer
       // we deserialize our message from Array[Byte] to Message object
       val message: Message = messageDeserializer.deserialize("", messageByteArray)
-      val messageTime = Timestamp.from(Instant.ofEpochMilli( message.utcTime ))
+      val messageTime = Timestamp.from(Instant.ofEpochMilli( message.sendingTime ))
       println(s"$timestamp ${message.authorLogin} >> ${message.content}") // for testing TODO delete this line
       RichMessage (
         timestamp,  //  time of receiving message by kafka // Long

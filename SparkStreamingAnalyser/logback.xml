@@ -1,7 +1,7 @@
 <!-- https://www.playframework.com/documentation/latest/SettingsLogger -->
 <configuration  > <!-- scan="true" scanPeriod="20 seconds" -->
 
-  <conversionRule conversionWord="coloredLevel" converterClass="play.api.libs.logback.ColoredLevel" />
+<!--  <conversionRule conversionWord="coloredLevel" converterClass="play.api.libs.logback.ColoredLevel" />-->
 
   <!-- DOCUMENTATION -->
   <!-- https://www.playframework.com/documentation/2.8.x/SettingsLogger -->
@@ -10,12 +10,12 @@
 
 
 
-  <if condition='property("KAFKA_STREAMS_ENV").equals("PROD")'>
+  <if condition='property("SPARK_ENV").equals("PROD")'>
     <then>
       <!-- prod configuration -->
 
       <appender name="FILE" class="ch.qos.logback.core.FileAppender">
-        <file>/var/logs/application.log</file>
+        <file>/opt/work-dir/logs/application.log</file>
 <!--        <file>${application.home:-.}/logs/application.log</file>-->
         <encoder>
         <charset>UTF-8</charset>
@@ -54,12 +54,10 @@
         <appender-ref ref="ASYNCSTDOUT" />
       </root>
 
-      <logger name="application"                             level="WARN" />
-<!--      <logger name="org.apache.kafka.common.metrics.Metrics" level="WARN" />-->
-      <logger name="org.apache.kafka" level="WARN" />
-      <logger name="StreamsChatAnalyser"                     level="TRACE" />
+      <logger name="play"        level="WARN" />
+      <logger name="application" level="WARN" />
 
-
+      <logger name="SparkStreamingAnalyser" level="TRACE" />
 
     </then>
     <else>
@@ -67,7 +65,7 @@
 
 
       <appender name="FILE" class="ch.qos.logback.core.FileAppender">
-        <file>/var/logs/application.log</file>
+        <file>/opt/work-dir/logs/application.log</file>
         <!--        <file>${application.home:-.}/logs/application.log</file>-->
         <encoder>
           <charset>UTF-8</charset>

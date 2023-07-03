@@ -11,7 +11,7 @@ lazy val root = (project in file("."))
 
       // Own library with util and domain classes.
       // https://github.com/malyszaryczlowiek/kessenger-lib
-      "io.github.malyszaryczlowiek" %% "kessenger-lib" % "0.2.4",
+      "io.github.malyszaryczlowiek" %% "kessenger-lib" % "0.3.24",
 
       "org.apache.spark" %% "spark-sql"            % "3.3.0" % "provided",
       "org.apache.spark" %% "spark-sql-kafka-0-10" % "3.3.0",  //% "provided",
@@ -20,6 +20,13 @@ lazy val root = (project in file("."))
       "org.apache.kafka"  % "kafka-clients"        % "3.1.0",
       "org.apache.kafka"  % "kafka-streams"        % "3.1.0",
 
+      // logging
+      // "org.slf4j"      % "slf4j-api"       % "2.0.7",
+      "org.slf4j"      % "slf4j-api"       % "1.7.32",
+      "ch.qos.logback" % "logback-core"    % "1.2.11",
+      "ch.qos.logback" % "logback-classic" % "1.2.11",
+
+      //"com.typesafe.play" %% "play-logback" % "2.8.19",
 
       // for deserialization data from kafka
       "io.circe" %% "circe-core"    % "0.14.2",
@@ -31,7 +38,7 @@ lazy val root = (project in file("."))
       "org.scalameta" %% "munit-scalacheck" % "0.7.29" % Test,
 
 
-// to solve transitive dependency error with spark and cats
+      // to solve transitive dependency error with spark and cats
       "org.scalanlp" %% "breeze" % "2.1.0"
     )
   )

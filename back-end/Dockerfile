@@ -1,7 +1,7 @@
 FROM adoptopenjdk/openjdk11:jdk-11.0.11_9
 COPY target/universal/back-end-1.0-SNAPSHOT /opt/back-end
 COPY generatedKey /opt/back-end
-RUN mkdir /logs
+RUN mkdir /var/logs
 ENV KESSENGER_LOGBACK_ENV PROD
 CMD ["echo", "$KESSENGER_LOGBACK_ENV"]
 CMD ["/opt/back-end/bin/back-end", "-Dplay.http.secret.key=$(cut /opt/back-end/generatedKey)", "-Dconfig.resource=prod.conf"]

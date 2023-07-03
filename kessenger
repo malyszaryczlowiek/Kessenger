@@ -38,7 +38,7 @@ for arr in $@ ; do
   fi
 
   if [[ $arr = "--restart" ]] ; then
-    restart_kessenger=false
+    restart_kessenger=true
   fi
 done
 

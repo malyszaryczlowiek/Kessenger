@@ -3,10 +3,11 @@ package io.github.malyszaryczlowiek
 
 import kessengerlibrary.model.{Message, User}
 import kessengerlibrary.serdes.message.MessageSerde
+import kessengerlibrary.serdes.user.UserSerde
 import util.TopicCreator
 
 import com.typesafe.config.{Config, ConfigFactory}
-import io.github.malyszaryczlowiek.kessengerlibrary.serdes.user.UserSerde
+
 import org.apache.kafka.common.serialization.Serde
 import org.apache.kafka.streams.kstream.{Grouped, TimeWindows, Windowed}
 import org.apache.kafka.streams.{KafkaStreams, StreamsConfig, Topology}
@@ -17,11 +18,24 @@ import org.apache.kafka.streams.scala.serialization.Serdes.{longSerde, stringSer
 import java.util.Properties
 import java.util.regex.Pattern
 
+import ch.qos.logback.classic.Logger
+import org.slf4j.LoggerFactory
 
 
-
+class StreamsChatAnalyser
 
 object StreamsChatAnalyser {
+
+
+  // 0.1.1 - oba pliki w conf i oba jar -uf JAR ./conf/plik
+  // 0.1.2 - application.conf cofnięty do głównego folderu
+  // 0.1.3 - wywołanie jar z opcją -C folder
+  //       - wywołanie z wyłączeniem loggera i informacją o debugownaiu
+
+
+  private val logger: Logger = LoggerFactory.getLogger(classOf[StreamsChatAnalyser]).asInstanceOf[Logger]
+  logger.error(s"  ")
+  logger.error(s"StreamsChatAnalyser version 0.1.2")
 
   /**
    * Topic where we send information of
@@ -44,7 +58,7 @@ object StreamsChatAnalyser {
     config = ConfigFactory.load(confPath).getConfig("kafka.streams.dev")
     // System.exit(2)
 
-
+  logger.warn(s"Current mode: $env")
 
 
 

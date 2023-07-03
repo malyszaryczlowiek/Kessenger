@@ -1,4 +1,5 @@
 #!/bin/zsh
 cd SparkStreamingAnalyser
 sbt assembly
+jar -uf ./target/scala-2.12/SparkStreamingAnalyser-0.1.0.jar logback.xml
 cd ..

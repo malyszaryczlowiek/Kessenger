@@ -26,9 +26,17 @@ lazy val root = (project in file("."))
       "com.typesafe" % "config" % "1.4.2",
 
 
+      // logging
+      "com.typesafe.play" %% "play-logback" % "2.8.19",
+//      "ch.qos.logback" % "logback-core"    % "1.4.8",
+//      "ch.qos.logback" % "logback-classic" % "1.4.8",
+//      "org.slf4j"      % "slf4j-api"       % "2.0.7",
+
       // to switch off logging from slf4j
-      "org.slf4j" % "slf4j-nop" % "1.7.36",
-//      "org.apache.logging.log4j" % "log4j-api" % "2.20.0",
+      // "org.slf4j" % "slf4j-nop" % "2.0.5",
+
+
+      //      "org.apache.logging.log4j" % "log4j-api" % "2.20.0",
 //      "org.apache.logging.log4j" % "log4j-core" % "2.20.0",
       // "org.slf4j" % "slf4j-nop" % "2.0.5",
       // "org.slf4j" % "slf4j-api" % "2.0.5",
