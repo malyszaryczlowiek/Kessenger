@@ -20,11 +20,17 @@ lazy val root = (project in file("."))
       "org.apache.kafka"  % "kafka-clients"        % "3.1.0",
       "org.apache.kafka"  % "kafka-streams"        % "3.1.0",
 
-      // logging
+      // slf4j
+      "org.slf4j" % "slf4j-nop" % "2.0.5",
+      // "org.slf4j" % "slf4j-nop" % "1.7.32",
+
+      // log4j logger
+      "org.apache.logging.log4j" %% "log4j-api-scala" % "12.0",
+
       // "org.slf4j"      % "slf4j-api"       % "2.0.7",
-      "org.slf4j"      % "slf4j-api"       % "1.7.32",
-      "ch.qos.logback" % "logback-core"    % "1.2.11",
-      "ch.qos.logback" % "logback-classic" % "1.2.11",
+//      "org.slf4j"      % "slf4j-api"       % "1.7.32",
+//      "ch.qos.logback" % "logback-core"    % "1.2.11",
+//      "ch.qos.logback" % "logback-classic" % "1.2.11",
 
       //"com.typesafe.play" %% "play-logback" % "2.8.19",
 

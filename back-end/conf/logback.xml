@@ -15,7 +15,6 @@
       <!-- Here prod configuration -->
 
       <appender name="FILE" class="ch.qos.logback.core.FileAppender">
-        <!-- todo tutaj zmieniam lokalizaję pliku z logami -->
         <file>/var/logs/application.log</file>
 <!--        <file>${application.home:-.}/logs/application.log</file>-->
         <encoder>

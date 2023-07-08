@@ -11,16 +11,21 @@ import kessengerlibrary.serdes.messagesperzone.MessagesPerZoneSerializer
 
 import java.sql.Timestamp
 import java.time.Instant
+import org.apache.logging.log4j.scala.Logging
 
-import ch.qos.logback.classic.Logger
-import org.slf4j.LoggerFactory
 
 
 class  SparkStreamingAnalyser
 
-object SparkStreamingAnalyser {
+object SparkStreamingAnalyser extends Logging {
 
-  private val logger: Logger = LoggerFactory.getLogger(classOf[SparkStreamingAnalyser]).asInstanceOf[Logger]
+  // private val logger: Logger = LoggerFactory.getLogger(classOf[SparkStreamingAnalyser]).asInstanceOf[Logger]
+  logger.trace(s"\n########################################\nApplication v0.1.0 TRACE\n########################################")
+  logger.debug(s"\n########################################\nApplication v0.1.0 DEBUG\n########################################")
+  logger.info(s"\n########################################\nApplication v0.1.0 INFO\n########################################")
+  logger.warn(s"\n########################################\nApplication v0.1.0 WARN\n########################################")
+  logger.error(s"\n########################################\nApplication v0.1.0 ERROR\n########################################")
+
 
   // topic names
   val outputTopicName     = s"analysis--num-of-messages-per-1min-per-zone"
@@ -74,7 +79,7 @@ object SparkStreamingAnalyser {
     })
 
     val context = sparkSession.sparkContext
-    context.setLogLevel("WARN")
+    // context.setLogLevel("WARN")
     sparkSession
   }
 

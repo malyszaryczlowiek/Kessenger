@@ -204,7 +204,9 @@ services:
     container_name: spark-master
     # image: bitnami/spark:3.3.0
 #    build: ./SparkMaster
-    build: ./SparkStreamingAnalyser
+    build: #./SparkStreamingAnalyser/conf/prod
+      context: ./SparkStreamingAnalyser
+      dockerfile: ./prod.dockerfile
     depends_on:
       - kafka1
       - kafka2
@@ -223,7 +225,7 @@ services:
     networks:
       - my-simple-network
     volumes:
-      - ${HOME}/kessenger/prod/logs/sparkanalyser:/opt/work-dir/logs
+      - ${HOME}/kessenger/prod/logs/sparkanalyser:/opt/work-dir
       # - ${HOME}/kessenger/spark-volumes:/opt/work-dir      # /opt/work-dir is ${SPARK_HOME}
 
 

@@ -1,0 +1,29 @@
+<Configuration name="ConfigTest" status="ERROR" monitorInterval="500">
+    <Properties>
+        <Property name="filename">/opt/work-dir/application.log</Property>
+    </Properties>
+    <ThresholdFilter level="trace"/>
+    <Appenders>
+        <Console name="CONSOLE" target="SYSTEM_OUT">
+            <!--            <PatternLayout pattern="%d{HH:mm:ss.SSS} [%t] %-5level %logger{36} - %%%%%%%%%%%%%%%%%%%%%%%%%% %msg%n"/>-->
+        </Console>
+        <File name="FILE" fileName="${filename}">
+        </File>
+    </Appenders>
+    <Loggers>
+        <Logger name="io.github.malyszaryczlowiek.SparkStreamingAnalyser" level="trace" additivity="false">
+            <!-- <Property name="user">${sys:user.name}</Property>-->
+            <AppenderRef ref="FILE" level="trace"/>
+            <AppenderRef ref="CONSOLE" level="trace"/>
+        </Logger>
+        <Logger name="SparkStreamingAnalyser" level="trace" additivity="false">
+            <AppenderRef ref="FILE" level="trace"/>
+            <AppenderRef ref="CONSOLE" level="trace"/>
+        </Logger>
+        <Root level="warn">
+            <AppenderRef ref="CONSOLE"/>
+            <!--            <AppenderRef ref="FILE"/>-->
+        </Root>
+
+    </Loggers>
+</Configuration>

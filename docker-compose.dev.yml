@@ -158,8 +158,9 @@ services:
   spark-master:
     container_name: spark-master
     # image: bitnami/spark:3.3.0
-    #    build: ./SparkMaster
-    build: ./SparkStreamingAnalyser
+    build: # ./SparkStreamingAnalyser
+      context: ./SparkStreamingAnalyser
+      dockerfile: ./dev.dockerfile
     depends_on:
       - kafka1
       - kafka2
