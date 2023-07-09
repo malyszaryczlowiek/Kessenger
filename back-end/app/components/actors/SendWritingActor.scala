@@ -30,14 +30,14 @@ class SendWritingActor(ka: KafkaAdmin, actorGroupID: UUID) extends Actor {
   override def postStop(): Unit = {
     Try {
       this.writingProducer.close()
-      logger.trace(s"SendWritingActor. writingProducer closed normally. actorGroupID(${actorGroupID.toString})")
+      logger.trace(s"postStop. writingProducer closed normally. actorGroupID(${actorGroupID.toString})")
     }
   }
 
 
   override def receive: Receive = {
     case w: Writing =>
-      logger.trace(s"SendWritingActor. Writing to send: $w. actorGroupID(${actorGroupID.toString})")
+      logger.trace(s"receive. Writing to send: $w. actorGroupID(${actorGroupID.toString})")
       val writingTopic = Domain.generateWritingId(w.chatId)
       writingProducer.send(new ProducerRecord[String, Writing](writingTopic, w))
   }

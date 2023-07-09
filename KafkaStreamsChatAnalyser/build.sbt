@@ -23,6 +23,7 @@ lazy val root = (project in file("."))
       // https://github.com/malyszaryczlowiek/kessenger-lib
       "io.github.malyszaryczlowiek" %% "kessenger-lib" % "0.3.23",
 
+      // https://github.com/lightbend/config
       "com.typesafe" % "config" % "1.4.2",
 
 

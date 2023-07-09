@@ -43,7 +43,7 @@ case class SessionChecker @Inject()(parserr: BodyParser[AnyContent], userId: UUI
           db.withConnection(implicit connection => {
             dbExecutor.checkUsersSession(sessionData.sessionId, sessionData.userId, System.currentTimeMillis()) match {
               case Left(e)  =>
-                logger.error(s"Error during DB calling: ${e.description.toString()}. userId($userId)")
+                logger.error(s"invokeBlock. Error during DB calling: ${e.description.toString()}. userId($userId)")
                 Left(InternalServerError(ResponseBody(16, "Database Error").toString))
               case Right(i) => Right(i)
             }
@@ -56,16 +56,16 @@ case class SessionChecker @Inject()(parserr: BodyParser[AnyContent], userId: UUI
             case Right(b) =>
               if (b) block(req)
               else {
-                logger.trace(s"Session Timeout. userId($userId)")
+                logger.trace(s"invokeBlock. Session Timeout. userId($userId)")
                 Future.successful(Unauthorized(ResponseBody(19, "Session timeout").toString).discardingHeader("KSID"))
               }
           }
         } catch {
           case _: concurrent.TimeoutException =>
-            logger.warn(s"Database Timeout Error. userId($userId)")
+            logger.warn(s"invokeBlock. Database Timeout Error. userId($userId)")
             Future.successful(InternalServerError(ResponseBody(17, "Database Timeout Error").toString))
           case ee: Throwable =>
-            logger.error(s"Unknown Error: ${ee.getMessage}. userId($userId)")
+            logger.error(s"invokeBlock. Unknown Error: ${ee.getMessage}. userId($userId)")
             Future.successful(InternalServerError(ResponseBody(18, "Internal Server Error").toString))
         }
       }

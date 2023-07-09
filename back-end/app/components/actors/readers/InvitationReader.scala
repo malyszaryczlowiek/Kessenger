@@ -14,7 +14,7 @@ import scala.annotation.tailrec
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success, Using}
 import org.slf4j.LoggerFactory
-import ch.qos.logback.classic.{Level, Logger}
+import ch.qos.logback.classic.Logger
 
 
 
@@ -45,14 +45,14 @@ class InvitationReader(out: ActorRef, parentActor: ActorRef, conf: Configuration
         }
       } match {
         case Failure(exception) =>
-          logger.error(s"InvitationReader. Exception thrown: ${exception.getMessage}. actorGroupID(${actorGroupID.toString})")
+          logger.error(s"futureBody. Exception thrown: ${exception.getMessage}. actorGroupID(${actorGroupID.toString})")
           // if reading ended with error we need to close all actor system
           // and give a chance for web app to restart.
           out ! ResponseBody(44, "Kafka connection lost. Try refresh page in a few minutes.").toString
           Thread.sleep(250)
           parentActor ! PoisonPill
         case Success(_) =>
-          logger.trace(s"InvitationReader. Consumer closed normally. actorGroupID(${actorGroupID.toString})")
+          logger.trace(s"futureBody. Consumer closed normally. actorGroupID(${actorGroupID.toString})")
       }
     }(ec)
   }
@@ -65,7 +65,7 @@ class InvitationReader(out: ActorRef, parentActor: ActorRef, conf: Configuration
     consumer.assign(java.util.List.of(myJoinTopic))
     // and assign offset for that topic partition
     consumer.seek(myJoinTopic, conf.joiningOffset)
-    logger.trace(s"InvitationReader. Consumer initialized normally. actorGroupID(${actorGroupID.toString})")
+    logger.trace(s"initializeConsumer. Consumer initialized normally. actorGroupID(${actorGroupID.toString})")
   }
 
 
@@ -77,7 +77,7 @@ class InvitationReader(out: ActorRef, parentActor: ActorRef, conf: Configuration
       invitations.forEach(
         (r: ConsumerRecord[String, Invitation]) => {
           val i: Invitation = r.value().copy(myJoiningOffset = Option(r.offset() + 1L))
-          logger.trace(s"InvitationReader. Got Invitation. actorGroupID(${actorGroupID.toString})")
+          logger.trace(s"poolInvitations. Got Invitation. actorGroupID(${actorGroupID.toString})")
           out ! Invitation.toWebsocketJSON(i)
         }
       )

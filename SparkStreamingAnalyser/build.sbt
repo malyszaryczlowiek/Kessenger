@@ -34,6 +34,9 @@ lazy val root = (project in file("."))
 
       //"com.typesafe.play" %% "play-logback" % "2.8.19",
 
+      // https://github.com/lightbend/config
+      "com.typesafe" % "config" % "1.4.2",
+
       // for deserialization data from kafka
       "io.circe" %% "circe-core"    % "0.14.2",
       "io.circe" %% "circe-generic" % "0.14.2",

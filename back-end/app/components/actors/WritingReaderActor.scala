@@ -8,7 +8,7 @@ import kafka.KafkaAdmin
 import java.util.UUID
 import scala.concurrent.ExecutionContext
 import org.slf4j.LoggerFactory
-import ch.qos.logback.classic.{Level, Logger}
+import ch.qos.logback.classic.Logger
 
 
 
@@ -31,15 +31,14 @@ class WritingReaderActor(out: ActorRef, parentActor: ActorRef, conf: Configurati
 
   override def postStop(): Unit = {
     reader.stopReading()
-    logger.trace(s"WritingReaderActor. Stopping actor. actorGroupID(${actorGroupID.toString})")
+    logger.trace(s"postStop. Stopping actor. actorGroupID(${actorGroupID.toString})")
   }
 
 
   override def receive: Receive = {
     case newChat: ChatPartitionsOffsets =>
-      println(s"WritingReaderActor --> adding new chat to read WRITING from, chatId: $newChat")
       reader.addNewChat(newChat)
-      logger.trace(s"WritingReaderActor. adding new chat to getting WRITING messages from. actorGroupID(${actorGroupID.toString})")
+      logger.trace(s"receive. adding new chat $newChat to getting WRITING messages from. actorGroupID(${actorGroupID.toString})")
   }
 
 

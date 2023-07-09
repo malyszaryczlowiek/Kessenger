@@ -35,13 +35,13 @@ class WritingReader(out: ActorRef, parentActor: ActorRef, conf: Configuration, k
 
   private def initializeChats(): Unit = {
     this.chats.addAll(this.conf.chats.map(c => (c.chatId, {})))
-    logger.trace(s"WritingReader. Chats initialized. actorGroupID(${actorGroupID.toString})")
+    logger.trace(s"initializeChats. Chats initialized. actorGroupID(${actorGroupID.toString})")
   }
 
 
   override def startReading(): Unit = {
     if(this.chats.nonEmpty) this.fut = Option(futureBody())
-    logger.trace(s"WritingReader. Reading started. actorGroupID(${actorGroupID.toString})")
+    logger.trace(s"initializeChats. Reading started. actorGroupID(${actorGroupID.toString})")
   }
 
 
@@ -54,14 +54,14 @@ class WritingReader(out: ActorRef, parentActor: ActorRef, conf: Configuration, k
         }
       } match {
         case Failure(exception) =>
-          logger.error(s"WritingReader. Exception during reading: ${exception.getMessage}. actorGroupID(${actorGroupID.toString})")
+          logger.error(s"futureBody. Exception during reading: ${exception.getMessage}. actorGroupID(${actorGroupID.toString})")
           // if reading ended with error we need to close all actor system
           // and give a chance for web app to restart.
           out ! ResponseBody(44, "Kafka connection lost. Try refresh page in a few minutes.").toString
           Thread.sleep(250)
           parentActor ! PoisonPill
         case Success(_) =>
-          logger.trace(s"WritingReader. Future closed normally. actorGroupID(${actorGroupID.toString})")
+          logger.trace(s"futureBody. Future closed normally. actorGroupID(${actorGroupID.toString})")
       }
     }(ec)
   }

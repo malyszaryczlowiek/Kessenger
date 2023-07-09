@@ -9,6 +9,8 @@ import kessengerlibrary.kafka.TopicCreator
 import kessengerlibrary.env.Prod
 import kessengerlibrary.serdes.messagesperzone.MessagesPerZoneSerializer
 
+import com.typesafe.config.{Config, ConfigFactory}
+
 import java.sql.Timestamp
 import java.time.Instant
 import org.apache.logging.log4j.scala.Logging
@@ -19,7 +21,6 @@ class  SparkStreamingAnalyser
 
 object SparkStreamingAnalyser extends Logging {
 
-  // private val logger: Logger = LoggerFactory.getLogger(classOf[SparkStreamingAnalyser]).asInstanceOf[Logger]
   logger.trace(s"\n########################################\nApplication v0.1.0 TRACE\n########################################")
   logger.debug(s"\n########################################\nApplication v0.1.0 DEBUG\n########################################")
   logger.info(s"\n########################################\nApplication v0.1.0 INFO\n########################################")
@@ -27,13 +28,29 @@ object SparkStreamingAnalyser extends Logging {
   logger.error(s"\n########################################\nApplication v0.1.0 ERROR\n########################################")
 
 
+  private var config: Config = null
+  private val env = System.getenv("SPARK_ENV")
+
+  if (env != null) {
+    if (env.equals("PROD"))
+      config = ConfigFactory.load("application.conf").getConfig("kessenger.spark-streaming-analyser.prod")
+    else
+      config = ConfigFactory.load("application.conf").getConfig("kessenger.spark-streaming-analyser.dev")
+  } else {
+    logger.error(s"No SPARK_ENV environment variable defined. ")
+    throw new IllegalStateException("No SPARK_ENV environment variable defined. ")
+  }
+
+
   // topic names
   val outputTopicName     = s"analysis--num-of-messages-per-1min-per-zone"
   val testTopic           = s"tests--$outputTopicName"
   val averageNumTopicName = s"analysis--avg-num-of-messages-in-chat-per-1min-per-zone"
 
+  val servers       = config.getString("kafka-servers")
+  val applicationId = config.getString("application-id")
+
   def main(args: Array[String]): Unit = {
-    // Logger.getLogger("org.apache.sparkSession").setLevel(Level.ERROR)
     println(s"\nApp SparkStreamingAnalyser started 15\n")
     createRequiredTopics()
     startAnalysing()
@@ -61,7 +78,9 @@ object SparkStreamingAnalyser extends Logging {
       .builder
       .appName("SparkStreamingAnalyser")
       // two config below added to solve
-      // Initial job has not accepted any resources; check your cluster UI to ensure that workers are registered and have sufficient resources
+      // Initial job has not accepted any resources;
+      // check your cluster UI to ensure that workers
+      // are registered and have sufficient resources
       //      .config("spark.shuffle.service.enabled", "false")
       //      .config("spark.dynamicAllocation.enabled", "false")
       .master("local[2]")

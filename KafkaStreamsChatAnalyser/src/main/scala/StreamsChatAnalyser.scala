@@ -34,8 +34,7 @@ object StreamsChatAnalyser {
 
 
   private val logger: Logger = LoggerFactory.getLogger(classOf[StreamsChatAnalyser]).asInstanceOf[Logger]
-  logger.error(s"  ")
-  logger.error(s"StreamsChatAnalyser version 0.1.2")
+  logger.trace(s"StreamsChatAnalyser version 0.1.2")
 
   /**
    * Topic where we send information of

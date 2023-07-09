@@ -28,7 +28,7 @@ class InvitationReaderActor(out: ActorRef, self: ActorRef, conf: Configuration,
 
 
   override def postStop(): Unit = {
-    logger.trace(s"InvitationReaderActor. Stopping actor. actorGroupID(${actorGroupID.toString})")
+    logger.trace(s"postStop. Stopping actor. actorGroupID(${actorGroupID.toString})")
     reader.stopReading()
   }
 

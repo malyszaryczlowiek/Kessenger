@@ -40,7 +40,7 @@ class OldMessageReader(out: ActorRef, parentActor: ActorRef, conf: Configuration
 
 
   override def stopReading(): Unit = {
-    logger.trace(s"OldMessageReader. Reading stopped. actorGroupID(${actorGroupID.toString})")
+    logger.trace(s"stopReading. Reading stopped. actorGroupID(${actorGroupID.toString})")
   }
 
 
@@ -48,7 +48,7 @@ class OldMessageReader(out: ActorRef, parentActor: ActorRef, conf: Configuration
   override def addNewChat(newChat: ChatPartitionsOffsets): Unit = {
     this.chats.addOne(newChat.chatId -> (newChat.partitionOffset, newChat.partitionOffset))
     fetchOlderMessages(newChat.chatId)
-    logger.trace(s"OldMessageReader. Adding new chat. actorGroupID(${actorGroupID.toString})")
+    logger.trace(s"addNewChat. Adding new chat. actorGroupID(${actorGroupID.toString})")
   }
 
 
@@ -62,7 +62,7 @@ class OldMessageReader(out: ActorRef, parentActor: ActorRef, conf: Configuration
               if (t._1.map(_.offset).sum > 0L) {
                 val partitions: Iterable[(TopicPartition, Long)] =
                   fetchingOffsetShift(t._1).map(po => (new TopicPartition(chatId, po.partition), po.offset))
-                logger.trace(s"OldMessageReader. Reading from chat: ${fetchingOffsetShift(t._1)}. actorGroupID(${actorGroupID.toString})")
+                logger.trace(s"fetchOlderMessages. Reading from chat: ${fetchingOffsetShift(t._1)}. actorGroupID(${actorGroupID.toString})")
                 consumer.assign(CollectionConverters.asJava(partitions.map(tt => tt._1).toList))
                 partitions.foreach(tt => consumer.seek(tt._1, tt._2))
                 readToOffset(consumer, t._1)
@@ -71,13 +71,13 @@ class OldMessageReader(out: ActorRef, parentActor: ActorRef, conf: Configuration
                   case None =>
                 }
               } else
-                logger.trace(s"OldMessageReader. Cannot load older messages, offset is below 0. actorGroupID(${actorGroupID.toString})")
+                logger.trace(s"fetchOlderMessages. Cannot load older messages, offset is below 0. actorGroupID(${actorGroupID.toString})")
             }
           } match {
             case Failure(exception) =>
-              logger.error(s"OldMessageReader. Exception thrown: ${exception.getMessage}. actorGroupID(${actorGroupID.toString})")
+              logger.error(s"fetchOlderMessages. Exception thrown: ${exception.getMessage}. actorGroupID(${actorGroupID.toString})")
             case Success(_) =>
-              logger.trace(s"OldMessageReader. Successfully closed consumer. actorGroupID(${actorGroupID.toString})")
+              logger.trace(s"fetchOlderMessages. Successfully closed consumer. actorGroupID(${actorGroupID.toString})")
           }
 
         case None =>

@@ -33,7 +33,7 @@ class ChatOffsetUpdateActor(conf: Configuration, db: Database, dbec: ExecutionCo
   logger.trace(s"ChatOffsetUpdateActor. Starting actor. actorGroupID(${actorGroupID.toString})")
 
   override def postStop(): Unit = {
-    logger.trace(s"ChatOffsetUpdateActor. Stopping actor. actorGroupID(${actorGroupID.toString})")
+    logger.trace(s"postStop. Stopping actor. actorGroupID(${actorGroupID.toString})")
   }
 
   override def receive: Receive = {
@@ -47,7 +47,7 @@ class ChatOffsetUpdateActor(conf: Configuration, db: Database, dbec: ExecutionCo
             Future {
               val dbExecutor = new DbExecutor(configurator)
               db.withConnection( implicit connection => {
-                logger.trace(s"ChatOffsetUpdateActor. Updating chat offset. actorGroupID(${actorGroupID.toString})")
+                logger.trace(s"receive. Updating chat offset. actorGroupID(${actorGroupID.toString})")
                 dbExecutor.updateChatOffsetAndMessageTime(u.userId, u.chatId, u.lastMessageTime, shiftOffsetPerOne(u.partitionOffsets) )
               })
             }(dbec)
@@ -56,7 +56,7 @@ class ChatOffsetUpdateActor(conf: Configuration, db: Database, dbec: ExecutionCo
       }
       // adding new chat to list
     case nChat: ChatPartitionsOffsets =>
-      logger.trace(s"ChatOffsetUpdateActor. Adding new chat to chat list. actorGroupID(${actorGroupID.toString})")
+      logger.trace(s"receive. Adding new chat to chat list. actorGroupID(${actorGroupID.toString})")
       this.chats.addOne(nChat.chatId -> nChat.partitionOffset)
 
   }
