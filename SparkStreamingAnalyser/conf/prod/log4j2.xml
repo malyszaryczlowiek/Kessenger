@@ -12,12 +12,12 @@
         </File>
     </Appenders>
     <Loggers>
-        <Logger name="io.github.malyszaryczlowiek.SparkStreamingAnalyser" level="trace" additivity="false">
+        <Logger name="io.github.malyszaryczlowiek.SparkStreamingAnalyser" level="info" additivity="false">
             <!-- <Property name="user">${sys:user.name}</Property>-->
             <AppenderRef ref="FILE" level="trace"/>
             <AppenderRef ref="CONSOLE" level="trace"/>
         </Logger>
-        <Logger name="SparkStreamingAnalyser" level="trace" additivity="false">
+        <Logger name="SparkStreamingAnalyser" level="info" additivity="false">
             <AppenderRef ref="FILE" level="trace"/>
             <AppenderRef ref="CONSOLE" level="trace"/>
         </Logger>

@@ -10,7 +10,7 @@ libraryDependencies ++= Seq(
   // https://github.com/malyszaryczlowiek/kessenger-lib
   "io.github.malyszaryczlowiek" %% "kessenger-lib" % "0.3.24",
 
-  "org.apache.kafka" %% "kafka"               % "3.1.0",
+  "org.apache.kafka" %% "kafka" % "3.1.0",
 
 
   // for connecting to PostgreSQL db

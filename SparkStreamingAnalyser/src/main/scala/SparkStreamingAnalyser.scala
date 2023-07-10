@@ -4,12 +4,14 @@ import org.apache.logging.log4j.LogManager
 import org.apache.logging.log4j.Logger
 import org.apache.spark.sql.{Dataset, Row, SparkSession}
 import org.apache.spark.sql.functions.{avg, count, window}
+import org.apache.kafka.common.config.TopicConfig
 
 import encoders.RichMessage
+
 import kessengerlibrary.model.{Message, MessagesPerZone}
 import kessengerlibrary.serdes.message.MessageDeserializer
-import kessengerlibrary.kafka.TopicCreator
-import kessengerlibrary.env.Prod
+import kessengerlibrary.kafka
+import kessengerlibrary.kafka.{Done, TopicCreator, TopicSetup}
 import kessengerlibrary.serdes.messagesperzone.MessagesPerZoneSerializer
 
 import com.typesafe.config.{Config, ConfigFactory}
@@ -44,15 +46,26 @@ object SparkStreamingAnalyser {
 
 
   // topic names
-  val outputTopicName     = s"analysis--num-of-messages-per-1min-per-zone"
-  val testTopic           = s"tests--$outputTopicName"
-  val averageNumTopicName = s"analysis--avg-num-of-messages-in-chat-per-1min-per-zone"
+  private val outputTopicName     = s"analysis--num-of-messages-per-1min-per-zone"
+  private val testTopicName       = s"tests--$outputTopicName"
+  private val averageNumTopicName = s"analysis--avg-num-of-messages-in-chat-per-1min-per-zone"
 
-  val servers       = config.getString("kafka-servers")
-  val applicationId = config.getString("application-id")
+
+
+
+  private val topicConfig = Map(
+    TopicConfig.CLEANUP_POLICY_CONFIG -> TopicConfig.CLEANUP_POLICY_DELETE,
+    TopicConfig.RETENTION_MS_CONFIG   -> "-1" // keep all logs forever
+  )
+
+
+  private val servers   = config.getString(s"kafka-servers")
+  private val fileStore = config.getString(s"file-store")
+
+
 
   def main(args: Array[String]): Unit = {
-    println(s"\nApp SparkStreamingAnalyser started 15\n")
+    logger.trace("App SparkStreamingAnalyser started")
     createRequiredTopics()
     startAnalysing()
   }
@@ -64,9 +77,41 @@ object SparkStreamingAnalyser {
    */
   private def createRequiredTopics(): Unit = {
     // In first step we create topic for spark analysis output
-    TopicCreator.createTopic( outputTopicName,     Prod )
-    TopicCreator.createTopic( testTopic,           Prod )
-    TopicCreator.createTopic( averageNumTopicName, Prod )
+
+    val outputTopic  =
+      TopicSetup(outputTopicName, servers, config.getInt("topic-partition-num"),
+        config.getInt("topic-replication-factor").toShort,  topicConfig)
+
+    val testTopic    =
+      TopicSetup(testTopic, servers, config.getInt("topic-partition-num"),
+      config.getInt("topic-replication-factor").toShort, topicConfig)
+
+    val averageTopic =
+      TopicSetup(averageNumTopicName, servers, config.getInt("topic-partition-num"),
+      config.getInt("topic-replication-factor").toShort, topicConfig)
+
+
+    TopicCreator.createTopic(outputTopic) match {
+      case Done =>
+        logger.info(s"Topic '${outputTopicName}' created")
+      case kafka.Error(error) =>
+        logger.error(s"Creation topic '$outputTopicName' failed with error: $error")
+    }
+
+    TopicCreator.createTopic( testTopic ) match {
+      case Done =>
+        logger.info(s"Topic '$testTopicName' created")
+      case kafka.Error(error) =>
+        logger.error(s"Creation topic '$testTopicName' failed with error: $error")
+    }
+
+
+    TopicCreator.createTopic( averageTopic ) match {
+      case Done =>
+        logger.info(s"Topic '$averageNumTopicName' created")
+      case kafka.Error(error) =>
+        logger.error(s"Creation topic '$averageNumTopicName' failed with error: $error")
+    }
   }
 
 
@@ -93,12 +138,12 @@ object SparkStreamingAnalyser {
     Runtime.getRuntime.addShutdownHook( new Thread("closing_stream_thread") {
       override
       def run(): Unit = {
-        println(s"SparkSession closed from ShutdownHook.")
+        logger.warn(s"SparkSession closed from ShutdownHook.")
         sparkSession.close()
       }
     })
 
-    val context = sparkSession.sparkContext
+//    val context = sparkSession.sparkContext
     // context.setLogLevel("WARN")
     sparkSession
   }
@@ -123,7 +168,7 @@ object SparkStreamingAnalyser {
     val df = sparkSession
       .readStream
       .format("kafka")
-      .option("kafka.bootstrap.servers", "kafka1:9092,kafka2:9092,kafka3:9092") //
+      .option("kafka.bootstrap.servers", servers) //
       .option("subscribePattern", "chat--([\\p{Alnum}-]*)") // we subscribe all chat topics
       .load()
 
@@ -261,8 +306,8 @@ object SparkStreamingAnalyser {
       .writeStream
       .outputMode("append")   // append us default mode for kafka output
       .format("kafka")
-      .option("checkpointLocation"     , "/opt/FileStore/checkpointDir")
-      .option("kafka.bootstrap.servers", "kafka1:9092,kafka2:9092,kafka3:9092") //
+      .option("checkpointLocation"     , fileStore)
+      .option("kafka.bootstrap.servers", servers ) //
       .option("topic"                  , outputTopicName)
       .start()
       .awaitTermination()
@@ -429,9 +474,9 @@ object SparkStreamingAnalyser {
     averageMessageNumberPerTimeAndPerZoneOutputStream
       .outputMode("append")   // append us default mode for kafka output
       .format("kafka")
-      .option("checkpointLocation", "/opt/FileStore/checkpointDir")
-      .option("kafka.bootstrap.servers", "kafka1:9092,kafka2:9092,kafka3:9092") //
-      .option("topic", averageNumTopicName)
+      .option("checkpointLocation",      fileStore )
+      .option("kafka.bootstrap.servers", servers ) //
+      .option("topic",                   averageNumTopicName)
       .start()
       .awaitTermination()
 

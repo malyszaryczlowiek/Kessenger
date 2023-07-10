@@ -2,5 +2,4 @@
 cd SparkStreamingAnalyser
 sbt assembly
 jar -uf ./target/scala-2.12/SparkStreamingAnalyser-0.1.0.jar application.conf
-# jar -uf ./target/scala-2.12/SparkStreamingAnalyser-0.1.0.jar ./conf/log4j2_old.xml
 cd ..

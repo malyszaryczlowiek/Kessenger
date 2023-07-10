@@ -66,7 +66,9 @@ object StreamsChatAnalyser {
    *
    */
   def main(args: Array[String]): Unit = {
-    val servers = config.getString("bootstrap-servers")
+
+
+    val servers       = config.getString("bootstrap-servers")
     val applicationId = config.getString("application-id")
 
 

@@ -11,7 +11,7 @@ lazy val root = (project in file("."))
 
       // Own library with util and domain classes.
       // https://github.com/malyszaryczlowiek/kessenger-lib
-      "io.github.malyszaryczlowiek" %% "kessenger-lib" % "0.3.24",
+      "io.github.malyszaryczlowiek" %% "kessenger-lib" % "0.3.26",
 
       "org.apache.spark" %% "spark-sql"            % "3.3.0" % "provided",
       "org.apache.spark" %% "spark-sql-kafka-0-10" % "3.3.0",  //% "provided",
@@ -22,20 +22,11 @@ lazy val root = (project in file("."))
 
       // slf4j
       "org.slf4j" % "slf4j-nop" % "2.0.5",
-      // "org.slf4j" % "slf4j-nop" % "1.7.32",
 
       // log4j logger
-      // "org.apache.logging.log4j" %% "log4j-api-scala" % "12.0",
       "org.apache.logging.log4j" % "log4j-api" % "2.20.0",
       "org.apache.logging.log4j" % "log4j-core" % "2.20.0",
 
-
-      // "org.slf4j"      % "slf4j-api"       % "2.0.7",
-//      "org.slf4j"      % "slf4j-api"       % "1.7.32",
-//      "ch.qos.logback" % "logback-core"    % "1.2.11",
-//      "ch.qos.logback" % "logback-classic" % "1.2.11",
-
-      //"com.typesafe.play" %% "play-logback" % "2.8.19",
 
       // https://github.com/lightbend/config
       "com.typesafe" % "config" % "1.4.2",
