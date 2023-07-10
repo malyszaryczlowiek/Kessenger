@@ -1,7 +1,10 @@
 package io.github.malyszaryczlowiek
 
+import org.apache.logging.log4j.LogManager
+import org.apache.logging.log4j.Logger
 import org.apache.spark.sql.{Dataset, Row, SparkSession}
 import org.apache.spark.sql.functions.{avg, count, window}
+
 import encoders.RichMessage
 import kessengerlibrary.model.{Message, MessagesPerZone}
 import kessengerlibrary.serdes.message.MessageDeserializer
@@ -13,20 +16,18 @@ import com.typesafe.config.{Config, ConfigFactory}
 
 import java.sql.Timestamp
 import java.time.Instant
-import org.apache.logging.log4j.scala.Logging
+
 
 
 
 class  SparkStreamingAnalyser
 
-object SparkStreamingAnalyser extends Logging {
+object SparkStreamingAnalyser {
 
-  logger.trace(s"\n########################################\nApplication v0.1.0 TRACE\n########################################")
-  logger.debug(s"\n########################################\nApplication v0.1.0 DEBUG\n########################################")
-  logger.info(s"\n########################################\nApplication v0.1.0 INFO\n########################################")
-  logger.warn(s"\n########################################\nApplication v0.1.0 WARN\n########################################")
-  logger.error(s"\n########################################\nApplication v0.1.0 ERROR\n########################################")
 
+  private val logger: Logger = LogManager.getLogger(classOf[SparkStreamingAnalyser])
+
+  logger.trace(s"SparkStreamingAnalyser application starting.")
 
   private var config: Config = null
   private val env = System.getenv("SPARK_ENV")

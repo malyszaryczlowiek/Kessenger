@@ -5,9 +5,10 @@
     <ThresholdFilter level="trace"/>
     <Appenders>
         <Console name="CONSOLE" target="SYSTEM_OUT">
-            <!--            <PatternLayout pattern="%d{HH:mm:ss.SSS} [%t] %-5level %logger{36} - %%%%%%%%%%%%%%%%%%%%%%%%%% %msg%n"/>-->
+            <PatternLayout pattern="%d{HH:mm:ss.SSS} [%t] %-5level %logger{36} - %msg%n"/>
         </Console>
         <File name="FILE" fileName="${filename}">
+            <PatternLayout pattern="%d{HH:mm:ss.SSS} [%t] %-5level %logger{36} - %msg%n"/>
         </File>
     </Appenders>
     <Loggers>
@@ -22,7 +23,7 @@
         </Logger>
         <Root level="warn">
             <AppenderRef ref="CONSOLE"/>
-            <!--            <AppenderRef ref="FILE"/>-->
+            <AppenderRef ref="FILE"/>
         </Root>
 
     </Loggers>
