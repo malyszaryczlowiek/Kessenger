@@ -8,7 +8,6 @@ lazy val root = (project in file("."))
     idePackagePrefix := Some("io.github.malyszaryczlowiek"),
     assembly / assemblyJarName := s"${name.value}-${version.value}.jar",
 
-    // externalResolvers += "KessengerLibrary packages" at "https://maven.pkg.github.com/malyszaryczlowiek/KessengerLibrary",
 
     libraryDependencies ++= Seq(
 
@@ -21,7 +20,7 @@ lazy val root = (project in file("."))
 
       // Own library with util and domain classes.
       // https://github.com/malyszaryczlowiek/kessenger-lib
-      "io.github.malyszaryczlowiek" %% "kessenger-lib" % "0.3.23",
+      "io.github.malyszaryczlowiek" %% "kessenger-lib" % "0.3.26",
 
       // https://github.com/lightbend/config
       "com.typesafe" % "config" % "1.4.2",
@@ -34,7 +33,7 @@ lazy val root = (project in file("."))
 //      "org.slf4j"      % "slf4j-api"       % "2.0.7",
 
       // to switch off logging from slf4j
-      // "org.slf4j" % "slf4j-nop" % "2.0.5",
+      "org.slf4j" % "slf4j-nop" % "2.0.7",
 
 
       //      "org.apache.logging.log4j" % "log4j-api" % "2.20.0",

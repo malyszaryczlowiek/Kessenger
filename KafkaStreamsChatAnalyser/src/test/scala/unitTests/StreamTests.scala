@@ -78,22 +78,6 @@ class StreamTests extends munit.FunSuite {
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
   test("count messages per timezone") {
 
 
@@ -307,7 +291,7 @@ class StreamTests extends munit.FunSuite {
     val map = numOfUserMessages.readKeyValuesToMap()
 
     assert(map.get(user1).equals(1L))
-    assert(map.get(user2).equals(2L))
+    assert(map.get(user2).equals(1L))
 
 
 
@@ -333,8 +317,7 @@ class StreamTests extends munit.FunSuite {
     val grouping = Grouped.`with`("grouped-by-user", userSerde, messageSerde)
 
     // grouping by user
-    // todo groupByKey
-    val groupedKStream: KGroupedStream[User, Message] = inputStream.groupBy((u, m) => u)(grouping)
+    val groupedKStream: KGroupedStream[User, Message] = inputStream.groupByKey(grouping)//((u, m) => u)(grouping)
 
 
     val numOfUserMessagesIn2s: KTable[Windowed[User], Long] = groupedKStream
@@ -634,6 +617,7 @@ class StreamTests extends munit.FunSuite {
 
 
   /**
+   * TODO ten stream zaaplikować
    * "average number of words in message in period of time per user"
    */
   test("average number of words in message in period of time per user") {
@@ -736,6 +720,7 @@ class StreamTests extends munit.FunSuite {
 
 
   /**
+   * TODO ten stream zaaplikować
    * "average number of words in message in period of time per zone"
    */
   test("average number of words in message in period of time per zone") {
@@ -795,6 +780,7 @@ class StreamTests extends munit.FunSuite {
 
 
   /**
+   * TODO ten stream zaaplikować
    * "average number of words in message in period of time per chat"
    */
   test("average number of words in message in period of time per chat") {

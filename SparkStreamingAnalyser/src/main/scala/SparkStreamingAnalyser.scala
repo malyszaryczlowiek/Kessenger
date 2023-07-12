@@ -35,10 +35,13 @@ object SparkStreamingAnalyser {
   private val env = System.getenv("SPARK_ENV")
 
   if (env != null) {
-    if (env.equals("PROD"))
+    if (env.equals("PROD")) {
+      logger.trace(s"Loading PROD configuration.")
       config = ConfigFactory.load("application.conf").getConfig("kessenger.spark-streaming-analyser.prod")
-    else
+    } else {
+      logger.trace(s"Loading DEV configuration.")
       config = ConfigFactory.load("application.conf").getConfig("kessenger.spark-streaming-analyser.dev")
+    }
   } else {
     logger.error(s"No SPARK_ENV environment variable defined. ")
     throw new IllegalStateException("No SPARK_ENV environment variable defined. ")
@@ -93,7 +96,7 @@ object SparkStreamingAnalyser {
 
     TopicCreator.createTopic(outputTopic) match {
       case Done =>
-        logger.info(s"Topic '${outputTopicName}' created")
+        logger.info(s"Topic '$outputTopicName' created")
       case kafka.Error(error) =>
         logger.error(s"Creation topic '$outputTopicName' failed with error: $error")
     }
@@ -169,7 +172,7 @@ object SparkStreamingAnalyser {
       .readStream
       .format("kafka")
       .option("kafka.bootstrap.servers", servers) //
-      .option("subscribePattern", "chat--([\\p{Alnum}-]*)") // we subscribe all chat topics
+      .option("subscribePattern",        "chat--([\\p{Alnum}-]*)") // we subscribe all chat topics
       .load()
 
     // mapper for deserialization of kafka values and mapping
@@ -182,7 +185,7 @@ object SparkStreamingAnalyser {
       // we deserialize our message from Array[Byte] to Message object
       val message: Message = messageDeserializer.deserialize("", messageByteArray)
       val messageTime = Timestamp.from(Instant.ofEpochMilli( message.sendingTime ))
-      println(s"$timestamp ${message.authorLogin} >> ${message.content}") // for testing TODO delete this line
+      logger.trace(s"$timestamp ${message.authorLogin} >> ${message.content}")
       RichMessage (
         timestamp,  //  time of receiving message by kafka // Long
         message.chatId, // string
@@ -428,10 +431,7 @@ object SparkStreamingAnalyser {
       //.agg( $"zone_id", count )
       //.avg( )//.as("avg")
       .count()
-
-    println(s"### numOfMessagesPerChatPerZone ###")
     numOfMessagesPerChatPerZone.printSchema()
-
     numOfMessagesPerChatPerZone.createOrReplaceTempView("average_number_table_0")
 
 
@@ -440,10 +440,7 @@ object SparkStreamingAnalyser {
     val averageMessageNumberPerTimeAndPerZone = numOfMessagesPerChatPerZone
       .groupBy($"window", $"zone_id")
       .agg(avg($"count").as("avg")) // finally we calculate average message number per chat per zone in window period of time.
-
     averageMessageNumberPerTimeAndPerZone.createOrReplaceTempView("average_number_table")
-
-    println(s"######### averageMessageNumberPerTimeAndPerZone ######### ")
     averageMessageNumberPerTimeAndPerZone.printSchema()
 
 
@@ -468,7 +465,6 @@ object SparkStreamingAnalyser {
           s"start: $beginning, end: $end, zone: $zone, avg_num_of_mes_per_chat: $avg"
         })
       .writeStream
-
 
     // save to kafka topic
     averageMessageNumberPerTimeAndPerZoneOutputStream
@@ -508,6 +504,19 @@ object SparkStreamingAnalyser {
 
 
 } // end SparkStreamingAnalyser
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
   /* Util notes

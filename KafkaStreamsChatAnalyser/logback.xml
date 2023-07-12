@@ -43,9 +43,7 @@
         <appender-ref ref="STDOUT" />
       </appender>
 
-<!--      <logger name="play" level="WARN" />-->
-<!--      <logger name="application" level="WARN" />-->
-
+      <logger name="StreamsChatAnalyser" level="INFO" />
 
       <!-- Root logger sends WARN and ERROR to ASYNCFILE and ASYNCSTDOUT appenders -->
 
@@ -95,8 +93,7 @@
         <appender-ref ref="STDOUT" />
       </appender>
 
-<!--      <logger name="play" level="WARN" />-->
-<!--      <logger name="application" level="WARN" />-->
+      <logger name="StreamsChatAnalyser" level="TRACE" />
 
 
       <!-- Root logger sends WARN and ERROR to ASYNCFILE and ASYNCSTDOUT appenders -->
