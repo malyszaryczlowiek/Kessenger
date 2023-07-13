@@ -33,7 +33,7 @@ lazy val root = (project in file("."))
 //      "org.slf4j"      % "slf4j-api"       % "2.0.7",
 
       // to switch off logging from slf4j
-      "org.slf4j" % "slf4j-nop" % "2.0.7",
+      // "org.slf4j" % "slf4j-nop" % "2.0.7",
 
 
       //      "org.apache.logging.log4j" % "log4j-api" % "2.20.0",

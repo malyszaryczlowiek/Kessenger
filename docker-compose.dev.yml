@@ -149,7 +149,7 @@ services:
     environment:
       - KAFKA_STREAMS_ENV=DEV
     volumes:
-      - ${HOME}/kessenger/dev/logs/kafkastreaming:/var/logs
+      - ${HOME}/kessenger/dev/logs/kafkastreaming:/opt/kessenger-app/kafka-streams/logs
 
 
 
@@ -179,5 +179,5 @@ services:
       - my-simple-network
     volumes:
       #- ${HOME}/kessenger/dev/logs/sparkanalyser:/var/logs
-      - ${HOME}/kessenger/dev/logs/sparkanalyser:/opt/work-dir/logs
+      - ${HOME}/kessenger/dev/logs/sparkanalyser:/opt/kessenger-app/spark-master/logs
       # /opt/work-dir is ${SPARK_HOME}

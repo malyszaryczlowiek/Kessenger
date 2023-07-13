@@ -49,11 +49,13 @@ object StreamsChatAnalyser {
   logger.warn(s"Current mode: $env")
 
 
-  private val servers        = config.getString("bootstrap-servers")
-  private val applicationId  = config.getString("application-id")
-  private val partitionNum   = config.getInt("topic-partition-number")
-  private val replicationFac = config.getInt("topic-replication-factor").toShort
-
+  private val servers            = config.getString("bootstrap-servers")
+  private val applicationId      = config.getString("application-id")
+  private val partitionNum       = config.getInt("topic-partition-number")
+  private val replicationFac     = config.getInt("topic-replication-factor").toShort
+  private val chatPartitionNum   = config.getInt("chat.topic-partition-number")
+  private val chatReplicationFac = config.getInt("chat.topic-replication-factor").toShort
+  private val stateStore         = config.getString("state-store")
 
   /*
   Topics that must exists
@@ -80,9 +82,9 @@ object StreamsChatAnalyser {
   /*
   Serializers and deserializers
    */
-  private val userSerde = new UserSerde
+  private val userSerde    = new UserSerde
   private val messageSerde = new MessageSerde
-  private val avgNumSerde = new AverageWordsNumSerde
+  private val avgNumSerde  = new AverageWordsNumSerde
 
 
 
@@ -93,6 +95,7 @@ object StreamsChatAnalyser {
     val properties: Properties = new Properties()
     properties.put( StreamsConfig.APPLICATION_ID_CONFIG,    applicationId)
     properties.put( StreamsConfig.BOOTSTRAP_SERVERS_CONFIG, servers)
+    properties.put( StreamsConfig.STATE_DIR_CONFIG,         stateStore)
 
 
     /*
@@ -153,7 +156,7 @@ object StreamsChatAnalyser {
         override
         def run(): Unit =
           streams.close()
-          logger.error(s"Streams closed from ShutdownHook.")
+          logger.warn(s"Streams closed from ShutdownHook.")
         //latch.countDown()
       })
       //initializeShutDownHook = false
@@ -188,31 +191,51 @@ object StreamsChatAnalyser {
       TopicConfig.RETENTION_MS_CONFIG   -> "-1" // keep all logs forever
     )
 
+    /*
+    We need to create at least one 'foo' topic matching pattern,
+    to avoid exception below:
+    org.apache.kafka.streams.errors.TaskAssignmentException:
+    Failed to compute number of partitions for all repartition topics,
+    make sure all user input topics are created and all Pattern subscriptions
+    match at least one topic in the cluster
+     */
+    val nullName = "chat--null"
+    val foo = TopicSetup(nullName, servers, chatPartitionNum, chatReplicationFac, topicConfig)
+
+    TopicCreator.createTopic(foo) match {
+      case Done =>
+        logger.info(s"Topic '$nullName' created")
+      case Error(error) =>
+        logger.warn(s"Creation topic '$nullName' failed with error: $error")
+    }
+
+
+    // topics to which we save post analysis data
     val t1 = TopicSetup(topic1, servers, partitionNum, replicationFac, topicConfig)
     val t2 = TopicSetup(topic2, servers, partitionNum, replicationFac, topicConfig)
     val t3 = TopicSetup(topic3, servers, partitionNum, replicationFac, topicConfig)
 
 
-    // we try to create collecting topic
+    // we try to create  topics with post analysis data
     TopicCreator.createTopic(t1) match {
       case Done =>
         logger.info(s"Topic '$topic1' created")
       case Error(error) =>
-        logger.error(s"Creation topic '$topic1' failed with error: $error")
+        logger.warn(s"Creation topic '$topic1' failed with error: $error")
     }
 
     TopicCreator.createTopic(t2) match {
       case Done =>
         logger.info(s"Topic '$topic2' created")
       case Error(error) =>
-        logger.error(s"Creation topic '$topic2' failed with error: $error")
+        logger.warn(s"Creation topic '$topic2' failed with error: $error")
     }
 
     TopicCreator.createTopic(t3) match {
       case Done =>
         logger.info(s"Topic '$topic3' created")
       case Error(error) =>
-        logger.error(s"Creation topic '$topic3' failed with error: $error")
+        logger.warn(s"Creation topic '$topic3' failed with error: $error")
     }
 
   }
@@ -223,18 +246,14 @@ object StreamsChatAnalyser {
   private def averageNumberOfWordsInMessageWithin1MinutePerUser(sourceStream: KStream[User, Message]): Unit = {
     sourceStream.mapValues(_.content.trim.split("\\s").length)
       .groupByKey(Grouped.`with`("per-user", userSerde, intSerde) )
-      //.groupBy((u, m) => m.zoneId.getId)(Grouped.`with`("d2", stringSerde, messageSerde))
       .windowedBy(TimeWindows.ofSizeAndGrace(jDuration.ofSeconds(60L), jDuration.ofMillis(5L)))
       .aggregate(AverageNum())(
         (user, num, agg) => AverageNum.add(agg, num)
       )(Materialized.`with`(userSerde, avgNumSerde) )
       .mapValues(agg => agg.toString())
       .toStream
-      .map(
-        (timeKey, value) =>
-          (s"${timeKey.window().startTime().toString}___${timeKey.key().userId}", value)
-      )
-      .to("topic1")(Produced.`with`(stringSerde, stringSerde))
+      .map( (timeKey, value) => (s"${timeKey.window().startTime().toString}___${timeKey.key().userId}", value) )
+      .to( topic1 )(Produced.`with`(stringSerde, stringSerde))
   }
 
 
@@ -248,11 +267,8 @@ object StreamsChatAnalyser {
       )(Materialized.`with`(stringSerde, avgNumSerde))
       .mapValues(agg => agg.toString())
       .toStream
-      .map(
-        (timeKey, value) =>
-          (s"${timeKey.window().startTime().toString}___${timeKey.key()}", value)
-      )
-      .to("topic2")(Produced.`with`(stringSerde, stringSerde))
+      .map( (timeKey, value) => (s"${timeKey.window().startTime().toString}___${timeKey.key()}", value) )
+      .to( topic2 )(Produced.`with`(stringSerde, stringSerde))
   }
 
 
@@ -266,14 +282,21 @@ object StreamsChatAnalyser {
       )(Materialized.`with`(stringSerde, avgNumSerde))
       .mapValues(agg => agg.toString())
       .toStream
-      .map(
-        (timeKey, value) =>
-          (s"${timeKey.window().startTime().toString}___${timeKey.key()}", value)
-      )
-    .to("topic3")(Produced.`with`(stringSerde, stringSerde))
+      .map( (timeKey, value) => (s"${timeKey.window().startTime().toString}___${timeKey.key()}", value) )
+      .to( topic3 )(Produced.`with`(stringSerde, stringSerde))
   }
 
 }
+
+
+
+
+
+
+
+
+
+
 
 
 

@@ -1,6 +1,6 @@
 <Configuration name="ConfigTest" status="INFO" monitorInterval="500">
     <Properties>
-        <Property name="filename">/opt/work-dir/application.log</Property>
+        <Property name="filename">/opt/kessenger-app/spark-master/logs/application.log</Property>
     </Properties>
     <ThresholdFilter level="trace"/>
     <Appenders>

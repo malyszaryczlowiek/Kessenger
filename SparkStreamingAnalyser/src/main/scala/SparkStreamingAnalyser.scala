@@ -86,7 +86,7 @@ object SparkStreamingAnalyser {
         config.getInt("topic-replication-factor").toShort,  topicConfig)
 
     val testTopic    =
-      TopicSetup(testTopic, servers, config.getInt("topic-partition-num"),
+      TopicSetup(testTopicName, servers, config.getInt("topic-partition-num"),
       config.getInt("topic-replication-factor").toShort, topicConfig)
 
     val averageTopic =
@@ -187,16 +187,15 @@ object SparkStreamingAnalyser {
       val messageTime = Timestamp.from(Instant.ofEpochMilli( message.sendingTime ))
       logger.trace(s"$timestamp ${message.authorLogin} >> ${message.content}")
       RichMessage (
-        timestamp,  //  time of receiving message by kafka // Long
-        message.chatId, // string
-        message.chatName, // string
-        message.groupChat, // boolean
+        timestamp,           //  time of receiving message by kafka // Long
+        message.chatId,      // string
+        message.chatName,    // string
+        message.groupChat,   // boolean
         message.zoneId.toString,
-        messageTime,
-        //        message.utcTime, // sending time by user (do not mistake with timestamp which is time when kafka broker gets message)
-        message.content, // string
+        messageTime,         //        message.utcTime, // sending time by user (do not mistake with timestamp which is time when kafka broker gets message)
+        message.content,     // string
         message.authorId.toString, // UUID of author converted to string
-        message.authorLogin // String
+        message.authorLogin  // String
       )
     }
 

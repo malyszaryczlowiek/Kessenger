@@ -114,7 +114,7 @@ services:
     networks:
       - my-simple-network
     volumes:
-      - ${HOME}/kessenger/prod/logs/beckend_1/logs:/logs
+      - ${HOME}/kessenger/prod/logs/backend_1:/var/logs
 
 
   play-app-2:
@@ -130,7 +130,7 @@ services:
     networks:
       - my-simple-network
     volumes:
-      - ${HOME}/kessenger/prod/logs/beckend_2:/var/logs
+      - ${HOME}/kessenger/prod/logs/backend_2:/var/logs
 
   
 #  reverse-proxy:
@@ -195,7 +195,7 @@ services:
     environment:
       - KAFKA_STREAMS_ENV=PROD
     volumes:
-      - ${HOME}/kessenger/prod/logs/kafkastreaming:/var/logs
+      - ${HOME}/kessenger/prod/logs/kafkastreaming:/opt/kessenger-app/kafka-streams/logs
 
 
   # spark cluster
@@ -225,7 +225,7 @@ services:
     networks:
       - my-simple-network
     volumes:
-      - ${HOME}/kessenger/prod/logs/sparkanalyser:/opt/work-dir
+      - ${HOME}/kessenger/prod/logs/sparkanalyser:/opt/kessenger-app/spark-master/logs
       # - ${HOME}/kessenger/spark-volumes:/opt/work-dir      # /opt/work-dir is ${SPARK_HOME}
 
 

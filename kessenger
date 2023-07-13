@@ -46,10 +46,12 @@ done
 if [[ $generate_kafka_streams = true ]] ; then
   rm -rf ./KafkaStreamsChatAnalyser/target/scala-2.13
   ./KafkaStreamsChatAnalyser/generateJAR
+  rm -rf $HOME/kessenger/prod/logs/kafkastreaming/application.log
 fi
 if [[ $generate_spark = true ]] ; then
   rm -rf ./SparkStreamingAnalyser/target/scala-2.12/
   ./SparkStreamingAnalyser/generateJAR
+  rm -rf $HOME/kessenger/prod/logs/sparkanalyser/application.log
 fi
 
 
@@ -57,6 +59,7 @@ if [[ $kessenger_mode = "prod" ]] ; then
   if [[ $generate_backend = true ]] ; then
     rm -rf ./back-end/target/universal
     ./back-end/generateBin
+    rm -rf $HOME/kessenger/prod/logs/backend_*/application.log
   fi
 fi
 

@@ -12,10 +12,11 @@
 
   <if condition='property("KAFKA_STREAMS_ENV").equals("PROD")'>
     <then>
+
       <!-- prod configuration -->
 
       <appender name="FILE" class="ch.qos.logback.core.FileAppender">
-        <file>/var/logs/application.log</file>
+        <file>/opt/kessenger-app/kafka-streams/logs/application.log</file>
 <!--        <file>${application.home:-.}/logs/application.log</file>-->
         <encoder>
         <charset>UTF-8</charset>
@@ -61,11 +62,11 @@
 
     </then>
     <else>
+
       <!-- dev configuration -->
 
-
       <appender name="FILE" class="ch.qos.logback.core.FileAppender">
-        <file>/var/logs/application.log</file>
+        <file>/tmp/kafka-streams/logs/application.log</file>
         <!--        <file>${application.home:-.}/logs/application.log</file>-->
         <encoder>
           <charset>UTF-8</charset>
