@@ -2,12 +2,17 @@ package io.github.malyszaryczlowiek
 package util
 
 import kessengerlibrary.model.{Message, SparkMessage}
+import kessengerlibrary.model.postanalysis.{WindowedAvgServerDelay, WindowedAvgServerDelayByUser, WindowedAvgServerDelayByZone}
 import kessengerlibrary.serdes.message.MessageDeserializer
+import kessengerlibrary.serdes.postanalysis.WindowedAvgServerDelayByZoneSerializer
+import kessengerlibrary.serdes.postanalysis.windowed.avgserverdelay.WindowedAvgServerDelaySerializer
+import kessengerlibrary.serdes.postanalysis.windowed.avgserverdelaybyuser.WindowedAvgServerDelayByUserSerializer
 
 import org.apache.spark.sql.Row
 
 import java.sql.Timestamp
 import java.time.{Instant, ZoneId}
+import java.util.UUID
 
 object Mappers {
 
@@ -43,32 +48,43 @@ object Mappers {
 
 
 
-  def avgDelayToKafkaMapper: Row => KafkaOutput = {
-
-  }
-
-  case class WindowedAvgServerDelayByZone(windowStart: Timestamp, windowEnd: Timestamp, zoneId: ZoneId, delayMS: Long)
-
-  def avgDelayByZoneToKafkaMapper: Row => KafkaOutput = (r: Row) => {
-
-    WindowedAvgServerDelayByZone(
+  def avgDelayToKafkaMapper: Row => KafkaOutput = (r: Row) => {
+    val w = WindowedAvgServerDelay(
       r.getAs[Timestamp]("window_start"),
       r.getAs[Timestamp]("window_end"),
-      ZoneId.of( r.getAs[String]("zone_id") ),
       r.getAs[Long]("avg_diff_time_ms")
     )
-
-
-    val serializer = new KafkaOutputSerializer
-    serializer.serialize()
-
+    val serializer = new WindowedAvgServerDelaySerializer
+    val serialized = serializer.serialize("", w)
+    KafkaOutput(null, serialized)
   }
 
 
 
+  def avgDelayByUserToKafkaMapper: Row => KafkaOutput = (r: Row) => {
+    val w = WindowedAvgServerDelayByUser(
+      r.getAs[Timestamp]("window_start"),
+      r.getAs[Timestamp]("window_end"),
+      UUID.fromString( r.getAs[String]("user_id") ),
+      r.getAs[Long]("avg_diff_time_ms")
+    )
+    val serializer = new WindowedAvgServerDelayByUserSerializer
+    val serialized = serializer.serialize("", w)
+    KafkaOutput(null, serialized)
+  }
 
-  def avgDelayByUserToKafkaMapper: Row => KafkaOutput = {
 
+
+  def avgDelayByZoneToKafkaMapper: Row => KafkaOutput = (r: Row) => {
+    val w = WindowedAvgServerDelayByZone(
+      r.getAs[Timestamp]("window_start"),
+      r.getAs[Timestamp]("window_end"),
+      ZoneId.of(r.getAs[String]("zone_id")),
+      r.getAs[Long]("avg_diff_time_ms")
+    )
+    val serializer = new WindowedAvgServerDelayByZoneSerializer
+    val serialized = serializer.serialize("", w)
+    KafkaOutput(null, serialized)
   }
 
 }

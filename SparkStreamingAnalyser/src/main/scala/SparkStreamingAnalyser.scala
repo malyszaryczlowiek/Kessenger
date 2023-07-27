@@ -6,7 +6,10 @@ import org.apache.spark.sql.{Dataset, Row, SparkSession}
 import org.apache.spark.sql.functions.{avg, count, window}
 import org.apache.kafka.common.config.TopicConfig
 
+import util.AppConfig._
+import util.KafkaOutput
 import util.Mappers._
+
 
 import kessengerlibrary.model.{Message, MessagesPerZone, SparkMessage}
 import kessengerlibrary.serdes.message.MessageDeserializer
@@ -15,11 +18,10 @@ import kessengerlibrary.kafka.{Done, TopicCreator, TopicSetup}
 import kessengerlibrary.serdes.messagesperzone.MessagesPerZoneSerializer
 
 import com.typesafe.config.{Config, ConfigFactory}
-import io.github.malyszaryczlowiek.util.KafkaOutput
-import org.apache.hadoop.shaded.org.eclipse.jetty.websocket.common.frames.DataFrame
 
 import java.sql.Timestamp
 import java.time.Instant
+import java.util.Properties
 
 
 
@@ -33,27 +35,13 @@ object SparkStreamingAnalyser {
 
   logger.trace(s"SparkStreamingAnalyser application starting.")
 
-  private var config: Config = null
-  private val env = System.getenv("SPARK_ENV")
 
-  if (env != null) {
-    if (env.equals("PROD")) {
-      logger.trace(s"Loading PROD configuration.")
-      config = ConfigFactory.load("application.conf").getConfig("kessenger.spark-streaming-analyser.prod")
-    } else {
-      logger.trace(s"Loading DEV configuration.")
-      config = ConfigFactory.load("application.conf").getConfig("kessenger.spark-streaming-analyser.dev")
-    }
-  } else {
-    logger.error(s"No SPARK_ENV environment variable defined. ")
-    throw new IllegalStateException("No SPARK_ENV environment variable defined. ")
-  }
 
 
   // topic names
-  private val outputTopicName     = s"analysis--num-of-messages-per-1min-per-zone"
-  private val testTopicName       = s"tests--$outputTopicName"
-  private val averageNumTopicName = s"analysis--avg-num-of-messages-in-chat-per-1min-per-zone"
+//  private val outputTopicName     = s"analysis--num-of-messages-per-1min-per-zone"
+//  private val testTopicName       = s"tests--$outputTopicName"
+//  private val averageNumTopicName = s"analysis--avg-num-of-messages-in-chat-per-1min-per-zone"
 
   private val allChatsRegex       = "chat--([\\p{Alnum}-]*)"
 
@@ -65,8 +53,12 @@ object SparkStreamingAnalyser {
   )
 
 
-  private val servers   = config.getString(s"kafka-servers")
-  private val fileStore = config.getString(s"file-store")
+  // private val servers   = config.getString(s"kafka-servers")
+  // private val fileStore = config.getString(s"file-store")
+
+  private val avgServerDelay       = s"avg-server-delay"
+  private val avgServerDelayByUser = s"avg-server-delay-by-user"
+  private val avgServerDelayByZone = s"avg-server-delay-by-zone"
 
 
 
@@ -84,39 +76,36 @@ object SparkStreamingAnalyser {
   private def createRequiredTopics(): Unit = {
     // In first step we create topic for spark analysis output
 
-    val outputTopic  =
-      TopicSetup(outputTopicName, servers, config.getInt("topic-partition-num"),
-        config.getInt("topic-replication-factor").toShort,  topicConfig)
+    val avgServerDelayTopic =
+      TopicSetup(avgServerDelay, kafkaConfig.servers, kafkaConfig.partitionNum, kafkaConfig.replicationFactor, topicConfig)
 
-    val testTopic    =
-      TopicSetup(testTopicName, servers, config.getInt("topic-partition-num"),
-      config.getInt("topic-replication-factor").toShort, topicConfig)
+    val avgServerDelayByUserTopic =
+      TopicSetup(avgServerDelayByUser, kafkaConfig.servers, kafkaConfig.partitionNum, kafkaConfig.replicationFactor, topicConfig)
 
-    val averageTopic =
-      TopicSetup(averageNumTopicName, servers, config.getInt("topic-partition-num"),
-      config.getInt("topic-replication-factor").toShort, topicConfig)
+    val avgServerDelayByZoneTopic =
+      TopicSetup(avgServerDelayByZone, kafkaConfig.servers, kafkaConfig.partitionNum, kafkaConfig.replicationFactor, topicConfig)
 
 
-    TopicCreator.createTopic(outputTopic) match {
+    TopicCreator.createTopic(avgServerDelayTopic) match {
       case Done =>
-        logger.info(s"Topic '$outputTopicName' created")
+        logger.info(s"Topic '$avgServerDelay' created")
       case kafka.Error(error) =>
-        logger.error(s"Creation topic '$outputTopicName' failed with error: $error")
+        logger.error(s"Creation topic '$avgServerDelay' failed with error: $error")
     }
 
-    TopicCreator.createTopic( testTopic ) match {
+    TopicCreator.createTopic( avgServerDelayByUserTopic ) match {
       case Done =>
-        logger.info(s"Topic '$testTopicName' created")
+        logger.info(s"Topic '$avgServerDelayByUser' created")
       case kafka.Error(error) =>
-        logger.error(s"Creation topic '$testTopicName' failed with error: $error")
+        logger.error(s"Creation topic '$avgServerDelayByUser' failed with error: $error")
     }
 
 
-    TopicCreator.createTopic( averageTopic ) match {
+    TopicCreator.createTopic( avgServerDelayByZoneTopic ) match {
       case Done =>
-        logger.info(s"Topic '$averageNumTopicName' created")
+        logger.info(s"Topic '$avgServerDelayByZone' created")
       case kafka.Error(error) =>
-        logger.error(s"Creation topic '$averageNumTopicName' failed with error: $error")
+        logger.error(s"Creation topic '$avgServerDelayByZone' failed with error: $error")
     }
   }
 
@@ -162,7 +151,7 @@ object SparkStreamingAnalyser {
   private def startAnalysing(): Unit = {
     val inputStream: Dataset[SparkMessage] = readAndDeserializeAllChatsData( prepareSparkSession )
     val byUser = avgServerTimeDelayByUser( inputStream )
-    saveStreamToKafka( byUser, avgDelayByUserToKafkaMapper, "topic name to save")
+    saveStreamToKafka( byUser, avgDelayByUserToKafkaMapper, avgServerDelayByUser)
 
     //getNumberOfMessagesPerTime( inputStream )
     // getAvgNumOfMessInChatPerZonePerWindowTime( inputStream )
@@ -177,7 +166,7 @@ object SparkStreamingAnalyser {
     val df = sparkSession
       .readStream
       .format("kafka")
-      .option("kafka.bootstrap.servers", servers) //
+      .option("kafka.bootstrap.servers", kafkaConfig.servers) //
       .option("subscribePattern",        allChatsRegex) // we subscribe all chat topics
       .load()
 
@@ -358,8 +347,8 @@ object SparkStreamingAnalyser {
       .writeStream
       .outputMode("append") // append us default mode for kafka output
       .format("kafka")
-      .option("checkpointLocation", fileStore)
-      .option("kafka.bootstrap.servers", servers)
+      .option("checkpointLocation",      kafkaConfig.fileStore)
+      .option("kafka.bootstrap.servers", kafkaConfig.servers)
       .option("topic", topic)
       .start()
       .awaitTermination()
@@ -369,7 +358,15 @@ object SparkStreamingAnalyser {
   /**
    *
    */
-  private def saveStreamToDatabase(inputStream: Dataset[SparkMessage]): Unit = {
+  private def saveStreamToDatabase(stream: Dataset[Row], tableNameToSave: String): Unit = {
+    val connectionProperties = new Properties()
+    connectionProperties.put("user",     dbConfig.user)
+    connectionProperties.put("password", dbConfig.pass)
+
+    import stream.sparkSession.implicits._
+    stream.write
+      .option("createTableColumnTypes", "name CHAR(64), comments VARCHAR(1024)") // create new table
+      .jdbc(ERRORR)
 
   }
 
@@ -496,9 +493,9 @@ object SparkStreamingAnalyser {
       .writeStream
       .outputMode("append")   // append us default mode for kafka output
       .format("kafka")
-      .option("checkpointLocation"     , fileStore)
-      .option("kafka.bootstrap.servers", servers ) //
-      .option("topic"                  , outputTopicName)
+      .option("checkpointLocation"     , kafkaConfig.fileStore)
+      .option("kafka.bootstrap.servers", kafkaConfig.servers) //
+      .option("topic"                  , "foo") // todo this topic does not exist
       .start()
       .awaitTermination()
 
@@ -658,7 +655,7 @@ object SparkStreamingAnalyser {
       .format("kafka")
       .option("checkpointLocation",      fileStore )
       .option("kafka.bootstrap.servers", servers ) //
-      .option("topic",                   averageNumTopicName)
+      .option("topic",                   "foo") // todo this topic does not exist
       .start()
       .awaitTermination()
 
