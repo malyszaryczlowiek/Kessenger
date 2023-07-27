@@ -6,15 +6,17 @@ import org.apache.spark.sql.{Dataset, Row, SparkSession}
 import org.apache.spark.sql.functions.{avg, count, window}
 import org.apache.kafka.common.config.TopicConfig
 
-import encoders.RichMessage
+import util.Mappers._
 
-import kessengerlibrary.model.{Message, MessagesPerZone}
+import kessengerlibrary.model.{Message, MessagesPerZone, SparkMessage}
 import kessengerlibrary.serdes.message.MessageDeserializer
 import kessengerlibrary.kafka
 import kessengerlibrary.kafka.{Done, TopicCreator, TopicSetup}
 import kessengerlibrary.serdes.messagesperzone.MessagesPerZoneSerializer
 
 import com.typesafe.config.{Config, ConfigFactory}
+import io.github.malyszaryczlowiek.util.KafkaOutput
+import org.apache.hadoop.shaded.org.eclipse.jetty.websocket.common.frames.DataFrame
 
 import java.sql.Timestamp
 import java.time.Instant
@@ -53,6 +55,7 @@ object SparkStreamingAnalyser {
   private val testTopicName       = s"tests--$outputTopicName"
   private val averageNumTopicName = s"analysis--avg-num-of-messages-in-chat-per-1min-per-zone"
 
+  private val allChatsRegex       = "chat--([\\p{Alnum}-]*)"
 
 
 
@@ -157,8 +160,11 @@ object SparkStreamingAnalyser {
    *
    */
   private def startAnalysing(): Unit = {
-    val inputStream = readAndDeserializeAllChatsData( prepareSparkSession )
-    getNumberOfMessagesPerTime( inputStream )
+    val inputStream: Dataset[SparkMessage] = readAndDeserializeAllChatsData( prepareSparkSession )
+    val byUser = avgServerTimeDelayByUser( inputStream )
+    saveStreamToKafka( byUser, avgDelayByUserToKafkaMapper, "topic name to save")
+
+    //getNumberOfMessagesPerTime( inputStream )
     // getAvgNumOfMessInChatPerZonePerWindowTime( inputStream )
   }
 
@@ -167,42 +173,19 @@ object SparkStreamingAnalyser {
   /**
    *
    */
-  private def readAndDeserializeAllChatsData(sparkSession: SparkSession): Dataset[RichMessage] = {
+  private def readAndDeserializeAllChatsData(sparkSession: SparkSession): Dataset[SparkMessage] = {
     val df = sparkSession
       .readStream
       .format("kafka")
       .option("kafka.bootstrap.servers", servers) //
-      .option("subscribePattern",        "chat--([\\p{Alnum}-]*)") // we subscribe all chat topics
+      .option("subscribePattern",        allChatsRegex) // we subscribe all chat topics
       .load()
 
-    // mapper for deserialization of kafka values and mapping
-    // to RichMessage case class for easier data manipulation
-    val mapper = (r: Row) => {
-      val messageByteArray: Array[Byte] = r.getAs[Array[Byte]]("value") // we know that value is Array[Byte] type
-      val timestamp: Timestamp  = r.getAs[Timestamp]("timestamp") // .getTime
-      // deserializer must be created inside mapper, outer initialization causes exceptions
-      val messageDeserializer = new MessageDeserializer
-      // we deserialize our message from Array[Byte] to Message object
-      val message: Message = messageDeserializer.deserialize("", messageByteArray)
-      val messageTime = Timestamp.from(Instant.ofEpochMilli( message.sendingTime ))
-      logger.trace(s"$timestamp ${message.authorLogin} >> ${message.content}")
-      RichMessage (
-        timestamp,           //  time of receiving message by kafka // Long
-        message.chatId,      // string
-        message.chatName,    // string
-        message.groupChat,   // boolean
-        message.zoneId.toString,
-        messageTime,         //        message.utcTime, // sending time by user (do not mistake with timestamp which is time when kafka broker gets message)
-        message.content,     // string
-        message.authorId.toString, // UUID of author converted to string
-        message.authorLogin  // String
-      )
-    }
 
     // for implicit encoder for case classes
     import sparkSession.implicits._
 
-    val inputStream = df.map( mapper )
+    val inputStream = df.map( fromKafkaMapper )
 
     println(s"\n### INITIAL SCHEMA: ###\n")  // todo DELETE for testing
     inputStream.printSchema()
@@ -218,15 +201,220 @@ object SparkStreamingAnalyser {
        |-- user_id: string (nullable = true)
        |-- login: string (nullable = true)
      */
-
+    inputStream.createOrReplaceTempView(s"input_table")
     inputStream
   }  // end readAndDeserializeAllChatsData
+
+
+
+  /**
+   *
+   * @param stream
+   * @return
+   */
+  private def avgServerTimeDelay(stream: Dataset[SparkMessage]): Any = {
+    import stream.sparkSession.implicits._
+
+    val sql1 =
+      """SELECT
+        | server_time, unix_millis(server_time) - unix_millis(message_time) AS diff_time_ms
+        | FORM input_table
+        |""".stripMargin
+
+    val s = stream.sqlContext.sql( sql1 )
+
+    val s2 = s.withWatermark("server_time", "30 seconds")
+      .groupBy( window($"server_time", "1 minute", "30 seconds") )
+      .avg("diff_time_ms") // and count number of messages in every minutes in each zone
+      .withColumnRenamed("diff(diff_time_ms)", "avg_diff_time_ms")
+
+    println(s"\n avgServerTimeDelay SCHEMA: \n")
+    s2.printSchema()
+    // window, avg_diff_time_ms
+
+    s2.createOrReplaceTempView(s"server_delay")
+
+    val sqlSplitter =
+      """SELECT
+        | date_format(window.start, 'yyyy-MM-dd HH:mm:ss' ) AS window_start,
+        | date_format(window.end, 'yyyy-MM-dd HH:mm:ss' ) AS window_end,
+        | avg_diff_time_ms
+        | FROM server_delay
+        |""".stripMargin
+
+    s2.sqlContext.sql(sqlSplitter)
+
+
+  }
+
+
+
+  /**
+   *
+   * @param stream
+   * @return
+   */
+  private def avgServerTimeDelayByZone(stream: Dataset[SparkMessage]): Dataset[Row] = {
+    import stream.sparkSession.implicits._
+
+    val sql1 =
+      """SELECT
+        | zone_id, server_time, unix_millis(server_time) - unix_millis(message_time) AS diff_time_ms
+        | FORM input_table
+        |""".stripMargin
+
+    val s = stream.sqlContext.sql(sql1)
+
+    val s2 = s.withWatermark("server_time", "30 seconds")
+      .groupBy(
+        window($"server_time", "1 minute", "30 seconds")
+        , $"zone_id" // we grouping via zone
+      )
+      .avg("diff_time_ms") // and count number of messages in every minutes in each zone
+      .withColumnRenamed("diff(diff_time_ms)", "avg_diff_time_ms")
+
+    println(s"\n avgServerTimeDelayByZone SCHEMA: \n")
+    s2.printSchema()
+    // window, zone_id, avg_diff_time_ms
+
+    s2.createOrReplaceTempView(s"delay_by_zone")
+
+    val sqlSplitter =
+      """SELECT
+        | date_format(window.start, 'yyyy-MM-dd HH:mm:ss' ) AS window_start,
+        | date_format(window.end, 'yyyy-MM-dd HH:mm:ss' ) AS window_end,
+        | zone_id,
+        | avg_diff_time_ms
+        | FROM delay_by_zone
+        |""".stripMargin
+
+    s2.sqlContext.sql(sqlSplitter)
+
+  }
+
+
+  /**
+   *
+   * @param stream
+   * @return
+   */
+  private def avgServerTimeDelayByUser(stream: Dataset[SparkMessage]): Dataset[Row] = {
+    import stream.sparkSession.implicits._
+
+    val sql1 =
+      """SELECT
+        | user_id, server_time, unix_millis(server_time) - unix_millis(message_time) AS diff_time_ms
+        | FORM input_table
+        |""".stripMargin
+
+    val s = stream.sqlContext.sql(sql1)
+
+    val s2 = s.withWatermark("server_time", "30 seconds")
+      .groupBy(
+        window($"server_time", "1 minute", "30 seconds")
+        , $"user_id" // we grouping via user
+      )
+      .avg("diff_time_ms") // and count number of messages in every minutes in each zone
+      .withColumnRenamed("diff(diff_time_ms)", "avg_diff_time_ms")
+
+    println(s"\n avgServerTimeDelayByUser SCHEMA: \n")
+    s2.printSchema()
+    // window, user_id, avg_diff_time_ms
+
+    s2.createOrReplaceTempView(s"delay_by_user")
+
+    val sqlSplitter =
+      """SELECT
+        | date_format(window.start, 'yyyy-MM-dd HH:mm:ss' ) AS window_start,
+        | date_format(window.end, 'yyyy-MM-dd HH:mm:ss' ) AS window_end,
+        | user_id,
+        | avg_diff_time_ms
+        | FROM delay_by_user
+        |""".stripMargin
+
+    s2.sqlContext.sql( sqlSplitter )
+  }
+
+
+
+
+  /*
+  średnie opóźnienie serwera względem wysłanej wiadomości w ms
+  średnie opóźnienie serwera względem wysłanej wiadomości w ms na zone_id
+
+  wyniki zapisać do
+  1. kafki
+  2. pliku csv
+  3. bazy danych
+   */
+
+  /**
+   *
+   */
+  private def saveStreamToKafka(stream: Dataset[Row], mapper: Row => KafkaOutput, topic: String): Unit = {
+    import stream.sparkSession.implicits._
+    stream
+      .map( mapper )
+      .writeStream
+      .outputMode("append") // append us default mode for kafka output
+      .format("kafka")
+      .option("checkpointLocation", fileStore)
+      .option("kafka.bootstrap.servers", servers)
+      .option("topic", topic)
+      .start()
+      .awaitTermination()
+  }
 
 
   /**
    *
    */
-  private def getNumberOfMessagesPerTime(inputStream: Dataset[RichMessage]): Unit = {
+  private def saveStreamToDatabase(inputStream: Dataset[SparkMessage]): Unit = {
+
+  }
+
+
+  /**
+   *
+   */
+  private def saveStreamToCSV(inputStream: Dataset[SparkMessage]): Unit = {
+
+  }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  /**
+   *
+   */
+  @deprecated
+  private def getNumberOfMessagesPerTime(inputStream: Dataset[SparkMessage]): Unit = {
     import inputStream.sparkSession.implicits._
 
     val numMessagesPerMinutePerZone = inputStream
@@ -318,7 +506,6 @@ object SparkStreamingAnalyser {
 
 
 
-
     // print data to console only appending new data
     // we print each item to console // TODO delete it
     //    outputStream
@@ -387,7 +574,7 @@ object SparkStreamingAnalyser {
   /**
    *
    */
-  private def getAvgNumOfMessInChatPerZonePerWindowTime(inputStream: Dataset[RichMessage]): Unit = {
+  private def getAvgNumOfMessInChatPerZonePerWindowTime(inputStream: Dataset[SparkMessage]): Unit = {
 
     import inputStream.sparkSession.implicits._
 
@@ -476,21 +663,6 @@ object SparkStreamingAnalyser {
       .awaitTermination()
 
 
-
-    // rozseparować wszystko na oddzielne metody,
-    // tak aby każda metoda brała jako swój argument obiekt spark session
-
-    // kożystając z wyżej napisanych części,
-    // napisać stream który robi grupowanie po czasie windowingu, zone_id i chat_id
-    // sumuje ile w danej strefie czasowej w danym czacie było wiadomości i zapisuje to do
-    // oddzielnego topica a następnie inny stream wczytuje te dane i ponownie grupuje
-    // je ale tym razem po windowingu i zone_id i liczy średnią z liczby wiadomości
-    // na czat na każdą strefę czasową.
-
-
-
-
-
     // what implement yet
     // 1. [DONE] ilość wiadomości z danej strefy czasowej w ciągu każdej godziny.
     // 2. średnie opóźnienie czasu servera względem czasu wiadomości ogólnie i względem strefy czasowej
@@ -501,11 +673,18 @@ object SparkStreamingAnalyser {
 
 
 
-
 } // end SparkStreamingAnalyser
 
 
+/*
+// implemented in kafka streams analyser
 
+averageNumberOfWordsInMessageWithin1MinutePerUser
+
+averageNumberOfWordsInMessageWithin1MinutePerZone
+
+averageNumberOfWordsInMessageWithin1MinutePerChat
+ */
 
 
 
