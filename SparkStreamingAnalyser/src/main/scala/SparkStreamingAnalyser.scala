@@ -338,7 +338,8 @@ object SparkStreamingAnalyser {
    */
 
   /**
-   *
+   * This method requires input stream as Dataset[Row] (not Dataset[SparkMessage])
+   * because Kafka can only read string or binary key-value input.
    */
   private def saveStreamToKafka(stream: Dataset[Row], mapper: Row => KafkaOutput, topic: String): Unit = {
     import stream.sparkSession.implicits._
@@ -356,17 +357,37 @@ object SparkStreamingAnalyser {
 
 
   /**
-   *
+   * TODO tutaj jako input stream trzeba dać NIESERIALIZOWANY stream czyli zawierający
+   *  wszyskie
    */
   private def saveStreamToDatabase(stream: Dataset[Row], tableNameToSave: String): Unit = {
-    val connectionProperties = new Properties()
-    connectionProperties.put("user",     dbConfig.user)
-    connectionProperties.put("password", dbConfig.pass)
+    val url = s"${dbConfig.protocol}://${dbConfig.server}:${dbConfig.port}/${dbConfig.schema}"
+    // import stream.sparkSession.implicits._
+    stream
+      .write
+      .format("jdbc")
+      // TODO sprawdzić czy nie trzeba też podać też drivera jako JAR
+      //  przy uruchamianiu kontenera w Dockerfile
+      //  --driver-class-path postgresql-9.4.1207.jar --jars postgresql-9.4.1207.jar
+      // .option("driver", "org.postgresql.Driver")
+      .option("url",      url)
+      .option("dbtable",  tableNameToSave)
+      .option("user",     dbConfig.user)
+      .option("password", dbConfig.pass)
+      .save()
 
-    import stream.sparkSession.implicits._
-    stream.write
-      .option("createTableColumnTypes", "name CHAR(64), comments VARCHAR(1024)") // create new table
-      .jdbc(ERRORR)
+
+
+
+
+//    val connectionProperties = new Properties()
+//    connectionProperties.put("user",     dbConfig.user)
+//    connectionProperties.put("password", dbConfig.pass)
+//
+//
+//    stream.write
+//      .option("createTableColumnTypes", "name CHAR(64), comments VARCHAR(1024)") // create new table
+//      .jdbc(ERRORR)
 
   }
 
@@ -374,8 +395,15 @@ object SparkStreamingAnalyser {
   /**
    *
    */
-  private def saveStreamToCSV(inputStream: Dataset[SparkMessage]): Unit = {
-
+  private def saveStreamToCSV(stream: Dataset[Row], fileName: String): Unit = {
+    stream
+      .writeStream
+      .format("parquet") // can be "orc", "json", "csv", etc.
+      // TODO ustawić jeszcze w applicatio.conf jaki folder ma być współdzielony
+      //  i do niego zapisywać plik csv.
+      .option("path", "path/to/destination/dir")
+      .option("sep", "||")
+      .start()
   }
 
 

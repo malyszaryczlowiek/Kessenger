@@ -65,10 +65,9 @@ CREATE TABLE IF NOT EXISTS logging_attempts (
 -- in db we store truncated hashed password
 INSERT INTO users (user_id, login, pass) VALUES ( 'c8b8c9e6-8cb5-4e5c-86b3-84f55f012172', 'Walo',    '5gK1Ve3u3CosziY2B6ZUi8bffjEigTe'); -- password Password1!  salt: $2a$10$8K1p/a0dL1LXMIgoEDFrwO
 INSERT INTO users (user_id, login, pass) VALUES ( '7246bdb7-d4af-4195-a011-d82b13845580', 'Spejson', 'R0fLJZOJj.79gepc.MnAVSlFpq6cY16'); -- password Password2!
-INSERT INTO settings (user_id, zone_id) VALUES  ( 'c8b8c9e6-8cb5-4e5c-86b3-84f55f012172', 'Europe/Warsaw');
-INSERT INTO settings (user_id, zone_id) VALUES  ( '7246bdb7-d4af-4195-a011-d82b13845580', 'Europe/Warsaw');
+INSERT INTO settings (user_id, zone_id)  VALUES ( 'c8b8c9e6-8cb5-4e5c-86b3-84f55f012172', 'Europe/Warsaw');
+INSERT INTO settings (user_id, zone_id)  VALUES ( '7246bdb7-d4af-4195-a011-d82b13845580', 'Europe/Warsaw');
 
--- salt $2a$10$8K1p/a0dL1LXMIgoEDFrwO
 
 
 -- to check execution open bash in container

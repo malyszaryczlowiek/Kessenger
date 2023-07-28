@@ -23,6 +23,10 @@ lazy val root = (project in file("."))
       "org.apache.kafka"  % "kafka-clients"        % "3.1.0",
       "org.apache.kafka"  % "kafka-streams"        % "3.1.0",
 
+      // for connecting to PostgreSQL db
+      "org.postgresql" % "postgresql" % "42.3.3",
+
+
       // slf4j
       "org.slf4j" % "slf4j-nop" % "2.0.5",
 
