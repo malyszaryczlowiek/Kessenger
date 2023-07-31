@@ -176,6 +176,15 @@ services:
     logging:
       driver: "none"
 
+# opening PgAdmin
+# open localhost:5050
+# add new server:
+  # host: KessengerDB
+  # port: 5432
+  # maintenence schema: kessenger_schema
+  # user: admin
+  # password: passw
+#
 
 
 
@@ -226,6 +235,7 @@ services:
       - my-simple-network
     volumes:
       - ${HOME}/kessenger/prod/logs/sparkanalyser:/opt/kessenger-app/spark-master/logs
+      - ${HOME}/kessenger/prod/analysis/sparkanalyser:/opt/kessenger-app/spark-master/analysis
       # - ${HOME}/kessenger/spark-volumes:/opt/work-dir      # /opt/work-dir is ${SPARK_HOME}
 
 

@@ -10,9 +10,11 @@ import kessengerlibrary.serdes.postanalysis.windowed.avgserverdelaybyuser.Window
 
 import org.apache.spark.sql.Row
 
+import java.math.MathContext
 import java.sql.Timestamp
 import java.time.{Instant, ZoneId}
 import java.util.UUID
+import scala.math.BigDecimal.RoundingMode
 
 object Mappers {
 
@@ -62,11 +64,12 @@ object Mappers {
 
 
   def avgDelayByUserToKafkaMapper: Row => KafkaOutput = (r: Row) => {
+    val avg = BigDecimal.decimal( r.getAs[Double]("avg_diff_time_ms") ).setScale(0, RoundingMode.HALF_UP).toLong
     val w = WindowedAvgServerDelayByUser(
       r.getAs[Timestamp]("window_start"),
       r.getAs[Timestamp]("window_end"),
       UUID.fromString( r.getAs[String]("user_id") ),
-      r.getAs[Long]("avg_diff_time_ms")
+      avg
     )
     val serializer = new WindowedAvgServerDelayByUserSerializer
     val serialized = serializer.serialize("", w)

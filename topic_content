@@ -1,0 +1,3 @@
+#!/bin/zsh
+
+docker exec -ti kafka1 /opt/bitnami/kafka/bin/kafka-console-consumer.sh --topic $1 --from-beginning --bootstrap-server localhost:9092

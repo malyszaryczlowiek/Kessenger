@@ -70,6 +70,22 @@ INSERT INTO settings (user_id, zone_id)  VALUES ( '7246bdb7-d4af-4195-a011-d82b1
 
 
 
+
+
+-- tables for analysis
+
+
+CREATE TABLE IF NOT EXISTS avg_server_delay_by_user (
+  window_start timestamp NOT NULL,
+  window_end timestamp NOT NULL,
+  user_id varchar(255) NOT NULL,
+  delay_by_user BIGINT NOT NULL
+);
+
+
+
+
+
 -- to check execution open bash in container
 -- docker exec -it KessengerDB /bin/bash
 

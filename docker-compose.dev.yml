@@ -180,4 +180,21 @@ services:
     volumes:
       #- ${HOME}/kessenger/dev/logs/sparkanalyser:/var/logs
       - ${HOME}/kessenger/dev/logs/sparkanalyser:/opt/kessenger-app/spark-master/logs
+      - ${HOME}/kessenger/prod/analysis/sparkanalyser:/opt/kessenger-app/spark-master/analysis
       # /opt/work-dir is ${SPARK_HOME}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

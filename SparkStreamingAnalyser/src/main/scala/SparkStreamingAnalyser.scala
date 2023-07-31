@@ -5,57 +5,34 @@ import org.apache.logging.log4j.Logger
 import org.apache.spark.sql.{Dataset, Row, SparkSession}
 import org.apache.spark.sql.functions.{avg, count, window}
 import org.apache.kafka.common.config.TopicConfig
-
 import util.AppConfig._
 import util.KafkaOutput
 import util.Mappers._
-
-
-import kessengerlibrary.model.{Message, MessagesPerZone, SparkMessage}
-import kessengerlibrary.serdes.message.MessageDeserializer
+import kessengerlibrary.model.{MessagesPerZone, SparkMessage}
 import kessengerlibrary.kafka
 import kessengerlibrary.kafka.{Done, TopicCreator, TopicSetup}
 import kessengerlibrary.serdes.messagesperzone.MessagesPerZoneSerializer
 
-import com.typesafe.config.{Config, ConfigFactory}
-
-import java.sql.Timestamp
-import java.time.Instant
-import java.util.Properties
-
-
+import org.apache.spark.sql.streaming.Trigger.ProcessingTime
 
 
 class  SparkStreamingAnalyser
+
+// error
+// TODO sprawić by aplikacja próbowała pobrać od razu 15 ostatnich wiadomości a nie 5
 
 object SparkStreamingAnalyser {
 
 
   private val logger: Logger = LogManager.getLogger(classOf[SparkStreamingAnalyser])
-
   logger.trace(s"SparkStreamingAnalyser application starting.")
-
-
-
-
-  // topic names
-//  private val outputTopicName     = s"analysis--num-of-messages-per-1min-per-zone"
-//  private val testTopicName       = s"tests--$outputTopicName"
-//  private val averageNumTopicName = s"analysis--avg-num-of-messages-in-chat-per-1min-per-zone"
-
-  private val allChatsRegex       = "chat--([\\p{Alnum}-]*)"
-
-
 
   private val topicConfig = Map(
     TopicConfig.CLEANUP_POLICY_CONFIG -> TopicConfig.CLEANUP_POLICY_DELETE,
     TopicConfig.RETENTION_MS_CONFIG   -> "-1" // keep all logs forever
   )
 
-
-  // private val servers   = config.getString(s"kafka-servers")
-  // private val fileStore = config.getString(s"file-store")
-
+  private val allChatsRegex        = "chat--([\\p{Alnum}-]*)"
   private val avgServerDelay       = s"avg-server-delay"
   private val avgServerDelayByUser = s"avg-server-delay-by-user"
   private val avgServerDelayByZone = s"avg-server-delay-by-zone"
@@ -150,8 +127,17 @@ object SparkStreamingAnalyser {
    */
   private def startAnalysing(): Unit = {
     val inputStream: Dataset[SparkMessage] = readAndDeserializeAllChatsData( prepareSparkSession )
-    val byUser = avgServerTimeDelayByUser( inputStream )
-    saveStreamToKafka( byUser, avgDelayByUserToKafkaMapper, avgServerDelayByUser)
+    val avgServerDelayByUserStream = avgServerTimeDelayByUser( inputStream )
+
+    // printing schema of output stream
+    println(s"\n avgServerTimeDelayByUser SCHEMA: \n")
+    avgServerDelayByUserStream.printSchema()
+
+
+
+    // save data to proper sinks
+    saveStreamToKafka( avgServerDelayByUserStream, avgDelayByUserToKafkaMapper, avgServerDelayByUser)
+    saveStreamToDatabase(   avgServerDelayByUserStream, "server-delay-by-user")
 
     //getNumberOfMessagesPerTime( inputStream )
     // getAvgNumOfMessInChatPerZonePerWindowTime( inputStream )
@@ -207,7 +193,7 @@ object SparkStreamingAnalyser {
     val sql1 =
       """SELECT
         | server_time, unix_millis(server_time) - unix_millis(message_time) AS diff_time_ms
-        | FORM input_table
+        | FROM input_table
         |""".stripMargin
 
     val s = stream.sqlContext.sql( sql1 )
@@ -215,7 +201,7 @@ object SparkStreamingAnalyser {
     val s2 = s.withWatermark("server_time", "30 seconds")
       .groupBy( window($"server_time", "1 minute", "30 seconds") )
       .avg("diff_time_ms") // and count number of messages in every minutes in each zone
-      .withColumnRenamed("diff(diff_time_ms)", "avg_diff_time_ms")
+      .withColumnRenamed("avg(diff_time_ms)", "avg_diff_time_ms")
 
     println(s"\n avgServerTimeDelay SCHEMA: \n")
     s2.printSchema()
@@ -249,7 +235,7 @@ object SparkStreamingAnalyser {
     val sql1 =
       """SELECT
         | zone_id, server_time, unix_millis(server_time) - unix_millis(message_time) AS diff_time_ms
-        | FORM input_table
+        | FROM input_table
         |""".stripMargin
 
     val s = stream.sqlContext.sql(sql1)
@@ -260,7 +246,7 @@ object SparkStreamingAnalyser {
         , $"zone_id" // we grouping via zone
       )
       .avg("diff_time_ms") // and count number of messages in every minutes in each zone
-      .withColumnRenamed("diff(diff_time_ms)", "avg_diff_time_ms")
+      .withColumnRenamed("avg(diff_time_ms)", "avg_diff_time_ms")
 
     println(s"\n avgServerTimeDelayByZone SCHEMA: \n")
     s2.printSchema()
@@ -293,7 +279,7 @@ object SparkStreamingAnalyser {
     val sql1 =
       """SELECT
         | user_id, server_time, unix_millis(server_time) - unix_millis(message_time) AS diff_time_ms
-        | FORM input_table
+        | FROM input_table
         |""".stripMargin
 
     val s = stream.sqlContext.sql(sql1)
@@ -304,22 +290,25 @@ object SparkStreamingAnalyser {
         , $"user_id" // we grouping via user
       )
       .avg("diff_time_ms") // and count number of messages in every minutes in each zone
-      .withColumnRenamed("diff(diff_time_ms)", "avg_diff_time_ms")
-
-    println(s"\n avgServerTimeDelayByUser SCHEMA: \n")
-    s2.printSchema()
-    // window, user_id, avg_diff_time_ms
+      .withColumnRenamed("avg(diff_time_ms)", "avg_diff_time_ms")
 
     s2.createOrReplaceTempView(s"delay_by_user")
 
+
+    /*
+    date_format() - zwraca string, stąd error
+    | date_format(window.start, 'yyyy-MM-dd HH:mm:ss' ) AS window_start,
+    | date_format(window.end, 'yyyy-MM-dd HH:mm:ss' ) AS window_end,
+     */
     val sqlSplitter =
       """SELECT
-        | date_format(window.start, 'yyyy-MM-dd HH:mm:ss' ) AS window_start,
-        | date_format(window.end, 'yyyy-MM-dd HH:mm:ss' ) AS window_end,
+        | window.start AS window_start,
+        | window.end   AS window_end,
         | user_id,
         | avg_diff_time_ms
         | FROM delay_by_user
         |""".stripMargin
+        // java_method('java.util.UUID', 'fromString', user_id) TODO zamienić na tę metodę jak będę chciał uuid zamiast string
 
     s2.sqlContext.sql( sqlSplitter )
   }
@@ -360,7 +349,7 @@ object SparkStreamingAnalyser {
    * TODO tutaj jako input stream trzeba dać NIESERIALIZOWANY stream czyli zawierający
    *  wszyskie
    */
-  private def saveStreamToDatabase(stream: Dataset[Row], tableNameToSave: String): Unit = {
+  private def saveStreamToDatabase(stream: Dataset[Row], saveToTable: String): Unit = {
     val url = s"${dbConfig.protocol}://${dbConfig.server}:${dbConfig.port}/${dbConfig.schema}"
     // import stream.sparkSession.implicits._
     stream
@@ -369,40 +358,40 @@ object SparkStreamingAnalyser {
       // TODO sprawdzić czy nie trzeba też podać też drivera jako JAR
       //  przy uruchamianiu kontenera w Dockerfile
       //  --driver-class-path postgresql-9.4.1207.jar --jars postgresql-9.4.1207.jar
-      // .option("driver", "org.postgresql.Driver")
+      .option("driver",  "org.postgresql.Driver")
       .option("url",      url)
-      .option("dbtable",  tableNameToSave)
+      .option("dbtable",  saveToTable)
       .option("user",     dbConfig.user)
       .option("password", dbConfig.pass)
       .save()
-
-
-
-
-
-//    val connectionProperties = new Properties()
-//    connectionProperties.put("user",     dbConfig.user)
-//    connectionProperties.put("password", dbConfig.pass)
-//
-//
-//    stream.write
-//      .option("createTableColumnTypes", "name CHAR(64), comments VARCHAR(1024)") // create new table
-//      .jdbc(ERRORR)
-
   }
+
+  //    val connectionProperties = new Properties()
+  //    connectionProperties.put("user",     dbConfig.user)
+  //    connectionProperties.put("password", dbConfig.pass)
+  //
+  //
+  //    stream.write
+  //      .option("createTableColumnTypes", "name CHAR(64), comments VARCHAR(1024)") // create new table
+  //      .jdbc(ERRORR)
+
+
 
 
   /**
    *
    */
-  private def saveStreamToCSV(stream: Dataset[Row], fileName: String): Unit = {
+  private def saveStreamToCSV(stream: Dataset[Row], subFolder: String): Unit = {
+    // filename
     stream
       .writeStream
-      .format("parquet") // can be "orc", "json", "csv", etc.
-      // TODO ustawić jeszcze w applicatio.conf jaki folder ma być współdzielony
-      //  i do niego zapisywać plik csv.
-      .option("path", "path/to/destination/dir")
-      .option("sep", "||")
+      .format("csv") // can be "orc", "json", "csv", etc.
+      .option("header",   "true")
+      .option("encoding", "UTF-8")
+      .option("path",     s"$analysisDir/$subFolder")
+      .option("sep",      "||")
+      .trigger(ProcessingTime( "10 seconds"))
+      .outputMode("append")
       .start()
   }
 
@@ -432,6 +421,21 @@ object SparkStreamingAnalyser {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+  // topic names
+  //  private val outputTopicName     = s"analysis--num-of-messages-per-1min-per-zone"
+  //  private val testTopicName       = s"tests--$outputTopicName"
+  //  private val averageNumTopicName = s"analysis--avg-num-of-messages-in-chat-per-1min-per-zone"
 
 
 
@@ -599,6 +603,7 @@ object SparkStreamingAnalyser {
   /**
    *
    */
+  @deprecated
   private def getAvgNumOfMessInChatPerZonePerWindowTime(inputStream: Dataset[SparkMessage]): Unit = {
 
     import inputStream.sparkSession.implicits._
@@ -616,16 +621,7 @@ object SparkStreamingAnalyser {
       |""".stripMargin
 
 
-
-
-
-
-
-
-
     // now implement point 3
-
-
 
     /*
       Here we count average number of massages in each chat per window time and zone_id
@@ -681,8 +677,8 @@ object SparkStreamingAnalyser {
     averageMessageNumberPerTimeAndPerZoneOutputStream
       .outputMode("append")   // append us default mode for kafka output
       .format("kafka")
-      .option("checkpointLocation",      fileStore )
-      .option("kafka.bootstrap.servers", servers ) //
+      .option("checkpointLocation",      kafkaConfig.fileStore )
+      .option("kafka.bootstrap.servers", kafkaConfig.servers ) //
       .option("topic",                   "foo") // todo this topic does not exist
       .start()
       .awaitTermination()

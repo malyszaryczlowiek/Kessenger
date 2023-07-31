@@ -31,7 +31,7 @@ object AppConfig {
   }
 
   // "jdbc:postgresql://localhost:5438/kessenger_schema"
-  private case class DbConfig(protocol: String, server: String, port: Int, schema: String, user: String, pass: String)
+  case class DbConfig(protocol: String, server: String, port: Int, schema: String, user: String, pass: String)
 
   val dbConfig: DbConfig = DbConfig(
     config.getString(s"db.protocol"),
@@ -42,7 +42,7 @@ object AppConfig {
     config.getString(s"db.pass")
   )
 
-  private case class KafkaConfig(servers: String, fileStore: String, partitionNum: Int, replicationFactor: Short)
+  case class KafkaConfig(servers: String, fileStore: String, partitionNum: Int, replicationFactor: Short)
 
   val kafkaConfig: KafkaConfig = KafkaConfig(
     config.getString(s"kafka-servers"),
@@ -50,6 +50,8 @@ object AppConfig {
     config.getInt("topic-partition-num"),
     config.getInt("topic-replication-factor").toShort
   )
+
+  val analysisDir: String = config.getString("output-analysis-dir")
 
 
 }

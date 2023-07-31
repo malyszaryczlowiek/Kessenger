@@ -1,7 +1,9 @@
 package io.github.malyszaryczlowiek
 
+import java.math.MathContext
 import java.sql.Timestamp
-import java.time. LocalDateTime
+import java.time.LocalDateTime
+import scala.math.BigDecimal.RoundingMode
 
 class Tests extends munit.FunSuite {
 
@@ -11,4 +13,11 @@ class Tests extends munit.FunSuite {
     assert( t.equals(newT) )
   }
 
+
+  test("testing conversion") {
+    val big = BigDecimal.decimal(1234.5678).setScale(0, RoundingMode.HALF_UP)
+    val avg = big.toLong
+    println(s"$avg")
+
+  }
 }
