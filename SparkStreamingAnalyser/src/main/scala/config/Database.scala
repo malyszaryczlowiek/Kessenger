@@ -31,9 +31,8 @@ object Database {
   }
 
 
-  def isConnected(): Boolean = {
-    connection.isValid(10)
-  }
+  def isConnected: Boolean = connection.isValid(10)
+
 
 
   Runtime.getRuntime.addShutdownHook(new Thread("database_closing_thread") {

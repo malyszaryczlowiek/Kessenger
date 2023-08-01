@@ -6,20 +6,23 @@ import org.apache.spark.sql.Row
 import java.sql.{Connection, PreparedStatement}
 import scala.util.{Failure, Success, Using}
 
-trait DatabaseSaver {
+abstract class DatabaseSaver(table: DbTable) extends Serializable {
 
-  protected def table: DbTable
 
   def createTable(implicit connection: Connection) : Int = {
+    println(s"########## Tworzenie tabeli: ${table.tableName}")
     val sql = s"CREATE TABLE IF NOT EXISTS ${table.tableName} ${table.getTableColumnsWithTypes} "
     Using(connection.prepareStatement(sql)) {
       (statement: PreparedStatement) => statement.executeUpdate()
     } match {
-      case Failure(exception) => 0
-      case Success(value) => value
+      case Failure(ex) =>
+        println(s"########## Tworzenie tabeli: ERROR:\n${ex.getMessage}")
+        0
+      case Success(v ) =>
+        println(s"########## Tworzenie tabeli: OK")
+        v
     }
   }
-
 
 
 

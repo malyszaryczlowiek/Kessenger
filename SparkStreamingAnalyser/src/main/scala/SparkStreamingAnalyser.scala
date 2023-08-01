@@ -2,21 +2,28 @@ package io.github.malyszaryczlowiek
 
 import org.apache.logging.log4j.LogManager
 import org.apache.logging.log4j.Logger
+import org.apache.kafka.common.config.TopicConfig
 import org.apache.spark.sql.{Dataset, ForeachWriter, Row, SparkSession}
 import org.apache.spark.sql.functions.{avg, count, window}
-import org.apache.kafka.common.config.TopicConfig
-import config.AppConfig._
+import org.apache.spark.sql.streaming.Trigger
+import org.apache.spark.sql.streaming.Trigger.ProcessingTime
 
-import io.github.malyszaryczlowiek.mappers.KafkaMappers._
+
+import config.AppConfig._
+import db.savers.AvgServerDelayByUserDatabaseSaver
+import db.DbTable
+import mappers.KafkaMappers._
+import output.KafkaOutput
 import parsers.RowParser.kafkaInputRowParser
+import writers.PostgresWriter
+
+
 import kessengerlibrary.model.{MessagesPerZone, SparkMessage}
 import kessengerlibrary.kafka
 import kessengerlibrary.kafka.{Done, TopicCreator, TopicSetup}
 import kessengerlibrary.serdes.messagesperzone.MessagesPerZoneSerializer
 
-import io.github.malyszaryczlowiek.output.KafkaOutput
-import org.apache.spark.sql.streaming.Trigger
-import org.apache.spark.sql.streaming.Trigger.ProcessingTime
+
 
 
 class  SparkStreamingAnalyser
@@ -36,9 +43,32 @@ object SparkStreamingAnalyser {
   )
 
   private val allChatsRegex        = "chat--([\\p{Alnum}-]*)"
-  private val avgServerDelay       = s"avg-server-delay"
-  private val avgServerDelayByUser = s"avg-server-delay-by-user"
-  private val avgServerDelayByZone = s"avg-server-delay-by-zone"
+
+  private val avgServerDelay       = DbTable("avg_server_delay",
+    Map(
+      "window_start" -> "timestamp",
+      "window_end"   -> "timestamp",
+      "delay"        -> "BIGINT",
+    )
+  )
+
+  private val avgServerDelayByUser = DbTable("avg_server_delay_by_user",
+    Map(
+      "window_start"  -> "timestamp",
+      "window_end"    -> "timestamp",
+      "user_id"       -> "uuid",
+      "delay_by_user" -> "BIGINT",
+    )
+  )
+
+  private val avgServerDelayByZone = DbTable(s"avg-server-delay-by-zone",
+    Map(
+      "window_start"  -> "timestamp",
+      "window_end"    -> "timestamp",
+      "zone_id"       -> "varchar(255)",
+      "delay_by_user" -> "BIGINT",
+    )
+  )
 
 
 
@@ -57,35 +87,35 @@ object SparkStreamingAnalyser {
     // In first step we create topic for spark analysis output
 
     val avgServerDelayTopic =
-      TopicSetup(avgServerDelay, kafkaConfig.servers, kafkaConfig.partitionNum, kafkaConfig.replicationFactor, topicConfig)
+      TopicSetup(avgServerDelay.tableName,       kafkaConfig.servers, kafkaConfig.partitionNum, kafkaConfig.replicationFactor, topicConfig)
 
     val avgServerDelayByUserTopic =
-      TopicSetup(avgServerDelayByUser, kafkaConfig.servers, kafkaConfig.partitionNum, kafkaConfig.replicationFactor, topicConfig)
+      TopicSetup(avgServerDelayByUser.tableName, kafkaConfig.servers, kafkaConfig.partitionNum, kafkaConfig.replicationFactor, topicConfig)
 
     val avgServerDelayByZoneTopic =
-      TopicSetup(avgServerDelayByZone, kafkaConfig.servers, kafkaConfig.partitionNum, kafkaConfig.replicationFactor, topicConfig)
+      TopicSetup(avgServerDelayByZone.tableName, kafkaConfig.servers, kafkaConfig.partitionNum, kafkaConfig.replicationFactor, topicConfig)
 
 
     TopicCreator.createTopic(avgServerDelayTopic) match {
       case Done =>
-        logger.info(s"Topic '$avgServerDelay' created")
+        logger.info(s"Topic '${avgServerDelay.tableName}' created")
       case kafka.Error(error) =>
-        logger.error(s"Creation topic '$avgServerDelay' failed with error: $error")
+        logger.error(s"Creation topic '${avgServerDelay.tableName}' failed with error: $error")
     }
 
     TopicCreator.createTopic( avgServerDelayByUserTopic ) match {
       case Done =>
-        logger.info(s"Topic '$avgServerDelayByUser' created")
+        logger.info(s"Topic '${avgServerDelayByUser.tableName}' created")
       case kafka.Error(error) =>
-        logger.error(s"Creation topic '$avgServerDelayByUser' failed with error: $error")
+        logger.error(s"Creation topic '${avgServerDelayByUser.tableName}' failed with error: $error")
     }
 
 
     TopicCreator.createTopic( avgServerDelayByZoneTopic ) match {
       case Done =>
-        logger.info(s"Topic '$avgServerDelayByZone' created")
+        logger.info(s"Topic '${avgServerDelayByZone.tableName}' created")
       case kafka.Error(error) =>
-        logger.error(s"Creation topic '$avgServerDelayByZone' failed with error: $error")
+        logger.error(s"Creation topic '${avgServerDelayByZone.tableName}' failed with error: $error")
     }
   }
 
@@ -139,8 +169,8 @@ object SparkStreamingAnalyser {
 
 
     // save data to proper sinks
-    saveStreamToKafka( avgServerDelayByUserStream, avgDelayByUserToKafkaMapper, avgServerDelayByUser)
-    saveStreamToDatabase(   avgServerDelayByUserStream, "server-delay-by-user")
+    // saveStreamToKafka( avgServerDelayByUserStream, avgDelayByUserToKafkaMapper, avgServerDelayByUser.tableName)
+    saveStreamToDatabase( avgServerDelayByUserStream, new PostgresWriter(new AvgServerDelayByUserDatabaseSaver(avgServerDelayByUser) ))
 
     //getNumberOfMessagesPerTime( inputStream )
     // getAvgNumOfMessInChatPerZonePerWindowTime( inputStream )
@@ -353,8 +383,6 @@ object SparkStreamingAnalyser {
    *  wszyskie
    */
   private def saveStreamToDatabase(stream: Dataset[Row], writer: ForeachWriter[Row]): Unit = {
-    // import stream.sparkSession.implicits._
-
     stream.writeStream
       .foreach( writer )
       .trigger(Trigger.ProcessingTime("5 seconds"))
@@ -363,6 +391,8 @@ object SparkStreamingAnalyser {
       .awaitTermination()
 
   }
+
+
 
 //  stream
 //    .write
