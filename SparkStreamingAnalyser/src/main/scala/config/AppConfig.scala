@@ -1,5 +1,5 @@
 package io.github.malyszaryczlowiek
-package util
+package config
 
 
 import org.apache.logging.log4j.LogManager
@@ -31,15 +31,17 @@ object AppConfig {
   }
 
   // "jdbc:postgresql://localhost:5438/kessenger_schema"
-  case class DbConfig(protocol: String, server: String, port: Int, schema: String, user: String, pass: String)
+  case class DbConfig(driver: String, protocol: String, server: String, port: Int, schema: String, user: String, pass: String, dbUrlWithSchema: String )
 
   val dbConfig: DbConfig = DbConfig(
+    config.getString(s"db.driver"),
     config.getString(s"db.protocol"),
     config.getString(s"db.server"),
     config.getInt(s"db.port"),
     config.getString(s"db.schema"),
     config.getString(s"db.user"),
-    config.getString(s"db.pass")
+    config.getString(s"db.pass"),
+    s"${config.getString(s"db.protocol")}://${config.getString(s"db.server")}:${config.getInt(s"db.port")}/${config.getString(s"db.schema")}"
   )
 
   case class KafkaConfig(servers: String, fileStore: String, partitionNum: Int, replicationFactor: Short)

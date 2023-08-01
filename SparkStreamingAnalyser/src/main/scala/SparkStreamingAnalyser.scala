@@ -2,17 +2,20 @@ package io.github.malyszaryczlowiek
 
 import org.apache.logging.log4j.LogManager
 import org.apache.logging.log4j.Logger
-import org.apache.spark.sql.{Dataset, Row, SparkSession}
+import org.apache.spark.sql.{Dataset, ForeachWriter, Row, SparkSession}
 import org.apache.spark.sql.functions.{avg, count, window}
 import org.apache.kafka.common.config.TopicConfig
-import util.AppConfig._
-import util.KafkaOutput
-import util.Mappers._
+import config.AppConfig._
+
+import io.github.malyszaryczlowiek.mappers.KafkaMappers._
+import parsers.RowParser.kafkaInputRowParser
 import kessengerlibrary.model.{MessagesPerZone, SparkMessage}
 import kessengerlibrary.kafka
 import kessengerlibrary.kafka.{Done, TopicCreator, TopicSetup}
 import kessengerlibrary.serdes.messagesperzone.MessagesPerZoneSerializer
 
+import io.github.malyszaryczlowiek.output.KafkaOutput
+import org.apache.spark.sql.streaming.Trigger
 import org.apache.spark.sql.streaming.Trigger.ProcessingTime
 
 
@@ -160,7 +163,7 @@ object SparkStreamingAnalyser {
     // for implicit encoder for case classes
     import sparkSession.implicits._
 
-    val inputStream = df.map( fromKafkaMapper )
+    val inputStream = df.map( kafkaInputRowParser )
 
     println(s"\n### INITIAL SCHEMA: ###\n")  // todo DELETE for testing
     inputStream.printSchema()
@@ -349,22 +352,30 @@ object SparkStreamingAnalyser {
    * TODO tutaj jako input stream trzeba dać NIESERIALIZOWANY stream czyli zawierający
    *  wszyskie
    */
-  private def saveStreamToDatabase(stream: Dataset[Row], saveToTable: String): Unit = {
-    val url = s"${dbConfig.protocol}://${dbConfig.server}:${dbConfig.port}/${dbConfig.schema}"
+  private def saveStreamToDatabase(stream: Dataset[Row], writer: ForeachWriter[Row]): Unit = {
     // import stream.sparkSession.implicits._
-    stream
-      .write
-      .format("jdbc")
-      // TODO sprawdzić czy nie trzeba też podać też drivera jako JAR
-      //  przy uruchamianiu kontenera w Dockerfile
-      //  --driver-class-path postgresql-9.4.1207.jar --jars postgresql-9.4.1207.jar
-      .option("driver",  "org.postgresql.Driver")
-      .option("url",      url)
-      .option("dbtable",  saveToTable)
-      .option("user",     dbConfig.user)
-      .option("password", dbConfig.pass)
-      .save()
+
+    stream.writeStream
+      .foreach( writer )
+      .trigger(Trigger.ProcessingTime("5 seconds"))
+      .outputMode("append")
+      .start()
+      .awaitTermination()
+
   }
+
+//  stream
+//    .write
+//    .format("jdbc")
+//    // TODO sprawdzić czy nie trzeba też podać też drivera jako JAR
+//    //  przy uruchamianiu kontenera w Dockerfile
+//    //  --driver-class-path postgresql-9.4.1207.jar --jars postgresql-9.4.1207.jar
+//    .option("driver", "org.postgresql.Driver")
+//    .option("url", dbConfig.dbUrlWithSchema)
+//    .option("dbtable", saveToTable)
+//    .option("user", dbConfig.user)
+//    .option("password", dbConfig.pass)
+//    .save()
 
   //    val connectionProperties = new Properties()
   //    connectionProperties.put("user",     dbConfig.user)

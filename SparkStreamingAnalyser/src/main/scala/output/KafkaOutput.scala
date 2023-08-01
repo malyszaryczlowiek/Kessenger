@@ -1,9 +1,5 @@
 package io.github.malyszaryczlowiek
-package util
-
-import org.apache.spark.sql.{Encoder, Encoders}
-import org.apache.spark.sql.Encoders._
-import org.apache.spark.sql.catalyst.encoders.{ExpressionEncoder, encoderFor}
+package output
 
 // import scala.language.implicitConversions
 
