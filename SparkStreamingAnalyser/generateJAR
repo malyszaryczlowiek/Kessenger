@@ -1,5 +1,4 @@
 #!/bin/zsh
-cd SparkStreamingAnalyser
 sbt assembly
+# we need add application.conf file to jar manually
 jar -uf ./target/scala-2.12/SparkStreamingAnalyser-0.1.0.jar application.conf
-cd ..

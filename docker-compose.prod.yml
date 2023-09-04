@@ -1,8 +1,10 @@
 version: "3.9"
 
 networks:
-  my-simple-network:
+  kessenger-network:
     driver: bridge
+    name: kessenger-network
+
 
 services:
   # https://hub.docker.com/_/zookeeper
@@ -14,8 +16,9 @@ services:
     ports:
       - "2181:2181"
     networks:
-      - my-simple-network
+      - kessenger-network
     restart: always
+
 
 
   # https://hub.docker.com/r/bitnami/kafka
@@ -39,9 +42,10 @@ services:
       - zookeeper
     restart: always
     networks:
-      - my-simple-network
+      - kessenger-network
 #    volumes:
 #      - ./kafka-broker/kafka-volume:/bitnami/kafka
+
 
 
   kafka2:
@@ -62,7 +66,8 @@ services:
       - zookeeper
     restart: always
     networks:
-      - my-simple-network
+      - kessenger-network
+
 
 
   kafka3:
@@ -83,7 +88,8 @@ services:
       - zookeeper
     restart: always
     networks:
-      - my-simple-network
+      - kessenger-network
+
 
 
   db:
@@ -96,9 +102,10 @@ services:
       POSTGRES_PASSWORD: passw
       POSTGRES_DB: kessenger_schema
     networks:
-      - my-simple-network
+      - kessenger-network
     ports:
       - '5438:5432'
+
 
 
   play-app-1:
@@ -112,9 +119,10 @@ services:
     ports:
       - '9000:9000'
     networks:
-      - my-simple-network
+      - kessenger-network
     volumes:
       - ${HOME}/kessenger/prod/logs/backend_1:/var/logs
+
 
 
   play-app-2:
@@ -128,7 +136,7 @@ services:
     ports:
       - '9001:9000'
     networks:
-      - my-simple-network
+      - kessenger-network
     volumes:
       - ${HOME}/kessenger/prod/logs/backend_2:/var/logs
 
@@ -156,7 +164,7 @@ services:
     ports:
       - '4200:4200'
     networks:
-      - my-simple-network
+      - kessenger-network
 
 
 
@@ -171,7 +179,7 @@ services:
     ports:
       - "5050:80"
     networks:
-      - my-simple-network
+      - kessenger-network
     restart: unless-stopped
     logging:
       driver: "none"
@@ -200,22 +208,21 @@ services:
       - kafka3
     restart: always
     networks:
-      - my-simple-network
+      - kessenger-network
     environment:
       - KAFKA_STREAMS_ENV=PROD
     volumes:
       - ${HOME}/kessenger/prod/logs/kafkastreaming:/opt/kessenger-app/kafka-streams/logs
 
 
+
   # spark cluster
 
   spark-master:
     container_name: spark-master
-    # image: bitnami/spark:3.3.0
-#    build: ./SparkMaster
-    build: #./SparkStreamingAnalyser/conf/prod
-      context: ./SparkStreamingAnalyser
-      dockerfile: ./prod.dockerfile
+    build:
+      context: ./spark-cluster
+      dockerfile: ./master.dockerfile
     depends_on:
       - kafka1
       - kafka2
@@ -232,7 +239,7 @@ services:
       - '8082:8080'
       - '7077:7077'
     networks:
-      - my-simple-network
+      - kessenger-network
     volumes:
       - ${HOME}/kessenger/prod/logs/sparkanalyser:/opt/kessenger-app/spark-master/logs
       - ${HOME}/kessenger/prod/analysis/sparkanalyser:/opt/kessenger-app/spark-master/analysis
@@ -240,79 +247,54 @@ services:
 
 
 
-#  spark-worker-1:
-#    container_name: spark-worker-1
-#    build: ./SparkStreamingAnalyser
-#    depends_on:
-#      - spark-master
-#    environment:
-#      - SPARK_MODE=worker
-#      - SPARK_MASTER_URL=spark://spark-master:7077
-#      - SPARK_WORKER_MEMORY=20G
-#      - SPARK_WORKER_CORES=6
-#      - SPARK_DRIVER_MEMORY=18G #128m
-#      - SPARK_EXECUTOR_MEMORY=19G #256m
-##      - SPARK_RPC_AUTHENTICATION_ENABLED=no
-##      - SPARK_RPC_ENCRYPTION_ENABLED=no
-##      - SPARK_LOCAL_STORAGE_ENCRYPTION_ENABLED=no
-##      - SPARK_SSL_ENABLED=no
-#    networks:
-#      - my-simple-network
-#    ports:
-#      - '8083:8080'
-#      - '7078:7077'
+  spark-worker-1:
+    container_name: spark-worker-1
+    build:
+      context: ./spark-cluster
+      dockerfile: ./worker.dockerfile
+    depends_on:
+      - spark-master
+    environment:
+      - SPARK_MODE=worker
+      - SPARK_MASTER_URL=spark://spark-master:7077
+      - SPARK_WORKER_MEMORY=1G
+      - SPARK_WORKER_CORES=2
+      - SPARK_RPC_AUTHENTICATION_ENABLED=no
+      - SPARK_RPC_ENCRYPTION_ENABLED=no
+      - SPARK_LOCAL_STORAGE_ENCRYPTION_ENABLED=no
+      - SPARK_SSL_ENABLED=no
+    networks:
+      - kessenger-network
+    ports:
+      - '8083:8080'
+      - '7078:7077'
 #    volumes:
 #      - ${HOME}/kessenger/spark-volumes:/opt/work-dir      #${SPARK_HOME}
 
 
 
 
-#  spark-worker-2:
-#    container_name: spark-worker-2
-#    image: bitnami/spark:3.3.0
-#    # build: ./SparkStreamingAnalyser
-#    depends_on:
-#      - spark-master
-#    environment:
-##      - SPARK_MODE=worker
-##      - SPARK_MASTER_URL=spark://spark-master:7077
-##      - SPARK_WORKER_MEMORY=1G
-##      - SPARK_WORKER_CORES=1
-#      - SPARK_DRIVER_MEMORY=128m
-#      - SPARK_EXECUTOR_MEMORY=256m
-#    #      - SPARK_RPC_AUTHENTICATION_ENABLED=no
-#    #      - SPARK_RPC_ENCRYPTION_ENABLED=no
-#    #      - SPARK_LOCAL_STORAGE_ENCRYPTION_ENABLED=no
-#    #      - SPARK_SSL_ENABLED=no
-#    networks:
-#      - my-simple-network
-#    ports:
-#      - '8084:8080'
-#      - '7079:7077'
+  spark-worker-2:
+    container_name: spark-worker-2
+    build:
+      context: ./spark-cluster
+      dockerfile: ./worker.dockerfile
+    depends_on:
+      - spark-master
+    environment:
+      - SPARK_MODE=worker
+      - SPARK_MASTER_URL=spark://spark-master:7077
+      - SPARK_WORKER_MEMORY=1G
+      - SPARK_WORKER_CORES=2
+      - SPARK_RPC_AUTHENTICATION_ENABLED=no
+      - SPARK_RPC_ENCRYPTION_ENABLED=no
+      - SPARK_LOCAL_STORAGE_ENCRYPTION_ENABLED=no
+      - SPARK_SSL_ENABLED=no
+    networks:
+      - kessenger-network
+    ports:
+      - '8084:8080'
+      - '7079:7077'
 #    volumes:
 #      - ${HOME}/kessenger/spark-volumes:/opt/work-dir      #${SPARK_HOME}
 
-
-
-#  spark-worker-2:
-#    container_name: spark-worker-2
-#    build: ./SparkStreamingAnalyser
-##    image: bitnami/spark:3.2.1 # build: ./SparkStreamingAnalyser # note this worker do not submit application
-#    depends_on:
-#      - spark-master
-#    environment:
-#      - SPARK_MODE=worker
-#      - SPARK_MASTER_URL=spark://spark-master:7077
-#      - SPARK_WORKER_MEMORY=5G
-#      - SPARK_WORKER_CORES=2
-#      - SPARK_RPC_AUTHENTICATION_ENABLED=no
-#      - SPARK_RPC_ENCRYPTION_ENABLED=no
-#      - SPARK_LOCAL_STORAGE_ENCRYPTION_ENABLED=no
-#      - SPARK_SSL_ENABLED=no
-#    networks:
-#      - my-simple-network
-#    ports:
-#      - '8084:8080'
-#      - '7079:7077'
-#    volumes:
-#      - ${HOME}/kessenger/spark-volumes:/opt/work-dir      #${SPARK_HOME}

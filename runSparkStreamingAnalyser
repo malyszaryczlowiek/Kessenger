@@ -1,0 +1,82 @@
+#!/bin/zsh
+
+# rebuild will cause rebuild image and restarting container
+rebuild=true
+appenv="prod"
+postgres_v="42.3.3"
+spark_streaming_v="0.1.0"
+
+
+for arr in $@ ; do
+  if [[ $arr = "--rebuild=false" ]] ; then
+    rebuild=false
+  fi
+  if [[ $arr = "--env=dev" ]] ; then
+    appenv="dev"
+  fi
+done
+
+
+num_jars=$(ls -l ./driver-jars/*.jar | wc -l)
+
+if [[ $num_jars -lt 4 ]]; then
+  # downloading required postgresql JAR
+  echo "Downloading postgresql JAR"
+  cd ./driver-jars
+  curl -O https://jdbc.postgresql.org/download/postgresql-$postgres_v.jar
+  num_jars=$(ls *.jar | wc -l)
+  if [[ $num_jars -lt 1 ]]; then
+    echo "Check internet connection and run script again."
+    cd ..
+    exit 1
+  fi
+
+  cd ..
+fi
+
+
+
+# build image
+if [[ $rebuild = true ]] ; then
+  cd ./SparkStreamingAnalyser
+  rm -rf ./target/scala-2.12/
+  ./generateJAR
+  #  rm -rf $HOME/kessenger/prod/logs/sparkanalyser/application.log
+  if [[ $appenv = "dev" ]] ; then
+    cp ./target/scala-2.12/SparkStreamingAnalyser-$spark_streaming_v.jar ./conf/dev/SparkStreamingAnalyser-$spark_streaming_v.jar
+    cp ./../driver-jars/postgresql-$postgres_v.jar ./conf/dev/postgresql-$postgres_v.jar
+    cd ./conf/dev
+  else
+    cp ./target/scala-2.12/SparkStreamingAnalyser-$spark_streaming_v.jar ./conf/prod/SparkStreamingAnalyser-$spark_streaming_v.jar
+    cp ./../driver-jars/postgresql-$postgres_v.jar ./conf/prod/postgresql-$postgres_v.jar
+    cd ./conf/prod
+  fi
+
+  docker build -t spark-streaming-analyser-image .
+  rm -rf ./*.jar
+
+  # back to kessenger folder
+  cd ../../..
+
+fi
+
+
+
+# run container from built image
+docker run -d \
+  -p 8085:8080 \
+  -p 7080:7077 \
+  -e SPARK_MODE=worker \
+  -e SPARK_MASTER_URL=spark://spark-master:7077 \
+  -e SPARK_WORKER_MEMORY=1G \
+  -e SPARK_WORKER_CORES=2 \
+  -e SPARK_RPC_AUTHENTICATION_ENABLED=no \
+  -e SPARK_RPC_ENCRYPTION_ENABLED=no \
+  -e SPARK_LOCAL_STORAGE_ENCRYPTION_ENABLED=no \
+  -e SPARK_SSL_ENABLED=no \
+  --network=kessenger-network \
+  --name spark-streaming-analyser \
+  spark-streaming-analyser-image
+
+
+

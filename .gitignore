@@ -6,6 +6,9 @@ TODO
 /project
 /target
 
+# ignore all jar files from this folder
+/driver-jars/*
+
 
 
 /ClientCliApp/.bsp

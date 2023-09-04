@@ -3,7 +3,8 @@
 ## What the project is
 
 Project is simple, scalable chat application built with [Kafka](https://kafka.apache.org/), [Play](https://www.playframework.com/),
-[Angular](https://angular.io/), [Spark](https://spark.apache.org/), [PostgreSQL](https://www.postgresql.org/) 
+[Angular](https://angular.io/), [Spark](https://spark.apache.org/) ([Streaming](https://spark.apache.org/streaming/) 
+and [GraphX](https://spark.apache.org/graphx/)), [PostgreSQL](https://www.postgresql.org/) 
 and [pgAdmin](https://www.pgadmin.org/). Whole system is containerized with [Docker](https://www.docker.com/).
 
 
@@ -38,6 +39,6 @@ Be sure that docker is running and start building script:
 Wait to building will end and then open new browser window or tab and go to `localhost:4200`. 
 
 > **Note!** <br>
-> First call with containers building take some time. 
+> First call with containers building takes some time. 
 
 Then open another browser and go to `localhost:4200` too. In both browsers create two different users and then create chat between them.
