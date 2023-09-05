@@ -3,7 +3,7 @@ ThisBuild / scalaVersion := "2.12.16"
 
 lazy val root = (project in file("."))
   .settings(
-    name := "SparkStreamingAnalyser",
+    name := "spark-streaming-analyser",
     idePackagePrefix := Some("io.github.malyszaryczlowiek"),
     assembly / assemblyJarName := s"${name.value}-${version.value}.jar",
 
@@ -12,7 +12,6 @@ lazy val root = (project in file("."))
       // Own library with util and domain classes.
       // https://github.com/malyszaryczlowiek/kessenger-lib
       "io.github.malyszaryczlowiek" %% "kessenger-lib" % "0.3.28",
-
 
 
       "org.apache.spark" %% "spark-sql"            % "3.3.0" % "provided",

@@ -15,6 +15,14 @@ generate_backend=true
 generate_kafka_streams=true
 restart_kessenger=false
 
+# check if driver-jars folder exists
+# if not, create it
+if [[ -d "driver-jars" ]]; then
+  echo "Folder 'driver-jars' exists."
+else
+  mkdir driver-jars
+  echo "Folder 'driver-jars' created."
+fi
 
 for arr in $@ ; do
 

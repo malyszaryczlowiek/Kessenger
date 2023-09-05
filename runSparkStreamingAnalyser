@@ -2,9 +2,18 @@
 
 # rebuild will cause rebuild image and restarting container
 rebuild=true
-appenv="prod"
-postgres_v="42.3.3"
-spark_streaming_v="0.1.0"
+APP_ENV="prod"
+
+SCALA_V="scala-2.12"
+
+APP_NAME="spark-streaming-analyser"
+APP_VERSION="0.1.0"
+APP=$APP_NAME-$APP_VERSION
+APP_VOLUME=$HOME/kessenger/prod/logs/$APP_NAME:/opt/kessenger/$APP_NAME/logs
+
+DB_DRIVER_NAME="postgresql"
+DB_DRIVER_V="42.3.3"
+DB_DRIVER=$DB_DRIVER_NAME-$DB_DRIVER_V
 
 
 for arr in $@ ; do
@@ -12,47 +21,56 @@ for arr in $@ ; do
     rebuild=false
   fi
   if [[ $arr = "--env=dev" ]] ; then
-    appenv="dev"
+    APP_ENV="dev"
+    APP_VOLUME=$HOME/kessenger/dev/logs/$APP_NAME:/opt/kessenger/$APP_NAME/logs
   fi
 done
 
 
-num_jars=$(ls -l ./driver-jars/*.jar | wc -l)
-
-if [[ $num_jars -lt 4 ]]; then
-  # downloading required postgresql JAR
-  echo "Downloading postgresql JAR"
-  cd ./driver-jars
-  curl -O https://jdbc.postgresql.org/download/postgresql-$postgres_v.jar
-  num_jars=$(ls *.jar | wc -l)
-  if [[ $num_jars -lt 1 ]]; then
-    echo "Check internet connection and run script again."
-    cd ..
-    exit 1
-  fi
-
-  cd ..
+if [[ -d "./driver-jars" ]]; then
+  echo "Folder 'driver-jars' already exists."
+else
+  mkdir driver-jars
+  echo "Folder 'driver-jars' created."
 fi
 
 
 
+if [[ -e "./driver-jars/"$DB_DRIVER".jar" ]]; then
+  echo "postgresql jar exists."
+else
+  echo "Downloading postgresql JAR"
+    cd ./driver-jars
+    curl -O https://jdbc.postgresql.org/download/$DB_DRIVER.jar
+    if [[ -e "./"$DB_DRIVER".jar" ]]; then
+      echo "postgresql jar downloaded."
+    else
+      echo "Check internet connection and run script again."
+      cd ..
+      exit 1
+    fi
+
+    cd ..
+fi
+
+
 # build image
 if [[ $rebuild = true ]] ; then
-  cd ./SparkStreamingAnalyser
-  rm -rf ./target/scala-2.12/
+  cd ./$APP_NAME
+  rm -rf ./target/$SCALA_V/
   ./generateJAR
-  #  rm -rf $HOME/kessenger/prod/logs/sparkanalyser/application.log
-  if [[ $appenv = "dev" ]] ; then
-    cp ./target/scala-2.12/SparkStreamingAnalyser-$spark_streaming_v.jar ./conf/dev/SparkStreamingAnalyser-$spark_streaming_v.jar
-    cp ./../driver-jars/postgresql-$postgres_v.jar ./conf/dev/postgresql-$postgres_v.jar
+  #  rm -rf $HOME/kessenger/prod/logs/sparkanalyser/APPlication.log
+  if [[ $APP_ENV = "dev" ]] ; then
+    cp ./target/$SCALA_V/$APP.jar ./conf/dev/$APP.jar
+    cp ./../driver-jars/$DB_DRIVER.jar ./conf/dev/$DB_DRIVER.jar
     cd ./conf/dev
   else
-    cp ./target/scala-2.12/SparkStreamingAnalyser-$spark_streaming_v.jar ./conf/prod/SparkStreamingAnalyser-$spark_streaming_v.jar
-    cp ./../driver-jars/postgresql-$postgres_v.jar ./conf/prod/postgresql-$postgres_v.jar
+    cp ./target/$SCALA_V/$APP.jar ./conf/prod/$APP.jar
+    cp ./../driver-jars/$DB_DRIVER.jar ./conf/prod/$DB_DRIVER.jar
     cd ./conf/prod
   fi
 
-  docker build -t spark-streaming-analyser-image .
+  docker build -t $APP_NAME-image .
   rm -rf ./*.jar
 
   # back to kessenger folder
@@ -74,9 +92,9 @@ docker run -d \
   -e SPARK_RPC_ENCRYPTION_ENABLED=no \
   -e SPARK_LOCAL_STORAGE_ENCRYPTION_ENABLED=no \
   -e SPARK_SSL_ENABLED=no \
+  -v $APP_VOLUME \
   --network=kessenger-network \
-  --name spark-streaming-analyser \
-  spark-streaming-analyser-image
-
-
+  --name $APP_NAME \
+  $APP_NAME-image
+  # todo add logging folder
 

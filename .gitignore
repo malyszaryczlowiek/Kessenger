@@ -18,15 +18,24 @@ TODO
 /ClientCliApp/createClientImage
 /ClientCliApp/logs
 
+
+/spark-graphx-analyser/.bsp
+/spark-graphx-analyser/.idea
+/spark-graphx-analyser/target
+/spark-graphx-analyser/project/project
+/spark-graphx-analyser/project/target
+
+
 /KafkaStreamsChatAnalyser/.bsp
 /KafkaStreamsChatAnalyser/.idea
 /KafkaStreamsChatAnalyser/project
 /KafkaStreamsChatAnalyser/target
 
-/SparkStreamingAnalyser/.bsp
-/SparkStreamingAnalyser/.idea
-/SparkStreamingAnalyser/project
-/SparkStreamingAnalyser/target
+/spark-streaming-analyser/.bsp
+/spark-streaming-analyser/.idea
+/spark-streaming-analyser/target
+/spark-streaming-analyser/project/project
+/spark-streaming-analyser/project/target
 
 /kafka-broker/kafka-volume
 

@@ -180,9 +180,9 @@ services:
       - '7077:7077'
     networks:
       - kessenger-network
-    volumes:
-      - ${HOME}/kessenger/prod/logs/sparkanalyser:/opt/kessenger-app/spark-master/logs
-      - ${HOME}/kessenger/prod/analysis/sparkanalyser:/opt/kessenger-app/spark-master/analysis
+#    volumes:
+#      - ${HOME}/kessenger/prod/logs/sparkanalyser:/opt/kessenger-app/spark-master/logs
+#      - ${HOME}/kessenger/prod/analysis/sparkanalyser:/opt/kessenger-app/spark-master/analysis
       # - ${HOME}/kessenger/spark-volumes:/opt/work-dir      # /opt/work-dir is ${SPARK_HOME}
 
 
