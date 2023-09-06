@@ -26,10 +26,11 @@ TODO
 /spark-graphx-analyser/project/target
 
 
-/KafkaStreamsChatAnalyser/.bsp
-/KafkaStreamsChatAnalyser/.idea
-/KafkaStreamsChatAnalyser/project
-/KafkaStreamsChatAnalyser/target
+/kafka-streams-chat-analyser/.bsp
+/kafka-streams-chat-analyser/.idea
+/kafka-streams-chat-analyser/target
+/kafka-streams-chat-analyser/project/project
+/kafka-streams-chat-analyser/project/target
 
 /spark-streaming-analyser/.bsp
 /spark-streaming-analyser/.idea

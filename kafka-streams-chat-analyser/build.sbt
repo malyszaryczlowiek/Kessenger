@@ -4,7 +4,7 @@ ThisBuild / scalaVersion := "2.13.10"
 
 lazy val root = (project in file("."))
   .settings(
-    name := "KafkaStreamsChatAnalyser",
+    name := "kafka-streams-chat-analyser",
     idePackagePrefix := Some("io.github.malyszaryczlowiek"),
     assembly / assemblyJarName := s"${name.value}-${version.value}.jar",
 

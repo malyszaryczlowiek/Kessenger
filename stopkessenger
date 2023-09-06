@@ -1,19 +1,18 @@
 #!/bin/zsh
 
 
-kessenger_mode="prod"
+KESSENGER_MODE="prod"
 
 
 for ar in $@ ; do
   if [[ $ar = "--env=dev" ]] ; then
-    kessenger_mode="dev"
+    KESSENGER_MODE="dev"
   fi
 done
 
 
-if [[ $kessenger_mode = "dev" ]] ; then
+if [[ $KESSENGER_MODE = "dev" ]] ; then
   ./scripts/stopDev
 else
-  echo "Closing prod"
   ./scripts/stopProd
 fi
