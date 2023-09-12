@@ -1,6 +1,7 @@
 -- CREATE DATABASE with user information
 CREATE TABLE IF NOT EXISTS users (
   user_id uuid DEFAULT gen_random_uuid () UNIQUE,
+  user_num_id BIGSERIAL NOT NULL UNIQUE, -- added for spark graphx analyser, works as vertex id
   login varchar(255) UNIQUE,
   pass  varchar(255) NOT NULL,
   PRIMARY KEY (user_id, login)

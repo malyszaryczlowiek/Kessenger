@@ -29,6 +29,26 @@ docker rm -v kafka_streams_chat_analyser
 docker rmi  kessenger_kafka_streams
 
 
+docker stop spark-streaming-analyser
+docker rm -v spark-streaming-analyser
+docker rmi spark-streaming-analyser-image
+
+
+docker stop spark-graphx-analyser
+docker rm -v spark-graphx-analyser
+docker rmi spark-graphx-analyser-image
+
+
+docker stop spark-worker-1
+docker rm -v spark-worker-1
+docker rmi kessenger_spark-worker-1
+
+
+docker stop spark-worker-2
+docker rm -v spark-worker-2
+docker rmi kessenger_spark-worker-2
+
+
 docker stop spark-master
 docker rm -v spark-master
 docker rmi kessenger_spark-master

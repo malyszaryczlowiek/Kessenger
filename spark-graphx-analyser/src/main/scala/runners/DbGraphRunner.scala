@@ -34,8 +34,8 @@ object DbGraphRunner {
       // are registered and have sufficient resources
       //      .config("spark.shuffle.service.enabled", "false")
       //      .config("spark.dynamicAllocation.enabled", "false")
-      .master("local[2]")
-      //  .master("spark://spark-master:7077")    // option for cluster  spark://spark-master:7077
+      // .master("local[2]")
+      .master("spark://spark-master:7077")    // option for cluster  spark://spark-master:7077
       .getOrCreate()
 
     val sc = sparkSession.sparkContext

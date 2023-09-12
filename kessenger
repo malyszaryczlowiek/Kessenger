@@ -4,7 +4,7 @@
 chmod +x ./back-end/generateBin
 chmod +x ./spark-streaming-analyser/generateJAR
 chmod +x ./spark-graphx-analyser/generateJAR
-chmod +x ./KafkaStreamsChatAnalyser/generateJAR
+chmod +x ./kafka-streams-chat-analyser/generateJAR
 chmod +x ./scripts/stopDev
 chmod +x ./scripts/stopProd
 chmod +x ./scripts/inspectTopics
@@ -56,7 +56,7 @@ done
 
 if [[ $GENERATE_KAFKA_STREAMS = true ]] ; then
   rm -rf ./kafka-streams-chat-analyser/target/scala-2.13
-  ./KafkaStreamsChatAnalyser/generateJAR
+  ./kafka-streams-chat-analyser/generateJAR
   rm -rf $HOME/kessenger/prod/logs/kafkastreaming/application.log
 fi
 #if [[ $generate_spark_streaming = true ]] ; then

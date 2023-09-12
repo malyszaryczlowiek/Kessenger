@@ -65,7 +65,7 @@ if [[ $rebuild = true ]] ; then
     cp ./../driver-jars/$DB_DRIVER.jar ./conf/dev/$DB_DRIVER.jar
     cd ./conf/dev
   else
-    cp ./target/$SCALA_V/$APP.jar ./conf/prod/$APP.jar
+    cp ./target/$SCALA_V/$APP.jar      ./conf/prod/$APP.jar
     cp ./../driver-jars/$DB_DRIVER.jar ./conf/prod/$DB_DRIVER.jar
     cd ./conf/prod
   fi
@@ -96,5 +96,8 @@ docker run -d \
   --network=kessenger-network \
   --name $APP_NAME \
   $APP_NAME-image
-  # todo add logging folder
+
+
+
+#  # todo add logging folder
 

@@ -21,17 +21,17 @@ object AppConfig {
     // tutaj po prostu wczytuję configurację z prod
     config = ConfigFactory.load("application.conf").getConfig("kessenger.spark-streaming-analyser.prod")
 
-//    if (env.equals("PROD")) {
-//      logger.trace(s"Loading PROD configuration.")
-//      config = ConfigFactory.load("application.conf").getConfig("kessenger.spark-streaming-analyser.prod")
-//    } else {
-//      logger.trace(s"Loading DEV configuration.")
-//      config = ConfigFactory.load("application.conf").getConfig("kessenger.spark-streaming-analyser.dev")
-//    }
+    if (env.equals("PROD")) {
+      logger.trace(s"Loading PROD configuration.")
+      config = ConfigFactory.load("application.conf").getConfig("kessenger.spark-streaming-analyser.prod")
+    } else {
+      logger.trace(s"Loading DEV configuration.")
+      config = ConfigFactory.load("application.conf").getConfig("kessenger.spark-streaming-analyser.dev")
+    }
   } else {
     logger.error(s"No SPARK_ENV environment variable defined. ")
-    // throw new IllegalStateException("No SPARK_ENV environment variable defined. ")
-    config = ConfigFactory.load("application.conf").getConfig("kessenger.spark-streaming-analyser.prod")
+    throw new IllegalStateException("No SPARK_ENV environment variable defined. ")
+    // config = ConfigFactory.load("application.conf").getConfig("kessenger.spark-streaming-analyser.prod")
   }
 
   // "jdbc:postgresql://localhost:5438/kessenger_schema"
