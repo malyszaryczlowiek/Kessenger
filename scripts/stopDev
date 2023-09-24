@@ -4,8 +4,8 @@ docker stop pgadmin
 docker rm -v pgadmin
 
 
-docker stop KessengerDB
-docker rm -v KessengerDB
+docker stop kessenger-db
+docker rm -v kessenger-db
 docker rmi kessenger_db      ##   delete unused image
 
 

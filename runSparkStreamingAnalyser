@@ -1,7 +1,7 @@
 #!/bin/zsh
 
 # rebuild will cause rebuild image and restarting container
-rebuild=true
+REBUILD=true
 APP_ENV="prod"
 
 SCALA_V="scala-2.12"
@@ -18,7 +18,7 @@ DB_DRIVER=$DB_DRIVER_NAME-$DB_DRIVER_V
 
 for arr in $@ ; do
   if [[ $arr = "--rebuild=false" ]] ; then
-    rebuild=false
+    REBUILD=false
   fi
   if [[ $arr = "--env=dev" ]] ; then
     APP_ENV="dev"
@@ -45,7 +45,7 @@ else
     if [[ -e "./"$DB_DRIVER".jar" ]]; then
       echo "postgresql jar downloaded."
     else
-      echo "Check internet connection and run script again."
+      echo "Check Internet connection and run script again."
       cd ..
       exit 1
     fi
@@ -55,16 +55,19 @@ fi
 
 
 # build image
-if [[ $rebuild = true ]] ; then
+if [[ $REBUILD = true ]] ; then
   cd ./$APP_NAME
   rm -rf ./target/$SCALA_V/
-  ./generateJAR
+  sbt assembly
+  # ./generateJAR
   #  rm -rf $HOME/kessenger/prod/logs/sparkanalyser/APPlication.log
   if [[ $APP_ENV = "dev" ]] ; then
+    jar -uf ./target/$SCALA_V/$APP.jar ./conf/dev/application.conf
     cp ./target/$SCALA_V/$APP.jar ./conf/dev/$APP.jar
     cp ./../driver-jars/$DB_DRIVER.jar ./conf/dev/$DB_DRIVER.jar
     cd ./conf/dev
   else
+    jar -uf ./target/$SCALA_V/$APP.jar ./conf/prod/application.conf
     cp ./target/$SCALA_V/$APP.jar      ./conf/prod/$APP.jar
     cp ./../driver-jars/$DB_DRIVER.jar ./conf/prod/$DB_DRIVER.jar
     cd ./conf/prod
@@ -74,7 +77,9 @@ if [[ $rebuild = true ]] ; then
   rm -rf ./*.jar
 
   # back to kessenger folder
-  cd ../../..
+  cd ../..
+  rm -rf ./*.conf
+  cd ..
 
 fi
 

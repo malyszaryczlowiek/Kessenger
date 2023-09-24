@@ -88,7 +88,7 @@ services:
 
 
   db:
-    container_name: KessengerDB
+    container_name: kessenger-db
     build: ./db
     # image: postgres:14.2
     restart: always

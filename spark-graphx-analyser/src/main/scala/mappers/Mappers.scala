@@ -13,4 +13,10 @@ object Mappers {
     ( userNumId, userId)
   }
 
+  def mapToPageRank: Row => (VertexId, Double) = (r: Row) => {
+    val userNumId = r.getAs[VertexId](s"uid")
+    val pageRank  = r.getAs[Double](s"user_num_id")
+    (userNumId, pageRank)
+  }
+
 }

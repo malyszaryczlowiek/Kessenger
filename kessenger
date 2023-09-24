@@ -11,10 +11,12 @@ chmod +x ./scripts/inspectTopics
 chmod +x ./runGraphAnalyser
 chmod +x ./runSparkStreamingAnalyser
 
+
 KESSENGER_MODE="prod"
 GENERATE_BACKEND=true
 GENERATE_KAFKA_STREAMS=true
 RESTART_KESSENGER=false
+
 
 # check if driver-jars folder exists
 # if not, create it
@@ -25,29 +27,19 @@ else
   echo "Folder 'driver-jars' created."
 fi
 
-for arr in $@ ; do
 
+for arr in $@ ; do
   if [[ $arr = "--gen-backend-bin=false" ]] ; then
     echo "Not generating backend binaries."
     GENERATE_BACKEND=false
   fi
-#  if [[ $arr = "--build-spark-streaming=false" ]] ; then
-#    echo "Not generating spark streaming binaries."
-#    build_spark_streaming=false
-#  fi
-#  if [[ $arr = "--build-spark-graphx=false" ]] ; then
-#    echo "Not generating spark graph binaries."
-#    build_spark_graphx=false
-#  fi
   if [[ $arr = "--gen-kafka-streams-bin=false" ]] ; then
     echo "Not generating kafka streams binaries."
     GENERATE_KAFKA_STREAMS=false
   fi
-
   if [[ $arr = "--env=dev" ]] ; then
     KESSENGER_MODE="prod"
   fi
-
   if [[ $arr = "--restart" ]] ; then
     RESTART_KESSENGER=true
   fi
@@ -59,13 +51,6 @@ if [[ $GENERATE_KAFKA_STREAMS = true ]] ; then
   ./kafka-streams-chat-analyser/generateJAR
   rm -rf $HOME/kessenger/prod/logs/kafkastreaming/application.log
 fi
-#if [[ $generate_spark_streaming = true ]] ; then
-#  rm -rf ./SparkStreamingAnalyser/target/scala-2.12/
-#  ./SparkStreamingAnalyser/generateJAR
-#  rm -rf $HOME/kessenger/prod/logs/sparkanalyser/application.log
-#fi
-
-
 if [[ $KESSENGER_MODE = "prod" ]] ; then
   if [[ $GENERATE_BACKEND = true ]] ; then
     rm -rf ./back-end/target/universal
@@ -73,7 +58,6 @@ if [[ $KESSENGER_MODE = "prod" ]] ; then
     rm -rf $HOME/kessenger/prod/logs/backend_*/application.log
   fi
 fi
-
 if [[ $RESTART_KESSENGER = true ]] ; then
   if [[ $GENERATE_KAFKA_STREAMS = true ]] ; then
     echo "restarting kafka streams"
@@ -81,13 +65,6 @@ if [[ $RESTART_KESSENGER = true ]] ; then
     docker rm -v kafka_streams_chat_analyser
     docker rmi  kessenger_kafka_streams
   fi
-#  if [[ $generate_spark_streaming = true ]] ; then
-#    echo "restarting spark streaming"
-#    # TODO tutaj sprawdzić jak się nazywają contenery
-#    docker stop spark-master
-#    docker rm -v spark-master
-#    docker rmi kessenger_spark-master
-#  fi
   if [[ $KESSENGER_MODE = "prod" ]] ; then
     if [[ $GENERATE_BACKEND = true ]] ; then
       echo "restarting backend"

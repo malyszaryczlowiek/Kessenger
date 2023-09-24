@@ -15,24 +15,26 @@ object AppConfig {
   logger.trace(s"AppConfig started.")
 
   private var config: Config = null
-  private val env = System.getenv("SPARK_ENV")
+  // private val env = System.getenv("SPARK_ENV")
 
-  if (env != null) {
-    // tutaj po prostu wczytuję configurację z prod
-    config = ConfigFactory.load("application.conf").getConfig("kessenger.spark-streaming-analyser.prod")
+  config = ConfigFactory.load("application.conf").getConfig("kessenger.spark-streaming-analyser")
 
-    if (env.equals("PROD")) {
-      logger.trace(s"Loading PROD configuration.")
-      config = ConfigFactory.load("application.conf").getConfig("kessenger.spark-streaming-analyser.prod")
-    } else {
-      logger.trace(s"Loading DEV configuration.")
-      config = ConfigFactory.load("application.conf").getConfig("kessenger.spark-streaming-analyser.dev")
-    }
-  } else {
-    logger.error(s"No SPARK_ENV environment variable defined. ")
-    throw new IllegalStateException("No SPARK_ENV environment variable defined. ")
-    // config = ConfigFactory.load("application.conf").getConfig("kessenger.spark-streaming-analyser.prod")
-  }
+//  if (env != null) {
+//    // tutaj po prostu wczytuję configurację z prod
+//    config = ConfigFactory.load("application.conf").getConfig("kessenger.spark-streaming-analyser.prod")
+//
+//    if (env.equals("PROD")) {
+//      logger.trace(s"Loading PROD configuration.")
+//      config = ConfigFactory.load("application.conf").getConfig("kessenger.spark-streaming-analyser.prod")
+//    } else {
+//      logger.trace(s"Loading DEV configuration.")
+//      config = ConfigFactory.load("application.conf").getConfig("kessenger.spark-streaming-analyser.dev")
+//    }
+//  } else {
+//    logger.error(s"No SPARK_ENV environment variable defined. ")
+//    throw new IllegalStateException("No SPARK_ENV environment variable defined. ")
+//    // config = ConfigFactory.load("application.conf").getConfig("kessenger.spark-streaming-analyser.prod")
+//  }
 
   // "jdbc:postgresql://localhost:5438/kessenger_schema"
   case class DbConfig(driver: String, protocol: String, server: String, port: Int, schema: String, user: String, pass: String, dbUrlWithSchema: String )

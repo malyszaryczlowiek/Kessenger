@@ -10,6 +10,9 @@ TODO
 /driver-jars/*
 
 
+test
+
+/back-end/generatedKey
 
 /ClientCliApp/.bsp
 /ClientCliApp/.idea

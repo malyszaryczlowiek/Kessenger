@@ -62,6 +62,14 @@ CREATE TABLE IF NOT EXISTS logging_attempts (
 
 
 
+CREATE TABLE IF NOT EXISTS page_ranks (
+  user_num_id BIGSERIAL REFERENCES users(user_num_id) ON DELETE CASCADE,
+  page_rank   REAL      DEFAULT 0.0 NOT NULL
+);
+
+
+
+
 -- add two users to db only for some tests
 -- in db we store truncated hashed password
 INSERT INTO users (user_id, login, pass) VALUES ( 'c8b8c9e6-8cb5-4e5c-86b3-84f55f012172', 'Walo',    '5gK1Ve3u3CosziY2B6ZUi8bffjEigTe'); -- password Password1!  salt: $2a$10$8K1p/a0dL1LXMIgoEDFrwO

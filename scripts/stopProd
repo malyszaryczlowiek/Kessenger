@@ -19,8 +19,8 @@ docker rm -v play-app-2
 docker rmi kessenger_play-app-2
 
 
-docker stop KessengerDB
-docker rm -v KessengerDB
+docker stop kessenger-db
+docker rm -v kessenger-db
 docker rmi kessenger_db      ##   delete unused image
 
 

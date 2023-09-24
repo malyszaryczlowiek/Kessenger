@@ -20,6 +20,8 @@ object Database {
   dbProps.setProperty("password", dbConfig.pass)
   Class.forName( dbConfig.driver )
 
+  logger.trace(s"Database connection starting...")
+
   implicit var connection: Connection = DriverManager.getConnection(dbConfig.dbUrlWithSchema, dbProps)
   logger.trace(s"Database connection enabled.")
 

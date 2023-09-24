@@ -3,7 +3,6 @@ package runners
 
 import org.apache.logging.log4j.LogManager
 import org.apache.logging.log4j.Logger
-
 import org.apache.spark.sql.{KeyValueGroupedDataset, Row, SparkSession}
 import org.apache.spark.graphx._
 import org.apache.spark.rdd.RDD
@@ -11,8 +10,10 @@ import org.apache.spark.sql.functions.expr
 import org.apache.spark.sql.types._
 
 import config.AppConfig.dbConfig
+import config.Database.connection
+import db.DbTable
+import db.savers.PageRankSaver
 import mappers.Mappers._
-//import encoders.GraphEncoders._
 
 
 
@@ -89,7 +90,7 @@ object DbGraphRunner {
     // merging users with userChats to get user_num_id
     val mergedChats = users.join(usersAndChats, expr("""uid = ucid"""))
 
-    mergedChats.toDF().foreach( r => logger.info(s"vertex -> user_num_id: ${r.getAs[VertexId](s"user_num_id")}"))
+    mergedChats.toDF().foreach( r => logger.warn(s"vertex -> user_num_id: ${r.getAs[VertexId](s"user_num_id")}"))
 
 
     // for using syntax: $"column_name"
@@ -120,7 +121,7 @@ object DbGraphRunner {
       })
       .map(t => Edge(t._1, t._2, t._3))
 
-    preEdges.foreach( e => logger.info(s"edge -> srcVertex: ${e.srcId}, edgeValue: ${e.attr}, destVertex: ${e.dstId}"))
+    preEdges.foreach( e => logger.warn(s"edge -> srcVertex: ${e.srcId}, edgeValue: ${e.attr}, destVertex: ${e.dstId}"))
 
 
     // tutaj row iterator zawiera informacje o chatId oraz userId
@@ -135,24 +136,35 @@ object DbGraphRunner {
     val ops = new GraphOps[String, String](graph)
 
 
-    val pageRanked  = graph.pageRank(0.01)
-    val pageRankRev = graph.reverse.pageRank(0.01).vertices
+    val pageRanked  = graph.pageRank(0.001)
+    val pageRankRev = graph.reverse.pageRank(0.001).vertices
 
     val pg = pageRanked.joinVertices(pageRankRev)((vid: VertexId, rank1: Double, rank2: Double) => (rank1 + rank2) / 2)
 
+
+    logger.warn(s"printing joined. ")
     pg.vertices.toDS().foreach(
-      t => logger.info(s"user_num_id: ${t._1}, pageRank: ${t._2}")
+      t => logger.warn(s"user_num_id: ${t._1}, pageRank: ${t._2}")
     )
 
-//    pg.vertices
-//      .toDS()
-//      .foreach(vidAndValue => {
-//        val vid   = vidAndValue._1
-//        val value = vidAndValue._2
-//        // TODO i to pg teraz trzeba zapisać do DB
-//
-//
-//      })
+    val pageRankTable = DbTable("page_ranks", Map("user_num_id" -> "BIGSERIAL", "page_rank" -> "REAL" ))
+
+
+     // podać wszystkie potrzebne parametry
+    val pgSaver = new PageRankSaver( pageRankTable )
+
+    logger.warn(s"Saving data to Database")
+
+    pg.vertices
+      .toDF()
+      .withColumnRenamed("_1", "user_num_id")
+      .withColumnRenamed("_2", "page_rank")
+       // wstawić zapisywanie do bazy danych każdego wyniku
+      .foreach( row => {
+         logger.warn(s"dodaje row: $row")
+         pgSaver.save( row )
+       }
+       )
 
 
 

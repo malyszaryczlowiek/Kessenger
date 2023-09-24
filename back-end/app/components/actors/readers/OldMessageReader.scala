@@ -117,8 +117,8 @@ class OldMessageReader(out: ActorRef, parentActor: ActorRef, conf: Configuration
 
   private def fetchingOffsetShift(l: List[PartitionOffset]): List[PartitionOffset] = {
     l.map(po => {
-      if (po.offset < 5L) PartitionOffset(po.partition, 0L)
-      else PartitionOffset(po.partition, po.offset - 5L)
+      if (po.offset < 15L) PartitionOffset(po.partition, 0L)
+      else PartitionOffset(po.partition, po.offset - 15L)
     })
   }
 

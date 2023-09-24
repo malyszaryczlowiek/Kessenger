@@ -18,12 +18,12 @@ export class LoadBalancerService {
     console.log('environment numberOfServers: ', environment.numOfServers)
     this.assignServers()
     this.selectNewServer()
-   }
+  }
 
    
 
 
-   assignServers() {
+  assignServers() {
     let i = 0
     while (i < environment.numOfServers ) {
       console.warn('assigning server', i)
@@ -31,7 +31,7 @@ export class LoadBalancerService {
       this.working.push( s )
       i = i + 1
     }
-   }
+  }
 
 
    
