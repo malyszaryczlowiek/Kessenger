@@ -29,8 +29,8 @@ export class ChatPanelComponent implements OnInit, OnDestroy {
   constructor(private userService: UserService, 
               private htmlService: HtmlService, 
               private chatService: ChatsDataService,
-              private router: Router,
-              private activated: ActivatedRoute) { }
+              private router:      Router,
+              private activated:   ActivatedRoute) { }
 
   
 
@@ -52,6 +52,7 @@ export class ChatPanelComponent implements OnInit, OnDestroy {
               if (unreadMessLength > 0){ 
                 if ( this.htmlService.isScrolledDown() == 1 ) { 
                   console.warn('New messages and scrolled DOWN')
+                  error
                   this.chatData = this.userService.markMessagesAsRead( chatId )
                   this.userService.dataFetched( 2 ) // refresh chat list
                   this.htmlService.scrollDown( false )
@@ -66,6 +67,7 @@ export class ChatPanelComponent implements OnInit, OnDestroy {
                 }
               } else { // no new messages
                 this.chatData = currentChat
+                error
                 this.userService.markMessagesAsRead( this.chatData.chat.chatId )
                 this.htmlService.scrollDown( false )
                 console.warn('no new messages')
@@ -85,9 +87,10 @@ export class ChatPanelComponent implements OnInit, OnDestroy {
       (cd) =>  {
         // we modify only when new chat is selected
         if (cd.chat.chatId != this.chatData?.chat.chatId) {
-          // switch off subscription of prewous chat
+          // switch off subscription of previous chat
           if (this.chatModificationSubscription) this.chatModificationSubscription.unsubscribe()
-          this.chatData = this.userService.markMessagesAsRead( cd.chat.chatId )
+          error
+          this.chatData = this.userService.markMessagesAsRead( cd.chat.chatId ) 
           if ( this.chatData ) {
             this.htmlService.resizeMessageListImmediately()
             this.htmlService.scrollDown( false )
@@ -122,6 +125,7 @@ export class ChatPanelComponent implements OnInit, OnDestroy {
           if (this.chatData) {
             const unreadMessLength = this.chatData.unreadMessages.length
             if (unreadMessLength > 0){ 
+              error
               this.chatData = this.userService.markMessagesAsRead( this.chatData.chat.chatId )
               this.userService.dataFetched( 2 ) // refresh chat list
               this.htmlService.scrollDown( false )
@@ -129,7 +133,7 @@ export class ChatPanelComponent implements OnInit, OnDestroy {
               if ( this.chatData ) { // this subscription is only to reassign older messages
                 this.chatModificationSubscription = this.chatData.emitter.subscribe(
                   (cd) => { 
-                    console.warn('Adding older messages.')
+                    console.log('Adding older messages.')
                     this.chatData = cd
                   }
                 )  
@@ -148,12 +152,18 @@ export class ChatPanelComponent implements OnInit, OnDestroy {
 
 
     const chatId = this.activated.snapshot.paramMap.get('chatId');
-    if ( chatId ) { this.chatService.selectChat( chatId )}
+    if ( chatId ) { 
+      this.chatService.selectChat( chatId )
+      
+    }
     
 
     
     if ( this.userService.isWSconnected() ) {
       this.userService.dataFetched( 4 ) // here we need to only fetch to chat panel. 
+      if ( chatId ) { 
+        this.userService.fetchOlderMessages( chatId ) // ########################## here added 
+      }
     } 
     
   }
@@ -162,10 +172,10 @@ export class ChatPanelComponent implements OnInit, OnDestroy {
 
 
   ngOnDestroy(): void {
-    if ( this.chatModificationSubscription )  this.chatModificationSubscription.unsubscribe()
-    if ( this.fetchingSubscription )          this.fetchingSubscription.unsubscribe()
-    if ( this.writingSubscription )           this.writingSubscription.unsubscribe()
-    if ( this.selectedChatSubscription )      this.selectedChatSubscription.unsubscribe()
+    if ( this.chatModificationSubscription )     this.chatModificationSubscription.unsubscribe()
+    if ( this.fetchingSubscription )             this.fetchingSubscription.unsubscribe()
+    if ( this.writingSubscription )              this.writingSubscription.unsubscribe()
+    if ( this.selectedChatSubscription )         this.selectedChatSubscription.unsubscribe()
     if ( this.messageListScrollingSubscription ) this.messageListScrollingSubscription.unsubscribe()
     this.userService.selectChat( undefined )
   }

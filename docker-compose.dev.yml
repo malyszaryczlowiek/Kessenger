@@ -166,7 +166,6 @@ services:
     depends_on:
       - kafka1
       - kafka2
-      - kafka3
     environment:
       - SPARK_MODE=master
       - SPARK_MASTER_HOST=spark-master           # added

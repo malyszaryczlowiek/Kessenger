@@ -48,6 +48,11 @@ class ChatOffsetUpdateActor(conf: Configuration, db: Database, dbec: ExecutionCo
               val dbExecutor = new DbExecutor(configurator)
               db.withConnection( implicit connection => {
                 logger.trace(s"receive. Updating chat offset. actorGroupID(${actorGroupID.toString})")
+
+                // todo tutaj to raczej nie updejtujemy o jeden do góry tylko przypsujemy nową wartość offsetu dla
+                //  danej partycji
+
+
                 dbExecutor.updateChatOffsetAndMessageTime(u.userId, u.chatId, u.lastMessageTime, shiftOffsetPerOne(u.partitionOffsets) )
               })
             }(dbec)

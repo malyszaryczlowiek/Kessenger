@@ -404,6 +404,10 @@ export class UserService {
     if (this.user) this.user.login = newLogin
   }
 
+
+
+  error // zbadać tę metodę czy jest zawsze wywoływana wtedy kiedy trzeba. 
+  
   markMessagesAsRead(chatId: string): ChatData | undefined {
     const cd = this.chatsService.markMessagesAsRead(chatId)
     if ( this.user && cd ) {

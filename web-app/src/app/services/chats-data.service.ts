@@ -85,6 +85,12 @@ export class ChatsDataService {
 
   insertNewMessages(m: Message[]) {
     // let code = 2
+
+    error
+    // tutaj należy dodać  wysyłanie przez ws update chat offset
+
+
+
     m.forEach((mm,i,arr) => {
       const foundCD = this.chatAndUsers.find((cd, i, arr) => {
         return cd.chat.chatId == mm.chatId
@@ -99,7 +105,7 @@ export class ChatsDataService {
           foundCD.unreadMessages.push( mm ) 
         } else {
           const unread = foundCD.partitionOffsets.some((po,i,arr) => {
-            return po.partition == mm.partOff.partition && po.offset < mm.partOff.offset
+            return po.partition == mm.partOff.partition && po.offset <= mm.partOff.offset // ##### tuaj zmieniłem
           })
           if ( unread  ) foundCD.unreadMessages.push( mm )  // && mm.authorId != this.myUserId
           else {
@@ -127,7 +133,8 @@ export class ChatsDataService {
 
    
   // deprecated
-  insertNewMessages2(m: Message[]): number {
+  /*
+insertNewMessages2(m: Message[]): number {
     let code = 2
     m.forEach((mm,i,arr) => {
       const foundCD = this.chatAndUsers.find((cd, i, arr) => {
@@ -180,6 +187,10 @@ export class ChatsDataService {
     return code
   }
 
+  */
+
+
+  
     // gdzieś trzeba jeszcze wysłać powiadomienia przez websocket,
     // że w danym chatcie po odczytaniu wiadomości mamy nowy offset 
     // od którego będzie przy następnym pobiernaiu wiadomości zacząć. 
@@ -213,8 +224,11 @@ export class ChatsDataService {
         })
         found.messages = found.messages.sort((a,b) => a.serverTime - b.serverTime )
         this.changeChat( found )
+        console.warn('ChatsDataService.insertOldMessage() inserting old messages')
         found.emitter.emit( found )
       }
+    } else {
+      console.warn('ChatsDataService.insertOldMessages() => chatId NOT KNOWN. ')
     }
   }
   

@@ -42,3 +42,22 @@ Wait to building will end and then open new browser window or tab and go to `loc
 > First call with containers building takes some time. 
 
 Then open another browser and go to `localhost:4200` too. In both browsers create two different users and then create chat between them.
+
+## Running dev
+If you want to run system in dev mode run kessenger script with dev option: 
+
+```bash
+./kessenger --env=dev
+```
+
+then open two new terminal windows, and run `devRunBackend`
+
+```bash
+./devRunBackend
+```
+
+and `devRunWebapp` scripts.
+
+```bash
+./devRunWebapp
+```

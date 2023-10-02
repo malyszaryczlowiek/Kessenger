@@ -10,6 +10,8 @@ chmod +x ./scripts/stopProd
 chmod +x ./scripts/inspectTopics
 chmod +x ./runGraphAnalyser
 chmod +x ./runSparkStreamingAnalyser
+chmod +x ./devRunBackend
+chmod +x ./devRunWebapp
 
 
 KESSENGER_MODE="prod"
@@ -38,7 +40,8 @@ for arr in $@ ; do
     GENERATE_KAFKA_STREAMS=false
   fi
   if [[ $arr = "--env=dev" ]] ; then
-    KESSENGER_MODE="prod"
+    echo "RUNNING IN DEVELOPMENT MODE"
+    KESSENGER_MODE="dev"
   fi
   if [[ $arr = "--restart" ]] ; then
     RESTART_KESSENGER=true
