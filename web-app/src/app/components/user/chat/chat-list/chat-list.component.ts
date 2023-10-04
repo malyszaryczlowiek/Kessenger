@@ -26,7 +26,7 @@ export class ChatListComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     console.log('ChatListComponent.ngOnInit() ')
     this.myUserId = this.userService.user?.userId
-    this.writingSubscription = this.userService.getWritingEmmiter().subscribe(
+    this.writingSubscription = this.chatService.getWritingEmmiter().subscribe(
       (w: Writing | undefined) => { this.wrt = w }
     )
     this.htmlService.resizeChatList()
@@ -44,7 +44,7 @@ export class ChatListComponent implements OnInit, OnDestroy {
     })
     if ( selectedChat ) {
       if ( selectedChat.messages.length == 0 && this.userService.isWSconnected() ) { // 
-        this.userService.fetchOlderMessages( c.chat.chatId )
+        this.chatService.fetchOlderMessages( c.chat.chatId )
       }      
     }
     this.router.navigate(['user', 'chat', c.chat.chatId]) 

@@ -1,12 +1,14 @@
 import { Component, OnDestroy, OnInit } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Subscription } from 'rxjs';
-import { ChatData } from 'src/app/models/ChatData';
-import { Message } from 'src/app/models/Message';
-import { Writing } from 'src/app/models/Writing';
+// services
 import { ChatsDataService } from 'src/app/services/chats-data.service';
 import { HtmlService } from 'src/app/services/html.service';
 import { UserService } from 'src/app/services/user.service';
+// models
+import { ChatData } from 'src/app/models/ChatData';
+import { Message } from 'src/app/models/Message';
+import { Writing } from 'src/app/models/Writing';
 
 @Component({
   selector: 'app-chat-panel',
@@ -44,7 +46,7 @@ export class ChatPanelComponent implements OnInit, OnDestroy {
           const chatId = this.activated.snapshot.paramMap.get('chatId');
           if ( chatId ) { 
             console.log('ChatPanelComponent fetchingSubscription fetched data from UserService via fetchEmmiter.')
-            const currentChat = this.userService.getAllChats().find(  (chatData, index, arr) => {
+            const currentChat = this.userService.getAllChats().find( (chatData, index, arr) => {
               return chatData.chat.chatId == chatId;
             })
             if ( currentChat ) {
@@ -114,7 +116,7 @@ export class ChatPanelComponent implements OnInit, OnDestroy {
 
 
     // we need to stay it because cannot insert Writing value via html. 
-    this.writingSubscription = this.userService.getWritingEmmiter().subscribe(
+    this.writingSubscription = this.chatService.getWritingEmmiter().subscribe(
       (w: Writing | undefined) => { 
         if (w && w.chatId == this.chatData?.chat.chatId) {
           this.wrt = w 
@@ -152,7 +154,7 @@ export class ChatPanelComponent implements OnInit, OnDestroy {
         if (position == 'top') {
           if (this.chatData) {
             console.log('fetching older messages')
-            this.userService.fetchOlderMessages( this.chatData.chat.chatId )
+            this.chatService.fetchOlderMessages( this.chatData.chat.chatId )
           }
         }
       } 
@@ -170,7 +172,7 @@ export class ChatPanelComponent implements OnInit, OnDestroy {
     if ( this.userService.isWSconnected() ) {
       this.userService.dataFetched( 4 ) // here we need to only fetch to chat panel. 
       if ( chatId ) { 
-        this.userService.fetchOlderMessages( chatId ) // ########################## here added 
+        this.chatService.fetchOlderMessages( chatId ) // ########################## here added 
       }
     } 
     
@@ -185,7 +187,8 @@ export class ChatPanelComponent implements OnInit, OnDestroy {
     if ( this.writingSubscription )              this.writingSubscription.unsubscribe()
     if ( this.selectedChatSubscription )         this.selectedChatSubscription.unsubscribe()
     if ( this.messageListScrollingSubscription ) this.messageListScrollingSubscription.unsubscribe()
-    this.userService.selectChat( undefined )
+    this.chatService.clearSelectedChat()
+    // this.userService.selectChat( undefined )
   }
 
 
@@ -194,7 +197,7 @@ export class ChatPanelComponent implements OnInit, OnDestroy {
   sendMessage(m: Message) {
     console.log(`sending message: ${m}`, m)
     this.userService.updateSession(true)
-    this.userService.sendMessage( m )                        
+    this.chatService.sendMessage( m )                        
   }
 
 

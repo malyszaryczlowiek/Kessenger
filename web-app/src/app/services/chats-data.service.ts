@@ -1,42 +1,44 @@
 import { EventEmitter, Injectable } from '@angular/core';
+// services
 import { ConnectionService } from './connection.service';
+import { HtmlService } from 'src/app/services/html.service';
+// models
 import { ChatOffsetUpdate } from '../models/ChatOffsetUpdate';
 import { ChatData } from '../models/ChatData';
 import { Message } from '../models/Message';
 import { User } from '../models/User';
+
+
 
 @Injectable({
   providedIn: 'root'
 })
 export class ChatsDataService {
 
-
-  // newly adde
-  userId: string | undefined
-
-  // connection: Connection
-
   selectedChat: string | undefined // chatId
-  myUserId: string = ''
-  
-  isRead = false 
-
+  user:           User | undefined
   chatAndUsers: Array<ChatData> = new Array();
 
-  // zrób
+
   updateChatOffsetEmmiter:  EventEmitter<ChatOffsetUpdate> = new EventEmitter<ChatOffsetUpdate>()
-
-
-  constructor(private connection: ConnectionService) {}
   
-  initialize(chats: ChatData[], userId: string) {
-    this.myUserId = userId
+
+   // newly added
+  updateChatListEmmiter:    EventEmitter<any> = new EventEmitter<any>()
+  updateChatPanelEmmiter:   EventEmitter<any> = new EventEmitter<any>()
+
+
+  constructor(private connection: ConnectionService,
+              private htmlService: HtmlService) {}
+  
+  initialize(chats: ChatData[], u: User) {
+    this.user = u
     this.chatAndUsers = chats.map(
       (cd) => {
-        cd.users =  new Array<User>()
-        cd.messages = new Array<Message>()
+        cd.users          = new Array<User>()
+        cd.messages       = new Array<Message>()
         cd.unreadMessages = new Array<Message>()
-        cd.emitter = new EventEmitter<ChatData>()
+        cd.emitter        = new EventEmitter<ChatData>()
         return cd
       }
     ).sort( (a,b) => this.compareLatestChatData(a,b) )
@@ -165,14 +167,172 @@ export class ChatsDataService {
 
 
   /*
+  ta metoda będzie zawierała dwa nowe emmitery: chatPanelEmmiter i chatListEmmiter
 
+
+  1. jak przychodzi nowa wiadomość to sprawdzamy czy wiadomość pochodzi z chatu, który jest aktualnie selected
+    -- jest SELECTED
+       2. sprawdzamy czy jesteśmy na samym dole w htmlService
+         -- TAK jesteśmy na dole
+            3. dodajemy do przeczytanych
+            4. akualizujemy listę czatów (tutaj chodzi o to by nie było info o nieprzeczytanych wiadomościach i by czaty były w kolejności zgodnej z najświeższymi wiadomościami od góry)
+            5. wysyłamy informację o update chat offset
+            6. aktualizujemy chatPanel stosując emmiter w chatData (tutaj chodzi o to by lista wiadomości w czacie już zawierała nowo dodane wiadomości)
+            <koniec>
+         -- NIE 
+            3. dodajemy do NIEPRZECZYTANYCH
+            4 akualizujemy listę czatów  (tutaj chodzi o to by BYŁA informacja o nieprzeczytanych wiadomościach i by czaty były w kolejności zgodnej z najświeższymi wiadomościami od góry)
+    -- NIE jest selected
+      2. dodajemy do nieprzeczytanych
+      3. aktualizujemy listę czatów po lewej stronie 
 
   */
-  insertNewMessages2() {
+  insertNewMessages2(m: Message[]) {
 
   } 
 
    
+
+  /*
+  NIE ZMIENIAĆ
+  */ 
+  insertOldMessages(m: Message[]) {
+    const chatId = m.at(0)?.chatId
+    if ( chatId ) {
+      const found = this.chatAndUsers.find( (cd, i , arr) => { return cd.chat.chatId == chatId } )
+      if ( found ) {
+        m.forEach((mess, i, arr) => {
+          found.messages.push(mess)
+        })
+        found.messages = found.messages.sort((a,b) => a.serverTime - b.serverTime )
+        this.changeChat( found )
+        console.warn('ChatsDataService.insertOldMessage() inserting old messages')
+        found.emitter.emit( found )
+      }
+    } else {
+      console.warn('ChatsDataService.insertOldMessages() => chatId NOT KNOWN. ')
+    }
+  }
+  
+
+
+
+  deleteChat(c: ChatData) {
+    this.chatAndUsers = this.chatAndUsers.filter((cd, i, arr) => {return cd.chat.chatId != c.chat.chatId})
+      .sort((a,b) => this.compareLatestChatData(a,b) )
+  }
+
+
+
+
+  insertChatUsers(chatId: string, u: User[]) {
+    this.chatAndUsers = this.chatAndUsers.map( (cd, i , arr) => {
+      if (cd.chat.chatId == chatId) {
+        const newCD: ChatData = {
+          chat: cd.chat,
+          messages: cd.messages, 
+          partitionOffsets: cd.partitionOffsets,
+          users: u, // users are added
+          unreadMessages: cd.unreadMessages,
+          emitter: cd.emitter
+        }
+        return newCD
+      } else {
+        return cd // otherwise return not changed
+      }
+    })
+  }
+
+
+
+
+  changeChat(chatD: ChatData) {
+    const filtered = this.chatAndUsers.filter((cd, i, arr) => {return cd.chat.chatId != chatD.chat.chatId})
+    filtered.push(chatD)
+    this.chatAndUsers = filtered.sort((a,b) => this.compareLatestChatData(a,b) )
+  }
+
+
+  selectChat(chatId: string | undefined ) {
+    this.selectedChat = chatId
+  }
+
+  clearSelectedChat() {
+    this.selectedChat = undefined
+  }
+
+
+  private compareLatestChatData(c1: ChatData, c2: ChatData): number {
+    let data1 = 0
+    let data2 = 0
+    if (c1.unreadMessages.length == 0)
+      data1 = c1.chat.lastMessageTime
+    else {
+      c1.unreadMessages.forEach(
+        (m,i,a) => {
+          if (m.serverTime > data1) data1 = m.serverTime
+        }
+      )
+    }
+    if (c2.unreadMessages.length == 0)
+      data2 = c2.chat.lastMessageTime
+    else {
+      c2.unreadMessages.forEach(
+        (m,i,a) => {
+          if (m.serverTime > data2) data2 = m.serverTime
+        }
+      )
+    }
+    return -data1 + data2
+  }
+
+
+
+  clear() {
+    this.chatAndUsers = new Array()
+    this.user = undefined
+  }
+
+  
+
+
+  sendMessage(msg: Message) {
+    if (this.user) {
+      const body = {
+        user:    this.user,
+        message: msg
+      }
+      this.connection.sendMessage( body );
+    }    
+  }
+
+
+  fetchOlderMessages(chatId: string) {
+    this.connection.fetchOlderMessages( chatId )
+  }
+
+  getWritingEmmiter() {
+    return this.connection.writingEmitter
+  }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
   // deprecated
   /*
 insertNewMessages2(m: Message[]): number {
@@ -255,102 +415,8 @@ insertNewMessages2(m: Message[]): number {
  */
 
 
-  insertOldMessages(m: Message[]) {
-    const chatId = m.at(0)?.chatId
-    if ( chatId ) {
-      const found = this.chatAndUsers.find( (cd, i , arr) => { return cd.chat.chatId == chatId } )
-      if ( found ) {
-        m.forEach((mess, i, arr) => {
-          found.messages.push(mess)
-        })
-        found.messages = found.messages.sort((a,b) => a.serverTime - b.serverTime )
-        this.changeChat( found )
-        console.warn('ChatsDataService.insertOldMessage() inserting old messages')
-        found.emitter.emit( found )
-      }
-    } else {
-      console.warn('ChatsDataService.insertOldMessages() => chatId NOT KNOWN. ')
-    }
-  }
-  
 
 
 
-  deleteChat(c: ChatData) {
-    this.chatAndUsers = this.chatAndUsers.filter((cd, i, arr) => {return cd.chat.chatId != c.chat.chatId})
-      .sort((a,b) => this.compareLatestChatData(a,b) )
-  }
-
-
-
-
-  insertChatUsers(chatId: string, u: User[]) {
-    this.chatAndUsers = this.chatAndUsers.map( (cd, i , arr) => {
-      if (cd.chat.chatId == chatId) {
-        const newCD: ChatData = {
-          chat: cd.chat,
-          messages: cd.messages, 
-          partitionOffsets: cd.partitionOffsets,
-          users: u, // users are added
-          unreadMessages: cd.unreadMessages,
-          emitter: cd.emitter
-        }
-        return newCD
-      } else {
-        return cd // otherwise return not changed
-      }
-    })
-  }
-
-
-
-
-  changeChat(chatD: ChatData) {
-    const filtered = this.chatAndUsers.filter((cd, i, arr) => {return cd.chat.chatId != chatD.chat.chatId})
-    filtered.push(chatD)
-    this.chatAndUsers = filtered.sort((a,b) => this.compareLatestChatData(a,b) )
-  }
-
-
-  selectChat(chatId: string | undefined ) {
-    this.selectedChat = chatId
-  }
-
-
-  private compareLatestChatData(c1: ChatData, c2: ChatData): number {
-    let data1 = 0
-    let data2 = 0
-    if (c1.unreadMessages.length == 0)
-      data1 = c1.chat.lastMessageTime
-    else {
-      c1.unreadMessages.forEach(
-        (m,i,a) => {
-          if (m.serverTime > data1) data1 = m.serverTime
-        }
-      )
-    }
-    if (c2.unreadMessages.length == 0)
-      data2 = c2.chat.lastMessageTime
-    else {
-      c2.unreadMessages.forEach(
-        (m,i,a) => {
-          if (m.serverTime > data2) data2 = m.serverTime
-        }
-      )
-    }
-    return -data1 + data2
-  }
-
-
-
-  clear() {
-    this.chatAndUsers = new Array()
-    this.userId = undefined
-  }
-
-  setUserId(uid: string | undefined) {
-    this.userId = uid
-  }
-  
 
 }

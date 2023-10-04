@@ -1,23 +1,25 @@
 import { EventEmitter, Injectable } from '@angular/core';
 import { Observable, Subscription } from 'rxjs';
+import { Router } from '@angular/router';
+import { HttpResponse } from '@angular/common/http';
+// services
 import { ConnectionService } from './connection.service';
-// import { v4 as uuidv4 } from 'uuid';
+import { UserSettingsService } from './user-settings.service';
+import { ChatsDataService } from './chats-data.service';
+import { ResponseNotifierService } from './response-notifier.service';
+// models
 import { Message} from '../models/Message';
 import { User } from '../models/User';
-import { Router } from '@angular/router';
 import { ChatData } from '../models/ChatData';
 import { Settings } from '../models/Settings';
-import { HttpResponse } from '@angular/common/http';
-import { UserSettingsService } from './user-settings.service';
 import { Invitation } from '../models/Invitation';
 import { Chat } from '../models/Chat';
-import { ChatsDataService } from './chats-data.service';
 import { Configuration } from '../models/Configuration';
 import { ChatOffsetUpdate } from '../models/ChatOffsetUpdate';
 import { Writing } from '../models/Writing';
 import { PartitionOffset } from '../models/PartitionOffset';
 import { UserOffsetUpdate } from '../models/UserOffsetUpdate';
-import { ResponseNotifierService } from './response-notifier.service';
+// import { v4 as uuidv4 } from 'uuid';
 
 
 @Injectable({
@@ -80,7 +82,7 @@ export class UserService {
               this.setUserAndSettings(body.user, body.settings)
               this.logoutSeconds = this.settingsService.settings.sessionDuration / 1000
               this.restartLogoutTimer()
-              this.chatsService.initialize( body.chatList, body.user.login )
+              this.chatsService.initialize( body.chatList, body.user )
               this.connectViaWebsocket() 
             }
             else {
@@ -229,7 +231,7 @@ export class UserService {
       this.wsConnectionSubscription = this.connection.wsConnEmitter.subscribe(
         ( bool ) => { 
           if ( this.chatsService.selectedChat ) {
-            this.fetchOlderMessages( this.chatsService.selectedChat )
+            this.chatsService.fetchOlderMessages( this.chatsService.selectedChat )
           } else console.error('selected chat is not selected. ')
           this.dataFetched( 1 ) 
         }
@@ -397,7 +399,7 @@ export class UserService {
 
   setChats(chats: ChatData[]) {
     if (this.user) {
-      this.chatsService.initialize( chats, this.user.userId ) 
+      this.chatsService.initialize( chats, this.user ) 
     }    
   }
 
@@ -415,10 +417,10 @@ export class UserService {
     this.dataFetched( 1 )
   }
 
-  selectChat(chatId: string | undefined) {
+/*   selectChat(chatId: string | undefined) {
     this.chatsService.selectChat(chatId)
   }
-
+ */
 
   insertChatUsers(chatId: string, u: User[]) {
     this.chatsService.insertChatUsers(chatId, u)
@@ -453,9 +455,7 @@ export class UserService {
 
 
 
-  getWritingEmmiter() {
-    return this.connection.writingEmitter
-  }
+
 
 
 
@@ -655,15 +655,6 @@ export class UserService {
 
 
 
-  sendMessage(msg: Message) {
-    if (this.user) {
-      const body = {
-        user:    this.user,
-        message: msg
-      }
-      this.connection.sendMessage( body );
-    }    
-  }
 
 
   sendInvitation(inv: Invitation) {
@@ -690,9 +681,7 @@ export class UserService {
 
 
 
-  fetchOlderMessages(chatId: string) {
-    this.connection.fetchOlderMessages( chatId )
-  }
+
   
 
 
