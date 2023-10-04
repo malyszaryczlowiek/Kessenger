@@ -1,4 +1,6 @@
 import { EventEmitter, Injectable } from '@angular/core';
+import { ConnectionService } from './connection.service';
+import { ChatOffsetUpdate } from '../models/ChatOffsetUpdate';
 import { ChatData } from '../models/ChatData';
 import { Message } from '../models/Message';
 import { User } from '../models/User';
@@ -8,6 +10,12 @@ import { User } from '../models/User';
 })
 export class ChatsDataService {
 
+
+  // newly adde
+  userId: string | undefined
+
+  // connection: Connection
+
   selectedChat: string | undefined // chatId
   myUserId: string = ''
   
@@ -15,7 +23,11 @@ export class ChatsDataService {
 
   chatAndUsers: Array<ChatData> = new Array();
 
-  constructor() { }
+  // zrób
+  updateChatOffsetEmmiter:  EventEmitter<ChatOffsetUpdate> = new EventEmitter<ChatOffsetUpdate>()
+
+
+  constructor(private connection: ConnectionService) {}
   
   initialize(chats: ChatData[], userId: string) {
     this.myUserId = userId
@@ -83,12 +95,17 @@ export class ChatsDataService {
   // dlatego trzeba jeszcze zimplementować mechanizm sprawdzający
   // czy dana wiadomość ma offset poniżej czy powyżej offsetu w danym chacie.
 
-  insertNewMessages(m: Message[]) {
-    // let code = 2
+  /*
+  method returns code informing if we should update chat list, chat panel, both, 
+  or do not update nothing
+  */
+  insertNewMessages(m: Message[]): number {
+    let code = 0
 
-    error
+
     // tutaj należy dodać  wysyłanie przez ws update chat offset
 
+    // error
 
 
     m.forEach((mm,i,arr) => {
@@ -101,13 +118,20 @@ export class ChatsDataService {
         // nalezy zrobić tak aby sprawdzać czy jak przychodzi wiadomość w nowo utworzonym chacie 
         // to należy dodać te wiadomości do unread a nie do przeczytanych 
 
+        if (foundCD.chat.lastMessageTime < mm.serverTime) foundCD.chat.lastMessageTime = mm.serverTime
         if ( foundCD.isNew ) {
           foundCD.unreadMessages.push( mm ) 
+          if ( code == 0 ) code = 2
+          if ( code == 3 ) code = 1
         } else {
           const unread = foundCD.partitionOffsets.some((po,i,arr) => {
-            return po.partition == mm.partOff.partition && po.offset <= mm.partOff.offset // ##### tuaj zmieniłem
+            return po.partition == mm.partOff.partition && po.offset < mm.partOff.offset // ##### tuaj zmieniłem
           })
-          if ( unread  ) foundCD.unreadMessages.push( mm )  // && mm.authorId != this.myUserId
+          if ( unread  ) {
+            foundCD.unreadMessages.push( mm )  // && mm.authorId != this.myUserId
+            if ( code == 0 ) code = 2
+            if ( code == 3 ) code = 1
+          }
           else {
             console.log('WIADOMOŚĆ DODANA DO PRZECZYTANYCH')
             foundCD.messages.push( mm )
@@ -122,14 +146,31 @@ export class ChatsDataService {
                 }
               }
             )
+            const chatOffsetUpdate: ChatOffsetUpdate = {
+              userId:           'undefined',
+              chatId:           foundCD.chat.chatId,
+              lastMessageTime:  foundCD.chat.lastMessageTime,
+              partitionOffsets: foundCD.partitionOffsets 
+            } 
+            this.updateChatOffsetEmmiter.emit( chatOffsetUpdate )
+            if ( code != 1 ) code = 1
           }  
         }
-        if (foundCD.chat.lastMessageTime < mm.serverTime) foundCD.chat.lastMessageTime = mm.serverTime
         this.changeChat( foundCD )
       }
     })
+
+    return code;
   }
 
+
+  /*
+
+
+  */
+  insertNewMessages2() {
+
+  } 
 
    
   // deprecated
@@ -304,5 +345,12 @@ insertNewMessages2(m: Message[]): number {
 
   clear() {
     this.chatAndUsers = new Array()
+    this.userId = undefined
   }
+
+  setUserId(uid: string | undefined) {
+    this.userId = uid
+  }
+  
+
 }

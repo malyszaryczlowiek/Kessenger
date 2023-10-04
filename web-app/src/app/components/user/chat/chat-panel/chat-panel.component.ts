@@ -52,7 +52,9 @@ export class ChatPanelComponent implements OnInit, OnDestroy {
               if (unreadMessLength > 0){ 
                 if ( this.htmlService.isScrolledDown() == 1 ) { 
                   console.warn('New messages and scrolled DOWN')
-                  error
+
+                  // error
+
                   this.chatData = this.userService.markMessagesAsRead( chatId )
                   this.userService.dataFetched( 2 ) // refresh chat list
                   this.htmlService.scrollDown( false )
@@ -67,7 +69,9 @@ export class ChatPanelComponent implements OnInit, OnDestroy {
                 }
               } else { // no new messages
                 this.chatData = currentChat
-                error
+                
+                //error
+                
                 this.userService.markMessagesAsRead( this.chatData.chat.chatId )
                 this.htmlService.scrollDown( false )
                 console.warn('no new messages')
@@ -89,7 +93,9 @@ export class ChatPanelComponent implements OnInit, OnDestroy {
         if (cd.chat.chatId != this.chatData?.chat.chatId) {
           // switch off subscription of previous chat
           if (this.chatModificationSubscription) this.chatModificationSubscription.unsubscribe()
-          error
+
+          // error
+          
           this.chatData = this.userService.markMessagesAsRead( cd.chat.chatId ) 
           if ( this.chatData ) {
             this.htmlService.resizeMessageListImmediately()
@@ -125,7 +131,9 @@ export class ChatPanelComponent implements OnInit, OnDestroy {
           if (this.chatData) {
             const unreadMessLength = this.chatData.unreadMessages.length
             if (unreadMessLength > 0){ 
-              error
+
+              // error
+              
               this.chatData = this.userService.markMessagesAsRead( this.chatData.chat.chatId )
               this.userService.dataFetched( 2 ) // refresh chat list
               this.htmlService.scrollDown( false )

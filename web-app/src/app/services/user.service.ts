@@ -29,7 +29,7 @@ export class UserService {
   user: User | undefined;
 
   /* codes:
-  0. do not chat list and chatPanel
+  0. do not update chat list and chatPanel
   1. update both, chat list and chatPanel
   2. update chat list
   3. update chatPanel 
@@ -43,13 +43,15 @@ export class UserService {
 
   selectedChatEmitter:  EventEmitter<ChatData> = new EventEmitter<ChatData>()
 
-  newMessagesSubscription:  Subscription | undefined
-  oldMessagesSubscription:  Subscription | undefined
-  invitationSubscription:   Subscription | undefined
+  newMessagesSubscription:      Subscription | undefined
+  oldMessagesSubscription:      Subscription | undefined
+  invitationSubscription:       Subscription | undefined
 
-  restartWSSubscription:    Subscription | undefined
-  wsConnectionSubscription: Subscription | undefined
-  reconnectWSTimer:       NodeJS.Timeout | undefined
+  restartWSSubscription:        Subscription | undefined
+  wsConnectionSubscription:     Subscription | undefined
+  chatOffsetUpdateSubscription: Subscription | undefined
+
+  reconnectWSTimer:           NodeJS.Timeout | undefined
 
 
 
@@ -105,9 +107,11 @@ export class UserService {
     if ( ! this.newMessagesSubscription ) {
       this.newMessagesSubscription = this.connection.newMessagesEmitter.subscribe(
         (messageList: Message[]) => {
-          this.chatsService.insertNewMessages( messageList )
-          this.dataFetched( 1 ) // both
-          // this.dataFetched( this.chats.insertNewMessages( messageList ) ) 
+          let code = this.chatsService.insertNewMessages( messageList )
+
+          // error // tutaj należy wstawić wysyłanie chat offset update, 
+
+          this.dataFetched( code ) 
         },
         (error) => {
           console.log('Error in message emitter: ', error)
@@ -241,6 +245,23 @@ export class UserService {
       )
     }
 
+    if ( ! this.chatOffsetUpdateSubscription ) {
+      this.chatOffsetUpdateSubscription = this.chatsService.updateChatOffsetEmmiter.subscribe(
+        ( update ) => {
+          const uid = this.user?.userId
+          if ( uid ) {
+            const chatOffsetUpdate: ChatOffsetUpdate = {
+              userId:           uid,
+              chatId:           update.chatId,
+              lastMessageTime:  update.lastMessageTime,
+              partitionOffsets: update.partitionOffsets 
+            } 
+            this.connection.sendChatOffsetUpdate( chatOffsetUpdate )
+          }          
+        }
+      )
+    }
+
 
   }
 
@@ -283,6 +304,10 @@ export class UserService {
     if ( this.logoutSubscription ) {
       this.logoutSubscription.unsubscribe()
       this.logoutSubscription = undefined
+    }
+    if ( this.chatOffsetUpdateSubscription ) {
+      this.chatOffsetUpdateSubscription.unsubscribe()
+      this.chatOffsetUpdateSubscription = undefined
     }
     this.logoutTimer = undefined
     this.logoutSeconds = this.settingsService.settings.sessionDuration / 1000
@@ -406,7 +431,7 @@ export class UserService {
 
 
 
-  error // zbadać tę metodę czy jest zawsze wywoływana wtedy kiedy trzeba. 
+  // error // zbadać tę metodę czy jest zawsze wywoływana wtedy kiedy trzeba. 
   
   markMessagesAsRead(chatId: string): ChatData | undefined {
     const cd = this.chatsService.markMessagesAsRead(chatId)

@@ -69,7 +69,6 @@ export class HtmlService {
         if (moveDown) this.messageListScrollEventEmitter.emit('down')
         if( this.scrollInterval ) clearInterval( this.scrollInterval )
       }
-      console.log('interval')
     }, 50)
   }
 
