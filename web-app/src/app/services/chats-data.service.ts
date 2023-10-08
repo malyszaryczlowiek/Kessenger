@@ -23,9 +23,10 @@ export class ChatsDataService {
   updateChatOffsetEmmiter:  EventEmitter<ChatOffsetUpdate> = new EventEmitter<ChatOffsetUpdate>()
   
 
-   // newly added
-  updateChatListEmmiter:    EventEmitter<any> = new EventEmitter<any>()
-  updateChatPanelEmmiter:   EventEmitter<any> = new EventEmitter<any>()
+  //     ######################################################################             newly added
+  updateChatListEmmiter:    EventEmitter<number> = new EventEmitter<number>()     // tuaj może pozostać any 
+  updateChatPanelEmmiter:   EventEmitter<number> = new EventEmitter<number>()     // tutaj też może być any, bo jeśli tylko dostajemy event to wiadomo, 
+  // że jest to z tego czatu w którym jesteśmy i że jesteśmy na samym dole
 
 
   constructor(private connection: ConnectionService,
@@ -85,7 +86,24 @@ export class ChatsDataService {
         // this.changeChat( chat )
       } 
       this.changeChat( chat )
-      return { cd: chat, num: num }
+      let cd = { cd: chat, num: num }
+
+      // poniższe dodałem
+
+      if ( this.user && cd ) {
+        if ( cd.num > 0 ) {
+          const chatOffsetUpdate: ChatOffsetUpdate = {
+            userId:           this.user.userId,
+            chatId:           cd.cd.chat.chatId,
+            lastMessageTime:  cd.cd.chat.lastMessageTime,
+            partitionOffsets: cd.cd.partitionOffsets 
+          }    
+          this.connection.sendChatOffsetUpdate( chatOffsetUpdate )
+        }
+      }
+      this.updateChatListEmmiter.emit( 0 )
+      this.updateChatPanelEmmiter.emit( 0 )
+
     } else {
       return undefined
     }
@@ -127,7 +145,7 @@ export class ChatsDataService {
           if ( code == 3 ) code = 1
         } else {
           const unread = foundCD.partitionOffsets.some((po,i,arr) => {
-            return po.partition == mm.partOff.partition && po.offset < mm.partOff.offset // ##### tuaj zmieniłem
+            return po.partition == mm.partOff.partition && po.offset < mm.partOff.offset // ##### tutaj zmieniłem
           })
           if ( unread  ) {
             foundCD.unreadMessages.push( mm )  // && mm.authorId != this.myUserId
@@ -166,6 +184,26 @@ export class ChatsDataService {
   }
 
 
+
+
+
+
+    /*
+  rozwiązanie by na każdy event był inny emiter tzn
+  1. jak przychodzi nowa wiadomość to chat-service to przetwarza a następnie wysyła 
+     event do wszystkich subskrybentów i tak np aktualizuje się lista chatów tak aby była poprawnie posortowana    
+     w przypadku chat-panel event będzie wysłany tylko wtedy gdy aktualny chat w chat poanel jest zgodny z tym który jest tutaj w servisie
+     i chat-panel jest ustawione na samym dole. 
+  2.    
+  */
+
+
+
+
+
+
+
+  poniżej // sprawdzić czy algorytm jest poprawny i zacząć implemenmtować
   /*
   ta metoda będzie zawierała dwa nowe emmitery: chatPanelEmmiter i chatListEmmiter
 
@@ -181,10 +219,15 @@ export class ChatsDataService {
             <koniec>
          -- NIE 
             3. dodajemy do NIEPRZECZYTANYCH
-            4 akualizujemy listę czatów  (tutaj chodzi o to by BYŁA informacja o nieprzeczytanych wiadomościach i by czaty były w kolejności zgodnej z najświeższymi wiadomościami od góry)
+            4. akualizujemy listę czatów  (tutaj chodzi o to by BYŁA informacja o nieprzeczytanych wiadomościach i by czaty były w kolejności zgodnej z najświeższymi wiadomościami od góry)
+
+            w chat-panel mamy subscrybenta, który sprawdza czy zjechaliśmy na sam dół czatu
+            -- TAK, zjechaliśmy to 
+              1. wymuszamy dodanie wszystkich nieprzeczytanych wiadomości w chacie do przeczytanych
+              2. aktualizujemy chat-listę, bo nie powinna wyświetlać, że mamy nieprzeczytane wiadomości
     -- NIE jest selected
       2. dodajemy do nieprzeczytanych
-      3. aktualizujemy listę czatów po lewej stronie 
+      3. aktualizujemy listę czatów po lewej stronie, tak aby wyświetlała, że mamy nieprzeczytane wiadomości 
 
   */
   insertNewMessages2(m: Message[]) {
@@ -193,6 +236,8 @@ export class ChatsDataService {
 
    
 
+  tutaj // sprawdzić jeszcze czy mechanizm informowania (wysyłąnia do wszystkich komponnentów) 
+  // o przyjściu starej wiadomości jest  poprawny
   /*
   NIE ZMIENIAĆ
   */ 
@@ -316,7 +361,13 @@ export class ChatsDataService {
   }
 
 
-
+  getCurrentChatData(): ChatData | undefined {
+    if (this.selectedChat) {
+      return this.chatAndUsers.find( (chatData, index, arr) => {
+        return chatData.chat.chatId == this.selectedChat;
+      })
+    } else return undefined
+  }
 
 
 

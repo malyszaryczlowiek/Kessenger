@@ -22,9 +22,11 @@ export class ChatPanelComponent implements OnInit, OnDestroy {
   fetchingSubscription:             Subscription | undefined
   writingSubscription:              Subscription | undefined
   selectedChatSubscription:         Subscription | undefined
-  chatModificationSubscription:     Subscription | undefined
+  chatModificationSubscription:     Subscription | undefined // to chyba będzie można usunąć
   messageListScrollingSubscription: Subscription | undefined
 
+  tutaj // trzeba napisać subscription, które będzie ponownie wczytywało chaty z już zaktualizowanego chat-service
+  chatPanelSubscription:            Subscription | undefined
 
 
 
@@ -38,6 +40,12 @@ export class ChatPanelComponent implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     console.log('ChatPanelComponent.ngOnInit')
+
+    this.chatPanelSubscription = this.chatService.updateChatPanelEmmiter.subscribe(
+      (a) => {
+        this.chatData = this.chatService.getCurrentChatData()
+      }
+    )
 
 
     this.fetchingSubscription = this.userService.fetchingUserDataFinishedEmmiter.subscribe(
@@ -164,17 +172,15 @@ export class ChatPanelComponent implements OnInit, OnDestroy {
     const chatId = this.activated.snapshot.paramMap.get('chatId');
     if ( chatId ) { 
       this.chatService.selectChat( chatId )
-      
+      this.chatService.fetchOlderMessages( chatId )
+      this.chatData = this.chatService.getCurrentChatData() // added
     }
     
 
-    
-    if ( this.userService.isWSconnected() ) {
+    // zakomentowuje
+    /* if ( this.userService.isWSconnected() ) {
       this.userService.dataFetched( 4 ) // here we need to only fetch to chat panel. 
-      if ( chatId ) { 
-        this.chatService.fetchOlderMessages( chatId ) // ########################## here added 
-      }
-    } 
+    }  */
     
   }
 
@@ -182,6 +188,7 @@ export class ChatPanelComponent implements OnInit, OnDestroy {
 
 
   ngOnDestroy(): void {
+    if ( this.chatPanelSubscription )            this.chatPanelSubscription.unsubscribe()
     if ( this.chatModificationSubscription )     this.chatModificationSubscription.unsubscribe()
     if ( this.fetchingSubscription )             this.fetchingSubscription.unsubscribe()
     if ( this.writingSubscription )              this.writingSubscription.unsubscribe()

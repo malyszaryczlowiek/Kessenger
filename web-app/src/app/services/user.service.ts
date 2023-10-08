@@ -1,7 +1,7 @@
 import { EventEmitter, Injectable } from '@angular/core';
-import { Observable, Subscription } from 'rxjs';
 import { Router } from '@angular/router';
 import { HttpResponse } from '@angular/common/http';
+import { Observable, Subscription } from 'rxjs';
 // services
 import { ConnectionService } from './connection.service';
 import { UserSettingsService } from './user-settings.service';
@@ -36,7 +36,9 @@ export class UserService {
   2. update chat list
   3. update chatPanel 
   */
-  fetchingUserDataFinishedEmmiter = new EventEmitter<number>() 
+  here // ten emmiter trzeba przenieść do chat-service
+  //fetchingUserDataFinishedEmmiter = new EventEmitter<number>() 
+  
 
   logoutTimer: NodeJS.Timeout | undefined;
   logoutSeconds: number = this.settingsService.settings.sessionDuration / 1000    // number of seconds to logout
@@ -51,7 +53,9 @@ export class UserService {
 
   restartWSSubscription:        Subscription | undefined
   wsConnectionSubscription:     Subscription | undefined
-  chatOffsetUpdateSubscription: Subscription | undefined
+  
+  // usunąłem
+  // chatOffsetUpdateSubscription: Subscription | undefined
 
   reconnectWSTimer:           NodeJS.Timeout | undefined
 
@@ -247,7 +251,10 @@ export class UserService {
       )
     }
 
-    if ( ! this.chatOffsetUpdateSubscription ) {
+
+    // usunąłem
+    // to będzie do usunięcia bo w chatservice będą wysyłane wszelkie updaty do chatoffsetu
+    /* if ( ! this.chatOffsetUpdateSubscription ) {
       this.chatOffsetUpdateSubscription = this.chatsService.updateChatOffsetEmmiter.subscribe(
         ( update ) => {
           const uid = this.user?.userId
@@ -262,7 +269,7 @@ export class UserService {
           }          
         }
       )
-    }
+    } */
 
 
   }
@@ -307,10 +314,11 @@ export class UserService {
       this.logoutSubscription.unsubscribe()
       this.logoutSubscription = undefined
     }
-    if ( this.chatOffsetUpdateSubscription ) {
+    // usunąłęm
+    /* if ( this.chatOffsetUpdateSubscription ) {
       this.chatOffsetUpdateSubscription.unsubscribe()
       this.chatOffsetUpdateSubscription = undefined
-    }
+    } */
     this.logoutTimer = undefined
     this.logoutSeconds = this.settingsService.settings.sessionDuration / 1000
     console.log('UserService clearservice')
@@ -377,11 +385,11 @@ export class UserService {
 
 
 
-
-  dataFetched(code: number) {
+// do usunięcia
+/*   dataFetched(code: number) {
     this.fetchingUserDataFinishedEmmiter.emit( code )
   }
-
+ */
 
 
 
@@ -404,20 +412,24 @@ export class UserService {
   }
 
 
-
-  changeChat(chatD: ChatData) {
+  // sprawdzić gdzie używane i wywołać z chat-service zamiast stąd
+/*   changeChat(chatD: ChatData) {
     this.chatsService.changeChat(chatD)
     this.dataFetched( 1 )
   }
+ */
 
 
-
-  deleteChat(c: ChatData){
+  // użyć metody z chat-service
+/*   deleteChat(c: ChatData){
     this.chatsService.deleteChat(c)
     this.dataFetched( 1 )
   }
+ */
 
-/*   selectChat(chatId: string | undefined) {
+
+
+  /*   selectChat(chatId: string | undefined) {
     this.chatsService.selectChat(chatId)
   }
  */
@@ -435,7 +447,9 @@ export class UserService {
 
   // error // zbadać tę metodę czy jest zawsze wywoływana wtedy kiedy trzeba. 
   
-  markMessagesAsRead(chatId: string): ChatData | undefined {
+
+  // do przeniesienia do chat-serivce
+/*   markMessagesAsRead(chatId: string): ChatData | undefined {
     const cd = this.chatsService.markMessagesAsRead(chatId)
     if ( this.user && cd ) {
       if ( cd.num > 0 ) {
@@ -451,7 +465,7 @@ export class UserService {
       return cd.cd
     } else return undefined   
   }
-
+ */
 
 
 
