@@ -12,7 +12,7 @@ import { Message} from '../models/Message';
 import { User } from '../models/User';
 import { ChatData } from '../models/ChatData';
 import { Settings } from '../models/Settings';
-import { Invitation } from '../models/Invitation';
+// import { Invitation } from '../models/Invitation';
 import { Chat } from '../models/Chat';
 import { Configuration } from '../models/Configuration';
 import { ChatOffsetUpdate } from '../models/ChatOffsetUpdate';
@@ -36,20 +36,23 @@ export class UserService {
   2. update chat list
   3. update chatPanel 
   */
-  here // ten emmiter trzeba przenieść do chat-service
-  //fetchingUserDataFinishedEmmiter = new EventEmitter<number>() 
+  // here // ten emmiter trzeba przenieść do chat-service
   
 
-  logoutTimer: NodeJS.Timeout | undefined;
+  // fetchingUserDataFinishedEmmiter = new EventEmitter<number>() 
+  
+
+  //logoutTimer: NodeJS.Timeout | undefined;
   logoutSeconds: number = this.settingsService.settings.sessionDuration / 1000    // number of seconds to logout
-  logoutSecondsEmitter: EventEmitter<number>   = new EventEmitter()
-  logoutSubscription:   Subscription | undefined
+  // logoutSecondsEmitter: EventEmitter<number>   = new EventEmitter()
+  
 
   selectedChatEmitter:  EventEmitter<ChatData> = new EventEmitter<ChatData>()
 
-  newMessagesSubscription:      Subscription | undefined
-  oldMessagesSubscription:      Subscription | undefined
-  invitationSubscription:       Subscription | undefined
+  logoutSubscription:           Subscription | undefined
+  // newMessagesSubscription:      Subscription | undefined
+  // oldMessagesSubscription:      Subscription | undefined
+  // invitationSubscription:       Subscription | undefined
 
   restartWSSubscription:        Subscription | undefined
   wsConnectionSubscription:     Subscription | undefined
@@ -110,7 +113,7 @@ export class UserService {
 
 
   assignSubscriptions() {
-    if ( ! this.newMessagesSubscription ) {
+    /* if ( ! this.newMessagesSubscription ) {
       this.newMessagesSubscription = this.connection.newMessagesEmitter.subscribe(
         (messageList: Message[]) => {
           let code = this.chatsService.insertNewMessages( messageList )
@@ -124,9 +127,9 @@ export class UserService {
         },
         () => console.log('on message emitter completed.')
       )
-    }
+    } */
 
-    if ( ! this.oldMessagesSubscription ) {
+/*     if ( ! this.oldMessagesSubscription ) {
       this.oldMessagesSubscription = this.connection.oldMessagesEmitter.subscribe(
         (messageList: Message[]) => {
           console.log(`old messages from emitter: ${messageList}`)
@@ -139,8 +142,10 @@ export class UserService {
         () => console.log('on message emitter completed.')
       ) 
     }
-
-    if (! this.invitationSubscription ) {
+ */
+    
+    
+/*     if (! this.invitationSubscription ) {
       this.invitationSubscription = this.connection.invitationEmitter.subscribe(
         (invitation: Invitation) => {
           const c = this.getChatData( invitation.chatId )
@@ -161,6 +166,7 @@ export class UserService {
                     }
                     this.addNewChat( cd ) 
                     this.startListeningFromNewChat( cd.chat.chatId, cd.partitionOffsets )
+                    
                     this.dataFetched( 2 ) 
   
                     if ( this.user ) {
@@ -200,7 +206,7 @@ export class UserService {
         },
         () => {} 
       )
-    }
+    } */
 
 
     if (! this.restartWSSubscription ) {
@@ -297,19 +303,20 @@ export class UserService {
     }
     if (this.reconnectWSTimer) clearInterval(this.reconnectWSTimer)  
     this.connection.disconnect();  
-    if (this.logoutTimer) clearInterval(this.logoutTimer)  
-    if (this.newMessagesSubscription) {
+    // if (this.logoutTimer) clearInterval(this.logoutTimer)  
+/*     if (this.newMessagesSubscription) {
       this.newMessagesSubscription.unsubscribe()
       this.newMessagesSubscription = undefined
-    }
-    if (this.oldMessagesSubscription) {
+    } */
+/*     if (this.oldMessagesSubscription) {
       this.oldMessagesSubscription.unsubscribe()
       this.oldMessagesSubscription = undefined
-    }
-    if (this.invitationSubscription)  {
+    } */
+/*     if (this.invitationSubscription)  {
       this.invitationSubscription.unsubscribe()
       this.invitationSubscription = undefined
     }
+ */    
     if ( this.logoutSubscription ) {
       this.logoutSubscription.unsubscribe()
       this.logoutSubscription = undefined
@@ -319,7 +326,7 @@ export class UserService {
       this.chatOffsetUpdateSubscription.unsubscribe()
       this.chatOffsetUpdateSubscription = undefined
     } */
-    this.logoutTimer = undefined
+    // this.logoutTimer = undefined
     this.logoutSeconds = this.settingsService.settings.sessionDuration / 1000
     console.log('UserService clearservice')
   }
@@ -340,7 +347,8 @@ export class UserService {
   
 
 
-  restartLogoutTimer() {
+  // moved to logout service 
+/*   restartLogoutTimer() {
     this.logoutSeconds = this.settingsService.settings.sessionDuration / 1000
     if (this.logoutTimer) {}
     else {
@@ -356,17 +364,18 @@ export class UserService {
       }, 1000)
     }
   }
+ */
 
 
 
-  updateSession(sendUpdateToServer: boolean) {
+/*   updateSession(sendUpdateToServer: boolean) {
     if (this.user) {
       this.connection.updateSession(sendUpdateToServer)
       //this.connection.updateSession(this.user.userId);
       this.restartLogoutTimer()
     }
   }
-
+ */
   
 
 
@@ -592,14 +601,17 @@ export class UserService {
     else return undefined;
   }
 
-  getChatData(chatId: string): Observable<HttpResponse<{chat: Chat, partitionOffsets: Array<{partition: number, offset: number}>}>> | undefined  {
+
+  // moved to chat-service
+
+/*   getChatData(chatId: string): Observable<HttpResponse<{chat: Chat, partitionOffsets: Array<{partition: number, offset: number}>}>> | undefined  {
     if (this.user) {
       this.updateSession(false)
       return this.connection.getChatData(this.user.userId, chatId);
     }
     else return undefined;
   }
-
+ */
 
   getChatUsers(chatId: string): Observable<HttpResponse<User[]>> | undefined {
     if (this.user) {
@@ -671,10 +683,10 @@ export class UserService {
 
 
 
-  sendInvitation(inv: Invitation) {
+/*   sendInvitation(inv: Invitation) {
     this.connection.sendInvitation(inv)
   }
-
+ */
 
 
   sendWriting(w: Writing){
@@ -689,10 +701,10 @@ export class UserService {
 
 
 
-  startListeningFromNewChat(chatId: string, partitionOffsets: PartitionOffset[]) {
+/*   startListeningFromNewChat(chatId: string, partitionOffsets: PartitionOffset[]) {
     this.connection.startListeningFromNewChat( chatId , partitionOffsets)
   }
-
+ */
 
 
 

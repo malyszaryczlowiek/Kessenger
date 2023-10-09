@@ -1,11 +1,16 @@
 import { EventEmitter, Injectable } from '@angular/core';
+import { Observable, Subscription } from 'rxjs';
+import { HttpResponse } from '@angular/common/http';
+import { HtmlService } from 'src/app/services/html.service';
 // services
 import { ConnectionService } from './connection.service';
-import { HtmlService } from 'src/app/services/html.service';
 // models
+import { Chat } from '../models/Chat';
 import { ChatOffsetUpdate } from '../models/ChatOffsetUpdate';
 import { ChatData } from '../models/ChatData';
+import { Invitation } from '../models/Invitation';
 import { Message } from '../models/Message';
+import { PartitionOffset } from '../models/PartitionOffset';
 import { User } from '../models/User';
 
 
@@ -29,9 +34,26 @@ export class ChatsDataService {
   // że jest to z tego czatu w którym jesteśmy i że jesteśmy na samym dole
 
 
+  newMessagesSubscription:      Subscription | undefined
+  oldMessagesSubscription:      Subscription | undefined
+  invitationSubscription:       Subscription | undefined
+
+
+
+
+
+
+
+
+
+
+
+
   constructor(private connection: ConnectionService,
               private htmlService: HtmlService) {}
   
+
+
   initialize(chats: ChatData[], u: User) {
     this.user = u
     this.chatAndUsers = chats.map(
@@ -43,7 +65,113 @@ export class ChatsDataService {
         return cd
       }
     ).sort( (a,b) => this.compareLatestChatData(a,b) )
+
+
+    if ( ! this.newMessagesSubscription ) {
+      this.newMessagesSubscription = this.connection.newMessagesEmitter.subscribe(
+        (messageList: Message[]) => {
+          this.insertNewMessages( messageList )
+        },
+        (error) => {
+          console.log('Error in message emitter: ', error)
+        },
+        () => console.log('on message emitter completed.')
+      )
+    }
+
+
+    if ( ! this.oldMessagesSubscription ) {
+      this.oldMessagesSubscription = this.connection.oldMessagesEmitter.subscribe(
+        (messageList: Message[]) => {
+          console.log(`old messages from emitter: ${messageList}`)
+          this.insertOldMessages( messageList ) 
+        },
+        (error) => {
+          console.log('Error in message emitter: ', error)
+          console.log(error)
+        },
+        () => console.log('on message emitter completed.')
+      ) 
+    }
+
+
+
+
+    if (! this.invitationSubscription ) {
+      this.invitationSubscription = this.connection.invitationEmitter.subscribe(
+        (invitation: Invitation) => {
+          const c = this.getChatData( invitation.chatId )
+          if ( c ) {
+            const cSub = c.subscribe({
+              next: (response) => {
+                if (response.ok){
+                  const body = response.body
+                  if ( body ) {
+                    const cd: ChatData =  {
+                      chat: body.chat,
+                      partitionOffsets: invitation.partitionOffsets,
+                      messages: new Array<Message>(),
+                      unreadMessages: new Array<Message>(),
+                      users: new Array<User>(),
+                      isNew: true,
+                      emitter: new EventEmitter<ChatData>()  
+                    }
+                    this.addNewChat( cd ) 
+                    this.startListeningFromNewChat( cd.chat.chatId, cd.partitionOffsets )
+                    
+                    this.dataFetched( 2 ) 
+  
+                    if ( this.user ) {
+                      const bodyToSent: UserOffsetUpdate = {
+                        userId: this.user.userId,
+                        joiningOffset: invitation.myJoiningOffset                    
+                      }
+                      const u = this.updateJoiningOffset( bodyToSent )
+                      if ( u ) {
+                        const sub = u.subscribe({
+                          next: (response) => {
+                            if ( response.ok ) {
+                              this.settingsService.settings.joiningOffset = invitation.myJoiningOffset
+                              console.log('joining Offset updated ok. to ', invitation.myJoiningOffset)
+                            }
+                              
+                          },
+                          error: (err) => {
+                            console.log('Error during joining offset update', err)
+                          },
+                          complete: () => {}
+                        })
+                      }
+                    }                  
+                  }                
+                }              
+              },
+              error: (err) => {
+                console.error('error in calling getChatData() in invitationSubscription', err) 
+              },
+              complete: () => {}
+            })
+          }
+        }, 
+        (error) => {
+          console.error('Got errorn in invitation subscription', error)
+        },
+        () => {} 
+      )
+    }
+
+
+
+
   }
+
+
+  private findChat(chatId: string): ChatData | undefined {
+    return this.chatAndUsers.find((cd, i, arr) => {
+      return cd.chat.chatId == chatId
+    })
+  }
+
 
 
   addNewChat(c: ChatData) {
@@ -54,19 +182,17 @@ export class ChatsDataService {
 
   // todo // zaimplementować,że w danym czacie wszystkie wiadomości są już przeczytane
   // po wywołaniu tej funkcji należy jeszcze fetchować ??? dane 
-  markMessagesAsRead(chatId: string): {cd: ChatData, num: number} | undefined {
-    const chat = this.chatAndUsers.find(
-      (cd, i , arr) => {
-        return cd.chat.chatId == chatId
-      }
-    )
+  markMessagesAsRead(chatId: string) { // : {cd: ChatData, num: number} | undefined
+    const chat = this.findChat( chatId )
     if ( chat ) {
       chat.isNew = false
       this.selectedChat = chatId 
       const num = chat.unreadMessages.length
+      // if no unread messages, we do nothing and simply end method
       if ( num > 0 ) {
         chat.unreadMessages.forEach(
           (m, i, arr) => {
+            // move each unread message to read 
             chat.messages.push( m )
             if (m.serverTime > chat.chat.lastMessageTime) chat.chat.lastMessageTime = m.serverTime
             chat.partitionOffsets = chat.partitionOffsets.map(
@@ -83,31 +209,37 @@ export class ChatsDataService {
         )
         chat.unreadMessages = new Array<Message>()
         chat.messages = chat.messages.sort((a,b) => a.serverTime - b.serverTime )
-        // this.changeChat( chat )
-      } 
-      this.changeChat( chat )
-      let cd = { cd: chat, num: num }
+      
+        this.changeChat( chat )
+        let cd = { cd: chat, num: num }
 
-      // poniższe dodałem
+        // poniższe dodałem
 
-      if ( this.user && cd ) {
-        if ( cd.num > 0 ) {
-          const chatOffsetUpdate: ChatOffsetUpdate = {
-            userId:           this.user.userId,
-            chatId:           cd.cd.chat.chatId,
-            lastMessageTime:  cd.cd.chat.lastMessageTime,
-            partitionOffsets: cd.cd.partitionOffsets 
-          }    
-          this.connection.sendChatOffsetUpdate( chatOffsetUpdate )
+        if ( this.user && cd ) {
+          if ( cd.num > 0 ) {
+            const chatOffsetUpdate: ChatOffsetUpdate = {
+              userId:           this.user.userId,
+              chatId:           cd.cd.chat.chatId,
+              lastMessageTime:  cd.cd.chat.lastMessageTime,
+              partitionOffsets: cd.cd.partitionOffsets 
+            }    
+            this.connection.sendChatOffsetUpdate( chatOffsetUpdate )
+          }
         }
-      }
-      this.updateChatListEmmiter.emit( 0 )
-      this.updateChatPanelEmmiter.emit( 0 )
+        this.updateChatListEmmiter.emit( 0 )
+        this.updateChatPanelEmmiter.emit( 0 )
+      }  // end of if num
+    }  // end of if (chat)
 
-    } else {
-      return undefined
-    }
+    //    else {
+//      return undefined
+// }      
   }
+
+
+
+
+
 
   //tutaj // jest problem z wczytaniem wielu wiadomości 
   // oraz z tym że jak jesteśmy w liście czatów i zrobimy refresh
@@ -252,7 +384,8 @@ export class ChatsDataService {
         found.messages = found.messages.sort((a,b) => a.serverTime - b.serverTime )
         this.changeChat( found )
         console.warn('ChatsDataService.insertOldMessage() inserting old messages')
-        found.emitter.emit( found )
+        // found.emitter.emit( found ) // w starej wersji
+        this.updateChatPanelEmmiter.emit( 0 )
       }
     } else {
       console.warn('ChatsDataService.insertOldMessages() => chatId NOT KNOWN. ')
@@ -334,6 +467,22 @@ export class ChatsDataService {
 
 
   clear() {
+
+    if (this.newMessagesSubscription) {
+      this.newMessagesSubscription.unsubscribe()
+      this.newMessagesSubscription = undefined
+    }
+
+    if (this.oldMessagesSubscription) {
+      this.oldMessagesSubscription.unsubscribe()
+      this.oldMessagesSubscription = undefined
+    }
+
+    if (this.invitationSubscription)  {
+      this.invitationSubscription.unsubscribe()
+      this.invitationSubscription = undefined
+    }
+
     this.chatAndUsers = new Array()
     this.user = undefined
   }
@@ -352,13 +501,18 @@ export class ChatsDataService {
   }
 
 
+
   fetchOlderMessages(chatId: string) {
     this.connection.fetchOlderMessages( chatId )
   }
 
+
+
   getWritingEmmiter() {
     return this.connection.writingEmitter
   }
+
+
 
 
   getCurrentChatData(): ChatData | undefined {
@@ -368,6 +522,33 @@ export class ChatsDataService {
       })
     } else return undefined
   }
+
+
+  getChatData(chatId: string): Observable<HttpResponse<{chat: Chat, partitionOffsets: Array<{partition: number, offset: number}>}>> | undefined  {
+    if (this.user) {
+      this.updateSession(false)
+      return this.connection.getChatData(this.user.userId, chatId);
+    }
+    else return undefined;
+  }
+
+
+  startListeningFromNewChat(chatId: string, partitionOffsets: PartitionOffset[]) {
+    this.connection.startListeningFromNewChat( chatId , partitionOffsets)
+  }
+
+
+  // to wszystko trzebaby przenieść do connection service
+  
+  updateSession(sendUpdateToServer: boolean) {
+    if (this.user) {
+      this.connection.updateSession(sendUpdateToServer)
+      //this.connection.updateSession(this.user.userId);
+      this.restartLogoutTimer()
+    }
+  }
+
+
 
 
 

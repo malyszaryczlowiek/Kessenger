@@ -21,6 +21,7 @@ import { ResponseNotifierService } from './response-notifier.service';
 
 
 
+
 @Injectable({
   providedIn: 'root'
 })
@@ -63,6 +64,11 @@ export class ConnectionService {
     this.wsConnection = undefined
   }            
   // {user: User, settings: Settings, chatList: Array<{chat: Chat, partitionOffsets: Array<PartitionOffset>}>}
+
+
+  initialize() {
+    
+  }
 
 
   signUp(login: string, pass: string): Observable<HttpResponse<{user: User, settings: Settings}>> | undefined{
@@ -131,6 +137,9 @@ export class ConnectionService {
     const token = this.session.getSessionToken()
     const server = this.loadBalancer.currentServer
     if ( token  && server) {
+
+      this.updateSession( false )
+
       return this.http.get<{user: User, settings: Settings, chatList: Array<ChatData>}>(server.getURIwithPath(`/user/${userId}`), {
         headers: new HttpHeaders()
           .set('KSID', token),

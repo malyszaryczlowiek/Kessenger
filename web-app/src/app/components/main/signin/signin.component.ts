@@ -47,6 +47,14 @@ export class SigninComponent implements OnInit {
 
             const body = response.body
             if ( body ) {
+              this.connectionService.initialize(
+                body.user,
+                body.settings,
+                body.chatList
+              )
+              this.router.navigate(['user']);
+              // old
+
               this.userService.assignSubscriptions()
               this.userService.setUserAndSettings(
                 body.user,

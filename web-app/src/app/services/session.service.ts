@@ -1,11 +1,13 @@
-import { Injectable } from '@angular/core';
-
-import { UserSettingsService } from './user-settings.service';
+import { EventEmitter, Injectable } from '@angular/core';
 import { CookieService } from 'ngx-cookie-service';
-import { UtctimeService } from './utctime.service';
-import { Ksid } from '../models/Ksid';
 import { v4 as uuidv4 } from 'uuid';
 import { Router } from '@angular/router';
+// services
+import { UserSettingsService } from './user-settings.service';
+import { UtctimeService } from './utctime.service';
+// models
+import { Ksid } from '../models/Ksid';
+
 
 
 @Injectable({
@@ -14,6 +16,18 @@ import { Router } from '@angular/router';
 export class SessionService {
 
   private ksid?: Ksid;
+
+  logoutTimer: NodeJS.Timeout | undefined;
+  // logoutSeconds:       number | undefined;
+  logoutSeconds:       number = 5; // to może powodować błędy i będzie jakoś trzeba 
+
+  logoutSecondsEmitter: EventEmitter<number> = new EventEmitter()
+  logoutEmitter:        EventEmitter<number> = new EventEmitter()
+
+
+
+
+
 
 
 
@@ -59,6 +73,7 @@ export class SessionService {
       this.ksid = new Ksid(this.ksid.sessId, userId, time);
       // this.cookieService.delete('KSID')
       this.cookieService.set('KSID', this.ksid.toString(), this.getExpirationTime(), '/');
+      this.restartLogoutTimer()  // dodane 
     } else {
       this.router.navigate(['session-timeout'])
     }   
@@ -113,6 +128,40 @@ export class SessionService {
 
   
   
+
+
+
+  restartLogoutTimer() {
+    // this.logoutSeconds = this.settingsService.settings.sessionDuration / 1000
+    if (this.logoutTimer) {}
+    else {
+      if ( this.logoutSeconds ) {}    
+      this.logoutTimer = setInterval(() => {
+        this.logoutSeconds = this.logoutSeconds - 1
+        this.logoutSecondsEmitter.emit(this.logoutSeconds)
+        if (this.logoutSeconds < 1) {
+          console.log('LogoutTimer called!!!')
+          clearInterval(this.logoutTimer)
+          this.clearService()
+          this.router.navigate([''])
+        }
+      }, 1000)  
+    }
+  }
+
+
+
+  setLogoutTime(timeInSeconds: number) {
+    this.logoutSeconds = timeInSeconds
+  }
+
+
+  clearService() {
+    if (this.logoutTimer) clearInterval(this.logoutTimer)  
+    this.logoutTimer = undefined
+
+    
+  }
 
 
 

@@ -19,15 +19,17 @@ export class ChatPanelComponent implements OnInit, OnDestroy {
 
   wrt:                              Writing      | undefined
   chatData:                         ChatData     | undefined
-  fetchingSubscription:             Subscription | undefined
+  // fetchingSubscription:             Subscription | undefined
   writingSubscription:              Subscription | undefined
-  selectedChatSubscription:         Subscription | undefined
-  chatModificationSubscription:     Subscription | undefined // to chyba będzie można usunąć
+  // selectedChatSubscription:         Subscription | undefined
+  // chatModificationSubscription:     Subscription | undefined // to chyba będzie można usunąć
   messageListScrollingSubscription: Subscription | undefined
 
-  tutaj // trzeba napisać subscription, które będzie ponownie wczytywało chaty z już zaktualizowanego chat-service
+  // trzeba napisać subscription, które będzie ponownie wczytywało chaty z już zaktualizowanego chat-service
   chatPanelSubscription:            Subscription | undefined
 
+
+  
 
 
   constructor(private userService: UserService, 
@@ -48,7 +50,7 @@ export class ChatPanelComponent implements OnInit, OnDestroy {
     )
 
 
-    this.fetchingSubscription = this.userService.fetchingUserDataFinishedEmmiter.subscribe(
+/*     this.fetchingSubscription = this.userService.fetchingUserDataFinishedEmmiter.subscribe(
       (c) => {
         if (c == 1 || c == 3 || c == 4) { 
           const chatId = this.activated.snapshot.paramMap.get('chatId');
@@ -95,9 +97,15 @@ export class ChatPanelComponent implements OnInit, OnDestroy {
         }
       }
     );
+ */
+
+
+
+
+
 
     // this subscription is called when user select another chat. from list.
-    this.selectedChatSubscription = this.userService.selectedChatEmitter.subscribe( 
+/*     this.selectedChatSubscription = this.userService.selectedChatEmitter.subscribe( 
       (cd) =>  {
         // we modify only when new chat is selected
         if (cd.chat.chatId != this.chatData?.chat.chatId) {
@@ -121,7 +129,7 @@ export class ChatPanelComponent implements OnInit, OnDestroy {
         }
       }
     )   
-
+ */
 
     // we need to stay it because cannot insert Writing value via html. 
     this.writingSubscription = this.chatService.getWritingEmmiter().subscribe(
@@ -139,6 +147,13 @@ export class ChatPanelComponent implements OnInit, OnDestroy {
       (position) => {
         if (position == 'down') {
           if (this.chatData) {
+            // nowe 
+            this.chatService.markMessagesAsRead( this.chatData.chat.chatId )
+
+
+
+            // stare 
+
             const unreadMessLength = this.chatData.unreadMessages.length
             if (unreadMessLength > 0){ 
 
@@ -173,7 +188,9 @@ export class ChatPanelComponent implements OnInit, OnDestroy {
     if ( chatId ) { 
       this.chatService.selectChat( chatId )
       this.chatService.fetchOlderMessages( chatId )
-      this.chatData = this.chatService.getCurrentChatData() // added
+      
+      //  zakomentowałem bo fetchowanie starych wiadomości powinno zrobić update chat-panelu z wczytaniem wiadomośći włąćznie
+      // this.chatData = this.chatService.getCurrentChatData() // added
     }
     
 
@@ -189,10 +206,10 @@ export class ChatPanelComponent implements OnInit, OnDestroy {
 
   ngOnDestroy(): void {
     if ( this.chatPanelSubscription )            this.chatPanelSubscription.unsubscribe()
-    if ( this.chatModificationSubscription )     this.chatModificationSubscription.unsubscribe()
-    if ( this.fetchingSubscription )             this.fetchingSubscription.unsubscribe()
+    // if ( this.chatModificationSubscription )     this.chatModificationSubscription.unsubscribe()
+    // if ( this.fetchingSubscription )             this.fetchingSubscription.unsubscribe()
     if ( this.writingSubscription )              this.writingSubscription.unsubscribe()
-    if ( this.selectedChatSubscription )         this.selectedChatSubscription.unsubscribe()
+    // if ( this.selectedChatSubscription )         this.selectedChatSubscription.unsubscribe()
     if ( this.messageListScrollingSubscription ) this.messageListScrollingSubscription.unsubscribe()
     this.chatService.clearSelectedChat()
     // this.userService.selectChat( undefined )
