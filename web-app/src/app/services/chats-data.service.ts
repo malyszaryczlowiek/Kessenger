@@ -6,6 +6,7 @@ import { HtmlService } from 'src/app/services/html.service';
 import { ConnectionService } from './connection.service';
 // models
 import { Chat } from '../models/Chat';
+import { Writing } from '../models/Writing';
 import { ChatOffsetUpdate } from '../models/ChatOffsetUpdate';
 import { ChatData } from '../models/ChatData';
 import { Invitation } from '../models/Invitation';
@@ -25,18 +26,41 @@ export class ChatsDataService {
   chatAndUsers: Array<ChatData> = new Array();
 
 
-  updateChatOffsetEmmiter:  EventEmitter<ChatOffsetUpdate> = new EventEmitter<ChatOffsetUpdate>()
+  // to musi być zasubskrybowane przez connection service
+  // tam będzie wywoływana metoda do wysyłania przez ws informacji o updejcie
+  chatOffsetUpdateEmitter: EventEmitter<ChatOffsetUpdate> = new EventEmitter<ChatOffsetUpdate>()
   
 
-  //     ######################################################################             newly added
-  updateChatListEmmiter:    EventEmitter<number> = new EventEmitter<number>()     // tuaj może pozostać any 
-  updateChatPanelEmmiter:   EventEmitter<number> = new EventEmitter<number>()     // tutaj też może być any, bo jeśli tylko dostajemy event to wiadomo, 
+  // te emitery muszą być zasubskrybowane przez odpowiednie komponenty 
+  // component subskrybując updejtuje - pobiera dane z serwisu
+  updateChatListEmmiter:   EventEmitter<number> = new EventEmitter<number>()     // tuaj może pozostać any 
+  updateChatPanelEmmiter:  EventEmitter<number> = new EventEmitter<number>()     // tutaj też może być any, bo jeśli tylko dostajemy event to wiadomo, 
+  
+
+  // informacja o tym, że ktoś pisze jest wysyłana do connection, które ma subskrybenta, 
+  // który to przechwytuje i wysyła przez WS
+  sendingWritingEmitter:   EventEmitter<Writing | undefined> = new EventEmitter<Writing| undefined>()
+  
+
+  // ten emmiter musi być zasubskrybowany do obierania informacji z connection, że ktoś piszę 
+  // subskrybują go chat-panel i chat-list
+  receivingWritingEmitter: EventEmitter<Writing | undefined> = new EventEmitter<Writing| undefined>()
+
+
+  // tym emitterm wysyłamy wiadomość do connection service żeby wysłać ją przez WS
+  sendMessageEmitter:      EventEmitter<Message> = new EventEmitter<Message>()
+  
+
+  // tym emiterem informujemy connection service, że chcemy pobrać przez WS stare wiadomości z backendu
+  fetchOlderMessagesEmitter: EventEmitter<string> = new EventEmitter<string>()
   // że jest to z tego czatu w którym jesteśmy i że jesteśmy na samym dole
 
 
-  newMessagesSubscription:      Subscription | undefined
-  oldMessagesSubscription:      Subscription | undefined
-  invitationSubscription:       Subscription | undefined
+
+  // rezygnuję z zubskrypcji na rzecz bezpośredniego wywoływania metody tego serwisu
+  // newMessagesSubscription:      Subscription | undefined
+  // oldMessagesSubscription:      Subscription | undefined
+  // invitationSubscription:       Subscription | undefined
 
 
 
@@ -49,7 +73,7 @@ export class ChatsDataService {
 
 
 
-  constructor(private connection: ConnectionService,
+  constructor(//private connection: ConnectionService,
               private htmlService: HtmlService) {}
   
 
@@ -67,7 +91,7 @@ export class ChatsDataService {
     ).sort( (a,b) => this.compareLatestChatData(a,b) )
 
 
-    if ( ! this.newMessagesSubscription ) {
+/*     if ( ! this.newMessagesSubscription ) {
       this.newMessagesSubscription = this.connection.newMessagesEmitter.subscribe(
         (messageList: Message[]) => {
           this.insertNewMessages( messageList )
@@ -77,10 +101,10 @@ export class ChatsDataService {
         },
         () => console.log('on message emitter completed.')
       )
-    }
+    } */
 
 
-    if ( ! this.oldMessagesSubscription ) {
+/*     if ( ! this.oldMessagesSubscription ) {
       this.oldMessagesSubscription = this.connection.oldMessagesEmitter.subscribe(
         (messageList: Message[]) => {
           console.log(`old messages from emitter: ${messageList}`)
@@ -92,15 +116,17 @@ export class ChatsDataService {
         },
         () => console.log('on message emitter completed.')
       ) 
-    }
+    } */
 
 
 
 
-    if (! this.invitationSubscription ) {
+/*     if (! this.invitationSubscription ) {
       this.invitationSubscription = this.connection.invitationEmitter.subscribe(
-        (invitation: Invitation) => {
-          const c = this.getChatData( invitation.chatId )
+        (invitation: Invitation) => 
+           
+          {
+            const c = this.getChatData( invitation.chatId )
           if ( c ) {
             const cSub = c.subscribe({
               next: (response) => {
@@ -145,7 +171,7 @@ export class ChatsDataService {
                     }                  
                   }                
                 }              
-              },
+              } ,
               error: (err) => {
                 console.error('error in calling getChatData() in invitationSubscription', err) 
               },
@@ -158,10 +184,7 @@ export class ChatsDataService {
         },
         () => {} 
       )
-    }
-
-
-
+    } */
 
   }
 
@@ -176,9 +199,71 @@ export class ChatsDataService {
 
   addNewChat(c: ChatData) {
     this.changeChat(c)
+    this.updateChatListEmmiter.emit( 0 )
   }
 
 
+  /*
+    method called from chat panel when we sending info that we are typing
+  */
+  sendWriting(w: Writing) {
+    this.sendingWritingEmitter.emit( w )
+  }
+
+
+  /*
+    method called 
+  */
+  showWriting(w: Writing | undefined) {
+    this.receivingWritingEmitter.emit( w )
+  }
+
+
+
+  /*
+    method called from connection service when we get invitation via WS
+  */
+/*   handleInvitation(i: Invitation) {
+    if ( i ) {
+      const cd: ChatData =  {
+        chat: i.chat,
+        partitionOffsets: invitation.partitionOffsets,
+        messages: new Array<Message>(),
+        unreadMessages: new Array<Message>(),
+        users: new Array<User>(),
+        isNew: true,
+        emitter: new EventEmitter<ChatData>()  
+      }
+      this.addNewChat( cd ) 
+      this.startListeningFromNewChat( cd.chat.chatId, cd.partitionOffsets )
+      
+      this.dataFetched( 2 ) 
+
+      if ( this.user ) {
+        const bodyToSent: UserOffsetUpdate = {
+          userId: this.user.userId,
+          joiningOffset: invitation.myJoiningOffset                    
+        }
+        const u = this.updateJoiningOffset( bodyToSent )
+        if ( u ) {
+          const sub = u.subscribe({
+            next: (response) => {
+              if ( response.ok ) {
+                this.settingsService.settings.joiningOffset = invitation.myJoiningOffset
+                console.log('joining Offset updated ok. to ', invitation.myJoiningOffset)
+              }
+                
+            },
+            error: (err) => {
+              console.log('Error during joining offset update', err)
+            },
+            complete: () => {}
+          })
+        }
+      }                  
+    } 
+  }
+ */
 
   // todo // zaimplementować,że w danym czacie wszystkie wiadomości są już przeczytane
   // po wywołaniu tej funkcji należy jeszcze fetchować ??? dane 
@@ -223,7 +308,8 @@ export class ChatsDataService {
               lastMessageTime:  cd.cd.chat.lastMessageTime,
               partitionOffsets: cd.cd.partitionOffsets 
             }    
-            this.connection.sendChatOffsetUpdate( chatOffsetUpdate )
+            this.chatOffsetUpdateEmitter.emit( chatOffsetUpdate )
+            //this.connection.sendChatOffsetUpdate( chatOffsetUpdate )
           }
         }
         this.updateChatListEmmiter.emit( 0 )
@@ -304,7 +390,7 @@ export class ChatsDataService {
               lastMessageTime:  foundCD.chat.lastMessageTime,
               partitionOffsets: foundCD.partitionOffsets 
             } 
-            this.updateChatOffsetEmmiter.emit( chatOffsetUpdate )
+            this.chatOffsetUpdateEmitter.emit( chatOffsetUpdate )
             if ( code != 1 ) code = 1
           }  
         }
@@ -433,6 +519,10 @@ export class ChatsDataService {
 
   selectChat(chatId: string | undefined ) {
     this.selectedChat = chatId
+    here // tutaj  oprócz selekcji powinniśmy jeszcze dla tego czatu:
+    // 1. fetchować stare wiadomości ( po wykonaniu fetchowania należy jeszcze updejtować sesje - wewnątrz metody )
+    // 2. oznaczyć wszystkie wiadomości jako przeczytane ( co powinno wywołać wysłanie emitu chatOffsetUpdateEmitter )
+
   }
 
   clearSelectedChat() {
@@ -491,30 +581,35 @@ export class ChatsDataService {
 
 
   sendMessage(msg: Message) {
-    if (this.user) {
+    this.sendMessageEmitter.emit( msg )
+/*     if (this.user) {
       const body = {
         user:    this.user,
         message: msg
       }
       this.connection.sendMessage( body );
-    }    
+    }     */
   }
 
 
 
   fetchOlderMessages(chatId: string) {
+    
     this.connection.fetchOlderMessages( chatId )
   }
 
 
 
-  getWritingEmmiter() {
+/*   getWritingEmmiter() {
     return this.connection.writingEmitter
   }
+ */
 
 
 
-
+  /*
+    method called in chat-panel to fetching chat data
+  */
   getCurrentChatData(): ChatData | undefined {
     if (this.selectedChat) {
       return this.chatAndUsers.find( (chatData, index, arr) => {
@@ -524,14 +619,14 @@ export class ChatsDataService {
   }
 
 
-  getChatData(chatId: string): Observable<HttpResponse<{chat: Chat, partitionOffsets: Array<{partition: number, offset: number}>}>> | undefined  {
+/*   getChatData(chatId: string): Observable<HttpResponse<{chat: Chat, partitionOffsets: Array<{partition: number, offset: number}>}>> | undefined  {
     if (this.user) {
       this.updateSession(false)
       return this.connection.getChatData(this.user.userId, chatId);
     }
     else return undefined;
   }
-
+ */
 
   startListeningFromNewChat(chatId: string, partitionOffsets: PartitionOffset[]) {
     this.connection.startListeningFromNewChat( chatId , partitionOffsets)
@@ -539,7 +634,7 @@ export class ChatsDataService {
 
 
   // to wszystko trzebaby przenieść do connection service
-  
+
   updateSession(sendUpdateToServer: boolean) {
     if (this.user) {
       this.connection.updateSession(sendUpdateToServer)

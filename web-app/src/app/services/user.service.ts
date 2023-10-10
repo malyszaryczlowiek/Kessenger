@@ -54,13 +54,13 @@ export class UserService {
   // oldMessagesSubscription:      Subscription | undefined
   // invitationSubscription:       Subscription | undefined
 
-  restartWSSubscription:        Subscription | undefined
-  wsConnectionSubscription:     Subscription | undefined
+  // restartWSSubscription:        Subscription | undefined
+  // wsConnectionSubscription:     Subscription | undefined
   
   // usunąłem
   // chatOffsetUpdateSubscription: Subscription | undefined
 
-  reconnectWSTimer:           NodeJS.Timeout | undefined
+  // reconnectWSTimer:           NodeJS.Timeout | undefined
 
 
 
@@ -78,7 +78,12 @@ export class UserService {
     if ( userId ) {
       this.updateSessionViaUserId( userId )
       console.log('Session is valid.') 
-      // we get user's settings 
+      // we get user's settings j
+
+
+      tutaj // przenieść to wywołanie connection do signin ???
+
+
       const s = this.connection.user( userId )
       if ( s ) {
         s.subscribe({
@@ -110,6 +115,9 @@ export class UserService {
   }
 
 
+  initialize( user: User) {
+    this.user = user
+  }
 
 
   assignSubscriptions() {
@@ -209,7 +217,7 @@ export class UserService {
     } */
 
 
-    if (! this.restartWSSubscription ) {
+/*     if (! this.restartWSSubscription ) {
       this.restartWSSubscription = this.connection.restartWSEmitter.subscribe(
         (r: boolean) => {
           // if we get true we need to start timer end trying to reconnect
@@ -232,9 +240,11 @@ export class UserService {
           }
         }
       )
-    }
+    } */
 
-    if ( ! this.wsConnectionSubscription ) {
+
+
+/*     if ( ! this.wsConnectionSubscription ) {
       // here we simply notify that all needed data are loaded
       // and WS connection is established 
       // so all fetching sobscribers can load data. 
@@ -246,16 +256,18 @@ export class UserService {
           this.dataFetched( 1 ) 
         }
       )
-    }
+    } */
 
-    if ( ! this.logoutSubscription ) {
+
+
+    /* if ( ! this.logoutSubscription ) {
       this.logoutSubscription = this.responseNotifier.logoutEmitter.subscribe(
         (anyy) => {
           this.clearService()
           this.router.navigate(['session-timeout'])
         }
       )
-    }
+    } */
 
 
     // usunąłem
@@ -293,7 +305,7 @@ export class UserService {
     this.user = undefined;
     this.chatsService.clear() 
     this.settingsService.clearSettings();
-    if (this.wsConnectionSubscription) {
+    /* if (this.wsConnectionSubscription) {
       this.wsConnectionSubscription.unsubscribe()
       this.wsConnectionSubscription = undefined
     }
@@ -301,7 +313,7 @@ export class UserService {
       this.restartWSSubscription.unsubscribe()
       this.restartWSSubscription = undefined
     }
-    if (this.reconnectWSTimer) clearInterval(this.reconnectWSTimer)  
+    if (this.reconnectWSTimer) clearInterval(this.reconnectWSTimer) */  
     this.connection.disconnect();  
     // if (this.logoutTimer) clearInterval(this.logoutTimer)  
 /*     if (this.newMessagesSubscription) {
@@ -317,10 +329,10 @@ export class UserService {
       this.invitationSubscription = undefined
     }
  */    
-    if ( this.logoutSubscription ) {
+    /* if ( this.logoutSubscription ) {
       this.logoutSubscription.unsubscribe()
       this.logoutSubscription = undefined
-    }
+    } */
     // usunąłęm
     /* if ( this.chatOffsetUpdateSubscription ) {
       this.chatOffsetUpdateSubscription.unsubscribe()
@@ -654,7 +666,7 @@ export class UserService {
     WEBSOCKET methods
   */
 
-  connectViaWebsocket() {
+/*   connectViaWebsocket() {
     if (this.user) {
       const conf: Configuration = {
         me: this.user,
@@ -678,7 +690,7 @@ export class UserService {
       this.connection.connectViaWS( conf );
     }
   }
-
+ */
 
 
 
@@ -689,15 +701,15 @@ export class UserService {
  */
 
 
-  sendWriting(w: Writing){
+  /* sendWriting(w: Writing){
     this.connection.sendWriting( w )
   }
+ */
 
 
-
-  sendChatOffsetUpdate(update: ChatOffsetUpdate) {
+  /* sendChatOffsetUpdate(update: ChatOffsetUpdate) {
     this.connection.sendChatOffsetUpdate( update )
-  }
+  } */
 
 
 
@@ -711,15 +723,15 @@ export class UserService {
   
 
 
-  isWSconnected(): boolean {
+  /* isWSconnected(): boolean {
     return this.connection.isWSconnected()
-  }
+  } */
 
 
 
-  isWSconnectionDefined(): boolean {
+  /* isWSconnectionDefined(): boolean {
     return this.connection.isWSconnectionDefined()
-  }
+  } */
 
 
 

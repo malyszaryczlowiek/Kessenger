@@ -4,11 +4,12 @@ import { Subscription } from 'rxjs';
 // services
 import { ChatsDataService } from 'src/app/services/chats-data.service';
 import { HtmlService } from 'src/app/services/html.service';
-import { UserService } from 'src/app/services/user.service';
 // models
 import { ChatData } from 'src/app/models/ChatData';
 import { Message } from 'src/app/models/Message';
 import { Writing } from 'src/app/models/Writing';
+
+
 
 @Component({
   selector: 'app-chat-panel',
@@ -19,21 +20,25 @@ export class ChatPanelComponent implements OnInit, OnDestroy {
 
   wrt:                              Writing      | undefined
   chatData:                         ChatData     | undefined
-  // fetchingSubscription:             Subscription | undefined
-  writingSubscription:              Subscription | undefined
-  // selectedChatSubscription:         Subscription | undefined
-  // chatModificationSubscription:     Subscription | undefined // to chyba będzie można usunąć
+
+  // here we subscribe if we get notification if someone is writing in any chat
+  receivingWritingSubscription:     Subscription | undefined
+  
+  
+  // subscribe if we go to top or down of message list
   messageListScrollingSubscription: Subscription | undefined
 
   // trzeba napisać subscription, które będzie ponownie wczytywało chaty z już zaktualizowanego chat-service
   chatPanelSubscription:            Subscription | undefined
 
 
-  
+
+  // fetchingSubscription:             Subscription | undefined
+  // selectedChatSubscription:         Subscription | undefined
+  // chatModificationSubscription:     Subscription | undefined // to chyba będzie można usunąć
 
 
-  constructor(private userService: UserService, 
-              private htmlService: HtmlService, 
+  constructor(private htmlService: HtmlService, 
               private chatService: ChatsDataService,
               private router:      Router,
               private activated:   ActivatedRoute) { }
@@ -132,7 +137,7 @@ export class ChatPanelComponent implements OnInit, OnDestroy {
  */
 
     // we need to stay it because cannot insert Writing value via html. 
-    this.writingSubscription = this.chatService.getWritingEmmiter().subscribe(
+    this.receivingWritingSubscription = this.chatService.receivingWritingEmitter.subscribe(
       (w: Writing | undefined) => { 
         if (w && w.chatId == this.chatData?.chat.chatId) {
           this.wrt = w 
@@ -148,18 +153,20 @@ export class ChatPanelComponent implements OnInit, OnDestroy {
         if (position == 'down') {
           if (this.chatData) {
             // nowe 
-            this.chatService.markMessagesAsRead( this.chatData.chat.chatId )
-
+            this.chatService.markMessagesAsRead( this.chatData.chat.chatId ) 
+            // ta metoda powinna sama wysyłać event o aktualizację offsetu do backendu przez WS (zrobić to emiterem), ale tylko jeśli liczba nieprzeczytanych wiadomości jest >0, 
+            // natomiast samo zjechanie na dół powinno updejtować sesję niezależnie od liczby nieprzeczytanych wiadomości.
+            this.htmlService.scrollDown( false )
 
 
             // stare 
 
-            const unreadMessLength = this.chatData.unreadMessages.length
-            if (unreadMessLength > 0){ 
+            // const unreadMessLength = this.chatData.unreadMessages.length
+            // if (unreadMessLength > 0){ 
 
               // error
               
-              this.chatData = this.userService.markMessagesAsRead( this.chatData.chat.chatId )
+              /* this.chatData = this.userService.markMessagesAsRead( this.chatData.chat.chatId )
               this.userService.dataFetched( 2 ) // refresh chat list
               this.htmlService.scrollDown( false )
               if (this.chatModificationSubscription) this.chatModificationSubscription.unsubscribe()
@@ -170,8 +177,8 @@ export class ChatPanelComponent implements OnInit, OnDestroy {
                     this.chatData = cd
                   }
                 )  
-              } 
-            }
+              }  */
+            // }
           }
         }
         if (position == 'top') {
@@ -186,8 +193,9 @@ export class ChatPanelComponent implements OnInit, OnDestroy {
 
     const chatId = this.activated.snapshot.paramMap.get('chatId');
     if ( chatId ) { 
-      this.chatService.selectChat( chatId )
-      this.chatService.fetchOlderMessages( chatId )
+      this.chatData = this.chatService.getCurrentChatData()
+      //  this.chatService.selectChat( chatId ) // zakomentowałem bo selekcja była już na etapie wyboru z listy
+      // this.chatService.fetchOlderMessages( chatId )
       
       //  zakomentowałem bo fetchowanie starych wiadomości powinno zrobić update chat-panelu z wczytaniem wiadomośći włąćznie
       // this.chatData = this.chatService.getCurrentChatData() // added
@@ -206,12 +214,13 @@ export class ChatPanelComponent implements OnInit, OnDestroy {
 
   ngOnDestroy(): void {
     if ( this.chatPanelSubscription )            this.chatPanelSubscription.unsubscribe()
-    // if ( this.chatModificationSubscription )     this.chatModificationSubscription.unsubscribe()
-    // if ( this.fetchingSubscription )             this.fetchingSubscription.unsubscribe()
-    if ( this.writingSubscription )              this.writingSubscription.unsubscribe()
-    // if ( this.selectedChatSubscription )         this.selectedChatSubscription.unsubscribe()
+    if ( this.receivingWritingSubscription )     this.receivingWritingSubscription.unsubscribe()
     if ( this.messageListScrollingSubscription ) this.messageListScrollingSubscription.unsubscribe()
     this.chatService.clearSelectedChat()
+    
+    // if ( this.selectedChatSubscription )         this.selectedChatSubscription.unsubscribe()
+    // if ( this.chatModificationSubscription )     this.chatModificationSubscription.unsubscribe()
+    // if ( this.fetchingSubscription )             this.fetchingSubscription.unsubscribe()
     // this.userService.selectChat( undefined )
   }
 
@@ -220,7 +229,7 @@ export class ChatPanelComponent implements OnInit, OnDestroy {
 
   sendMessage(m: Message) {
     console.log(`sending message: ${m}`, m)
-    this.userService.updateSession(true)
+    // this.userService.updateSession(true) // sprawdzić czy updejtuje sesję metoda sendMessage
     this.chatService.sendMessage( m )                        
   }
 
@@ -228,7 +237,7 @@ export class ChatPanelComponent implements OnInit, OnDestroy {
 
 
   goToChatSettings() {
-    this.userService.updateSession(true)
+    // this.userService.updateSession(true) // sprawdzić czy updejtuje sesję metoda sendMessage albo ngOnInit() dla componentu
     this.router.navigate(['user', 'editChat', `${this.chatData?.chat.chatId}`])
   }
 

@@ -3,8 +3,8 @@ import { FormControl, FormGroup, Validators } from '@angular/forms';
 import { Chat } from 'src/app/models/Chat';
 import { Message } from 'src/app/models/Message';
 import { Writing } from 'src/app/models/Writing';
+import { ChatsDataService } from 'src/app/services/chats-data.service';
 import { UserSettingsService } from 'src/app/services/user-settings.service';
-import { UserService } from 'src/app/services/user.service';
 import { UtctimeService } from 'src/app/services/utctime.service';
 
 @Component({
@@ -25,27 +25,29 @@ export class SendMessageComponent implements OnInit {
 
 
 
-  constructor(private userService: UserService, private utc: UtctimeService, private settings: UserSettingsService) { }
+  constructor(private chatService: ChatsDataService,
+    private utc: UtctimeService, private settings: UserSettingsService) { }
 
   ngOnInit(): void {
     console.log('SendMessageComponent.ngOnInit()')
   }
 
   onWriting() {
-    const me = this.userService.user
+    const me = this.chatService.user
     if ( me && this.chat ) {
       const w : Writing = {
         chatId:    this.chat.chatId,
         writerId:    me.userId,
         writerLogin: me.login        
       }
-      this.userService.sendWriting( w )
+      this.chatService.sendWriting( w )
+      // this.userService.sendWriting( w )
     }
   }
 
   onSubmit() {
     const messageContent = this.messageForm.controls.messageContent.value
-    const user = this.userService.user
+    const user = this.chatService.user
     const settings = this.settings.settings
     if (messageContent && this.chat && user) {
       const m: Message = {
@@ -62,7 +64,7 @@ export class SendMessageComponent implements OnInit {
       }
       this.sendingMessage.emit( m );
       this.messageForm.controls.messageContent.setValue('')
-      this.userService.updateSession(true)
+      this.userService.updateSession(true) // rozwiązać 
     } 
   }
 

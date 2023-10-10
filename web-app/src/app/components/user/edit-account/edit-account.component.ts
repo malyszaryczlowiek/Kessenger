@@ -3,6 +3,7 @@ import { FormControl, FormGroup, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
 import { Subscription } from 'rxjs';
 import { Settings } from 'src/app/models/Settings';
+import { ConnectionService } from 'src/app/services/connection.service';
 import { ResponseNotifierService } from 'src/app/services/response-notifier.service';
 import { UserSettingsService } from 'src/app/services/user-settings.service';
 import { UserService } from 'src/app/services/user.service';
@@ -42,7 +43,7 @@ export class EditAccountComponent implements OnInit, OnDestroy {
   
 
 
-  constructor(private userService: UserService, 
+  constructor(private connectionService: ConnectionService, 
               private settingsService: UserSettingsService, 
               private responseNotifier: ResponseNotifierService,
               private router: Router) { }
@@ -79,8 +80,12 @@ export class EditAccountComponent implements OnInit, OnDestroy {
         zoneId: zone
       }
       const oldSett = this.settingsService.settings
-      this.settingsService.setSettings( body )
-      const obs = this.userService.changeSettings( body )
+      
+      errorr // this.settingsService.setSettings( body )        
+      // to powinno być zrobione dopiero po otrzymaniu zwrotnej informacji, że dane zostały updejtowane w backendzie
+      // wtedy w settingsService powinien zostać wysłany event, żeby np. ustawienia wylogowania wczytały i przypisały nową wartość czasu do wylogowania. 
+      
+      const obs = this.connectionService.changeSettings( body )
       if ( obs ) {
         obs.subscribe({
           next: (response) => {

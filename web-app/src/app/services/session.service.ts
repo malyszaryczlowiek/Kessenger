@@ -7,6 +7,8 @@ import { UserSettingsService } from './user-settings.service';
 import { UtctimeService } from './utctime.service';
 // models
 import { Ksid } from '../models/Ksid';
+import { User } from '../models/User';
+import { Subscription } from 'rxjs';
 
 
 
@@ -25,6 +27,7 @@ export class SessionService {
   logoutEmitter:        EventEmitter<number> = new EventEmitter()
 
 
+  settingsChangeSubscription: Subscription | undefined
 
 
 
@@ -37,6 +40,30 @@ export class SessionService {
               private router: Router) {
     this.fetchKsid();
   }
+
+
+
+  initialize(user: User) {
+    // jak tylko zostanie zainicjalizowany to trzeba 
+
+    // tutaj trzeba subskrybenta, który będzie nasłuchiwał zmian w settings-service
+    if ( this.settingsChangeSubscription ) {
+      this.settingsChangeSubscription = this.userSettings.settingsChangeEmitter.subscribe(
+        (settings) => {
+          // zmiana ilości sekund do wylogowania
+          this.logoutSeconds = settings.sessionDuration / 1000
+          // restart logoutTimera
+          this.restartLogoutTimer()
+        }
+      )
+    }
+
+  }
+
+
+
+
+
 
   private fetchKsid() {
     const k = this.cookieService.get('KSID')
@@ -130,12 +157,13 @@ export class SessionService {
   
 
 
+  // newly added
+
 
   restartLogoutTimer() {
     // this.logoutSeconds = this.settingsService.settings.sessionDuration / 1000
-    if (this.logoutTimer) {}
-    else {
-      if ( this.logoutSeconds ) {}    
+    if ( this.logoutSeconds ) {
+      if (this.logoutTimer ) clearInterval( this.logoutTimer )    //   To DODAŁEM
       this.logoutTimer = setInterval(() => {
         this.logoutSeconds = this.logoutSeconds - 1
         this.logoutSecondsEmitter.emit(this.logoutSeconds)
@@ -145,8 +173,14 @@ export class SessionService {
           this.clearService()
           this.router.navigate([''])
         }
-      }, 1000)  
+      }, 1000)
     }
+/*     if (this.logoutTimer) {}
+    else {
+        
+    }
+ */
+
   }
 
 

@@ -14,6 +14,7 @@ export class ChatComponent implements OnInit, OnDestroy {
   chats: ChatData[] = new Array<ChatData>()
   fetchingSubscription: Subscription | undefined
   
+  będzie trzeba usunąć przypisywanie listy czatów poprzez subskrybenta w chat-list component i zrobić to tutaj ??? sprawdzić jak to jest przypisywane
 
 
   constructor(private userService: UserService, private responseNotifier: ResponseNotifierService) { }

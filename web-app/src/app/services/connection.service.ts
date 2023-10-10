@@ -1,23 +1,27 @@
 import { HttpClient, HttpHeaders, HttpParams, HttpResponse } from '@angular/common/http';
 import { Injectable, Inject, EventEmitter } from '@angular/core';
-
-import { Observable, of } from 'rxjs';
+import { Observable, Subscription, of } from 'rxjs';
 import { v4 as uuidv4 } from 'uuid';
-
+import { Router } from '@angular/router';
+// services
+import { ChatsDataService } from './chats-data.service';
+import { LoadBalancerService } from './load-balancer.service';
+import { ResponseNotifierService } from './response-notifier.service';
+import { UserSettingsService } from './user-settings.service';
+import { UserService } from './user.service';
+import { SessionService } from './session.service';
+// models
 import { Invitation } from '../models/Invitation';
 import { Message } from '../models/Message';
 import { User } from '../models/User';
 import { Settings } from '../models/Settings';
 import { Writing } from '../models/Writing'; 
 import { ChatData } from '../models/ChatData';
-import { SessionService } from './session.service';
 import { Chat } from '../models/Chat';
 import { Configuration } from '../models/Configuration';
 import { ChatOffsetUpdate } from '../models/ChatOffsetUpdate';
 import { PartitionOffset } from '../models/PartitionOffset';
 import { UserOffsetUpdate } from '../models/UserOffsetUpdate';
-import { LoadBalancerService } from './load-balancer.service';
-import { ResponseNotifierService } from './response-notifier.service';
 
 
 
@@ -35,24 +39,254 @@ export class ConnectionService {
   private someoneIsWriting: boolean = false
 
   private reconnectWS = true
-  private myUserId: string | undefined
+  
+  private userObj:                 User | undefined
+  private initialized = false
+  // private myUserId: string | undefined
 
-  public newMessagesEmitter: EventEmitter<Array<Message>>      = new EventEmitter<Array<Message>>()
-  public oldMessagesEmitter: EventEmitter<Array<Message>>      = new EventEmitter<Array<Message>>()
-  public invitationEmitter:  EventEmitter<Invitation>          = new EventEmitter<Invitation>()
-  public writingEmitter:     EventEmitter<Writing | undefined> = new EventEmitter<Writing| undefined>()
+  // public newMessagesEmitter: EventEmitter<Array<Message>>      = new EventEmitter<Array<Message>>()
+  // public oldMessagesEmitter: EventEmitter<Array<Message>>      = new EventEmitter<Array<Message>>()
+  // public invitationEmitter:  EventEmitter<Invitation>          = new EventEmitter<Invitation>()
+  // public writingEmitter:     EventEmitter<Writing | undefined> = new EventEmitter<Writing| undefined>()
   public restartWSEmitter:   EventEmitter<boolean>             = new EventEmitter<boolean>()
   public wsConnEmitter:      EventEmitter<boolean>             = new EventEmitter<boolean>()
 
 
+  reconnectWSTimer:           NodeJS.Timeout | undefined
+
+  // co trzeba zasubskrybować 
+
+  private restartWSSubscription:          Subscription | undefined
+  private wsConnectionSubscription:       Subscription | undefined
+
+
+  // jak przyjdzie event, żeby wylogować to clearowanie wszystkich servisów przez disconnect? 
+  // i przekierowanie na /sessiontimeout
+  private logoutSubscription:             Subscription | undefined
+
+  // to będzie wywoływane jak w chat-service nastąpi emisja żeby updejtować offset w backendzie
+  private chatOffsetUpdateSubscription:   Subscription | undefined
+  
+  // subskrypcja do przechwytywania eventu o tym, że piszemy w chatcie będziemy w  nniej wysyłać przez WS info o writing
+  private writingSubscription:            Subscription | undefined
+
+  // subskrypcja wyłapująca event o wysłaniu nowej wiadomości
+  private sendMessageSubscription:        Subscription | undefined
+
+  private fetchOlderMessagesSubscription: Subscription | undefined
+
+
+
+  /*
+  założenia:
+
+  1. W zamyśle wszelkie zapytanie są wysyłane przez ten servis
+  2. jak przychodzi jakaś odpowiedź z serwera to jest ona następnie wstrzykiwana do odpowiedniej metody odpowiedniego podserwisu
+  3. jak podserwis przetworzy te dane to za pomocą emitera emituje jakiś event np aktualizuj czatlistę 
+  4. componenty subskrybują te emitery tak, ze jak tylko pojawia się event to wczytują dane z danego servisu 
+     i aktualizują komponent. 
+
+
+  Do wykonania:
+  1. przenieść wszystkie uaktualnienia sesji i restarty logout-service? z user-service do connection service     
+
+  */
+
   constructor(private http: HttpClient, 
               // @Inject("API_URL") private api: string,
+              private userService: UserService,
+              private settingsService: UserSettingsService,
+              private chatService: ChatsDataService,
               private responseNotifier: ResponseNotifierService,
               private loadBalancer: LoadBalancerService,
-              private session: SessionService) { }
+              private session: SessionService,
+              private router: Router) { 
+
+                console.log('ConnectionService constructor called.')
+                // this.assignSubscriptions()
+                const uid = this.session.getSavedUserId();
+                if ( uid ) {
+                  todo 
+                  // this.updateSessionViaUserId( userId )
+                  console.log('Session is valid.') 
+
+                  const s = this.user( uid )
+                  if ( s ) {
+                    s.subscribe({
+                      next: (response) => {
+                        const body = response.body
+                        if ( body ){
+                          console.log('ConnectionSerivice.constructor() fetching user login and settings' )
+                          this.initialize( body.user, body.settings, body.chatList )
+                          //this.setUserAndSettings(body.user, body.settings)
+                          // this.logoutSeconds = this.settingsService.settings.sessionDuration / 1000
+                          //this.restartLogoutTimer()
+                          // this.chatsService.initialize( body.chatList, body.user )
+                          this.connectViaWebsocket() 
+                        }
+                        else {
+                          // print error message
+                        }
+                      },
+                      error: (error) => {
+                        console.log(error) 
+                        this.clearService() // zmienić na disconnect tak aby pokasował wszystkie dane
+                        console.log('redirection to logging page')
+                        this.router.navigate([''])
+                      },
+                      complete: () => {}
+                    })
+                  }
+
+
+
+
+                } else this.router.navigate([''])
+              }
+
+
+
+
+
+  assignSubscriptions() {
+    console.log('ConnectionService.assignSubscriptions() calling')
+    
+    if ( ! this.logoutSubscription ) {
+      this.logoutSubscription = this.session.logoutEmitter.subscribe(
+        (c) => {
+          // czyszczę wszystko 
+          this.clearService()
+          // i nawiguję na stronę session-timeout
+          this.router.navigate(['session-timeout'])
+          // this.router.navigate([''])
+        }
+      )
+    }
+
+    if ( ! this.chatOffsetUpdateSubscription ) {
+      this.chatOffsetUpdateSubscription = this.chatService.chatOffsetUpdateEmitter.subscribe(
+        (chatOffsetUpdate) => {
+          this.sendChatOffsetUpdate( chatOffsetUpdate )
+        }
+      )
+    }
+
+    if ( ! this.writingSubscription ) {
+      this.writingSubscription = this.chatService.sendingWritingEmitter.subscribe(
+        (w) => {
+          if ( w ) this.sendWriting( w )
+        }
+      )
+    }
+
+    if ( ! this.sendMessageSubscription ){
+      this.sendMessageSubscription  = this.chatService.sendMessageEmitter.subscribe(
+        (m) => {
+          if (this.userObj ){
+            const body = {
+              user:    this.userObj,
+              message: m
+            }
+            this.sendMessage( body )
+          }
+        }
+      )
+    }
+
+
+    if ( ! this.fetchOlderMessagesSubscription ) {
+      this.writingSubscription = this.chatService.fetchOlderMessagesEmitter.subscribe(
+        ( chatId ) => {
+          this.fetchOlderMessages( chatId )
+        }
+      )
+    }
+
+
+
+    if ( ! this.restartWSSubscription ) {
+      this.restartWSSubscription = this.restartWSEmitter.subscribe(
+        (r: boolean) => {
+          // if we get true we need to start timer end trying to reconnect
+          if ( r ) {
+            if ( ! this.reconnectWSTimer ) {
+              console.log('initializing reconnectWSTimer. ')
+              this.reconnectWSTimer = setInterval( () => {
+                console.log('inside reconnectWSTimer trying to reconnect WS. ')
+                this.connectViaWebsocket()
+              }, 2000) // we try reconnect every 2s
+            }          
+          } else {
+            // if we get false this means that we need to stop timer,
+            // because we connected, 
+            // or we disconnected and we do not need to reconnect
+            if ( this.reconnectWSTimer ) {
+              clearInterval( this.reconnectWSTimer )
+              this.reconnectWSTimer = undefined
+            }
+          }
+        }
+      )
+    }
+
+    if ( ! this.wsConnectionSubscription ) {
+      // here we simply notify that all needed data are loaded
+      // and WS connection is established 
+      // so all fetching sobscribers can load data. 
+      this.wsConnectionSubscription = this.wsConnEmitter.subscribe(
+        ( bool ) => { 
+          if ( this.chatService.selectedChat ) {
+            this.chatService.fetchOlderMessages( this.chatService.selectedChat )
+          } else console.error('selected chat is not selected. ')
+          // this.dataFetched( 1 ) 
+        }
+      )
+    }
+
+
+
+    
+  } 
+
+
+
+
+
+  connectViaWebsocket() {
+    if (this.userObj) {
+      const conf: Configuration = {
+        me: this.userObj,
+        joiningOffset: this.settingsService.settings.joiningOffset,
+        chats: this.chatService.chatAndUsers.map(
+          (c , i, arr) => {
+            return {
+              chatId: c.chat.chatId,
+              partitionOffset: c.partitionOffsets.map(
+                (parOff, i, arr2) => {
+                  return {
+                    partition: parOff.partition,
+                    offset: parOff.offset
+                  }
+                }
+              )
+            }
+          }
+        )
+      }
+      this.connectViaWS( conf );
+    }
+  }
+
+
+
 
 
   disconnect() {
+    //   nowe
+    this.initialized = false
+    this.userObj = undefined
+    
+    //   stare
     this.reconnectWS = false
     this.session.invalidateSession()
     if ( this.wsPingSender ) {
@@ -62,13 +296,36 @@ export class ConnectionService {
     this.sendPoisonPill()
     this.wsConnection?.close()
     this.wsConnection = undefined
+    
+    // zamykanie pozostałych servisów i zamykanie subscrybcji
+
   }            
+
   // {user: User, settings: Settings, chatList: Array<{chat: Chat, partitionOffsets: Array<PartitionOffset>}>}
 
 
-  initialize() {
-    
+
+
+  initialize(user: User, setttings: Settings, chatList: ChatData[]) {
+    this.userObj = user
+    // this.userService.initialize( user )
+    this.settingsService.initialize(user, setttings)
+    this.chatService.initialize( chatList, user)
+    this.initialized = true
+    this.assignSubscriptions()
+    this.connectViaWebsocket()
   }
+
+
+
+
+  isInitlized(): boolean {
+    return this.initialized
+  }
+
+
+
+  // rest api calls
 
 
   signUp(login: string, pass: string): Observable<HttpResponse<{user: User, settings: Settings}>> | undefined{
@@ -137,9 +394,8 @@ export class ConnectionService {
     const token = this.session.getSessionToken()
     const server = this.loadBalancer.currentServer
     if ( token  && server) {
-
-      this.updateSession( false )
-
+      // this.updateSession() nie możemy updejtować sesji do puki nie mamy informacji zwrotnej
+      // dopiero jak w subskrybcji przyjdzie info to wtedy należy wywołać updejtowanie sesji albo w ogóle jej start
       return this.http.get<{user: User, settings: Settings, chatList: Array<ChatData>}>(server.getURIwithPath(`/user/${userId}`), {
         headers: new HttpHeaders()
           .set('KSID', token),
@@ -170,11 +426,11 @@ export class ConnectionService {
 
 
   
-  changeSettings(userId: string, s: Settings): Observable<HttpResponse<any>> | undefined  {
+  changeSettings(s: Settings): Observable<HttpResponse<any>> | undefined  {
     const token = this.session.getSessionToken()
     const server = this.loadBalancer.currentServer
-    if ( token && server ) {
-      return this.http.put<any>(server.getURIwithPath(`/user/${userId}/changeSettings`), s, { 
+    if ( this.userObj && token && server ) {
+      return this.http.put<any>(server.getURIwithPath(`/user/${this.userObj.userId}/changeSettings`), s, { 
         headers:  new HttpHeaders()
           .set('KSID', token),
         observe: 'response', 
@@ -404,7 +660,7 @@ export class ConnectionService {
         // emitter wysyła wtedy po 0.5 s undefined
         // jeśli jest na false to emitter nie wysyła nic 
         this.writerCleaner = setInterval(() => {
-          if ( this.someoneIsWriting ) this.writingEmitter.emit( undefined )
+          if ( this.someoneIsWriting ) this.chatService.showWriting( undefined )
           this.someoneIsWriting = false
         }, 1200)
 
@@ -416,21 +672,24 @@ export class ConnectionService {
         }          
         if ( body.newMsgList ) {
           console.log('got list of NEW message: ', body.newMsgList )
-          this.newMessagesEmitter.emit( body.newMsgList )
+          this.chatService.insertNewMessages( body.newMsgList )
+          // this.newMessagesEmitter.emit( body.newMsgList )
         }
         if ( body.oldMsgList ) {
           console.log('got list of OLD message: ', body.oldMsgList )
-          this.oldMessagesEmitter.emit( body.oldMsgList )
+          this.chatService.insertOldMessages( body.oldMsgList )
+          // this.oldMessagesEmitter.emit( body.oldMsgList )
         }
         if ( body.inv ) {
           console.log('got invitation: ', body.inv )
-          this.invitationEmitter.emit( body.inv )
+          this.handleInvitation( body.inv )
+          // this.invitationEmitter.emit( body.inv )
         }
         if ( body.wrt ) {
           // console.log('got writing: ', body.wrt )
-          if (body.wrt.writerId != this.myUserId) {
+          if (body.wrt.writerId != this.userObj?.userId) {
             this.someoneIsWriting = true
-            this.writingEmitter.emit( body.wrt )
+            this.chatService.showWriting( body.wrt )
           }          
         }
         if (body.comm == 'opened correctly') {
@@ -488,9 +747,9 @@ export class ConnectionService {
 
 
 
-  sendMessage(body: {user: User, message: Message}) {
+  private sendMessage(body: {user: User, message: Message}) {
     if (this.wsConnection) {
-      console.log('sending data to server.');
+      console.log('sending my message to server.');
       this.wsConnection.send(JSON.stringify( body ));
     } else {
       console.error('Did not send data, open a connection first');
@@ -512,7 +771,68 @@ export class ConnectionService {
 
 
 
-  sendWriting(w: Writing) {
+  handleInvitation(invitation: Invitation) {
+    if ( this.userObj ) {
+      const c = this.getChatData( this.userObj.userId , invitation.chatId )
+      if ( c ) {
+        const cSub = c.subscribe({
+          next: (response) => {
+            if (response.ok){
+              const body = response.body
+              if ( body ) {
+                const cd: ChatData =  {
+                  chat: body.chat,
+                  partitionOffsets: invitation.partitionOffsets,
+                  messages: new Array<Message>(),
+                  unreadMessages: new Array<Message>(),
+                  users: new Array<User>(),
+                  isNew: true,
+                  emitter: new EventEmitter<ChatData>()  
+                }
+                //  tutaj musimy zapewnić, że dodawanie nowego chatu spowoduje wywołanie emitera odświeżającego chat-listę
+                this.chatService.addNewChat( cd ) 
+                this.startListeningFromNewChat( cd.chat.chatId, cd.partitionOffsets )
+                
+                // this.dataFetched( 2 ) 
+                
+
+                if ( this.userObj ) {
+                  const bodyToSent: UserOffsetUpdate = {
+                    userId: this.userObj.userId,
+                    joiningOffset: invitation.myJoiningOffset                    
+                  }
+                  const u = this.updateJoiningOffset(this.userObj.userId,  bodyToSent )
+                  if ( u ) {
+                    const sub = u.subscribe({
+                      next: (response) => {
+                        if ( response.ok ) {
+                          this.settingsService.settings.joiningOffset = invitation.myJoiningOffset
+                          console.log('joining Offset updated ok. to ', invitation.myJoiningOffset)
+                        }
+                          
+                      },
+                      error: (err) => {
+                        console.log('Error during joining offset update', err)
+                      },
+                      complete: () => {}
+                    })
+                  }
+                }                  
+              }                
+            }              
+          },
+          error: (err) => {
+            console.error('error in calling getChatData() in invitationSubscription', err) 
+          },
+          complete: () => {}
+        })
+      }
+    }    
+  }
+
+
+
+  private sendWriting(w: Writing) {
     if (this.wsConnection) {
       console.log('sending writing to server.');
       this.wsConnection.send(JSON.stringify( w ));
@@ -524,7 +844,7 @@ export class ConnectionService {
 
 
 
-  sendChatOffsetUpdate(u: ChatOffsetUpdate) {
+  private sendChatOffsetUpdate(u: ChatOffsetUpdate) {
     if (this.wsConnection) {
       console.log('sending offset update to server.');
       this.wsConnection.send(JSON.stringify( u ));
@@ -536,12 +856,13 @@ export class ConnectionService {
 
 
   
-  updateSession(sendUpdateToServer: boolean) {
-    if (this.wsConnection && this.myUserId) {
+  // updateSession(sendUpdateToServer: boolean) {
+  updateSession() {
+    if (this.wsConnection && this.userObj) {
       console.log('sending session update to server.');
-      this.session.updateSession(this.myUserId)
+      this.session.updateSession(this.userObj.userId)
       const ksid = this.session.getKsid()
-      if (ksid && sendUpdateToServer) {
+      if ( ksid ) { //&& sendUpdateToServer
         const session = {
           sessionId: ksid.sessId,
           userId: ksid.userId,
@@ -573,7 +894,7 @@ export class ConnectionService {
 
 
 
-  fetchOlderMessages(chatId: string) {
+  private fetchOlderMessages(chatId: string) {
     if (this.wsConnection) {
       console.log('sending request to fetch older messages.');
       const body = { chatId: chatId }
@@ -586,7 +907,7 @@ export class ConnectionService {
 
 
 
-  startPingSender() {
+  private startPingSender() {
     this.wsPingSender = setInterval(() => {
       if ( this.wsConnection )
         this.wsConnection.send('ping')
@@ -596,7 +917,7 @@ export class ConnectionService {
 
 
 
-  closeWebSocket() {
+  private closeWebSocket() {
     if (this.wsConnection) {
       this.reconnectWS = false
       console.log('sending PoisonPill to server.');
@@ -616,9 +937,9 @@ export class ConnectionService {
 
 
 
-  getUserId(): string | undefined {
+  /* getUserId(): string | undefined {
     return this.session.getSavedUserId();
-  }
+  } */
 
 
 
@@ -645,6 +966,8 @@ export class ConnectionService {
     KSID methods
   */
 
+
+/* 
   isSessionValid(): boolean {
     return this.session.isSessionValid();
   }  
@@ -653,9 +976,9 @@ export class ConnectionService {
 
   // use sendSessionUpdate() insted
 
-  /* updateSession(userId: string) {
+   updateSession(userId: string) {
     this.session.updateSession(userId); 
-  } */
+  } 
 
 
 
@@ -682,7 +1005,7 @@ export class ConnectionService {
     this.myUserId = userId
   }
 
-
+ */
 
 
 }

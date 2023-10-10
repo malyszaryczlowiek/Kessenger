@@ -26,7 +26,8 @@ export class HtmlService {
 
 
   closeService() {
-    
+    if ( this.scrollInterval ) clearTimeout( this.scrollInterval )
+    if ( this.resizeInterval ) clearTimeout( this.resizeInterval )    
   }
 
 

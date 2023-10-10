@@ -4,6 +4,7 @@ import { Subscription } from 'rxjs';
 import { Toast } from 'bootstrap'
 import { UserService } from 'src/app/services/user.service';
 import { ResponseNotifierService } from 'src/app/services/response-notifier.service';
+import { ConnectionService } from 'src/app/services/connection.service';
 
 @Component({
   selector: 'app-main',
@@ -20,13 +21,13 @@ export class MainComponent implements OnInit, OnDestroy {
 
   constructor(private router: Router, 
               private responseNotifier: ResponseNotifierService,
-              private userService: UserService) {
+              private connectionService: ConnectionService) {
   }
 
 
 
   ngOnInit(): void {
-    if ( this.userService.user ) 
+    if ( this.connectionService.isInitlized() ) 
       this.router.navigate(['user'])
 
     this.errorMessageSubscription = this.responseNotifier.responseEmitter.subscribe(
