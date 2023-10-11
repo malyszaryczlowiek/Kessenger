@@ -2,11 +2,16 @@ import { Component, EventEmitter, OnDestroy, OnInit } from '@angular/core';
 import { FormControl, FormGroup, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { debounceTime, distinctUntilChanged, of, share, startWith, Subject, Subscription, switchMap } from 'rxjs';
+// services
+import { ResponseNotifierService } from 'src/app/services/response-notifier.service';
+import { UserService } from 'src/app/services/user.service';
+// models
 import { Chat } from 'src/app/models/Chat';
 import { ChatData } from 'src/app/models/ChatData';
 import { User } from 'src/app/models/User';
-import { ResponseNotifierService } from 'src/app/services/response-notifier.service';
-import { UserService } from 'src/app/services/user.service';
+
+
+
 
 @Component({
   selector: 'app-edit-chat-settings',
@@ -15,14 +20,21 @@ import { UserService } from 'src/app/services/user.service';
 })
 export class EditChatSettingsComponent implements OnInit, OnDestroy {
 
+
+
   chatSettings = new FormGroup({
     newChatName: new FormControl(''),
     silent: new FormControl(false) 
   })
 
+
+
+
   searchUserForm = new FormGroup({
     login: new FormControl('',[Validators.required, Validators.minLength(4)])
   })
+
+
 
   chatData?: ChatData;
   //responseMessage: any | undefined
@@ -35,6 +47,7 @@ export class EditChatSettingsComponent implements OnInit, OnDestroy {
   fetchingUserSubscription: Subscription | undefined
 
 
+
   
   constructor( private router: Router, 
                private activated: ActivatedRoute,
@@ -42,7 +55,6 @@ export class EditChatSettingsComponent implements OnInit, OnDestroy {
                private userService: UserService) { }
   
 
-// /Users/malyszaryczlowiek/Library/Containers/com.docker.docker/Data/vms/0/data
 
 
 
@@ -99,6 +111,8 @@ export class EditChatSettingsComponent implements OnInit, OnDestroy {
     if ( this.userService.isWSconnected() ) this.userService.dataFetched( 1 )
   }
 
+
+  
   ngOnDestroy(): void {
     if (this.fetchingSubscription) this.fetchingSubscription.unsubscribe()
     if (this.fetchingUserSubscription) this.fetchingUserSubscription.unsubscribe()

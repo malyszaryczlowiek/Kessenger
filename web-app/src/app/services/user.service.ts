@@ -500,21 +500,21 @@ export class UserService {
 
 
 
-  signUp(log: string, pass: string): Observable<HttpResponse<{user: User, settings: Settings}>> | undefined {
+  /* signUp(log: string, pass: string): Observable<HttpResponse<{user: User, settings: Settings}>> | undefined {
     return this.connection.signUp(log, pass);
-  }
+  } */
 
 
 
 
-  signIn(login: string, pass: string): Observable<HttpResponse<{user: User, settings: Settings, chatList: Array<ChatData>}>> | undefined {
+  /* signIn(login: string, pass: string): Observable<HttpResponse<{user: User, settings: Settings, chatList: Array<ChatData>}>> | undefined {
     return this.connection.signIn(login, pass);
-  }
+  } */
 
 
 
 
-  logout() {
+  /* logout() {
     const l = this.connection.logout();
     if ( l ) l.subscribe({
       next: (response) => {
@@ -528,40 +528,42 @@ export class UserService {
     this.clearService();
     this.router.navigate(['']);
   }
+ */
+
 
 
 
   // unused
-  getUser(): Observable<HttpResponse<{user: User, settings: Settings}>> | undefined {
+  /* getUser(): Observable<HttpResponse<{user: User, settings: Settings}>> | undefined {
     if (this.user){ 
       this.updateSession(false)
       return this.connection.user(this.user.userId)
     }
     else 
       return undefined
-  }
+  } */
 
 
 
-  updateJoiningOffset(body: UserOffsetUpdate) {
+  /* updateJoiningOffset(body: UserOffsetUpdate) {
     if (this.user){ 
       this.updateSession(false)
       return this.connection.updateJoiningOffset(this.user.userId, body)
     }
     else 
       return undefined
-  }
+  } */
 
 
 
-  changeSettings(s: Settings): Observable<HttpResponse<any>> | undefined {
+  /* changeSettings(s: Settings): Observable<HttpResponse<any>> | undefined {
     if (this.user)  {
       this.updateSession(false)
-      return this.connection.changeSettings(this.user.userId, s)
+      return this.connection.changeSettings( s)
     }      
     else 
       return undefined
-  }
+  } */
 
 
 
@@ -695,10 +697,10 @@ export class UserService {
 
 
 
-/*   sendInvitation(inv: Invitation) {
+  sendInvitation(inv: Invitation) {
     this.connection.sendInvitation(inv)
   }
- */
+
 
 
   /* sendWriting(w: Writing){

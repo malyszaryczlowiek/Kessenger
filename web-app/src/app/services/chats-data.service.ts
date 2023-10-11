@@ -23,6 +23,7 @@ export class ChatsDataService {
 
   selectedChat: string | undefined // chatId
   user:           User | undefined
+
   chatAndUsers: Array<ChatData> = new Array();
 
 
@@ -52,11 +53,14 @@ export class ChatsDataService {
   
 
   // tym emiterem informujemy connection service, że chcemy pobrać przez WS stare wiadomości z backendu
-  fetchOlderMessagesEmitter: EventEmitter<string> = new EventEmitter<string>()
   // że jest to z tego czatu w którym jesteśmy i że jesteśmy na samym dole
+  fetchOlderMessagesEmitter: EventEmitter<string> = new EventEmitter<string>()
+  
 
 
 
+
+  
   // rezygnuję z zubskrypcji na rzecz bezpośredniego wywoływania metody tego serwisu
   // newMessagesSubscription:      Subscription | undefined
   // oldMessagesSubscription:      Subscription | undefined
@@ -197,11 +201,31 @@ export class ChatsDataService {
 
 
 
+  /*
+    method called when we created new chat and we get response that all chat data, and all stuff 
+    are handled correctly by backend
+
+    method is called when we get invitation to the chat and we successfully receive alle chat data from
+    backend server.
+  */
   addNewChat(c: ChatData) {
     this.changeChat(c)
     this.updateChatListEmmiter.emit( 0 )
   }
 
+
+
+  /*
+    method called when we do not have any chat, but we downloaded chat data
+    (for example after creation of our first chat)
+  */
+  setChats(chats: ChatData[]) {
+    chats.forEach(
+      (c, i, arr) => {
+        this.changeChat( c )
+      }
+    )
+  }
 
   /*
     method called from chat panel when we sending info that we are typing
@@ -212,7 +236,9 @@ export class ChatsDataService {
 
 
   /*
-    method called 
+    method called when we get info from connectionService that someone whas writing in any
+    of our chat. emitter emits this event and subscribers 
+    from chat-list or chat-panel may display this information if necessary. 
   */
   showWriting(w: Writing | undefined) {
     this.receivingWritingEmitter.emit( w )
@@ -558,7 +584,7 @@ export class ChatsDataService {
 
   clear() {
 
-    if (this.newMessagesSubscription) {
+/*     if (this.newMessagesSubscription) {
       this.newMessagesSubscription.unsubscribe()
       this.newMessagesSubscription = undefined
     }
@@ -572,7 +598,7 @@ export class ChatsDataService {
       this.invitationSubscription.unsubscribe()
       this.invitationSubscription = undefined
     }
-
+ */
     this.chatAndUsers = new Array()
     this.user = undefined
   }
@@ -594,8 +620,8 @@ export class ChatsDataService {
 
 
   fetchOlderMessages(chatId: string) {
-    
-    this.connection.fetchOlderMessages( chatId )
+    this.fetchOlderMessagesEmitter.emit( chatId )
+    // this.connection.fetchOlderMessages( chatId )
   }
 
 
@@ -628,20 +654,20 @@ export class ChatsDataService {
   }
  */
 
-  startListeningFromNewChat(chatId: string, partitionOffsets: PartitionOffset[]) {
+  /* startListeningFromNewChat(chatId: string, partitionOffsets: PartitionOffset[]) {
     this.connection.startListeningFromNewChat( chatId , partitionOffsets)
-  }
+  } */
 
 
   // to wszystko trzebaby przenieść do connection service
 
-  updateSession(sendUpdateToServer: boolean) {
+  /* updateSession(sendUpdateToServer: boolean) {
     if (this.user) {
       this.connection.updateSession(sendUpdateToServer)
       //this.connection.updateSession(this.user.userId);
       this.restartLogoutTimer()
     }
-  }
+  } */
 
 
 

@@ -48,15 +48,24 @@ export class ConnectionService {
   // public oldMessagesEmitter: EventEmitter<Array<Message>>      = new EventEmitter<Array<Message>>()
   // public invitationEmitter:  EventEmitter<Invitation>          = new EventEmitter<Invitation>()
   // public writingEmitter:     EventEmitter<Writing | undefined> = new EventEmitter<Writing| undefined>()
-  public restartWSEmitter:   EventEmitter<boolean>             = new EventEmitter<boolean>()
-  public wsConnEmitter:      EventEmitter<boolean>             = new EventEmitter<boolean>()
+  
+  // to można usunąć bo to są eventy obsługiwane przez wewnętrzne  metody
+  //public restartWSEmitter:   EventEmitter<boolean>             = new EventEmitter<boolean>()
+
+
+
+  //public wsConnEmitter:      EventEmitter<boolean>             = new EventEmitter<boolean>()
 
 
   reconnectWSTimer:           NodeJS.Timeout | undefined
 
   // co trzeba zasubskrybować 
 
+  // subskrypcja wyłapująca, że jest potrzeba restartu websocketu
   private restartWSSubscription:          Subscription | undefined
+  
+  
+  // 
   private wsConnectionSubscription:       Subscription | undefined
 
 
@@ -64,15 +73,22 @@ export class ConnectionService {
   // i przekierowanie na /sessiontimeout
   private logoutSubscription:             Subscription | undefined
 
+
   // to będzie wywoływane jak w chat-service nastąpi emisja żeby updejtować offset w backendzie
   private chatOffsetUpdateSubscription:   Subscription | undefined
   
+
   // subskrypcja do przechwytywania eventu o tym, że piszemy w chatcie będziemy w  nniej wysyłać przez WS info o writing
   private writingSubscription:            Subscription | undefined
 
+
   // subskrypcja wyłapująca event o wysłaniu nowej wiadomości
+  // w tej subscrypcji wysyłamy nową wiadomość do backendu przez WS
   private sendMessageSubscription:        Subscription | undefined
 
+
+  // subskrypcja odbierająca sygnał o potrzebie fetchowania starszych wiadomości
+  // z backendu. wysyła przez ws zapytanie info z jakiego czatu nalezy pobrać stare wiadomości
   private fetchOlderMessagesSubscription: Subscription | undefined
 
 
@@ -204,30 +220,14 @@ export class ConnectionService {
 
 
 
-    if ( ! this.restartWSSubscription ) {
+    /* if ( ! this.restartWSSubscription ) {
       this.restartWSSubscription = this.restartWSEmitter.subscribe(
         (r: boolean) => {
           // if we get true we need to start timer end trying to reconnect
-          if ( r ) {
-            if ( ! this.reconnectWSTimer ) {
-              console.log('initializing reconnectWSTimer. ')
-              this.reconnectWSTimer = setInterval( () => {
-                console.log('inside reconnectWSTimer trying to reconnect WS. ')
-                this.connectViaWebsocket()
-              }, 2000) // we try reconnect every 2s
-            }          
-          } else {
-            // if we get false this means that we need to stop timer,
-            // because we connected, 
-            // or we disconnected and we do not need to reconnect
-            if ( this.reconnectWSTimer ) {
-              clearInterval( this.reconnectWSTimer )
-              this.reconnectWSTimer = undefined
-            }
-          }
+          
         }
       )
-    }
+    } */
 
     if ( ! this.wsConnectionSubscription ) {
       // here we simply notify that all needed data are loaded
@@ -235,18 +235,16 @@ export class ConnectionService {
       // so all fetching sobscribers can load data. 
       this.wsConnectionSubscription = this.wsConnEmitter.subscribe(
         ( bool ) => { 
-          if ( this.chatService.selectedChat ) {
-            this.chatService.fetchOlderMessages( this.chatService.selectedChat )
-          } else console.error('selected chat is not selected. ')
           // this.dataFetched( 1 ) 
         }
       )
     }
 
-
-
-    
   } 
+
+
+
+
 
 
 
@@ -280,28 +278,6 @@ export class ConnectionService {
 
 
 
-
-  disconnect() {
-    //   nowe
-    this.initialized = false
-    this.userObj = undefined
-    
-    //   stare
-    this.reconnectWS = false
-    this.session.invalidateSession()
-    if ( this.wsPingSender ) {
-      clearInterval( this.wsPingSender )
-      this.wsPingSender = undefined
-    }
-    this.sendPoisonPill()
-    this.wsConnection?.close()
-    this.wsConnection = undefined
-    
-    // zamykanie pozostałych servisów i zamykanie subscrybcji
-
-  }            
-
-  // {user: User, settings: Settings, chatList: Array<{chat: Chat, partitionOffsets: Array<PartitionOffset>}>}
 
 
 
@@ -496,7 +472,7 @@ export class ConnectionService {
 
     
   newChat(me: User, chatName: string, users: string[]): Observable<HttpResponse<ChatData[]>> | undefined  {
-    const token = this.session.getSessionToken()
+    const token  = this.session.getSessionToken()
     const server = this.loadBalancer.currentServer
     if ( token && server ) {
       const body = {
@@ -652,7 +628,8 @@ export class ConnectionService {
         }
 
         this.reconnectWS = true
-        this.restartWSEmitter.emit( false )
+        this.restartWS( false )
+        // this.restartWSEmitter.emit( false )
 
         //tutaj //  zdefiniować cleaner, który następnie będzie usuwany w metodzie 
         // cleaner musi wysyłać wiadomość tylko jak zmienna 
@@ -694,10 +671,13 @@ export class ConnectionService {
         }
         if (body.comm == 'opened correctly') {
           console.log('WS connection opend correctly.')
-          this.wsConnEmitter.emit( this.isWSconnected() )
+          if ( this.chatService.selectedChat ) {
+            this.fetchOlderMessages( this.chatService.selectedChat )
+          } else console.error('No chat selected. ')
+          //this.wsConnEmitter.emit( this.isWSconnected() )
           this.startPingSender()
         }
-        if (body.num && body.message) {
+        if ( body.num && body.message) {
           console.log('got ResponseBody()' + body.message )
           // if (body.num) this.reconnectWS = false
         }
@@ -722,7 +702,8 @@ export class ConnectionService {
               message: 'Connection lost, try in a few minutes.'
             }
           )
-          this.restartWSEmitter.emit( this.reconnectWS )
+          this.restartWS( this.reconnectWS )
+          // this.restartWSEmitter.emit( this.reconnectWS )
         } else console.error('reconnectWS is set to FALSE')
       };
       this.wsConnection.onerror = (error) => {
@@ -733,9 +714,33 @@ export class ConnectionService {
   }
 
 
+  private restartWS(b: boolean) {
+    if ( b ) {
+      if ( ! this.reconnectWSTimer ) {
+        console.log('initializing reconnectWSTimer. ')
+        this.reconnectWSTimer = setInterval( () => {
+          console.log('inside reconnectWSTimer trying to reconnect WS. ')
+          this.connectViaWebsocket()
+        }, 2000) // we try reconnect every 2s
+      }          
+    } else {
+      // if we get false this means that we need to stop timer,
+      // because we connected, 
+      // or we disconnected and we do not need to reconnect
+      if ( this.reconnectWSTimer ) {
+        clearInterval( this.reconnectWSTimer )
+        this.reconnectWSTimer = undefined
+      }
+    }
+  }
 
-  // method closes akka actor and ws connection
-  sendPoisonPill() {
+
+
+
+  // methods sending different data via WS to backend
+
+
+  private sendPoisonPill() {
     if (this.wsConnection) {
       console.log('sending PoisonPill to server.');
       this.wsConnection.send('PoisonPill');
@@ -1006,6 +1011,69 @@ export class ConnectionService {
   }
 
  */
+
+
+
+
+
+
+
+
+
+
+  // closing methods
+
+
+  clearSubscriptions() {
+    if ( this.logoutSubscription )             this.logoutSubscription.unsubscribe()
+    if ( this.chatOffsetUpdateSubscription )   this.chatOffsetUpdateSubscription.unsubscribe()
+    if ( this.writingSubscription )            this.writingSubscription.unsubscribe() 
+    if ( this.sendMessageSubscription )        this.sendMessageSubscription.unsubscribe()
+    if ( this.fetchOlderMessagesSubscription ) this.fetchOlderMessagesSubscription.unsubscribe() 
+    if ( this.restartWSSubscription )          this.restartWSSubscription.unsubscribe()
+    if ( this.wsConnectionSubscription )       this.wsConnectionSubscription.unsubscribe()
+  }
+
+
+
+
+
+  closeAllSubServices() {
+    this.chatService.clear()
+    this.session.clearService()
+    // this.settingsService.
+    // this.responseNotifier
+     // this.loadBalancer has no clear methosd
+  }
+
+
+
+
+
+  disconnect() {
+    // nowe
+    this.closeAllSubServices();
+    
+    //   nowe
+    this.initialized = false
+    this.userObj = undefined
+    
+    //   stare
+    this.reconnectWS = false
+    this.session.invalidateSession()
+    if ( this.wsPingSender ) {
+      clearInterval( this.wsPingSender )
+      this.wsPingSender = undefined
+    }
+    this.sendPoisonPill()
+    this.wsConnection?.close()
+    this.wsConnection = undefined
+    
+    // zamykanie pozostałych servisów i zamykanie subscrybcji
+    this.clearSubscriptions()
+  }            
+
+
 
 
 }
