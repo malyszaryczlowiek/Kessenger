@@ -1,15 +1,14 @@
 import { EventEmitter, Injectable } from '@angular/core';
 import { Observable, Subscription } from 'rxjs';
 import { HttpResponse } from '@angular/common/http';
-import { HtmlService } from 'src/app/services/html.service';
 // services
-import { ConnectionService } from './connection.service';
+import { HtmlService } from 'src/app/services/html.service';
 // models
 import { Chat } from '../models/Chat';
 import { Writing } from '../models/Writing';
 import { ChatOffsetUpdate } from '../models/ChatOffsetUpdate';
 import { ChatData } from '../models/ChatData';
-import { Invitation } from '../models/Invitation';
+// import { Invitation } from '../models/Invitation';
 import { Message } from '../models/Message';
 import { PartitionOffset } from '../models/PartitionOffset';
 import { User } from '../models/User';
@@ -55,12 +54,17 @@ export class ChatsDataService {
   // tym emiterem informujemy connection service, że chcemy pobrać przez WS stare wiadomości z backendu
   // że jest to z tego czatu w którym jesteśmy i że jesteśmy na samym dole
   fetchOlderMessagesEmitter: EventEmitter<string> = new EventEmitter<string>()
+
+
+
+  // tym emitterem informujemy, ze dane zostały już zainicjalizowane. 
+  initializationFinishedEmitter: EventEmitter<number> = new EventEmitter<number>()
   
 
 
 
 
-  
+
   // rezygnuję z zubskrypcji na rzecz bezpośredniego wywoływania metody tego serwisu
   // newMessagesSubscription:      Subscription | undefined
   // oldMessagesSubscription:      Subscription | undefined
@@ -93,6 +97,7 @@ export class ChatsDataService {
         return cd
       }
     ).sort( (a,b) => this.compareLatestChatData(a,b) )
+    this.initializationFinishedEmitter.emit( 0 )
 
 
 /*     if ( ! this.newMessagesSubscription ) {
@@ -410,14 +415,16 @@ export class ChatsDataService {
                 }
               }
             )
-            const chatOffsetUpdate: ChatOffsetUpdate = {
-              userId:           'undefined',
-              chatId:           foundCD.chat.chatId,
-              lastMessageTime:  foundCD.chat.lastMessageTime,
-              partitionOffsets: foundCD.partitionOffsets 
-            } 
-            this.chatOffsetUpdateEmitter.emit( chatOffsetUpdate )
-            if ( code != 1 ) code = 1
+            if (this.user) {
+              const chatOffsetUpdate: ChatOffsetUpdate = {
+                userId:           this.user.userId, // 'undefined'
+                chatId:           foundCD.chat.chatId,
+                lastMessageTime:  foundCD.chat.lastMessageTime,
+                partitionOffsets: foundCD.partitionOffsets 
+              } 
+              this.chatOffsetUpdateEmitter.emit( chatOffsetUpdate )
+            }            
+            // if ( code != 1 ) code = 1
           }  
         }
         this.changeChat( foundCD )
@@ -480,10 +487,10 @@ export class ChatsDataService {
 
    
 
-  tutaj // sprawdzić jeszcze czy mechanizm informowania (wysyłąnia do wszystkich komponnentów) 
-  // o przyjściu starej wiadomości jest  poprawny
+  tutaj // 
   /*
-  NIE ZMIENIAĆ
+    sprawdzić jeszcze czy mechanizm informowania (wysyłąnia do wszystkich komponnentów) 
+    // o przyjściu starej wiadomości jest  poprawny
   */ 
   insertOldMessages(m: Message[]) {
     const chatId = m.at(0)?.chatId
@@ -534,6 +541,15 @@ export class ChatsDataService {
   }
 
 
+  updateChatPanel() {
+    this.updateChatPanelEmmiter.emit(0)
+  }
+
+
+
+  updateChatList() {
+    this.updateChatListEmmiter.emit( 0 )
+  }
 
 
   changeChat(chatD: ChatData) {

@@ -12,6 +12,7 @@ import { Message } from 'src/app/models/Message';
 import { User } from 'src/app/models/User';
 
 
+
 @Component({
   selector: 'app-create-chat',
   templateUrl: './create-chat.component.html',
@@ -98,11 +99,12 @@ export class CreateChatComponent implements OnInit, OnDestroy {
                   emitter: new EventEmitter<ChatData>()
                 }
                 // sending to server information to listen messages from this chat.
-                this.chatService.addNewChat( chatData )    
+                this.chatService.addNewChat( chatData ) 
+                this.connectionService.startListeningFromNewChat(chatData.chat.chatId, chatData.partitionOffsets)
+                
                 // old
                 //this.userService.startListeningFromNewChat( chatData.chat.chatId, chatData.partitionOffsets )
                 // this.userService.addNewChat( chatData ) 
-
 
                 // inform chat created
                 this.createMessage = 'Chat created, Redirecting to it.'    

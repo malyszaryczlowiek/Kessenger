@@ -75,11 +75,13 @@ export class ChatListComponent implements OnInit, OnDestroy {
     // 2. oznaczyć wszystkie wiadomości jako przeczytane
     // 3. jeśli lista
     this.chatService.selectChat( c.chat.chatId )
-    this.router.navigate(['user', 'chat', c.chat.chatId]) 
-    // this.chatService.fetchOlderMessages( c.chat.chatId ) // ##################################################################       TO zakomentowałem
-    
-    
+    this.chatService.fetchOlderMessages( c.chat.chatId )
     this.chatService.markMessagesAsRead( c.chat.chatId )
+    this.router.navigate(['user', 'chat', c.chat.chatId]) 
+    
+    // stare    
+    // this.chatService.fetchOlderMessages( c.chat.chatId ) // ##################################################################       TO zakomentowałem
+    /* this.chatService.markMessagesAsRead( c.chat.chatId )
     this.userService.updateSession(true)
     const selectedChat = this.userService.getAllChats().find(  (chatData, index, arr) => {
       return chatData.chat.chatId == c.chat.chatId;
@@ -90,13 +92,13 @@ export class ChatListComponent implements OnInit, OnDestroy {
       }      
     }
     this.router.navigate(['user', 'chat', c.chat.chatId]) 
-    this.userService.selectedChatEmitter.emit(c) 
+    this.userService.selectedChatEmitter.emit(c)  */
   }
 
 
   ngOnDestroy(): void {
     console.log('ChatListComponent.ngOnDestroy() called.')
-    if ( this.writingSubscription )          this.writingSubscription.unsubscribe()
+    if ( this.receivingWritingSubscription ) this.receivingWritingSubscription.unsubscribe()
     if ( this.upToDateChatListSubscription ) this.upToDateChatListSubscription.unsubscribe()
   }
 

@@ -1,5 +1,6 @@
 import { Component, Input, OnInit } from '@angular/core';
 import { Message } from 'src/app/models/Message';
+import { ChatsDataService } from 'src/app/services/chats-data.service';
 import { UserSettingsService } from 'src/app/services/user-settings.service';
 import { UserService } from 'src/app/services/user.service';
 import { UtctimeService } from 'src/app/services/utctime.service';
@@ -11,13 +12,13 @@ import { UtctimeService } from 'src/app/services/utctime.service';
 })
 export class MessageItemComponent implements OnInit {
 
-  constructor(private utc: UtctimeService, private userService: UserService, private userSettings: UserSettingsService) { }
+  constructor(private utc: UtctimeService, private chatService: ChatsDataService, private userSettings: UserSettingsService) { }
 
   @Input() message: Message | undefined;
   me: boolean | undefined
 
   ngOnInit(): void {
-    this.me = this.message?.authorId == this.userService.user?.userId
+    this.me = this.message?.authorId == this.chatService.user?.userId
   }
 
   parseDate(millis: number): string {

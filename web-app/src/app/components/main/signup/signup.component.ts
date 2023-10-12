@@ -46,13 +46,16 @@ export class SignupComponent implements OnInit {
                 settings,
                 new Array()
               )
+              this.connectionService.connectViaWebsocket()
+              
 
-              this.userService.assignSubscriptions()
-              this.userService.setUserAndSettings(
-                response.body?.user,
-                response.body?.settings
-              );
-              this.userService.connectViaWebsocket()
+              // stare
+              //this.userService.assignSubscriptions()
+              // this.userService.setUserAndSettings(
+              //   response.body?.user,
+              //  response.body?.settings
+              // );
+              // this.userService.connectViaWebsocket()
               // after successfull request we should update KSID cookie 
               // to have correct userId
               // this.userService.updateSession()
@@ -67,7 +70,14 @@ export class SignupComponent implements OnInit {
             this.responseNotifier.handleError(error)
             console.log(error);
             console.log('clearing UserService.')
-            this.connectionService.clearService();
+
+
+
+            // UWAGA to jeszcze trzeba sprawdzić 
+            // czy klearwoanie będzie wyłączało wszystko co trzeba wyłączyć 
+
+            this.connectionService.disconnect() 
+            // this.connectionService.clearService();
             this.signUpForm.reset();
 
           },

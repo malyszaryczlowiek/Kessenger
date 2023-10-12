@@ -1,4 +1,5 @@
 import { Component, OnInit } from '@angular/core';
+import { ConnectionService } from 'src/app/services/connection.service';
 import { HtmlService } from 'src/app/services/html.service';
 import { UserService } from 'src/app/services/user.service';
 
@@ -9,10 +10,11 @@ import { UserService } from 'src/app/services/user.service';
 })
 export class SelectChatComponent implements OnInit {
 
-  constructor(private userService: UserService, private htmlService: HtmlService) { }
+  constructor(private connectionService: ConnectionService, private htmlService: HtmlService) { } // private userService: UserService
 
   ngOnInit(): void {
-    this.userService.updateSession(false)
+    this.connectionService.updateSession()
+    // this.userService.updateSession(false)
     this.htmlService.resizeSelectChatImmediately()
   }
 

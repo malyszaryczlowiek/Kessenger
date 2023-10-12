@@ -55,7 +55,7 @@ export class UserService {
   // invitationSubscription:       Subscription | undefined
 
   // restartWSSubscription:        Subscription | undefined
-  // wsConnectionSubscription:     Subscription | undefined
+   wsConnectionSubscription:     Subscription | undefined
   
   // usunąłem
   // chatOffsetUpdateSubscription: Subscription | undefined
