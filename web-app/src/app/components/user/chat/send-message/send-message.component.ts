@@ -4,6 +4,7 @@ import { Chat } from 'src/app/models/Chat';
 import { Message } from 'src/app/models/Message';
 import { Writing } from 'src/app/models/Writing';
 import { ChatsDataService } from 'src/app/services/chats-data.service';
+import { ConnectionService } from 'src/app/services/connection.service';
 import { UserSettingsService } from 'src/app/services/user-settings.service';
 import { UtctimeService } from 'src/app/services/utctime.service';
 
@@ -25,13 +26,19 @@ export class SendMessageComponent implements OnInit {
 
 
 
-  constructor(private chatService: ChatsDataService,
-    private utc: UtctimeService, private settings: UserSettingsService) { }
+  constructor( private connectionService: ConnectionService,
+    private chatService: ChatsDataService,
+    private utc: UtctimeService, 
+    private settings: UserSettingsService) { }
+
+
 
   ngOnInit(): void {
     console.log('SendMessageComponent.ngOnInit()')
   }
 
+
+  
   onWriting() {
     const me = this.chatService.user
     if ( me && this.chat ) {
@@ -62,9 +69,13 @@ export class SendMessageComponent implements OnInit {
         groupChat: this.chat.groupChat,
         partOff: {partition: -1, offset: -1}
       }
-      this.sendingMessage.emit( m );
+      // w componencie nadrzędnym używamy  (sendingMessage)="sendMessage($event)" co oznacza,
+      // że event tutaj emitowany (a właściwie jego wartość) trafia jako wejście do metody sendMessage()
+      // w componencie nadrzędnym, Dlatego też tutaj ten event jest oznaczony jako @Output().
+      this.sendingMessage.emit( m ); 
       this.messageForm.controls.messageContent.setValue('')
-      this.userService.updateSession(true) // rozwiązać 
+      this.connectionService.updateSession() 
+      // this.userService.updateSession(true)  
     } 
   }
 
