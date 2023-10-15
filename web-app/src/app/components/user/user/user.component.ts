@@ -4,6 +4,7 @@ import { Toast } from 'bootstrap'
 import { HtmlService } from 'src/app/services/html.service';
 import { UserService } from 'src/app/services/user.service';
 import { ResponseNotifierService } from 'src/app/services/response-notifier.service';
+import { ConnectionService } from 'src/app/services/connection.service';
 
 
 
@@ -18,15 +19,17 @@ export class UserComponent implements OnInit, OnDestroy {
   errorMessageSubscription: Subscription | undefined
 
 
-  constructor(private userService: UserService, 
-              private htmlService: HtmlService,
+  constructor(//private userService: UserService, 
+              private connectionService: ConnectionService,
+              // private htmlService: HtmlService,
               private responseNotifier: ResponseNotifierService) { }
 
 
   
   ngOnInit(): void {
     console.log('UserComponent.ngOnInit()')
-    if ( ! this.userService.isWSconnectionDefined() ) this.userService.connectViaWebsocket() 
+    // if ( ! this.userService.isWSconnectionDefined() ) this.userService.connectViaWebsocket() 
+    if ( ! this.connectionService.isWSconnectionDefined() ) this.connectionService.connectViaWebsocket() 
     this.errorMessageSubscription = this.responseNotifier.responseEmitter.subscribe(
       (e) => {
         this.error = e

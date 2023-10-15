@@ -49,6 +49,10 @@ export class UserSettingsService {
   } 
 
 
+  setUser(u: User) {
+    this.user = u
+  }
+
 
 
 

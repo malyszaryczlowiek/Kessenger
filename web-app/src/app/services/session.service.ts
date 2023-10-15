@@ -21,7 +21,7 @@ export class SessionService {
 
   logoutTimer: NodeJS.Timeout | undefined;
   // logoutSeconds:       number | undefined;
-  logoutSeconds:       number = 5; // to może powodować błędy i będzie jakoś trzeba 
+  logoutSeconds:        number = 5; // to może powodować błędy i będzie jakoś trzeba 
 
   logoutSecondsEmitter: EventEmitter<number> = new EventEmitter()
   logoutEmitter:        EventEmitter<number> = new EventEmitter()

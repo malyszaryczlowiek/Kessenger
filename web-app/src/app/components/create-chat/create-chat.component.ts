@@ -157,7 +157,7 @@ export class CreateChatComponent implements OnInit, OnDestroy {
         debounceTime(900),
         distinctUntilChanged(),
         switchMap( (login) => {
-          const c = this.connectionService.searchUser( myId, login)
+          const c = this.connectionService.searchUser( login)
           // const c = this.userService.searchUser(login)
           console.log('search login key pressed. Login:  '+ login)
           if (c) return c

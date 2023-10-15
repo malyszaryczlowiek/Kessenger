@@ -1,5 +1,6 @@
 import { NgModule } from '@angular/core';
 import { RouterModule, Routes } from '@angular/router';
+// components
 import { CreateChatComponent } from './components/create-chat/create-chat.component';
 import { MainComponent } from './components/main/main/main.component';
 import { PagenotfoundComponent } from './components/pagenotfound/pagenotfound.component';

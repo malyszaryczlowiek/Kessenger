@@ -116,13 +116,15 @@ export class EditAccountComponent implements OnInit, OnDestroy {
   saveLogin() {
     const newLogin = this.loginFormGroup.controls.loginForm.value
     if ( newLogin ) {
-      const l = this.userService.changeLogin(newLogin)
+      // const l = this.userService.changeLogin(newLogin)
+      const l = this.connectionService.changeLogin(newLogin)
       if ( l ) {
         l.subscribe({
           next: (response) => {
             const b = response.body
             if ( b ) { 
-              this.userService.updateLogin(newLogin)
+              // this.userService.updateLogin(newLogin)
+              this.connectionService.updateUserLogin( newLogin )
               const print = {
                 header: 'Update',
                 //code: 0,
@@ -150,7 +152,8 @@ export class EditAccountComponent implements OnInit, OnDestroy {
     const oldPass = this.passGroup.controls.old.value
     const newPass = this.passGroup.controls.neww.value
     if (oldPass && newPass) {
-      const p = this.userService.changePassword(oldPass, newPass)
+      // const p = this.userService.changePassword(oldPass, newPass)
+      const p = this.connectionService.changePassword(oldPass, newPass)
       if ( p ) {
         //tutuaj kontynuowaća
         p.subscribe({
@@ -177,7 +180,8 @@ export class EditAccountComponent implements OnInit, OnDestroy {
             }
             if (err.status == 401){
               console.log('Session is out.')
-              this.userService.clearService()
+              // this.userService.clearService()
+              this.connectionService.disconnect()
               this.router.navigate(['session-timeout'])
             }
           },

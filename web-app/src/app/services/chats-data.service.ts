@@ -490,7 +490,9 @@ export class ChatsDataService {
   tutaj // 
   /*
     sprawdzić jeszcze czy mechanizm informowania (wysyłąnia do wszystkich komponnentów) 
-    // o przyjściu starej wiadomości jest  poprawny
+    // o przyjściu starej wiadomości jest poprawny
+    chyba, że trzeba tylko poinformować chat-panel 
+    bo chat-list nie kożysta z informacji o starych wiadomościach. 
   */ 
   insertOldMessages(m: Message[]) {
     const chatId = m.at(0)?.chatId
@@ -538,6 +540,8 @@ export class ChatsDataService {
         return cd // otherwise return not changed
       }
     })
+    this.updateChatListEmmiter.emit( 0 )
+    this.updateChatPanelEmmiter.emit( 0 )
   }
 
 
@@ -659,6 +663,13 @@ export class ChatsDataService {
       })
     } else return undefined
   }
+
+
+  setUser(u: User) {
+    this.user = u
+  }
+
+
 
 
 /*   getChatData(chatId: string): Observable<HttpResponse<{chat: Chat, partitionOffsets: Array<{partition: number, offset: number}>}>> | undefined  {

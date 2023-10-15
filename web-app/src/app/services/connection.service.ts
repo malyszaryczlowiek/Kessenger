@@ -56,7 +56,7 @@ export class ConnectionService {
   //public wsConnEmitter:      EventEmitter<boolean>             = new EventEmitter<boolean>()
 
 
-  
+  detaFetchedEmitter: EventEmitter<number> = new EventEmitter<number>()
 
   // co trzeba zasubskrybować 
 
@@ -425,11 +425,11 @@ export class ConnectionService {
 
 
 
-  changeLogin(userId: string, newLogin: string): Observable<HttpResponse<any>> | undefined {
+  changeLogin( newLogin: string): Observable<HttpResponse<any>> | undefined {
     const token = this.session.getSessionToken()
     const server = this.loadBalancer.currentServer
-    if ( token && server ) {
-      return this.http.put<any>(server.getURIwithPath(`/user/${userId}/changeLogin`), newLogin, { 
+    if ( this.userObj && token && server ) {
+      return this.http.put<any>(server.getURIwithPath(`/user/${this.userObj.userId}/changeLogin`), newLogin, { 
         headers:  new HttpHeaders()
           .set('KSID', token),
         observe: 'response',
@@ -441,15 +441,15 @@ export class ConnectionService {
 
 
   
-  changePassword(userId: string, oldPassword: string, newPassword: string): Observable<HttpResponse<any>> | undefined {
+  changePassword(oldPassword: string, newPassword: string): Observable<HttpResponse<any>> | undefined {
     const token = this.session.getSessionToken()
     const server = this.loadBalancer.currentServer
-    if ( token && server ) {
+    if ( this.userObj && token && server ) {
       const body = {
         oldPass: oldPassword,
         newPass: newPassword
       }
-      return this.http.put<any>(server.getURIwithPath(`/user/${userId}/changePassword`), body, { 
+      return this.http.put<any>(server.getURIwithPath(`/user/${this.userObj.userId}/changePassword`), body, { 
         headers:  new HttpHeaders()
           .set('KSID', token),
         observe: 'response',
@@ -461,11 +461,11 @@ export class ConnectionService {
 
 
 
-  searchUser(userId: string, search: string) : Observable<HttpResponse<User[]>> | undefined {
+  searchUser( search: string) : Observable<HttpResponse<User[]>> | undefined {
     const token = this.session.getSessionToken()
     const server = this.loadBalancer.currentServer
-    if ( token && server ) {
-      return this.http.get<User[]>(server.getURIwithPath(`/user/${userId}/searchUser`), { 
+    if ( this.userObj && token && server ) {
+      return this.http.get<User[]>(server.getURIwithPath(`/user/${this.userObj.userId}/searchUser`), { 
         headers:  new HttpHeaders()
           .set('KSID', token),
         observe: 'response',
@@ -530,11 +530,11 @@ export class ConnectionService {
 
 
   
-  leaveChat(userId: string, chatId: string): Observable<HttpResponse<any>> | undefined {
+  leaveChat( chatId: string): Observable<HttpResponse<any>> | undefined {
     const token = this.session.getSessionToken()
     const server = this.loadBalancer.currentServer
-    if ( token && server ) {
-      return this.http.delete<any>(server.getURIwithPath(`/user/${userId}/chats/${chatId}`), {
+    if ( this.userObj && token && server ) {
+      return this.http.delete<any>(server.getURIwithPath(`/user/${this.userObj.userId}/chats/${chatId}`), {
         headers: new HttpHeaders()
           .set('KSID', token),
         observe: 'response', 
@@ -546,11 +546,11 @@ export class ConnectionService {
 
 
 
-  getChatUsers(userId: string, chatId: string): Observable<HttpResponse<User[]>> | undefined {
+  getChatUsers(chatId: string): Observable<HttpResponse<User[]>> | undefined {
     const token = this.session.getSessionToken()
     const server = this.loadBalancer.currentServer
-    if ( token && server ) {
-      return this.http.get<User[]>(server.getURIwithPath(`/user/${userId}/chats/${chatId}/users`), {
+    if ( this.userObj && token && server ) {
+      return this.http.get<User[]>(server.getURIwithPath(`/user/${this.userObj.userId}/chats/${chatId}/users`), {
         headers:  new HttpHeaders()
           .set('KSID', token),
         observe: 'response', 
@@ -562,11 +562,11 @@ export class ConnectionService {
 
 
 
-  setChatSettings(userId: string, chat: Chat): Observable<HttpResponse<any>> | undefined {
+  setChatSettings(chat: Chat): Observable<HttpResponse<any>> | undefined {
     const token = this.session.getSessionToken()
     const server = this.loadBalancer.currentServer
-    if ( token && server ) {
-      return this.http.put<any>(server.getURIwithPath(`/user/${userId}/chats/${chat.chatId}/chatSettings`), chat, {
+    if ( this.userObj && token && server ) {
+      return this.http.put<any>(server.getURIwithPath(`/user/${this.userObj.userId}/chats/${chat.chatId}/chatSettings`), chat, {
         headers: new HttpHeaders()
           .set('KSID', token),
         observe: 'response', 
@@ -577,18 +577,18 @@ export class ConnectionService {
 
 
   
-
-  addUsersToChat(userId: string, login: string, chatId: string, chatName: string, userIds: string[], pOffsets: PartitionOffset[]): Observable<HttpResponse<any>> | undefined {
+// userId: string, login: string,
+  addUsersToChat( chatId: string, chatName: string, userIds: string[], pOffsets: PartitionOffset[]): Observable<HttpResponse<any>> | undefined {
     const token = this.session.getSessionToken()
     const server = this.loadBalancer.currentServer
-    if ( token && server ) {
+    if ( this.userObj &&token && server ) {
       const body = {
-        invitersLogin: login,
+        invitersLogin: this.userObj.login,
         chatName: chatName,
         users: userIds,
         partitionOffsets: pOffsets
       }
-      return this.http.post<any>(server.getURIwithPath(`/user/${userId}/chats/${chatId}/addNewUsers`), body, {
+      return this.http.post<any>(server.getURIwithPath(`/user/${this.userObj.userId}/chats/${chatId}/addNewUsers`), body, {
         headers: new HttpHeaders()
           .set('KSID', token),
         observe: 'response', 
@@ -987,6 +987,15 @@ export class ConnectionService {
 
   getUser(): User | undefined {
     return this.userObj
+  }
+
+  updateUserLogin(newLogin: string) {
+    if ( this.userObj ) {
+      this.userObj.login = newLogin
+      this.chatService.setUser( this.userObj )
+      this.settingsService.setUser( this.userObj ) 
+      // chyba jakaś notyfikacja, że mój login został zmieniony
+    }
   }
 
 

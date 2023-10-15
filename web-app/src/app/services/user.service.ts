@@ -460,9 +460,9 @@ export class UserService {
   }
 
 
-  updateLogin(newLogin: string) {
+  /* updateLogin(newLogin: string) {
     if (this.user) this.user.login = newLogin
-  }
+  } */
 
 
 
