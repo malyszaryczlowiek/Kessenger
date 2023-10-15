@@ -55,8 +55,8 @@ export class ConnectionService {
 
   //public wsConnEmitter:      EventEmitter<boolean>             = new EventEmitter<boolean>()
 
-
-  detaFetchedEmitter: EventEmitter<number> = new EventEmitter<number>()
+  // called only externally, when we want fetch data. 
+  dataFetchedEmitter: EventEmitter<number> = new EventEmitter<number>()
 
   // co trzeba zasubskrybować 
 
@@ -656,7 +656,7 @@ export class ConnectionService {
         }          
         if ( body.newMsgList ) {
           console.log('got list of NEW message: ', body.newMsgList )
-          this.chatService.insertNewMessages( body.newMsgList )
+          this.chatService.insertNewMessages2( body.newMsgList )
           // this.newMessagesEmitter.emit( body.newMsgList )
         }
         if ( body.oldMsgList ) {

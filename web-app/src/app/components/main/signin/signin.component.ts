@@ -5,7 +5,6 @@ import { Router } from '@angular/router';
 import { ConnectionService } from 'src/app/services/connection.service';
 import { LoadBalancerService } from 'src/app/services/load-balancer.service';
 import { ResponseNotifierService } from 'src/app/services/response-notifier.service';
-import { UserService } from 'src/app/services/user.service';
 
 @Component({
   selector: 'app-signin',
@@ -22,7 +21,7 @@ export class SigninComponent implements OnInit {
   // @Output() errorMessageEmitter: EventEmitter<string> = new EventEmitter<string>()
 
 
-  constructor(// private userService: UserService, 
+  constructor(
               private connectionService: ConnectionService,
               private responseNotifier: ResponseNotifierService,
               // private loadBalancer: LoadBalancerService,
@@ -87,7 +86,7 @@ export class SigninComponent implements OnInit {
           else { */
             this.responseNotifier.handleError(error)                                  
             console.log(error)
-            this.connectionService.clearService()
+            this.connectionService.disconnect()
             this.signInForm.reset();
 
 

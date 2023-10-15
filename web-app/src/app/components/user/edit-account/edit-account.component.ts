@@ -49,18 +49,18 @@ export class EditAccountComponent implements OnInit, OnDestroy {
               private router: Router) { }
 
   ngOnInit(): void {
-    this.fechingSubscription = this.userService.fetchingUserDataFinishedEmmiter.subscribe(
+    this.fechingSubscription = this.connectionService.dataFetchedEmitter.subscribe(
       ( b ) => {
-        if ( b >= 0 ){
-          this.zones = this.settingsService.zones
-          this.settings = this.settingsService.settings
-          this.settingsGroup.controls.zoneControl.setValue( this.settings.zoneId )
-          this.settingsGroup.controls.sessionControl.setValue( this.settings.sessionDuration / (60000) )
-        }
+        this.zones = this.settingsService.zones
+        this.settings = this.settingsService.settings
+        this.settingsGroup.controls.zoneControl.setValue( this.settings.zoneId )
+        this.settingsGroup.controls.sessionControl.setValue( this.settings.sessionDuration / (60000) )
       }
     )
-    if ( this.userService.isWSconnected() ) this.userService.dataFetched( 0 ) 
+    if ( this.connectionService.isWSconnected() ) this.connectionService.dataFetchedEmitter.emit( 0 )
   }
+
+
 
 
   ngOnDestroy(): void {
@@ -79,18 +79,18 @@ export class EditAccountComponent implements OnInit, OnDestroy {
         sessionDuration: time * 60 * 1000,
         zoneId: zone
       }
-      const oldSett = this.settingsService.settings
-      
-      errorr // this.settingsService.setSettings( body )        
+      // const oldSett = this.settingsService.settings
+      // this.settingsService.setSettings( body )        
       // to powinno być zrobione dopiero po otrzymaniu zwrotnej informacji, że dane zostały updejtowane w backendzie
       // wtedy w settingsService powinien zostać wysłany event, żeby np. ustawienia wylogowania wczytały i przypisały nową wartość czasu do wylogowania. 
-      
       const obs = this.connectionService.changeSettings( body )
       if ( obs ) {
         obs.subscribe({
           next: (response) => {
             // this.settingsResponse = response.body
             // this.userService.updateSession()
+            this.settingsService.setSettings( body )
+            this.connectionService.updateSession()
             const print = {
               header: 'Update',
               //code: 0,
@@ -99,7 +99,7 @@ export class EditAccountComponent implements OnInit, OnDestroy {
             this.responseNotifier.printNotification( print )
           },
           error: (error) => {
-            this.settingsService.setSettings( oldSett )
+            // this.settingsService.setSettings( oldSett )
             this.responseNotifier.handleError( error ) 
           },
           complete: () => {}

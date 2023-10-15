@@ -21,7 +21,7 @@ export class RootComponent implements OnInit, OnDestroy {
     // it is required during page reload, because possible 
     // data and resources leakage. 
     console.log('RootComponent.ngOnDestroy()')
-    if (  this.connectionService.getUser() ) this.connectionService.disconnect()   // userService.clearService()
+    if ( this.connectionService.getUser() ) this.connectionService.disconnect()   // userService.clearService()
   }
 
 }

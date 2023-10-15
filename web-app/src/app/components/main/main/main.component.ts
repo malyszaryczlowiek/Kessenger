@@ -2,7 +2,7 @@ import { Component, OnDestroy, OnInit } from '@angular/core';
 import { Router } from '@angular/router';
 import { Subscription } from 'rxjs';
 import { Toast } from 'bootstrap'
-import { UserService } from 'src/app/services/user.service';
+// services
 import { ResponseNotifierService } from 'src/app/services/response-notifier.service';
 import { ConnectionService } from 'src/app/services/connection.service';
 
@@ -21,7 +21,7 @@ export class MainComponent implements OnInit, OnDestroy {
 
   constructor(private router: Router, 
               private responseNotifier: ResponseNotifierService,
-              private connectionService: ConnectionService) {
+              private connectionService: ConnectionService ) {
   }
 
 

@@ -1,10 +1,12 @@
 import { Component, Input, OnInit } from '@angular/core';
-import { ChatData } from 'src/app/models/ChatData';
-import { Writing } from 'src/app/models/Writing';
+// services
 import { ChatsDataService } from 'src/app/services/chats-data.service';
 import { UserSettingsService } from 'src/app/services/user-settings.service';
-import { UserService } from 'src/app/services/user.service';
 import { UtctimeService } from 'src/app/services/utctime.service';
+// models
+import { ChatData } from 'src/app/models/ChatData';
+import { Writing } from 'src/app/models/Writing';
+
 
 @Component({
   selector: 'app-chat-list-item',

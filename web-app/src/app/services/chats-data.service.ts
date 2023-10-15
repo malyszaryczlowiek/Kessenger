@@ -57,8 +57,8 @@ export class ChatsDataService {
 
 
 
-  // tym emitterem informujemy, ze dane zostały już zainicjalizowane. 
-  initializationFinishedEmitter: EventEmitter<number> = new EventEmitter<number>()
+  // tym emitterem informujemy, ze dane zostały już zainicjalizowane. - narazie jednak z tego rezygnuje. 
+  // initializationFinishedEmitter: EventEmitter<number> = new EventEmitter<number>()
   
 
 
@@ -97,7 +97,7 @@ export class ChatsDataService {
         return cd
       }
     ).sort( (a,b) => this.compareLatestChatData(a,b) )
-    this.initializationFinishedEmitter.emit( 0 )
+    // this.initializationFinishedEmitter.emit( 0 )
 
 
 /*     if ( ! this.newMessagesSubscription ) {
@@ -301,6 +301,7 @@ export class ChatsDataService {
   markMessagesAsRead(chatId: string) { // : {cd: ChatData, num: number} | undefined
     const chat = this.findChat( chatId )
     if ( chat ) {
+      console.log('markMessages as read. ')
       chat.isNew = false
       this.selectedChat = chatId 
       const num = chat.unreadMessages.length
@@ -368,15 +369,11 @@ export class ChatsDataService {
   method returns code informing if we should update chat list, chat panel, both, 
   or do not update nothing
   */
-  insertNewMessages(m: Message[]): number {
+  //  DEPRECATED
+  insertNewMessages1(m: Message[]): number {
     let code = 0
-
-
     // tutaj należy dodać  wysyłanie przez ws update chat offset
-
     // error
-
-
     m.forEach((mm,i,arr) => {
       const foundCD = this.chatAndUsers.find((cd, i, arr) => {
         return cd.chat.chatId == mm.chatId
@@ -454,7 +451,7 @@ export class ChatsDataService {
 
 
 
-  poniżej // sprawdzić czy algorytm jest poprawny i zacząć implemenmtować
+  // sprawdzić czy algorytm jest poprawny i zacząć implemenmtować
   /*
   ta metoda będzie zawierała dwa nowe emmitery: chatPanelEmmiter i chatListEmmiter
 
@@ -482,17 +479,65 @@ export class ChatsDataService {
 
   */
   insertNewMessages2(m: Message[]) {
-
+    m.forEach((mm, i, arr) => {
+      if (mm.chatId == this.selectedChat) {
+        // jeśli jesteśmy na dole to dodajemy do przeczytanych
+        if ( this.htmlService.isScrolledDown() == 1 )  {
+          const c = this.findChat( mm.chatId )
+          if ( c ) {
+            c.messages = c.messages.sort((a,b) => a.serverTime - b.serverTime )
+            c.partitionOffsets = c.partitionOffsets.map(
+              (po, i, arr) => {
+                if (po.partition == mm.partOff.partition && po.offset < mm.partOff.offset){ 
+                  po.offset = mm.partOff.offset
+                  return po
+                } else  {
+                  return po
+                }
+              }
+            )
+            if (this.user) {
+              const chatOffsetUpdate: ChatOffsetUpdate = {
+                userId:           this.user.userId, // 'undefined'
+                chatId:           c.chat.chatId,
+                lastMessageTime:  c.chat.lastMessageTime,
+                partitionOffsets: c.partitionOffsets 
+              } 
+              this.chatOffsetUpdateEmitter.emit( chatOffsetUpdate )
+            }
+            this.changeChat( c )
+          }          
+        } 
+        // jeśli nie jesteśmy na dole to dodajemy do nieprzeczytanych
+        else  {
+          const c = this.findChat( mm.chatId )
+          if ( c ) {
+            c.unreadMessages.push( mm ) 
+            this.changeChat( c )
+          }
+        }
+      } else { // inny czat niż aktualnie wybrany
+        const c = this.findChat( mm.chatId )
+        if ( c ) {
+          c.unreadMessages.push( mm ) 
+          this.changeChat( c )
+        }
+      }
+    })
+    // updejtujemy wszystko co trzeba
+    this.updateChatListEmmiter.emit( 0 )
+    this.updateChatPanelEmmiter.emit( 0 )
   } 
+
+
 
    
 
-  tutaj // 
   /*
     sprawdzić jeszcze czy mechanizm informowania (wysyłąnia do wszystkich komponnentów) 
     // o przyjściu starej wiadomości jest poprawny
     chyba, że trzeba tylko poinformować chat-panel 
-    bo chat-list nie kożysta z informacji o starych wiadomościach. 
+    bo chat-list nie korzysta z informacji o starych wiadomościach. 
   */ 
   insertOldMessages(m: Message[]) {
     const chatId = m.at(0)?.chatId
@@ -563,17 +608,30 @@ export class ChatsDataService {
   }
 
 
-  selectChat(chatId: string | undefined ) {
-    this.selectedChat = chatId
-    here // tutaj  oprócz selekcji powinniśmy jeszcze dla tego czatu:
-    // 1. fetchować stare wiadomości ( po wykonaniu fetchowania należy jeszcze updejtować sesje - wewnątrz metody )
-    // 2. oznaczyć wszystkie wiadomości jako przeczytane ( co powinno wywołać wysłanie emitu chatOffsetUpdateEmitter )
 
+
+  // tutaj  oprócz selekcji powinniśmy jeszcze dla tego czatu:
+  // 1. fetchować stare wiadomości ( po wykonaniu fetchowania należy jeszcze updejtować sesje - wewnątrz metody )
+  // 2. oznaczyć wszystkie wiadomości jako przeczytane ( co powinno wywołać wysłanie emitu chatOffsetUpdateEmitter )
+  selectChat(chatId: string | undefined ) {
+    this.selectedChat = chatId    
+    if ( this.selectedChat ) {
+      this.fetchOlderMessages( this.selectedChat )
+      this.markMessagesAsRead( this.selectedChat )
+    }
   }
+
+
+
+
 
   clearSelectedChat() {
     this.selectedChat = undefined
   }
+
+
+
+
 
 
   private compareLatestChatData(c1: ChatData, c2: ChatData): number {

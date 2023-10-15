@@ -1,10 +1,13 @@
 import { Component, EventEmitter, OnDestroy, OnInit } from '@angular/core';
 import { Subscription } from 'rxjs';
-import { ChatData } from 'src/app/models/ChatData';
+// serivces
 import { ChatsDataService } from 'src/app/services/chats-data.service';
 import { ConnectionService } from 'src/app/services/connection.service';
 import { ResponseNotifierService } from 'src/app/services/response-notifier.service';
-import { UserService } from 'src/app/services/user.service';
+// models
+import { ChatData } from 'src/app/models/ChatData';
+
+
 
 @Component({
   selector: 'app-chat',

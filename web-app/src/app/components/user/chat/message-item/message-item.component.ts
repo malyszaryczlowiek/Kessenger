@@ -1,9 +1,12 @@
 import { Component, Input, OnInit } from '@angular/core';
-import { Message } from 'src/app/models/Message';
+// services
 import { ChatsDataService } from 'src/app/services/chats-data.service';
 import { UserSettingsService } from 'src/app/services/user-settings.service';
-import { UserService } from 'src/app/services/user.service';
 import { UtctimeService } from 'src/app/services/utctime.service';
+// models
+import { Message } from 'src/app/models/Message';
+
+
 
 @Component({
   selector: 'app-message-item',

@@ -43,7 +43,7 @@ export class UserService {
   
 
   //logoutTimer: NodeJS.Timeout | undefined;
-  logoutSeconds: number = this.settingsService.settings.sessionDuration / 1000    // number of seconds to logout
+  // logoutSeconds: number = this.settingsService.settings.sessionDuration / 1000    // number of seconds to logout
   // logoutSecondsEmitter: EventEmitter<number>   = new EventEmitter()
   
 
@@ -65,14 +65,16 @@ export class UserService {
 
 
 
-
-  constructor(private connection: ConnectionService, 
+/*
+private connection: ConnectionService, 
               private chatsService: ChatsDataService,
               private settingsService: UserSettingsService, 
               private responseNotifier: ResponseNotifierService,
-              private router: Router) { 
+              private router: Router
+*/
+  constructor() { 
 
-    console.log('UserService constructor called.')
+/*     console.log('UserService constructor called.')
     this.assignSubscriptions()
     const userId = this.connection.getUserId();
     if ( userId ) {
@@ -111,14 +113,14 @@ export class UserService {
         })
       }
     } else this.router.navigate([''])
-
+ */
   }
 
 
-  initialize( user: User) {
+/*   initialize( user: User) {
     this.user = user
   }
-
+ */
 
   assignSubscriptions() {
     /* if ( ! this.newMessagesSubscription ) {
@@ -301,11 +303,11 @@ export class UserService {
   // settings service
   // connection service
   
-  clearService() {
+/*   clearService() {
     this.user = undefined;
     this.chatsService.clear() 
     this.settingsService.clearSettings();
-    /* if (this.wsConnectionSubscription) {
+    if (this.wsConnectionSubscription) {
       this.wsConnectionSubscription.unsubscribe()
       this.wsConnectionSubscription = undefined
     }
@@ -313,48 +315,47 @@ export class UserService {
       this.restartWSSubscription.unsubscribe()
       this.restartWSSubscription = undefined
     }
-    if (this.reconnectWSTimer) clearInterval(this.reconnectWSTimer) */  
+    if (this.reconnectWSTimer) clearInterval(this.reconnectWSTimer)
     this.connection.disconnect();  
-    // if (this.logoutTimer) clearInterval(this.logoutTimer)  
-/*     if (this.newMessagesSubscription) {
+    if (this.logoutTimer) clearInterval(this.logoutTimer)  
+     if (this.newMessagesSubscription) {
       this.newMessagesSubscription.unsubscribe()
       this.newMessagesSubscription = undefined
-    } */
-/*     if (this.oldMessagesSubscription) {
+    } 
+     if (this.oldMessagesSubscription) {
       this.oldMessagesSubscription.unsubscribe()
       this.oldMessagesSubscription = undefined
-    } */
-/*     if (this.invitationSubscription)  {
+    }
+     if (this.invitationSubscription)  {
       this.invitationSubscription.unsubscribe()
       this.invitationSubscription = undefined
     }
- */    
-    /* if ( this.logoutSubscription ) {
+    if ( this.logoutSubscription ) {
       this.logoutSubscription.unsubscribe()
       this.logoutSubscription = undefined
-    } */
+    }
     // usunąłęm
-    /* if ( this.chatOffsetUpdateSubscription ) {
+    if ( this.chatOffsetUpdateSubscription ) {
       this.chatOffsetUpdateSubscription.unsubscribe()
       this.chatOffsetUpdateSubscription = undefined
-    } */
-    // this.logoutTimer = undefined
+    }
+    this.logoutTimer = undefined
     this.logoutSeconds = this.settingsService.settings.sessionDuration / 1000
     console.log('UserService clearservice')
-  }
+  } */
 
 
 
 
 
 
-  setUserAndSettings(u: User | undefined, s: Settings | undefined) {
+/*   setUserAndSettings(u: User | undefined, s: Settings | undefined) {
     if (u) {
       this.user = u;
       this.connection.setUserId( this.user.userId )
     }
     if (s) this.settingsService.setSettings(s);
-  }
+  } */
 
   
 
@@ -390,19 +391,19 @@ export class UserService {
  */
   
 
-
+/* 
   updateSessionViaUserId(userId: string) {
     this.connection.updateSession(false)
     //this.connection.updateSession(userId);
     this.restartLogoutTimer()
-  }
+  } */
 
 
 
 
-  isSessionValid(): boolean {
+/*   isSessionValid(): boolean {
     return this.connection.isSessionValid();
-  }
+  } */
 
 
 
@@ -413,24 +414,24 @@ export class UserService {
  */
 
 
-
+/* 
   getAllChats() {
     return this.chatsService.chatAndUsers
-  }
+  } */
 
 
-
+/* 
   addNewChat(c: ChatData) {
     this.chatsService.addNewChat(c)
-  }
+  } */
 
 
-
+/* 
   setChats(chats: ChatData[]) {
     if (this.user) {
       this.chatsService.initialize( chats, this.user ) 
     }    
-  }
+  } */
 
 
   // sprawdzić gdzie używane i wywołać z chat-service zamiast stąd
@@ -455,10 +456,11 @@ export class UserService {
   }
  */
 
-  insertChatUsers(chatId: string, u: User[]) {
+  
+/*   insertChatUsers(chatId: string, u: User[]) {
     this.chatsService.insertChatUsers(chatId, u)
   }
-
+ */
 
   /* updateLogin(newLogin: string) {
     if (this.user) this.user.login = newLogin
@@ -567,53 +569,53 @@ export class UserService {
 
 
 
-  changeLogin(newLogin: string): Observable<HttpResponse<any>> | undefined {
+/*   changeLogin(newLogin: string): Observable<HttpResponse<any>> | undefined {
     if (this.user) {
       this.updateSession(false)
       return this.connection.changeLogin(this.user.userId, newLogin)
     }
     else
       return undefined
-  }
+  } */
 
 
 
-  changePassword(oldPassword: string, newPassword: string): Observable<HttpResponse<any>> | undefined {
+/*   changePassword(oldPassword: string, newPassword: string): Observable<HttpResponse<any>> | undefined {
     if (this.user) {
       this.updateSession(false)
       return this.connection.changePassword(this.user.userId, oldPassword, newPassword);
     }
     else return undefined;  
-  }
+  } */
 
 
-  searchUser(search: string): Observable<HttpResponse<User[]>> | undefined {
+/*   searchUser(search: string): Observable<HttpResponse<User[]>> | undefined {
     if (this.user) {
       this.updateSession(false)
       return this.connection.searchUser(this.user.userId, search);
     }
     else return undefined;
-  }
+  } */
 
   // chats
 
 
-  newChat(chatName: string, usersIds: string[]): Observable<HttpResponse<ChatData[]>> | undefined {
+/*   newChat(chatName: string, usersIds: string[]): Observable<HttpResponse<ChatData[]>> | undefined {
     if (this.user) {
       this.updateSession(false)
       return this.connection.newChat(this.user, chatName, usersIds);
     } 
     else return undefined;    
-  }
+  } */
   
 
-  getChats(): Observable<HttpResponse<ChatData[]>> | undefined {
+/*   getChats(): Observable<HttpResponse<ChatData[]>> | undefined {
     if ( this.user ) {
       this.updateSession(false)
       return this.connection.getChats(this.user.userId);
     }
     else return undefined;
-  }
+  } */
 
 
   // moved to chat-service
@@ -627,40 +629,42 @@ export class UserService {
   }
  */
 
-  getChatUsers(chatId: string): Observable<HttpResponse<User[]>> | undefined {
+
+
+/*   getChatUsers(chatId: string): Observable<HttpResponse<User[]>> | undefined {
     if (this.user) {
       this.updateSession(false)
       return this.connection.getChatUsers(this.user.userId, chatId);
     }
     else return undefined;
-  }
+  } */
 
 
-  leaveChat(chatId: string): Observable<HttpResponse<any>> | undefined {
+/*   leaveChat(chatId: string): Observable<HttpResponse<any>> | undefined {
     if (this.user) {
       this.updateSession(false)
       return this.connection.leaveChat(this.user.userId, chatId);
     }
     else return undefined;
-  }
+  } */
 
 
-  setChatSettings(chat: Chat): Observable<HttpResponse<any>> | undefined {
+/*   setChatSettings(chat: Chat): Observable<HttpResponse<any>> | undefined {
     if (this.user) {
       this.updateSession(false)
       return this.connection.setChatSettings(this.user.userId, chat);
     } 
     else return undefined;
-  }
+  } */
 
   
-  addUsersToChat(chatId: string, chatName: string, usersIds: string[], partitionOffsets: PartitionOffset[]) {
+/*   addUsersToChat(chatId: string, chatName: string, usersIds: string[], partitionOffsets: PartitionOffset[]) {
     if (this.user)  {
       this.updateSession(false)
       return this.connection.addUsersToChat(this.user.userId, this.user.login, chatId, chatName, usersIds, partitionOffsets);
     }    
     else return undefined;    
-  }
+  } */
 
  
 
@@ -697,9 +701,9 @@ export class UserService {
 
 
 
-  sendInvitation(inv: Invitation) {
+/*   sendInvitation(inv: Invitation) {
     this.connection.sendInvitation(inv)
-  }
+  } */
 
 
 

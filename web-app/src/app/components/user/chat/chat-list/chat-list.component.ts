@@ -2,14 +2,13 @@ import { Component, Input, OnDestroy, OnInit } from '@angular/core';
 import { Subscription } from 'rxjs';
 import { Router } from '@angular/router';
 // services
-import { UserService } from 'src/app/services/user.service';
 import { HtmlService } from 'src/app/services/html.service';
 import { ChatsDataService } from 'src/app/services/chats-data.service';
 import { ConnectionService } from 'src/app/services/connection.service';
-//modelsf
+// models
 import { ChatData } from 'src/app/models/ChatData';
 import { Writing } from 'src/app/models/Writing';
-import { defaultThrottleConfig } from 'rxjs/internal/operators/throttle';
+
 
 @Component({
   selector: 'app-chat-list',
@@ -21,7 +20,7 @@ export class ChatListComponent implements OnInit, OnDestroy {
   @Input() chats: Array<ChatData> = new Array<ChatData>(); 
   
   wrt:                               Writing | undefined
-  receivingWritingSubscription:          Subscription | undefined
+  receivingWritingSubscription: Subscription | undefined
   // trzeba napisać subscription, które będzie ponownie wczytywało chaty z już zaktualizowanego chat-service
   upToDateChatListSubscription: Subscription | undefined
 
@@ -29,7 +28,7 @@ export class ChatListComponent implements OnInit, OnDestroy {
   // myUserId:                  string  | undefined // ##################################################################       TO zakomentowałem
 
 
-  constructor(// private userService: UserService, 
+  constructor(
     private chatService: ChatsDataService,
     private router: Router,
     private htmlService: HtmlService // , private connectionService: ConnectionService
@@ -75,8 +74,6 @@ export class ChatListComponent implements OnInit, OnDestroy {
     // 2. oznaczyć wszystkie wiadomości jako przeczytane
     // 3. jeśli lista
     this.chatService.selectChat( c.chat.chatId )
-    this.chatService.fetchOlderMessages( c.chat.chatId )
-    this.chatService.markMessagesAsRead( c.chat.chatId )
     this.router.navigate(['user', 'chat', c.chat.chatId]) 
     
     // stare    

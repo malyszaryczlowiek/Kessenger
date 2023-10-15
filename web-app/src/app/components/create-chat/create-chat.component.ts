@@ -46,7 +46,6 @@ export class CreateChatComponent implements OnInit, OnDestroy {
 
 
   constructor(
-    // private userService: UserService,
     private connectionService: ConnectionService,
     private chatService: ChatsDataService,
     private responseNotifier: ResponseNotifierService,
