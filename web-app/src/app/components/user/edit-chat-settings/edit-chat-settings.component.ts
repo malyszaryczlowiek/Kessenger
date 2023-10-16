@@ -3,14 +3,13 @@ import { FormControl, FormGroup, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { debounceTime, distinctUntilChanged, of, share, startWith, Subject, Subscription, switchMap } from 'rxjs';
 // services
+import { ChatsDataService } from 'src/app/services/chats-data.service';
+import { ConnectionService } from 'src/app/services/connection.service';
 import { ResponseNotifierService } from 'src/app/services/response-notifier.service';
-import { UserService } from 'src/app/services/user.service';
 // models
 import { Chat } from 'src/app/models/Chat';
 import { ChatData } from 'src/app/models/ChatData';
 import { User } from 'src/app/models/User';
-import { ConnectionService } from 'src/app/services/connection.service';
-import { ChatsDataService } from 'src/app/services/chats-data.service';
 
 
 
@@ -47,7 +46,7 @@ export class EditChatSettingsComponent implements OnInit, OnDestroy {
   selectedUsers               = new Array<User>();
   searchTerm: Subject<string> = new Subject();
 
-  fetchingUserEmmiter:  EventEmitter<any> = new  EventEmitter<any>() 
+  //fetchingUserEmmiter:  EventEmitter<any> = new  EventEmitter<any>() 
   // fetchingUserSubscription: Subscription | undefined
   fetchingDataSubscription: Subscription | undefined
 
@@ -58,11 +57,9 @@ export class EditChatSettingsComponent implements OnInit, OnDestroy {
                private chatService: ChatsDataService,
                private router: Router, 
                private activated: ActivatedRoute,
-               private responseNotifier: ResponseNotifierService,
-               // private userService: UserService
-               ) { }
+               private responseNotifier: ResponseNotifierService ) { }
   
-
+  
 
 
 
@@ -70,11 +67,51 @@ export class EditChatSettingsComponent implements OnInit, OnDestroy {
 
 
     //this.fetchingDataSubscription = this.connectionService.detaFetchedEmitter.subscribe(
-    this.fetchingDataSubscription = this.chatService.updateChatPanelEmmiter.subscribe(
+/*     this.fetchingDataSubscription = this.chatService.updateChatPanelEmmiter.subscribe(
       (n) => {
-        this.fetchData()
+        this.fetchDataOrRedirect()
+        todo // tuaj jeszcze raz wbudować mechanizm gdy nie ma danego czatu w chatach 
+        // a mamy już zainicjalizowane servisy. 
       }
     )
+ */
+
+    this.fetchingDataSubscription = this.connectionService.serviceInitializedEmitter.subscribe(
+      (n) => {
+        this.fetchDataOrRedirect()
+      }
+    )
+
+    const chatId = this.activated.snapshot.paramMap.get('chatId');
+    if ( chatId ) { 
+      // required if we load page from webbrowser not app itself
+
+      const chatD = this.chatService.findChat( chatId ) // pobierz czat
+
+      // jeśli connection service jest już zainicjowany ale nie ma chatu to redirect
+      // jeśli natomiast jest ten chat i jest servis zainicjowany to fetchuj dane z servera
+
+
+      todo // napisać EmmiterService, który będzie zawierał wszytkie emittery niezbędne do obsługi czatów
+
+
+
+
+
+      // tuaj trzeba zmienić na findChat i jeśli będzie to zostajemy 
+      // jeśli nie ma to nic nie robiny i czekamy aż zaciągnie dane czyli trzeba napisać initialized emmiter. 
+
+
+
+
+
+      // old
+      //  this.chatService.selectChat( chatId ) // zakomentowałem bo selekcja była już na etapie wyboru z listy
+      // this.chatService.fetchOlderMessages( chatId )
+      
+      //  zakomentowałem bo fetchowanie starych wiadomości powinno zrobić update chat-panelu z wczytaniem wiadomośći włąćznie
+      // this.chatData = this.chatService.getCurrentChatData() // added
+    }
 
 
 
@@ -132,9 +169,10 @@ export class EditChatSettingsComponent implements OnInit, OnDestroy {
     )
     */    
    
-   
+      // very old
     // if ( this.userService.isWSconnected() ) this.userService.dataFetched( 1 )
-    if ( this.connectionService.isWSconnected() ) this.fetchData()
+    // old
+    // if ( this.connectionService.isWSconnected() ) this.fetchData()
   }
 
 
@@ -148,48 +186,54 @@ export class EditChatSettingsComponent implements OnInit, OnDestroy {
 
 
 
+  private fetchDataOrRedirect() {
+    this.chatData = this.chatService.getCurrentChatData()
+    if ( this.connectionService.isInitlized() && ! this.chatData ) {
+      // redirect to page-not-found
+    }
+    if (this.chatData) {
+      this.chatSettings.controls.silent.setValue(this.chatData.chat.silent)
+      // this.fetchingUserEmmiter.emit()                     //     to zakomentowałem 
+      if ( this.chatData.chat.groupChat ) { //  tutaj był jeszcze warunek   || this.chatData?.users.length == 0
+        const c = this.connectionService.getChatUsers(this.chatData.chat.chatId)
+        if ( c ) {
+          c.subscribe({
+            next: (response) => {
+              const body = response.body
+              if (response.ok && body && this.chatData) {
+                console.log('inserting users to chat.')
+                console.log(body)
+                this.chatService.insertChatUsers(this.chatData.chat.chatId, body) 
+                // this.userService.insertChatUsers(this.chatData.chat.chatId, body)
+                // this.chatData.users = body // commented out because update will be via 
+              }
+              if (response.ok && ! body) {
+                console.log(response.ok, body)
+              }
+            },
+            error: (err) => {
+              this.responseNotifier.handleError( err )
+            },
+            complete: () => {},
+          })
+        } else {
+          this.router.navigate(['session-timeout']) 
+        } 
+      }
+    } else {
+      this.router.navigate(['page-not-found']) 
+    }
+  }
+
   
 
-  private fetchData() {
+  private fetchDataOld() {
     const chatId = this.activated.snapshot.paramMap.get('chatId');
     if ( chatId ) {
       /*  .getAllChats().find((chatData, index, arr) => {
         return chatData.chat.chatId == chatId;
       }); */
-      this.chatData = this.chatService.getCurrentChatData()
-      if (this.chatData) {
-        this.chatSettings.controls.silent.setValue(this.chatData.chat.silent)
-        // this.fetchingUserEmmiter.emit()                     //     to zakomentowałem 
-        if ( this.chatData.chat.groupChat ) { //  tutaj był jeszcze warunek   || this.chatData?.users.length == 0
-          const c = this.connectionService.getChatUsers(this.chatData.chat.chatId)
-          if ( c ) {
-            c.subscribe({
-              next: (response) => {
-                const body = response.body
-                if (response.ok && body && this.chatData) {
-                  console.log('inserting users to chat.')
-                  console.log(body)
-                  this.chatService.insertChatUsers(this.chatData.chat.chatId, body)
-                  // this.userService.insertChatUsers(this.chatData.chat.chatId, body)
-                  this.chatData.users = body
-                }
-                if (response.ok && ! body) {
-                  console.log(response.ok, body)
-                }
-              },
-              error: (err) => {
-                this.responseNotifier.handleError( err )
-              },
-              complete: () => {},
-            })
-          } else {
-            this.router.navigate(['session-timeout']) 
-          } 
-        }
-
-      } else {
-        this.router.navigate(['page-not-found']) 
-      }
+      this.fetchData()
     }
   }
 

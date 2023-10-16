@@ -25,6 +25,7 @@ export class SignupComponent implements OnInit {
 
   
   
+  // nothing to do 
   ngOnInit(): void { }
 
 
@@ -45,11 +46,8 @@ export class SignupComponent implements OnInit {
               this.connectionService.initialize(
                 user,
                 settings,
-                new Array()
+                new Array() // we create new user, so no chats 
               )
-              this.connectionService.connectViaWebsocket()
-              
-
               // stare
               //this.userService.assignSubscriptions()
               // this.userService.setUserAndSettings(
@@ -70,17 +68,8 @@ export class SignupComponent implements OnInit {
           error: (error) => {
             this.responseNotifier.handleError(error)
             console.log(error);
-            console.log('clearing UserService.')
-
-
-
-            // UWAGA to jeszcze trzeba sprawdzić 
-            // czy klearwoanie będzie wyłączało wszystko co trzeba wyłączyć 
-
             this.connectionService.disconnect() 
-            // this.connectionService.clearService();
             this.signUpForm.reset();
-
           },
           complete: () => {}
         })  

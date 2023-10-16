@@ -4,7 +4,6 @@ import { Router } from '@angular/router';
 // services
 import { HtmlService } from 'src/app/services/html.service';
 import { ChatsDataService } from 'src/app/services/chats-data.service';
-import { ConnectionService } from 'src/app/services/connection.service';
 // models
 import { ChatData } from 'src/app/models/ChatData';
 import { Writing } from 'src/app/models/Writing';
@@ -28,11 +27,9 @@ export class ChatListComponent implements OnInit, OnDestroy {
   // myUserId:                  string  | undefined // ##################################################################       TO zakomentowałem
 
 
-  constructor(
-    private chatService: ChatsDataService,
-    private router: Router,
-    private htmlService: HtmlService // , private connectionService: ConnectionService
-     ) {}
+  constructor( private chatService: ChatsDataService,
+               private router: Router,
+               private htmlService: HtmlService ) {}
   
 
 
@@ -69,13 +66,19 @@ export class ChatListComponent implements OnInit, OnDestroy {
 
   onClick(c: ChatData) {
     console.log('navigating to chat' + c.chat.chatName)
+    // this.chatService.selectChat( c.chat.chatId ) 
+    // code above is commented out beacause of chatService.selectChat() is called when we navigate to ChatPanelComponent
+    this.router.navigate(['user', 'chat', c.chat.chatId]) 
+
+
+
+
     // tutaj w selectchat powinniśmy 
     // 1. jeśli lista wiadomości jest pusta powinniśmy fetchować stare wiadomości
     // 2. oznaczyć wszystkie wiadomości jako przeczytane
     // 3. jeśli lista
-    this.chatService.selectChat( c.chat.chatId )
-    this.router.navigate(['user', 'chat', c.chat.chatId]) 
-    
+
+
     // stare    
     // this.chatService.fetchOlderMessages( c.chat.chatId ) // ##################################################################       TO zakomentowałem
     /* this.chatService.markMessagesAsRead( c.chat.chatId )

@@ -8,7 +8,6 @@ import { ChatsDataService } from './chats-data.service';
 import { LoadBalancerService } from './load-balancer.service';
 import { ResponseNotifierService } from './response-notifier.service';
 import { UserSettingsService } from './user-settings.service';
-import { UserService } from './user.service';
 import { SessionService } from './session.service';
 // models
 import { Invitation } from '../models/Invitation';
@@ -57,6 +56,10 @@ export class ConnectionService {
 
   // called only externally, when we want fetch data. 
   dataFetchedEmitter: EventEmitter<number> = new EventEmitter<number>()
+
+  todo // ten emitter będzie służył do notificacji, że servis został zainicjowany
+  // wtedy podległe componenty mogą zaciągać dane poprzez uruchamianie innych emiterrów. 
+  serviceInitializedEmitter: EventEmitter<number> = new EventEmitter<number>()
 
   // co trzeba zasubskrybować 
 
@@ -109,7 +112,6 @@ export class ConnectionService {
 
   constructor(private http: HttpClient, 
               // @Inject("API_URL") private api: string,
-              private userService: UserService,
               private settingsService: UserSettingsService,
               private chatService: ChatsDataService,
               private responseNotifier: ResponseNotifierService,
@@ -125,11 +127,10 @@ export class ConnectionService {
                   // użytkowniku, który jest zapisany w ciasteczku.
                   // this.updateSessionViaUserId( userId )
 
-
-                  this.session.updateSession( uid ) // żeby nie został automatycznie wylogowany. 
-
+                  // to avoid logout 
+                  this.session.updateSession( uid ) 
                   console.log('Session is valid.') 
-
+                  // downloading user data ( chats, settings and user info)
                   const s = this.user( uid )
                   if ( s ) {
                     s.subscribe({
@@ -150,19 +151,18 @@ export class ConnectionService {
                         }
                       },
                       error: (error) => {
-                        console.log(error) 
-                        this.disconnect() // zmienić na disconnect tak aby pokasował wszystkie dane
+                        console.log(error)
+                        // clear out service 
+                        this.disconnect() 
                         console.log('redirection to logging page')
                         this.router.navigate([''])
                       },
                       complete: () => {}
                     })
                   }
-
-
-
-
-                } else this.router.navigate([''])
+                } 
+                // if there is no user cookie we redirect to logging page
+                else this.router.navigate([''])
               }
 
 
@@ -620,10 +620,8 @@ export class ConnectionService {
       this.wsConnection.onopen = () => {
         console.log('WebSocket connection opened.');
         this.wsConnection?.send( JSON.stringify( conf ) )
-
         //w konfiguracji należy przesłać również informacje o sesji ???
         //tak aby server był w stanie sprawdzić czy user ma ważną sesję
-
         if ( this.reconnectWS ) {
           this.responseNotifier.printNotification(
             {
@@ -633,8 +631,10 @@ export class ConnectionService {
             }
           )
         }
-
+        // we mark that when we loose ws connection, 
+        // we need to try to reconnect
         this.reconnectWS = true
+        // stopping attempts to reconect
         this.restartWS( false )
         // this.restartWSEmitter.emit( false )
 
@@ -679,9 +679,14 @@ export class ConnectionService {
         if (body.comm == 'opened correctly') {
           console.log('WS connection opend correctly.')
           if ( this.chatService.selectedChat ) {
+            // added for fetching data 
+            this.chatService.updateChatList()
+            this.chatService.updateChatPanel()
+            // old
             this.fetchOlderMessages( this.chatService.selectedChat )
+            // this.updateSession() maybe required
           } else console.error('No chat selected. ')
-          //this.wsConnEmitter.emit( this.isWSconnected() )
+          // starting ping via WS for keep connection alive
           this.startPingSender()
         }
         if ( body.num && body.message) {
@@ -715,6 +720,7 @@ export class ConnectionService {
       };
       this.wsConnection.onerror = (error) => {
         console.error('error from WS connection', error)
+        if ( this.wsConnection ) this.wsConnection = undefined
         // here probably we should close connection ??? and restart it ???
       };
     }

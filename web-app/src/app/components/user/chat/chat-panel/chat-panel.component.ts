@@ -8,6 +8,7 @@ import { HtmlService } from 'src/app/services/html.service';
 import { ChatData } from 'src/app/models/ChatData';
 import { Message } from 'src/app/models/Message';
 import { Writing } from 'src/app/models/Writing';
+import { ConnectionService } from 'src/app/services/connection.service';
 
 
 
@@ -39,6 +40,7 @@ export class ChatPanelComponent implements OnInit, OnDestroy {
 
 
   constructor(private htmlService: HtmlService, 
+              private connectionService: ConnectionService,
               private chatService: ChatsDataService,
               private router:      Router,
               private activated:   ActivatedRoute) { }
@@ -51,6 +53,11 @@ export class ChatPanelComponent implements OnInit, OnDestroy {
     this.chatPanelSubscription = this.chatService.updateChatPanelEmmiter.subscribe(
       (a) => {
         this.chatData = this.chatService.getCurrentChatData()
+        // if our services are initialized with data but chat was not found, we need to redirect to page-not-found
+        if ( this.connectionService.isInitlized() && ! this.chatData ) {
+          console.log('ChatPanelComponent.chatPanelSubscription  chatId from path not found in list of chats.')
+          this.router.navigate(['page-not-found']);
+        }
       }
     )
 
@@ -193,7 +200,9 @@ export class ChatPanelComponent implements OnInit, OnDestroy {
 
     const chatId = this.activated.snapshot.paramMap.get('chatId');
     if ( chatId ) { 
-      this.chatData = this.chatService.getCurrentChatData()
+      this.chatService.selectChat( chatId ) // required if we load page from webbrowser not app itself
+
+      // old
       //  this.chatService.selectChat( chatId ) // zakomentowałem bo selekcja była już na etapie wyboru z listy
       // this.chatService.fetchOlderMessages( chatId )
       
@@ -240,8 +249,6 @@ export class ChatPanelComponent implements OnInit, OnDestroy {
     // this.userService.updateSession(true) // sprawdzić czy updejtuje sesję metoda sendMessage albo ngOnInit() dla componentu
     this.router.navigate(['user', 'editChat', `${this.chatData?.chat.chatId}`])
   }
-
-
 
 
 

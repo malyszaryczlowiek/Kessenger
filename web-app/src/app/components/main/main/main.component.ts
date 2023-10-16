@@ -27,9 +27,11 @@ export class MainComponent implements OnInit, OnDestroy {
 
 
   ngOnInit(): void {
-    if ( this.connectionService.isInitlized() ) 
+    if ( this.connectionService.isInitlized() ) {
       this.router.navigate(['user'])
+    }      
 
+    // this subscription shows all error and information notification as toast object
     this.errorMessageSubscription = this.responseNotifier.responseEmitter.subscribe(
       (e) => {
         this.error = e

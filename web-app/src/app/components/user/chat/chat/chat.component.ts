@@ -1,4 +1,4 @@
-import { Component, EventEmitter, OnDestroy, OnInit } from '@angular/core';
+import { Component, OnDestroy, OnInit } from '@angular/core';
 import { Subscription } from 'rxjs';
 // serivces
 import { ChatsDataService } from 'src/app/services/chats-data.service';
@@ -20,12 +20,12 @@ export class ChatComponent implements OnInit, OnDestroy {
   // fetchingSubscription: Subscription | undefined
   chatListSubscription:  Subscription | undefined
   
-  // będzie trzeba usunąć przypisywanie listy czatów poprzez subskrybenta w chat-list component i zrobić to tutaj ??? sprawdzić jak to jest przypisywane
-
-
-  constructor(private chatService: ChatsDataService,   //private userService: UserService,
+  
+  constructor(private chatService: ChatsDataService,   
       private connectionService: ConnectionService, 
       private responseNotifier: ResponseNotifierService) { }
+
+      
 
   ngOnInit(): void {
     this.chatListSubscription = this.chatService.updateChatListEmmiter.subscribe(

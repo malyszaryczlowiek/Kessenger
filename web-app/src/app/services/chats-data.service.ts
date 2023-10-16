@@ -198,7 +198,7 @@ export class ChatsDataService {
   }
 
 
-  private findChat(chatId: string): ChatData | undefined {
+  findChat(chatId: string): ChatData | undefined {
     return this.chatAndUsers.find((cd, i, arr) => {
       return cd.chat.chatId == chatId
     })
@@ -591,7 +591,7 @@ export class ChatsDataService {
 
 
   updateChatPanel() {
-    this.updateChatPanelEmmiter.emit(0)
+    this.updateChatPanelEmmiter.emit( 0 )
   }
 
 
@@ -613,11 +613,19 @@ export class ChatsDataService {
   // tutaj  oprócz selekcji powinniśmy jeszcze dla tego czatu:
   // 1. fetchować stare wiadomości ( po wykonaniu fetchowania należy jeszcze updejtować sesje - wewnątrz metody )
   // 2. oznaczyć wszystkie wiadomości jako przeczytane ( co powinno wywołać wysłanie emitu chatOffsetUpdateEmitter )
+
+  //   zbadać jaki będzie mechanizm wczytywania danych do chat-panel jeśli:
+  // 1) klikniemy w listę obok
+  // 2) zrobimy reaload strony i wczytany chatId będzie  <<ze ścieżki>>
+
   selectChat(chatId: string | undefined ) {
-    this.selectedChat = chatId    
-    if ( this.selectedChat ) {
-      this.fetchOlderMessages( this.selectedChat )
-      this.markMessagesAsRead( this.selectedChat )
+    if (chatId){ //    &&  this.selectedChat !== chatId
+      const found = this.findChat( chatId )
+      if ( found ){
+        this.selectedChat = chatId
+        this.fetchOlderMessages( this.selectedChat )
+        this.markMessagesAsRead( this.selectedChat )
+      } else this.selectedChat = undefined
     }
   }
 
@@ -716,9 +724,10 @@ export class ChatsDataService {
   */
   getCurrentChatData(): ChatData | undefined {
     if (this.selectedChat) {
-      return this.chatAndUsers.find( (chatData, index, arr) => {
+      return this.findChat( this.selectedChat )
+      /* return this.chatAndUsers.find( (chatData, index, arr) => {
         return chatData.chat.chatId == this.selectedChat;
-      })
+      }) */
     } else return undefined
   }
 
