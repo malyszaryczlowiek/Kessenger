@@ -57,7 +57,7 @@ export class ConnectionService {
   // called only externally, when we want fetch data. 
   dataFetchedEmitter: EventEmitter<number> = new EventEmitter<number>()
 
-  todo // ten emitter będzie służył do notificacji, że servis został zainicjowany
+  // ten emitter będzie służył do notificacji, że servis został zainicjowany
   // wtedy podległe componenty mogą zaciągać dane poprzez uruchamianie innych emiterrów. 
   serviceInitializedEmitter: EventEmitter<number> = new EventEmitter<number>()
 
@@ -297,6 +297,7 @@ export class ConnectionService {
     this.initialized = true
     this.assignSubscriptions()
     this.connectViaWebsocket()
+    this.serviceInitializedEmitter.emit( 0 )
   }
 
 

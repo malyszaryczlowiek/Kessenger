@@ -81,18 +81,20 @@ export class EditChatSettingsComponent implements OnInit, OnDestroy {
         this.fetchDataOrRedirect()
       }
     )
+    this.fetchDataOrRedirect()
 
-    const chatId = this.activated.snapshot.paramMap.get('chatId');
-    if ( chatId ) { 
+    
+
       // required if we load page from webbrowser not app itself
 
-      const chatD = this.chatService.findChat( chatId ) // pobierz czat
+
+
 
       // jeśli connection service jest już zainicjowany ale nie ma chatu to redirect
       // jeśli natomiast jest ten chat i jest servis zainicjowany to fetchuj dane z servera
 
 
-      todo // napisać EmmiterService, który będzie zawierał wszytkie emittery niezbędne do obsługi czatów
+     // napisać EmmiterService, który będzie zawierał wszytkie emittery niezbędne do obsługi czatów
 
 
 
@@ -111,7 +113,7 @@ export class EditChatSettingsComponent implements OnInit, OnDestroy {
       
       //  zakomentowałem bo fetchowanie starych wiadomości powinno zrobić update chat-panelu z wczytaniem wiadomośći włąćznie
       // this.chatData = this.chatService.getCurrentChatData() // added
-    }
+    
 
 
 
@@ -181,65 +183,58 @@ export class EditChatSettingsComponent implements OnInit, OnDestroy {
     // if (this.fetchingSubscription) this.fetchingSubscription.unsubscribe()
     // if (this.fetchingUserSubscription) this.fetchingUserSubscription.unsubscribe()
     if (this.fetchingDataSubscription) this.fetchingDataSubscription.unsubscribe()
-    console.log('EditChatSettingsComponent.ngOnDelete() called.')
+    console.log('EditChatSettingsComponent.ngOnDestroy() called.')
   }
+
+
 
 
 
   private fetchDataOrRedirect() {
-    this.chatData = this.chatService.getCurrentChatData()
-    if ( this.connectionService.isInitlized() && ! this.chatData ) {
-      // redirect to page-not-found
-    }
-    if (this.chatData) {
-      this.chatSettings.controls.silent.setValue(this.chatData.chat.silent)
-      // this.fetchingUserEmmiter.emit()                     //     to zakomentowałem 
-      if ( this.chatData.chat.groupChat ) { //  tutaj był jeszcze warunek   || this.chatData?.users.length == 0
-        const c = this.connectionService.getChatUsers(this.chatData.chat.chatId)
-        if ( c ) {
-          c.subscribe({
-            next: (response) => {
-              const body = response.body
-              if (response.ok && body && this.chatData) {
-                console.log('inserting users to chat.')
-                console.log(body)
-                this.chatService.insertChatUsers(this.chatData.chat.chatId, body) 
-                // this.userService.insertChatUsers(this.chatData.chat.chatId, body)
-                // this.chatData.users = body // commented out because update will be via 
-              }
-              if (response.ok && ! body) {
-                console.log(response.ok, body)
-              }
-            },
-            error: (err) => {
-              this.responseNotifier.handleError( err )
-            },
-            complete: () => {},
-          })
-        } else {
-          this.router.navigate(['session-timeout']) 
-        } 
-      }
-    } else {
-      this.router.navigate(['page-not-found']) 
-    }
-  }
-
-  
-
-  private fetchDataOld() {
     const chatId = this.activated.snapshot.paramMap.get('chatId');
     if ( chatId ) {
-      /*  .getAllChats().find((chatData, index, arr) => {
-        return chatData.chat.chatId == chatId;
-      }); */
-      this.fetchData()
+      this.chatData =  this.chatService.findChat( chatId ) //  this.chatService.getCurrentChatData()
+      if ( this.connectionService.isInitlized() && ! this.chatData ) {
+        // redirect to page-not-found
+        this.router.navigate(['page-not-found']);
+      }
+      if (this.chatData) {
+        this.chatSettings.controls.silent.setValue(this.chatData.chat.silent)
+        // this.fetchingUserEmmiter.emit()                     //     to zakomentowałem 
+        if ( this.chatData.chat.groupChat ) { //  tutaj był jeszcze warunek   || this.chatData?.users.length == 0
+          const c = this.connectionService.getChatUsers(this.chatData.chat.chatId)
+          if ( c ) {
+            c.subscribe({
+              next: (response) => {
+                const body = response.body
+                if (response.ok && body && this.chatData) {
+                  console.log('inserting users to chat.')
+                  console.log(body)
+                  this.chatService.insertChatUsers(this.chatData.chat.chatId, body) 
+                  // this.userService.insertChatUsers(this.chatData.chat.chatId, body)
+                  // this.chatData.users = body // commented out because update will be via 
+                }
+                if (response.ok && ! body) {
+                  console.log(response.ok, body)
+                }
+              },
+              error: (err) => {
+                this.responseNotifier.handleError( err )
+              },
+              complete: () => {},
+            })
+          } else {
+            this.router.navigate(['session-timeout']) 
+          } 
+        }
+      } 
     }
   }
 
   
 
 
+  
   // here we save changed name or silence
   saveChanges() {
     if (this.chatData){
@@ -368,6 +363,7 @@ export class EditChatSettingsComponent implements OnInit, OnDestroy {
       }
     } else {
       console.log('chatId not defined.')
+      this.router.navigate(['user']);
     }    
   }
 
@@ -489,7 +485,7 @@ export class EditChatSettingsComponent implements OnInit, OnDestroy {
 
 
   unselect(u: User) {
-    this.selectedUsers = this.selectedUsers.filter((user, index, array) => {
+    this.selectedUsers = this.selectedUsers.filter( (user, index, array) => {
       return u.userId != user.userId
     })
     this.foundUsers.push(u);

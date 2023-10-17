@@ -200,7 +200,8 @@ export class ChatPanelComponent implements OnInit, OnDestroy {
 
     const chatId = this.activated.snapshot.paramMap.get('chatId');
     if ( chatId ) { 
-      this.chatService.selectChat( chatId ) // required if we load page from webbrowser not app itself
+      this.chatService.selectChat( chatId ) // required if we load page from webbrowser,
+      // not chat list in web application
 
       // old
       //  this.chatService.selectChat( chatId ) // zakomentowałem bo selekcja była już na etapie wyboru z listy

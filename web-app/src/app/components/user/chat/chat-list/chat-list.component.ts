@@ -66,8 +66,8 @@ export class ChatListComponent implements OnInit, OnDestroy {
 
   onClick(c: ChatData) {
     console.log('navigating to chat' + c.chat.chatName)
-    // this.chatService.selectChat( c.chat.chatId ) 
-    // code above is commented out beacause of chatService.selectChat() is called when we navigate to ChatPanelComponent
+    // this.chatService.selectChat( c.chat.chatId ) // this code is commented out,
+    // beacause of chatService.selectChat() is called when we navigate to ChatPanelComponent
     this.router.navigate(['user', 'chat', c.chat.chatId]) 
 
 
@@ -103,4 +103,7 @@ export class ChatListComponent implements OnInit, OnDestroy {
   }
 
 
+
+
+  
 }

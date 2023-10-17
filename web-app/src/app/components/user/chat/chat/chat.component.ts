@@ -25,7 +25,7 @@ export class ChatComponent implements OnInit, OnDestroy {
       private connectionService: ConnectionService, 
       private responseNotifier: ResponseNotifierService) { }
 
-      
+
 
   ngOnInit(): void {
     this.chatListSubscription = this.chatService.updateChatListEmmiter.subscribe(
@@ -59,7 +59,9 @@ export class ChatComponent implements OnInit, OnDestroy {
               const body = response.body              
               if (body) {
                 this.chatService.setChats( body )
-                this.connectionService.connectViaWebsocket()
+                // if we do not have WS connection, we try to connect
+                if ( this.connectionService.isWSconnected() ) this.connectionService.connectViaWebsocket()
+                // old
                 //this.userService.setChats( body )
                 //this.userService.connectViaWebsocket() // run websocket connection
               }
