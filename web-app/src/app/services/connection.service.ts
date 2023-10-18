@@ -40,7 +40,7 @@ export class ConnectionService {
   private someoneIsWriting = false
   private reconnectWS      = true
   private initialized      = false
-  // private myUserId: string | undefined
+
 
   // public newMessagesEmitter: EventEmitter<Array<Message>>      = new EventEmitter<Array<Message>>()
   // public oldMessagesEmitter: EventEmitter<Array<Message>>      = new EventEmitter<Array<Message>>()
@@ -52,8 +52,6 @@ export class ConnectionService {
 
 
 
-  //public wsConnEmitter:      EventEmitter<boolean>             = new EventEmitter<boolean>()
-
   // called only externally, when we want fetch data. 
   dataFetchedEmitter: EventEmitter<number> = new EventEmitter<number>()
 
@@ -61,16 +59,11 @@ export class ConnectionService {
   // wtedy podległe componenty mogą zaciągać dane poprzez uruchamianie innych emiterrów. 
   serviceInitializedEmitter: EventEmitter<number> = new EventEmitter<number>()
 
-  // co trzeba zasubskrybować 
 
   // subskrypcja wyłapująca, że jest potrzeba restartu websocketu
   private restartWSSubscription:          Subscription | undefined
   
   
-  //  subskrypcja tego służyła do fetchowania (wysyłania prośby do servera) o stare wiadomości 
-  // private wsConnectionSubscription:       Subscription | undefined
-
-
   // jak przyjdzie event, żeby wylogować to clearowanie wszystkich servisów przez disconnect? 
   // i przekierowanie na /sessiontimeout
   private logoutSubscription:             Subscription | undefined
@@ -79,15 +72,6 @@ export class ConnectionService {
   // to będzie wywoływane jak w chat-service nastąpi emisja żeby updejtować offset w backendzie
   private chatOffsetUpdateSubscription:   Subscription | undefined
   
-
-  // subskrypcja do przechwytywania eventu o tym, że piszemy w chatcie będziemy w  nniej wysyłać przez WS info o writing
-  private writingSubscription:            Subscription | undefined
-
-
-  // subskrypcja wyłapująca event o wysłaniu nowej wiadomości
-  // w tej subscrypcji wysyłamy nową wiadomość do backendu przez WS
-  private sendMessageSubscription:        Subscription | undefined
-
 
   // subskrypcja odbierająca sygnał o potrzebie fetchowania starszych wiadomości
   // z backendu. wysyła przez ws zapytanie info z jakiego czatu nalezy pobrać stare wiadomości
@@ -119,17 +103,16 @@ export class ConnectionService {
               private session: SessionService,
               private router: Router) { 
 
-                console.log('ConnectionService constructor called.')
-                // this.assignSubscriptions()
+                console.log('ConnectionService.constructor()')
+                this.assignSubscriptions()
                 const uid = this.session.getSavedUserId();
                 if ( uid ) {
                   // poniższy update przeniosłem do subscribe po pobraniu danych o 
                   // użytkowniku, który jest zapisany w ciasteczku.
                   // this.updateSessionViaUserId( userId )
-
+                  console.log('ConnectionService.constructor() -> session.getSavedUserId() -> user session is VALID')
                   // to avoid logout 
                   this.session.updateSession( uid ) 
-                  console.log('Session is valid.') 
                   // downloading user data ( chats, settings and user info)
                   const s = this.user( uid )
                   if ( s ) {
@@ -137,24 +120,20 @@ export class ConnectionService {
                       next: (response) => {
                         const body = response.body
                         if ( body ){
-                          console.log('ConnectionSerivice.constructor() fetching user login and settings' )
+                          console.log('ConnectionSerivice.constructor() -> user().subscribe() ->  fetching user login and settings' )
                           this.initialize( body.user, body.settings, body.chatList )
-                          //this.setUserAndSettings(body.user, body.settings)
-                          // this.logoutSeconds = this.settingsService.settings.sessionDuration / 1000
-                          //this.restartLogoutTimer()
-                          // this.chatsService.initialize( body.chatList, body.user )
+                          this.session.restartLogoutTimer()
                           this.connectViaWebsocket() 
-                          this.updateSession()
                         }
                         else {
-                          // print error message
+                          console.error('ConnectionSerivice.constructor() -> user().subscribe() -> empty body ???')
                         }
                       },
                       error: (error) => {
-                        console.log(error)
+                        console.error('ConnectionSerivice.constructor() -> user().subscribe() -> cannot download user data -> Redirecting to logging page', error)
                         // clear out service 
                         this.disconnect() 
-                        console.log('redirection to logging page')
+                        console.error('ConnectionSerivice.constructor() -> user().subscribe() -> Redirecting to logging page')
                         this.router.navigate([''])
                       },
                       complete: () => {}
@@ -170,16 +149,17 @@ export class ConnectionService {
 
 
   assignSubscriptions() {
-    console.log('ConnectionService.assignSubscriptions() calling')
+    console.log('ConnectionService.assignSubscriptions()')
     
     if ( ! this.logoutSubscription ) {
       this.logoutSubscription = this.session.logoutEmitter.subscribe(
         (c) => {
+          console.log('ConnectionService.logoutSubscription called from sessionService via logoutEmitter')
           this.disconnect()
           // stare  czyszczę wszystko 
           //this.clearService()
           // i nawiguję na stronę session-timeout
-          this.router.navigate(['session-timeout'])
+          this.router.navigate([''])
           // this.router.navigate([''])
         }
       )
@@ -188,22 +168,25 @@ export class ConnectionService {
     if ( ! this.chatOffsetUpdateSubscription ) {
       this.chatOffsetUpdateSubscription = this.chatService.chatOffsetUpdateEmitter.subscribe(
         (chatOffsetUpdate) => {
+          console.log('ConnectionService.chatOffsetUpdateSubscription')
           this.sendChatOffsetUpdate( chatOffsetUpdate )
         }
       )
     }
 
-    if ( ! this.writingSubscription ) {
+    /* if ( ! this.writingSubscription ) {
       this.writingSubscription = this.chatService.sendingWritingEmitter.subscribe(
         (w) => {
+          console.log('ConnectionService.writingSubscription')
           if ( w ) this.sendWriting( w )
         }
       )
-    }
+    } */
 
-    if ( ! this.sendMessageSubscription ){
+/*     if ( ! this.sendMessageSubscription ){
       this.sendMessageSubscription  = this.chatService.sendMessageEmitter.subscribe(
         (m) => {
+          console.log('ConnectionService.sendMessageSubscription')
           if (this.userObj ){
             const body = {
               user:    this.userObj,
@@ -215,10 +198,11 @@ export class ConnectionService {
       )
     }
 
-
+ */
     if ( ! this.fetchOlderMessagesSubscription ) {
-      this.writingSubscription = this.chatService.fetchOlderMessagesEmitter.subscribe(
+      this.fetchOlderMessagesSubscription = this.chatService.fetchOlderMessagesEmitter.subscribe(
         ( chatId ) => {
+          console.log('ConnectionService.fetchOlderMessagesSubscription')
           this.fetchOlderMessages( chatId )
         }
       )
@@ -259,6 +243,7 @@ export class ConnectionService {
 
   connectViaWebsocket() {
     if (this.userObj) {
+      console.log('ConnectionService.connectViaWebsocket()')
       const conf: Configuration = {
         me: this.userObj,
         joiningOffset: this.settingsService.settings.joiningOffset,
@@ -290,12 +275,13 @@ export class ConnectionService {
 
 
   initialize(user: User, setttings: Settings, chatList: ChatData[]) {
+    console.log('ConnectionService.initialize()')
     this.userObj = user
     // this.userService.initialize( user )
     this.settingsService.initialize(user, setttings)
     this.chatService.initialize( chatList, user)
     this.initialized = true
-    this.assignSubscriptions()
+    // this.assignSubscriptions()
     this.connectViaWebsocket()
     this.serviceInitializedEmitter.emit( 0 )
   }
@@ -304,6 +290,7 @@ export class ConnectionService {
 
 
   isInitlized(): boolean {
+    console.log('ConnectionService.isInitlized()')
     return this.initialized
   }
 
@@ -312,7 +299,8 @@ export class ConnectionService {
   // rest api calls
 
 
-  signUp(login: string, pass: string): Observable<HttpResponse<{user: User, settings: Settings}>> | undefined{
+  signUp(login: string, pass: string): Observable<HttpResponse<{user: User, settings: Settings}>> | undefined {
+    console.log('ConnectionService.signUp()')
     const fakeUserId = uuidv4();
     this.session.setNewSession(fakeUserId); 
     const body = {
@@ -336,6 +324,7 @@ export class ConnectionService {
 // 
 
   signIn(login: string, pass: string): Observable<HttpResponse<{user: User, settings: Settings, chatList: Array<ChatData>}>> | undefined {
+    console.log('ConnectionService.signIn()')
     const fakeUserId = uuidv4();
     this.session.setNewSession(fakeUserId); 
     const body = {
@@ -359,6 +348,7 @@ export class ConnectionService {
 
 
   logout(): Observable<HttpResponse<string>> | undefined {
+    console.log('ConnectionService.logout()')
     const token = this.session.getSessionToken()
     const server = this.loadBalancer.currentServer
     if ( token && server ) {
@@ -375,6 +365,7 @@ export class ConnectionService {
 
 
   user(userId: string): Observable<HttpResponse<{user: User, settings: Settings, chatList: Array<ChatData>}>> | undefined {
+    console.log('ConnectionService.user()')
     const token = this.session.getSessionToken()
     const server = this.loadBalancer.currentServer
     if ( token  && server) {
@@ -394,6 +385,7 @@ export class ConnectionService {
 
 
   updateJoiningOffset(userId: string, body: UserOffsetUpdate): Observable<HttpResponse<any>> | undefined {
+    console.log('ConnectionService.updateJoiningOffset()')
     const token = this.session.getSessionToken()
     const server = this.loadBalancer.currentServer
     if ( token && server ) {
@@ -411,6 +403,7 @@ export class ConnectionService {
 
   
   changeSettings(s: Settings): Observable<HttpResponse<any>> | undefined  {
+    console.log('ConnectionService.changeSettings()')
     const token = this.session.getSessionToken()
     const server = this.loadBalancer.currentServer
     if ( this.userObj && token && server ) {
@@ -427,6 +420,7 @@ export class ConnectionService {
 
 
   changeLogin( newLogin: string): Observable<HttpResponse<any>> | undefined {
+    console.log('ConnectionService.changeLogin()')
     const token = this.session.getSessionToken()
     const server = this.loadBalancer.currentServer
     if ( this.userObj && token && server ) {
@@ -443,6 +437,7 @@ export class ConnectionService {
 
   
   changePassword(oldPassword: string, newPassword: string): Observable<HttpResponse<any>> | undefined {
+    console.log('ConnectionService.changePassowrd()')
     const token = this.session.getSessionToken()
     const server = this.loadBalancer.currentServer
     if ( this.userObj && token && server ) {
@@ -463,6 +458,7 @@ export class ConnectionService {
 
 
   searchUser( search: string) : Observable<HttpResponse<User[]>> | undefined {
+    console.log('ConnectionService.searchUser()')
     const token = this.session.getSessionToken()
     const server = this.loadBalancer.currentServer
     if ( this.userObj && token && server ) {
@@ -480,6 +476,7 @@ export class ConnectionService {
 
     
   newChat(me: User, chatName: string, users: string[]): Observable<HttpResponse<ChatData[]>> | undefined  {
+    console.log('ConnectionService.newChat()')
     const token  = this.session.getSessionToken()
     const server = this.loadBalancer.currentServer
     if ( token && server ) {
@@ -500,6 +497,7 @@ export class ConnectionService {
 
 
   getChats(userId: string): Observable<HttpResponse<Array<ChatData>>> | undefined {
+    console.log('ConnectionService.getChats()')
     const token = this.session.getSessionToken()
     const server = this.loadBalancer.currentServer
     if ( token && server ) {
@@ -516,6 +514,7 @@ export class ConnectionService {
 
 
   getChatData(userId: string, chatId: string): Observable<HttpResponse<{chat: Chat, partitionOffsets: Array<{partition: number, offset: number}>}>> | undefined {
+    console.log('ConnectionService.getChatData()')
     const token = this.session.getSessionToken()
     const server = this.loadBalancer.currentServer
     if ( token && server ) {
@@ -532,6 +531,7 @@ export class ConnectionService {
 
   
   leaveChat( chatId: string): Observable<HttpResponse<any>> | undefined {
+    console.log('ConnectionService.leaveChat()')
     const token = this.session.getSessionToken()
     const server = this.loadBalancer.currentServer
     if ( this.userObj && token && server ) {
@@ -548,6 +548,7 @@ export class ConnectionService {
 
 
   getChatUsers(chatId: string): Observable<HttpResponse<User[]>> | undefined {
+    console.log('ConnectionService.getChatUsers()')
     const token = this.session.getSessionToken()
     const server = this.loadBalancer.currentServer
     if ( this.userObj && token && server ) {
@@ -564,6 +565,7 @@ export class ConnectionService {
 
 
   setChatSettings(chat: Chat): Observable<HttpResponse<any>> | undefined {
+    console.log('ConnectionService.getChatSettings()')
     const token = this.session.getSessionToken()
     const server = this.loadBalancer.currentServer
     if ( this.userObj && token && server ) {
@@ -580,6 +582,7 @@ export class ConnectionService {
   
 // userId: string, login: string,
   addUsersToChat( chatId: string, chatName: string, userIds: string[], pOffsets: PartitionOffset[]): Observable<HttpResponse<any>> | undefined {
+    console.log('ConnectionService.addUsersToChat()')
     const token = this.session.getSessionToken()
     const server = this.loadBalancer.currentServer
     if ( this.userObj &&token && server ) {
@@ -615,11 +618,11 @@ export class ConnectionService {
   private connectViaWS(conf: Configuration) {
     const server = this.loadBalancer.currentServer
     if (this.wsConnection === undefined && server) {
-      console.log(`Initializing Connection via WebSocket to: ws://${server.getURIwithoutProtocol()}`)
+      console.log(`ConnectionService.connectViaWS() -> Initializing Connection via WebSocket to: ws://${server.getURIwithoutProtocol()}`)
       this.wsConnection = new WebSocket(`ws://${server.getURIwithoutProtocol()}/user/${conf.me.userId}/ws`);
       // this.wsConnection = new WebSocket(`ws://localhost:9000/user/${conf.me.userId}/ws`);
       this.wsConnection.onopen = () => {
-        console.log('WebSocket connection opened.');
+        console.log('ConnectionService.connectViaWS() onOpen -> WebSocket connection opened.');
         this.wsConnection?.send( JSON.stringify( conf ) )
         //w konfiguracji należy przesłać również informacje o sesji ???
         //tak aby server był w stanie sprawdzić czy user ma ważną sesję
@@ -651,22 +654,23 @@ export class ConnectionService {
 
       };
       this.wsConnection.onmessage = (msg: any) => {
+        
         const body = JSON.parse( msg.data )
         if ( body.conf ) {
-          console.log('got config: ', body.conf )
+          console.log('ConnectionService.wsConnection.onMessage -> getConfig.', body.conf);
         }          
         if ( body.newMsgList ) {
-          console.log('got list of NEW message: ', body.newMsgList )
+          console.log('ConnectionService.wsConnection.onMessage -> get NEW messages.', body.newMsgList);
           this.chatService.insertNewMessages2( body.newMsgList )
           // this.newMessagesEmitter.emit( body.newMsgList )
         }
         if ( body.oldMsgList ) {
-          console.log('got list of OLD message: ', body.oldMsgList )
+          console.log('ConnectionService.wsConnection.onMessage -> get OLD messages.', body.oldMsgList);
           this.chatService.insertOldMessages( body.oldMsgList )
           // this.oldMessagesEmitter.emit( body.oldMsgList )
         }
         if ( body.inv ) {
-          console.log('got invitation: ', body.inv )
+          console.log('ConnectionService.wsConnection.onMessage -> get INVITATION .', body.inv);
           this.handleInvitation( body.inv )
           // this.invitationEmitter.emit( body.inv )
         }
@@ -678,7 +682,7 @@ export class ConnectionService {
           }          
         }
         if (body.comm == 'opened correctly') {
-          console.log('WS connection opend correctly.')
+          console.log('ConnectionService.wsConnection.onMessage -> WS connection opened correctly.');
           if ( this.chatService.selectedChat ) {
             // added for fetching data 
             this.chatService.updateChatList()
@@ -686,12 +690,14 @@ export class ConnectionService {
             // old
             this.fetchOlderMessages( this.chatService.selectedChat )
             // this.updateSession() maybe required
-          } else console.error('No chat selected. ')
+          } else console.log('ConnectionService.wsConnection.onMessage -> opened but no chat selected yet.');
           // starting ping via WS for keep connection alive
           this.startPingSender()
+          this.updateSession()
         }
         if ( body.num && body.message) {
-          console.log('got ResponseBody()' + body.message )
+          console.error('ConnectionService.wsConnection.onMessage -> Got some error in backend.', body.message);
+          // console.log('got ResponseBody()' + body.message )
           // if (body.num) this.reconnectWS = false
         }
         /* else {
@@ -699,13 +705,15 @@ export class ConnectionService {
         }   */        
       }
       this.wsConnection.onclose = () => {
-        console.log('WebSocket connection closed.');
+        console.log('ConnectionService.wsConnection.onclose -> WS connection CLOSED correctly.');
         if ( this.wsConnection ) this.wsConnection = undefined
         if ( this.wsPingSender ) {
+          console.log('ConnectionService.wsConnection.onclose -> clearing/stopping wsPingSender.');
           clearInterval( this.wsPingSender )
           this.wsPingSender = undefined
         }
         if ( this.reconnectWS ) {
+          // if we keep WS connection we should try to connect to other backend serwer.
           this.loadBalancer.rebalance()
           // toast, that we lost connection
           this.responseNotifier.printError(
@@ -717,10 +725,10 @@ export class ConnectionService {
           )
           this.restartWS( this.reconnectWS )
           // this.restartWSEmitter.emit( this.reconnectWS )
-        } else console.error('reconnectWS is set to FALSE')
+        } else console.error('ConnectionService.wsConnection.onclose -> reconnectWS should be set to TRUE.');
       };
       this.wsConnection.onerror = (error) => {
-        console.error('error from WS connection', error)
+        console.error('ConnectionService.wsConnection.onerror -> WS connection returned error ???', error);
         if ( this.wsConnection ) this.wsConnection = undefined
         // here probably we should close connection ??? and restart it ???
       };
@@ -731,9 +739,9 @@ export class ConnectionService {
   private restartWS(b: boolean) {
     if ( b ) {
       if ( ! this.reconnectWSTimer ) {
-        console.log('initializing reconnectWSTimer. ')
+        console.log('ConnectionService.restartWS() -> initializing reconnectWSTimer Interval.');
         this.reconnectWSTimer = setInterval( () => {
-          console.log('inside reconnectWSTimer trying to reconnect WS. ')
+          console.log('ConnectionService.reconnectWSTimer -> Trying to reconnect WS.');
           this.connectViaWebsocket()
         }, 2000) // we try reconnect every 2s
       }          
@@ -742,6 +750,7 @@ export class ConnectionService {
       // because we connected, 
       // or we disconnected and we do not need to reconnect
       if ( this.reconnectWSTimer ) {
+        console.log('ConnectionService.restartWS() -> clearing reconnectWSTimer Interval.');
         clearInterval( this.reconnectWSTimer )
         this.reconnectWSTimer = undefined
       }
@@ -756,22 +765,26 @@ export class ConnectionService {
 
   private sendPoisonPill() {
     if (this.wsConnection) {
-      console.log('sending PoisonPill to server.');
+      console.log('ConnectionService.sendPoisonPill() -> via WS');
       this.wsConnection.send('PoisonPill');
     } else {
-      console.error('WS connection is closed now. ');
+      console.error('ConnectionService.sendPoisonPill() -> Cannot send data via WS, open a connection first');
     }
   }
 
 
 
 
-  private sendMessage(body: {user: User, message: Message}) {
+  sendMessage(m: Message) {
     if (this.wsConnection) {
-      console.log('sending my message to server.');
+      console.log('ConnectionService.sendMessage() -> via WS');
+      const body = {
+        user:    this.userObj,
+        message: m
+      }
       this.wsConnection.send(JSON.stringify( body ));
     } else {
-      console.error('Did not send data, open a connection first');
+      console.error('ConnectionService.sendMessage() -> Cannot send data via WS, open a connection first');
     }
   }
 
@@ -797,6 +810,7 @@ export class ConnectionService {
 
   handleInvitation(invitation: Invitation) {
     if ( this.userObj ) {
+      console.log('ConnectionService.handleInvitation()');
       const c = this.getChatData( this.userObj.userId , invitation.chatId )
       if ( c ) {
         const cSub = c.subscribe({
@@ -813,18 +827,11 @@ export class ConnectionService {
                   isNew: true,
                   emitter: new EventEmitter<ChatData>()  
                 }
-                
-                
-                //  tutaj musimy zapewnić, że dodawanie nowego chatu spowoduje wywołanie emitera odświeżającego chat-listę
-                this.chatService.addNewChat( cd )  // to automatycznie odświeża listę czatów
+                console.log('ConnectionService.handleInvitation() -> getChatData().subscribe()');
+                // to automatycznie odświeża listę czatów
+                this.chatService.addNewChat( cd )
                 this.startListeningFromNewChat( cd.chat.chatId, cd.partitionOffsets )
-                
-
-
-
                 // this.dataFetched( 2 ) 
-                
-
                 if ( this.userObj ) {
                   const bodyToSent: UserOffsetUpdate = {
                     userId: this.userObj.userId,
@@ -838,12 +845,11 @@ export class ConnectionService {
                       next: (response) => {
                         if ( response.ok ) {
                           this.settingsService.settings.joiningOffset = invitation.myJoiningOffset
-                          console.log('joining Offset updated ok. to ', invitation.myJoiningOffset)
+                          console.log('ConnectionService.handleInvitation() -> getChatData().subscribe() -> updateJoiningOffset().subscribe()', invitation.myJoiningOffset);
                         }
-                          
                       },
                       error: (err) => {
-                        console.log('Error during joining offset update', err)
+                        console.error('ConnectionService.handleInvitation() -> getChatData().subscribe() -> updateJoiningOffset().subscribe()', err);
                       },
                       complete: () => {}
                     })
@@ -853,7 +859,7 @@ export class ConnectionService {
             }              
           },
           error: (err) => {
-            console.error('error in calling getChatData() in invitationSubscription', err) 
+            console.error('ConnectionService.handleInvitation() -> getChatData().subscribe()', err);
           },
           complete: () => {}
         })
@@ -863,12 +869,12 @@ export class ConnectionService {
 
 
 
-  private sendWriting(w: Writing) {
+  sendWriting(w: Writing) {
     if (this.wsConnection) {
       console.log('sending writing to server.');
       this.wsConnection.send(JSON.stringify( w ));
     } else {
-      console.error('Did not send data, open a connection first');
+      console.error('ConnectionService.sendWriting() -> Cannot send data via WS, open a connection first.');
     }
   }
 
@@ -877,10 +883,10 @@ export class ConnectionService {
 
   private sendChatOffsetUpdate(u: ChatOffsetUpdate) {
     if (this.wsConnection) {
-      console.log('sending offset update to server.');
+      console.log('ConnectionService.sendChatOffsetUpdate() -> sending update to backend via WS.');
       this.wsConnection.send(JSON.stringify( u ));
     } else {
-      console.error('Did not send data, open a connection first');
+      console.error('ConnectionService.sendChatOffsetUpdate() -> Cannot send data via WS, open a connection first.');
     }
   }
 
@@ -890,7 +896,7 @@ export class ConnectionService {
   // updateSession(sendUpdateToServer: boolean) {
   updateSession() {
     if (this.wsConnection && this.userObj) {
-      console.log('sending session update to server.');
+      console.log('ConnectionService.updateSession() -> sending update to backend via WS.');
       this.session.updateSession(this.userObj.userId)
       const ksid = this.session.getKsid()
       if ( ksid ) { //&& sendUpdateToServer
@@ -902,7 +908,7 @@ export class ConnectionService {
         this.wsConnection.send(JSON.stringify( session ));
       }
     } else {
-      console.error('Did not send data, open a connection first');
+      console.error('ConnectionService.updateSession() -> Cannot send data via WS, open a connection first.');
     }  
   }
 
@@ -913,14 +919,14 @@ export class ConnectionService {
   
   startListeningFromNewChat(chatId: string, partOffsets: PartitionOffset[]) {
     if (this.wsConnection) {
-      console.log('sending New chat data to server to start listentning.');
+      console.log('ConnectionService.startListeningFromNewChat()');
       const body = {
         chatId: chatId,
         partitionOffset: partOffsets
       }
       this.wsConnection.send(JSON.stringify( body ));
     } else {
-      console.error('Did not send data, open a connection first');
+      console.error('ConnectionService.startListeningFromNewChat() -> Cannot send data via WS, open a connection first.');
     }  
   }
 
@@ -929,22 +935,25 @@ export class ConnectionService {
 
   private fetchOlderMessages(chatId: string) {
     if (this.wsConnection) {
-      console.log('sending request to fetch older messages.');
+      console.log('ConnectionService.fetchOlderMessages()');
       const body = { chatId: chatId }
       this.wsConnection.send(JSON.stringify( body )); 
     } else {
-      console.error('Did not send data, open a connection first');
+      console.error('ConnectionService.fetchOlderMessages() -> Cannot send data via WS, open a connection first.');
     } 
   }
 
-
+  
 
 
   private startPingSender() {
+    console.log('ConnectionService.startPingSender()');
     this.wsPingSender = setInterval(() => {
-      if ( this.wsConnection )
+      if ( this.wsConnection ) {
+        console.log('ConnectionService.wsPingSender -> sending ping via WS.');
         this.wsConnection.send('ping')
-    }, 60000 ) // ping empty message every 1 minute
+      }      
+    }, 60000 ) // ping 'ping' message every 1 minute
   }
 
 
@@ -960,7 +969,7 @@ export class ConnectionService {
         clearTimeout( this.writerCleaner )
         this.writerCleaner = undefined
       }
-      //this.sendPoisonPill()
+      this.sendPoisonPill()
       this.wsConnection.close()
       console.log('connection deeactivated.');
       this.wsConnection = undefined;
@@ -978,27 +987,35 @@ export class ConnectionService {
 
   isWSconnected(): boolean {
     if ( this.wsConnection ) {
+      console.log('ConnectionService.isWSconnected() -> true');
       const state =  this.wsConnection.readyState
       return state == this.wsConnection.OPEN
-    } else return false 
+    } else {
+      console.log('ConnectionService.isWSconnected() -> false');
+      return false 
+    }
   }
 
 
 
 
   isWSconnectionDefined(): boolean {
+    console.log(`ConnectionService.isWSconnectionDefined() -> ${this.wsConnection !== undefined}`);
     return this.wsConnection !== undefined
   }
 
 
 
   getUser(): User | undefined {
+    console.log(`ConnectionService.getUser() -> ${this.userObj}`);
     return this.userObj
   }
 
   updateUserLogin(newLogin: string) {
     if ( this.userObj ) {
+      // muszę przenieść tę funkcję do Settings service. 
       this.userObj.login = newLogin
+      console.log(`ConnectionService.updateUserLogin() -> ${this.userObj}`);
       this.chatService.setUser( this.userObj )
       this.settingsService.setUser( this.userObj ) 
       // chyba jakaś notyfikacja, że mój login został zmieniony
@@ -1066,10 +1083,10 @@ export class ConnectionService {
 
 
   clearSubscriptions() {
+    console.log(`ConnectionService.clearSubscriptions() `);
+
     if ( this.logoutSubscription )             this.logoutSubscription.unsubscribe()
     if ( this.chatOffsetUpdateSubscription )   this.chatOffsetUpdateSubscription.unsubscribe()
-    if ( this.writingSubscription )            this.writingSubscription.unsubscribe() 
-    if ( this.sendMessageSubscription )        this.sendMessageSubscription.unsubscribe()
     if ( this.fetchOlderMessagesSubscription ) this.fetchOlderMessagesSubscription.unsubscribe() 
     if ( this.restartWSSubscription )          this.restartWSSubscription.unsubscribe()
     // if ( this.wsConnectionSubscription )       this.wsConnectionSubscription.unsubscribe()
@@ -1080,11 +1097,12 @@ export class ConnectionService {
 
 
   closeAllSubServices() {
+    console.log(`ConnectionService.closeAllSubServices() `);
     this.chatService.clear()
     this.session.clearService()
     // this.settingsService.
     // this.responseNotifier
-     // this.loadBalancer has no clear methosd
+    // this.loadBalancer has no clear methosd
   }
 
 
@@ -1092,26 +1110,39 @@ export class ConnectionService {
 
 
   disconnect() {
+    console.log(`ConnectionService.disconnect() `);
+    this.sendPoisonPill()
     // nowe
     this.closeAllSubServices();
-    
+    this.clearSubscriptions();
     //   nowe
-    this.initialized = false
-    this.userObj = undefined
     
     //   stare
     this.reconnectWS = false
     this.session.invalidateSession()
     if ( this.wsPingSender ) {
+      console.log(`ConnectionService.disconnect() -> clearing wsPingSender Interval`);
       clearInterval( this.wsPingSender )
       this.wsPingSender = undefined
     }
-    this.sendPoisonPill()
+    if( this.reconnectWSTimer ){
+      console.log(`ConnectionService.disconnect() -> clearing reconnectWSTimer Interval`);
+      clearInterval( this.reconnectWSTimer )
+      this.reconnectWSTimer = undefined
+    }
+    if( this.writerCleaner ){
+      console.log(`ConnectionService.disconnect() -> clearing writerCleaner Interval`);
+      clearInterval( this.writerCleaner )
+      this.writerCleaner = undefined
+    }
+  
+  
+    
     this.wsConnection?.close()
     this.wsConnection = undefined
+    this.initialized = false
+    this.userObj = undefined
     
-    // nowe - zamykanie pozostałych servisów i zamykanie subscrybcji
-    this.clearSubscriptions()
   }            
 
 

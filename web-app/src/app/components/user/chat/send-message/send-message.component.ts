@@ -47,7 +47,7 @@ export class SendMessageComponent implements OnInit {
         writerId:    me.userId,
         writerLogin: me.login        
       }
-      this.chatService.sendWriting( w )
+      this.connectionService.sendWriting( w )
       // this.userService.sendWriting( w )
     }
   }

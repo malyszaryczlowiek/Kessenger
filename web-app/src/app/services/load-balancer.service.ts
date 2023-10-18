@@ -13,9 +13,9 @@ export class LoadBalancerService {
   //crashed: Array<Server> = new Array<Server>()
 
   constructor() {
-    console.log('LoadBalancerService initialization.')
-    console.log('environment prod: ', environment.production)
-    console.log('environment numberOfServers: ', environment.numOfServers)
+    console.log('LoadBalancerService.constructor().')
+    console.log('LoadBalancerService.constructor() -> env prod: ', environment.production)
+    console.log('LoadBalancerService.constructor() -> environment numberOfServers: ', environment.numOfServers)
     this.assignServers()
     this.selectNewServer()
   }
@@ -25,8 +25,9 @@ export class LoadBalancerService {
 
   assignServers() {
     let i = 0
+    console.log('LoadBalancerService.assignServers().')
     while (i < environment.numOfServers ) {
-      console.warn('assigning server', i)
+      console.log(`LoadBalancerService.assignServers() -> assigning server: ${i} `)
       const s = new Server(environment.protocol, environment.domainName, environment.port + i)
       this.working.push( s )
       i = i + 1
@@ -37,6 +38,7 @@ export class LoadBalancerService {
    
 
   rebalance() {
+    console.log(`LoadBalancerService.rebalance() `)
     const serv = this.currentServer
     if ( serv ) {
       this.working = this.working.filter((s,i, arr) => {
@@ -51,6 +53,7 @@ export class LoadBalancerService {
   
   
   selectNewServer() {
+    console.log(`LoadBalancerService.selectNewServer() `)
     const indx = Math.floor(Math.random() * this.working.length)
     this.currentServer = this.working.at( indx )
   }

@@ -26,6 +26,7 @@ export class HeaderComponent implements OnInit, OnDestroy {
     private router: Router) {}
 
   ngOnInit(): void {
+    console.log('HeaderComponent.constructor() -> assigning logoutSecondsSubscription ')
       this.logoutSecondsSubscription = this.session.logoutSecondsEmitter.subscribe(num => this.logoutSeconds = num)
   }
 

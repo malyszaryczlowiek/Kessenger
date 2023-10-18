@@ -10,10 +10,11 @@ import { UserService } from 'src/app/services/user.service';
 })
 export class SelectChatComponent implements OnInit {
 
-  constructor(private connectionService: ConnectionService, private htmlService: HtmlService) { } // private userService: UserService
+  constructor( private htmlService: HtmlService) { } // private userService: UserService, private connectionService: ConnectionService,
 
   ngOnInit(): void {
-    this.connectionService.updateSession()
+    console.log('SelectChatComponent.ngOnInit()')
+    // this.connectionService.updateSession()
     // this.userService.updateSession(false)
     this.htmlService.resizeSelectChatImmediately()
   }

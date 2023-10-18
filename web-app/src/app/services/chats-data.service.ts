@@ -39,7 +39,7 @@ export class ChatsDataService {
 
   // informacja o tym, że ktoś pisze jest wysyłana do connection, które ma subskrybenta, 
   // który to przechwytuje i wysyła przez WS
-  sendingWritingEmitter:   EventEmitter<Writing | undefined> = new EventEmitter<Writing| undefined>()
+  // sendingWritingEmitter:   EventEmitter<Writing | undefined> = new EventEmitter<Writing| undefined>()
   
 
   // ten emmiter musi być zasubskrybowany do obierania informacji z connection, że ktoś piszę 
@@ -48,7 +48,7 @@ export class ChatsDataService {
 
 
   // tym emitterm wysyłamy wiadomość do connection service żeby wysłać ją przez WS
-  sendMessageEmitter:      EventEmitter<Message> = new EventEmitter<Message>()
+  // sendMessageEmitter:      EventEmitter<Message> = new EventEmitter<Message>()
   
 
   // tym emiterem informujemy connection service, że chcemy pobrać przez WS stare wiadomości z backendu
@@ -235,9 +235,9 @@ export class ChatsDataService {
   /*
     method called from chat panel when we sending info that we are typing
   */
-  sendWriting(w: Writing) {
+  /* sendWriting(w: Writing) {
     this.sendingWritingEmitter.emit( w )
-  }
+  } */
 
 
   /*
@@ -478,13 +478,17 @@ export class ChatsDataService {
       3. aktualizujemy listę czatów po lewej stronie, tak aby wyświetlała, że mamy nieprzeczytane wiadomości 
 
   */
+      // problem // z tym że po zalogowaniu przychodzi nowa wiadomość a nie jest na liście czatów wyświetlone, że mamy nową wiadomość. 
+
   insertNewMessages2(m: Message[]) {
+    console.log('ChatsDataService.insertNewMessages2() ')
     m.forEach((mm, i, arr) => {
       if (mm.chatId == this.selectedChat) {
         // jeśli jesteśmy na dole to dodajemy do przeczytanych
         if ( this.htmlService.isScrolledDown() == 1 )  {
           const c = this.findChat( mm.chatId )
           if ( c ) {
+            c.messages.push( mm )
             c.messages = c.messages.sort((a,b) => a.serverTime - b.serverTime )
             c.partitionOffsets = c.partitionOffsets.map(
               (po, i, arr) => {
@@ -503,15 +507,18 @@ export class ChatsDataService {
                 lastMessageTime:  c.chat.lastMessageTime,
                 partitionOffsets: c.partitionOffsets 
               } 
+              console.log('ChatsDataService.insertNewMessages2() -> emitting chatOffsetUpdateEmitter event')
               this.chatOffsetUpdateEmitter.emit( chatOffsetUpdate )
             }
             this.changeChat( c )
+            this.htmlService.scrollDown( true )
           }          
         } 
         // jeśli nie jesteśmy na dole to dodajemy do nieprzeczytanych
         else  {
           const c = this.findChat( mm.chatId )
           if ( c ) {
+            console.log('ChatsDataService.insertNewMessages2() -> adding NEW messages to UNREAD messages, because of we are NOT scrolled down')
             c.unreadMessages.push( mm ) 
             this.changeChat( c )
           }
@@ -519,6 +526,7 @@ export class ChatsDataService {
       } else { // inny czat niż aktualnie wybrany
         const c = this.findChat( mm.chatId )
         if ( c ) {
+          console.log('ChatsDataService.insertNewMessages2() -> adding NEW messages to UNREAD messages, because of we are in other chat than selected')
           c.unreadMessages.push( mm ) 
           this.changeChat( c )
         }
@@ -591,12 +599,14 @@ export class ChatsDataService {
 
 
   updateChatPanel() {
+    console.log('ChatsDataService.updateChatPanel() -> emitting updateChatPanelEmmiter event ')
     this.updateChatPanelEmmiter.emit( 0 )
   }
 
 
 
   updateChatList() {
+    console.log('ChatsDataService.updateChatList() -> emitting updateChatListEmmiter event ')
     this.updateChatListEmmiter.emit( 0 )
   }
 
@@ -692,17 +702,10 @@ export class ChatsDataService {
   
 
 
-  sendMessage(msg: Message) {
+/*   sendMessage(msg: Message) {
     this.sendMessageEmitter.emit( msg )
-/*     if (this.user) {
-      const body = {
-        user:    this.user,
-        message: msg
-      }
-      this.connection.sendMessage( body );
-    }     */
   }
-
+ */
 
 
   fetchOlderMessages(chatId: string) {

@@ -82,7 +82,7 @@ class WebSocketController @Inject()
                         }
                       )
                     } else {
-                      logger.error(s"ws. Error with waiting of DB response. userId(${userId.toString})")
+                      logger.error(s"ws. Error with returned DB response. userId(${userId.toString})")
                       Left(Unauthorized(ResponseBody(12, "No valid session. Login again.").toString))
                     }
                 }

@@ -21,7 +21,7 @@ export class SessionService {
 
   logoutTimer: NodeJS.Timeout | undefined;
   // logoutSeconds:       number | undefined;
-  logoutSeconds:        number = 5; // to może powodować błędy i będzie jakoś trzeba 
+  logoutSeconds:        number = 0; // to może powodować błędy i będzie jakoś trzeba 
 
   logoutSecondsEmitter: EventEmitter<number> = new EventEmitter()
   logoutEmitter:        EventEmitter<number> = new EventEmitter()
@@ -38,16 +38,16 @@ export class SessionService {
               private utcService: UtctimeService,
               private userSettings: UserSettingsService,
               private router: Router) {
+                console.log('SessionService.constructor()')
     this.fetchKsid();
   }
 
 
 
   initialize(user: User) {
-    // jak tylko zostanie zainicjalizowany to trzeba 
-
+    console.log('SessionService.initialize()')
     // tutaj trzeba subskrybenta, który będzie nasłuchiwał zmian w settings-service
-    if ( this.settingsChangeSubscription ) {
+    if ( ! this.settingsChangeSubscription ) {
       this.settingsChangeSubscription = this.userSettings.settingsChangeEmitter.subscribe(
         (settings) => {
           // zmiana ilości sekund do wylogowania
@@ -57,7 +57,6 @@ export class SessionService {
         }
       )
     }
-
   }
 
 
@@ -79,12 +78,14 @@ export class SessionService {
 
   isSessionValid(): boolean {
     this.fetchKsid();
+    console.log('SessionService.isSessionValid() -> ', this.fetchKsid())
     if (this.ksid) return true;
     else return false;
   }
    
 
   setNewSession(userId: string) {
+    console.log('SessionService.setNewSession()')
     // time is validity time of session. after this time session will be invalid 
     //   unless user will actualize  session making some request. 
     const time: number = this.utcService.getUTCmilliSeconds() + this.userSettings.settings.sessionDuration; 
@@ -94,8 +95,10 @@ export class SessionService {
 
 
   updateSession(userId: string) {
+    console.log('SessionService.updateSession()')
     this.fetchKsid();
     if ( this.ksid ) {
+      console.log('SessionService.updateSession() -> KSID is valid')
       const time: number = this.utcService.getUTCmilliSeconds() + this.userSettings.settings.sessionDuration; 
       this.ksid = new Ksid(this.ksid.sessId, userId, time);
       // this.cookieService.delete('KSID')
@@ -112,6 +115,7 @@ export class SessionService {
 
 
   invalidateSession() {
+    console.log('SessionService.invalidateSession()')
     this.cookieService.delete('KSID');
     this.ksid = undefined;
   }
@@ -145,6 +149,8 @@ export class SessionService {
     return part / 24;
   }
 
+
+
   
   getSavedUserId(): string | undefined {
     this.fetchKsid()
@@ -161,40 +167,36 @@ export class SessionService {
 
 
   restartLogoutTimer() {
-    // this.logoutSeconds = this.settingsService.settings.sessionDuration / 1000
+    console.log('SessionService.restartLogoutTimer()')
+    this.logoutSeconds = this.userSettings.settings.sessionDuration / 1000
     if ( this.logoutSeconds ) {
       if (this.logoutTimer ) clearInterval( this.logoutTimer )    //   To DODAŁEM
       this.logoutTimer = setInterval(() => {
         this.logoutSeconds = this.logoutSeconds - 1
         this.logoutSecondsEmitter.emit(this.logoutSeconds)
         if (this.logoutSeconds < 1) {
-          console.log('LogoutTimer called!!!')
+          console.log('SessionService.logoutTimer -> clearing itself')
           clearInterval(this.logoutTimer)
-          this.clearService()
-          this.router.navigate([''])
+          console.log('SessionService.logoutTimer -> logoutEmitter -> emiting event to call ConnectionService.disconnect()')
+          this.logoutEmitter.emit( 0 )
         }
       }, 1000)
     }
-/*     if (this.logoutTimer) {}
-    else {
-        
-    }
- */
-
   }
 
 
 
   setLogoutTime(timeInSeconds: number) {
+    console.log('SessionService.setLogoutTime()')
     this.logoutSeconds = timeInSeconds
   }
 
 
   clearService() {
+    console.log('SessionService.clearService()')
     if (this.logoutTimer) clearInterval(this.logoutTimer)  
+    if ( this.settingsChangeSubscription ) { this.settingsChangeSubscription.unsubscribe(); }
     this.logoutTimer = undefined
-
-    
   }
 
 

@@ -20,8 +20,9 @@ export class ChatListComponent implements OnInit, OnDestroy {
   
   wrt:                               Writing | undefined
   receivingWritingSubscription: Subscription | undefined
+  
   // trzeba napisać subscription, które będzie ponownie wczytywało chaty z już zaktualizowanego chat-service
-  upToDateChatListSubscription: Subscription | undefined
+  // upToDateChatListSubscription: Subscription | undefined
 
 
   // myUserId:                  string  | undefined // ##################################################################       TO zakomentowałem
@@ -52,13 +53,13 @@ export class ChatListComponent implements OnInit, OnDestroy {
         (w: Writing | undefined) => { this.wrt = w }
       )
     }
-    if ( ! this.upToDateChatListSubscription )  {
+    /* if ( ! this.upToDateChatListSubscription )  {
       this.upToDateChatListSubscription =  this.chatService.updateChatListEmmiter.subscribe(
         (c) => {
           this.chats = this.chatService.chatAndUsers
         }
       )
-    }    
+    }     */
   }
 
 
@@ -99,11 +100,11 @@ export class ChatListComponent implements OnInit, OnDestroy {
   ngOnDestroy(): void {
     console.log('ChatListComponent.ngOnDestroy() called.')
     if ( this.receivingWritingSubscription ) this.receivingWritingSubscription.unsubscribe()
-    if ( this.upToDateChatListSubscription ) this.upToDateChatListSubscription.unsubscribe()
+    // if ( this.upToDateChatListSubscription ) this.upToDateChatListSubscription.unsubscribe()
   }
 
 
 
 
-  
+
 }

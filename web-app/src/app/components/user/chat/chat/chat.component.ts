@@ -17,7 +17,6 @@ import { ChatData } from 'src/app/models/ChatData';
 export class ChatComponent implements OnInit, OnDestroy {
 
   chats: ChatData[] = new Array<ChatData>()
-  // fetchingSubscription: Subscription | undefined
   chatListSubscription:  Subscription | undefined
   
   
@@ -35,22 +34,9 @@ export class ChatComponent implements OnInit, OnDestroy {
       }
     )
 
-
-
-    // tutaj // sprawdzić czy nie można zostawić samego fetchowania danych przez poniższy emmiter. 
-    // i tylko użyć if (this.userService.isWSconnected() ) this.userService.dataFetched()
-    /* this.fetchingSubscription = this.userService.fetchingUserDataFinishedEmmiter.subscribe( (c) => {
-        if (c == 1 || c == 2) { 
-          console.log('ChatComponent fetched data from UserService via fetchEmmiter.')
-          this.chats = this.userService.getAllChats()
-        }
-      }
-    ) */
-
     const userId = this.chatService.user?.userId
     if ( this.chatService.chatAndUsers.length == 0 && userId ) {
       const c = this.connectionService.getChats( userId )
-      //   userService.getChats()
       if ( c ) {
         console.log('ChatComponent.ngOnInit() Reading chats from server...')
         c.subscribe({
@@ -86,7 +72,6 @@ export class ChatComponent implements OnInit, OnDestroy {
 
 
   ngOnDestroy() {
-    // if ( this.fetchingSubscription ) this.fetchingSubscription.unsubscribe()
     if ( this.chatListSubscription ) this.chatListSubscription.unsubscribe()
     console.log('ChatComponent.ngOnDestroy()')
   }
