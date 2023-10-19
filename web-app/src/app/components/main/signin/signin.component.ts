@@ -1,9 +1,8 @@
-import { Component, EventEmitter, OnInit, Output } from '@angular/core';
+import { Component, OnInit } from '@angular/core';
 import { FormControl, FormGroup, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
 // services
 import { ConnectionService } from 'src/app/services/connection.service';
-import { LoadBalancerService } from 'src/app/services/load-balancer.service';
 import { ResponseNotifierService } from 'src/app/services/response-notifier.service';
 
 @Component({
@@ -15,7 +14,7 @@ export class SigninComponent implements OnInit {
  
   signInForm = new FormGroup({
     login: new FormControl('', [Validators.required, Validators.minLength(4)]),
-    password: new FormControl('', [Validators.required, Validators.minLength(6)])  //  todo dodać walidatory
+    password: new FormControl('', [Validators.required, Validators.minLength(6)])  //  todo add validators
   }); 
   
   // @Output() errorMessageEmitter: EventEmitter<string> = new EventEmitter<string>()

@@ -69,6 +69,14 @@ export class ChatListComponent implements OnInit, OnDestroy {
     console.log('navigating to chat' + c.chat.chatName)
     // this.chatService.selectChat( c.chat.chatId ) // this code is commented out,
     // beacause of chatService.selectChat() is called when we navigate to ChatPanelComponent
+
+    // tutaj trzeba jeszcze zrobbić tak, zeby sprawdzić czy jesteśmy w tym czacie
+    // i jak jesteśmy to po kliknięciu trzeba zjechać na sam dół 
+    // oznaczyć wiadomości jako przeczytany
+    
+
+
+
     this.router.navigate(['user', 'chat', c.chat.chatId]) 
 
 

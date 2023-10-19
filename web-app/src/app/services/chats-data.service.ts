@@ -1,4 +1,5 @@
 import { EventEmitter, Injectable } from '@angular/core';
+import { ActivatedRoute, Router } from '@angular/router';
 import { Observable, Subscription } from 'rxjs';
 import { HttpResponse } from '@angular/common/http';
 // services
@@ -72,17 +73,7 @@ export class ChatsDataService {
 
 
 
-
-
-
-
-
-
-
-
-
-  constructor(//private connection: ConnectionService,
-              private htmlService: HtmlService) {}
+  constructor(private htmlService: HtmlService, private activated: ActivatedRoute) {}
   
 
 
@@ -97,103 +88,14 @@ export class ChatsDataService {
         return cd
       }
     ).sort( (a,b) => this.compareLatestChatData(a,b) )
-    // this.initializationFinishedEmitter.emit( 0 )
 
+    // here we check our path and if 
+    const chatId = this.activated.snapshot.paramMap.get('chatId');
+    if ( chatId ) { 
+      console.error(`ERRRRRORROOOOOOOORRRRRRRR`)
+      this.selectChat( chatId )
+    }
 
-/*     if ( ! this.newMessagesSubscription ) {
-      this.newMessagesSubscription = this.connection.newMessagesEmitter.subscribe(
-        (messageList: Message[]) => {
-          this.insertNewMessages( messageList )
-        },
-        (error) => {
-          console.log('Error in message emitter: ', error)
-        },
-        () => console.log('on message emitter completed.')
-      )
-    } */
-
-
-/*     if ( ! this.oldMessagesSubscription ) {
-      this.oldMessagesSubscription = this.connection.oldMessagesEmitter.subscribe(
-        (messageList: Message[]) => {
-          console.log(`old messages from emitter: ${messageList}`)
-          this.insertOldMessages( messageList ) 
-        },
-        (error) => {
-          console.log('Error in message emitter: ', error)
-          console.log(error)
-        },
-        () => console.log('on message emitter completed.')
-      ) 
-    } */
-
-
-
-
-/*     if (! this.invitationSubscription ) {
-      this.invitationSubscription = this.connection.invitationEmitter.subscribe(
-        (invitation: Invitation) => 
-           
-          {
-            const c = this.getChatData( invitation.chatId )
-          if ( c ) {
-            const cSub = c.subscribe({
-              next: (response) => {
-                if (response.ok){
-                  const body = response.body
-                  if ( body ) {
-                    const cd: ChatData =  {
-                      chat: body.chat,
-                      partitionOffsets: invitation.partitionOffsets,
-                      messages: new Array<Message>(),
-                      unreadMessages: new Array<Message>(),
-                      users: new Array<User>(),
-                      isNew: true,
-                      emitter: new EventEmitter<ChatData>()  
-                    }
-                    this.addNewChat( cd ) 
-                    this.startListeningFromNewChat( cd.chat.chatId, cd.partitionOffsets )
-                    
-                    this.dataFetched( 2 ) 
-  
-                    if ( this.user ) {
-                      const bodyToSent: UserOffsetUpdate = {
-                        userId: this.user.userId,
-                        joiningOffset: invitation.myJoiningOffset                    
-                      }
-                      const u = this.updateJoiningOffset( bodyToSent )
-                      if ( u ) {
-                        const sub = u.subscribe({
-                          next: (response) => {
-                            if ( response.ok ) {
-                              this.settingsService.settings.joiningOffset = invitation.myJoiningOffset
-                              console.log('joining Offset updated ok. to ', invitation.myJoiningOffset)
-                            }
-                              
-                          },
-                          error: (err) => {
-                            console.log('Error during joining offset update', err)
-                          },
-                          complete: () => {}
-                        })
-                      }
-                    }                  
-                  }                
-                }              
-              } ,
-              error: (err) => {
-                console.error('error in calling getChatData() in invitationSubscription', err) 
-              },
-              complete: () => {}
-            })
-          }
-        }, 
-        (error) => {
-          console.error('Got errorn in invitation subscription', error)
-        },
-        () => {} 
-      )
-    } */
 
   }
 
@@ -221,7 +123,8 @@ export class ChatsDataService {
 
 
   /*
-    method called when we do not have any chat, but we downloaded chat data
+    method called when we do not have any chat, 
+    but we downloaded chat data separately.
     (for example after creation of our first chat)
   */
   setChats(chats: ChatData[]) {
@@ -633,9 +536,13 @@ export class ChatsDataService {
       const found = this.findChat( chatId )
       if ( found ){
         this.selectedChat = chatId
+        console.log(`ChatDataService.selectChat() -> selected chat found in chat list `)
         this.fetchOlderMessages( this.selectedChat )
         this.markMessagesAsRead( this.selectedChat )
-      } else this.selectedChat = undefined
+      } else {
+        console.warn(`ChatDataService.selectChat() -> selected chat NOT found in chat list `)
+        this.selectedChat = undefined
+      }
     }
   }
 
@@ -644,6 +551,7 @@ export class ChatsDataService {
 
 
   clearSelectedChat() {
+    console.log(`ChatDataService.clearSelectedChat()`)
     this.selectedChat = undefined
   }
 
@@ -696,7 +604,8 @@ export class ChatsDataService {
     }
  */
     this.chatAndUsers = new Array()
-    this.user = undefined
+    this.user         = undefined
+    this.selectedChat = undefined
   }
 
   
@@ -738,6 +647,8 @@ export class ChatsDataService {
   setUser(u: User) {
     this.user = u
   }
+
+
 
 
 

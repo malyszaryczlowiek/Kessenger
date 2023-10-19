@@ -17,7 +17,9 @@ import { ChatData } from 'src/app/models/ChatData';
 export class ChatComponent implements OnInit, OnDestroy {
 
   chats: ChatData[] = new Array<ChatData>()
-  chatListSubscription:  Subscription | undefined
+  chatListSubscription:             Subscription | undefined
+  // subscribe initalization finished
+  initalizationSubscription:        Subscription | undefined
   
   
   constructor(private chatService: ChatsDataService,   
@@ -29,12 +31,21 @@ export class ChatComponent implements OnInit, OnDestroy {
   ngOnInit(): void {
     this.chatListSubscription = this.chatService.updateChatListEmmiter.subscribe(
       (n) => {
-        console.log('ChatComponent fetched data from UserService via fetchEmmiter.')
+        console.log('ChatComponent.chatListSubscription -> fetched chat list from ChatDataService via updateChatListEmmiter ')
         this.chats = this.chatService.chatAndUsers
       }
     )
 
-    const userId = this.chatService.user?.userId
+    this.initalizationSubscription = this.connectionService.serviceInitializedEmitter.subscribe(
+      (n) => {
+        console.log('ChatComponent.initalizationSubscription -> fetched chat list from ChatDataService via serviceInitializedEmitter ')
+        this.chats = this.chatService.chatAndUsers
+      }
+    )
+
+    this.chatService.updateChatList()
+
+    /* const userId = this.chatService.user?.userId
     if ( this.chatService.chatAndUsers.length == 0 && userId ) {
       const c = this.connectionService.getChats( userId )
       if ( c ) {
@@ -46,7 +57,10 @@ export class ChatComponent implements OnInit, OnDestroy {
               if (body) {
                 this.chatService.setChats( body )
                 // if we do not have WS connection, we try to connect
-                if ( this.connectionService.isWSconnected() ) this.connectionService.connectViaWebsocket()
+                // if ( this.connectionService.isWSconnected() ) this.connectionService.connectViaWebsocket()
+                // changed above to below command. we need to connect only when connection is undefined,
+                // otherwise connection may by in 'connecting' state. 
+                if ( this.connectionService.isWSconnectionDefined() ) this.connectionService.connectViaWebsocket()
                 // old
                 //this.userService.setChats( body )
                 //this.userService.connectViaWebsocket() // run websocket connection
@@ -66,13 +80,16 @@ export class ChatComponent implements OnInit, OnDestroy {
     } else {
       console.log('ChatComponent.constructor() chat data read from UserService directly')
       this.chats = this.chatService.chatAndUsers
-    }
+    } */
+
+
   }
 
 
 
   ngOnDestroy() {
-    if ( this.chatListSubscription ) this.chatListSubscription.unsubscribe()
+    if ( this.chatListSubscription )      this.chatListSubscription.unsubscribe()
+    if ( this.initalizationSubscription ) this.initalizationSubscription.unsubscribe()
     console.log('ChatComponent.ngOnDestroy()')
   }
 

@@ -123,7 +123,7 @@ export class ConnectionService {
                           console.log('ConnectionSerivice.constructor() -> user().subscribe() ->  fetching user login and settings' )
                           this.initialize( body.user, body.settings, body.chatList )
                           this.session.restartLogoutTimer()
-                          this.connectViaWebsocket() 
+                          if ( ! this.wsConnection ) this.connectViaWebsocket() 
                         }
                         else {
                           console.error('ConnectionSerivice.constructor() -> user().subscribe() -> empty body ???')
@@ -282,8 +282,11 @@ export class ConnectionService {
     this.chatService.initialize( chatList, user)
     this.initialized = true
     // this.assignSubscriptions()
-    this.connectViaWebsocket()
+    if ( ! this.wsConnection ) this.connectViaWebsocket()
     this.serviceInitializedEmitter.emit( 0 )
+    // tuaj trzeba zaimpelemntować w każdym komponencie, który tylko korzysta z tych danych
+    // że jak jest emitowany ten event to należy fetchować potrzebne dane
+
   }
 
 
@@ -684,6 +687,12 @@ export class ConnectionService {
         if (body.comm == 'opened correctly') {
           console.log('ConnectionService.wsConnection.onMessage -> WS connection opened correctly.');
           if ( this.chatService.selectedChat ) {
+
+            tutaj 
+            // tutaj  coś trzeba zrobić aby jak połączenie zostaje otwarte to 
+            // jeśli ścieżka jest poprawna to należy jeszcze sprawdzić ścieżkę 
+            // i jeśli odpowiada ona chatowi to wszystko przygotować
+
             // added for fetching data 
             this.chatService.updateChatList()
             this.chatService.updateChatPanel()

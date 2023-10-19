@@ -32,7 +32,7 @@ export class HeaderComponent implements OnInit, OnDestroy {
 
   ngOnDestroy(): void {
     if ( this.logoutSecondsSubscription ) { 
-      console.log('HeaderComponent.ngOnDestroy() called, and subscription cancelled.')
+      console.log('HeaderComponent.ngOnDestroy() called, and logoutSecondsSubscription cancelled.')
       this.logoutSecondsSubscription.unsubscribe()
     }
   }
@@ -50,8 +50,9 @@ export class HeaderComponent implements OnInit, OnDestroy {
             }
           )
         }
-        console.log(`logout received status ${response.status}`)
-        console.log('redirection to logging page')
+        // console.log(`logout received status ${response.status}`)
+        // console.log('redirection to logging page')
+        console.log('Header.logout() -> ConnectionService.logout().subscribe.next -> logout in backend server; response status: ', response.status)
         this.connectionService.disconnect()
         this.router.navigate([''])
         /* const body = response.body
@@ -80,8 +81,7 @@ export class HeaderComponent implements OnInit, OnDestroy {
         )
         console.error(error) 
         this.connectionService.disconnect()
-        //this.clearService() // zmienić na disconnect tak aby pokasował wszystkie dane
-        console.log('redirection to logging page')
+        console.error('Header.logout() -> ConnectionService.logout().subscribe.error -> error from backend server', error)
         this.router.navigate([''])
       },
       complete: () => {}
@@ -91,7 +91,6 @@ export class HeaderComponent implements OnInit, OnDestroy {
 
   updateSession() {
     this.connectionService.updateSession()
-    // this.user.updateSession( true )
   }
   
 

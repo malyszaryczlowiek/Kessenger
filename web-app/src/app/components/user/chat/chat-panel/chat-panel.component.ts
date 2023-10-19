@@ -34,20 +34,27 @@ export class ChatPanelComponent implements OnInit, OnDestroy {
   chatPanelSubscription:            Subscription | undefined
 
 
+  // subscribe initalization finished
+  initalizationSubscription:        Subscription | undefined
+
+
 
   constructor(private htmlService: HtmlService, 
               private connectionService: ConnectionService,
               private chatService: ChatsDataService,
               private router:      Router,
-              private activated:   ActivatedRoute) { }
+              private activated:   ActivatedRoute) { 
+                console.log(`ChatPanelComponent.constructor()`)
+              }
 
   
 
   ngOnInit(): void {
-    console.log('ChatPanelComponent.ngOnInit')
+    console.log('ChatPanelComponent.ngOnInit()')
 
     this.chatPanelSubscription = this.chatService.updateChatPanelEmmiter.subscribe(
       (a) => {
+        console.log('ChatPanelComponent.chatPanelSubscription -> getting chat data via updateChatPanelEmmiter')
         this.chatData = this.chatService.getCurrentChatData()
         
         // if our services are initialized with data but chat was not found, we need to redirect to page-not-found
@@ -57,6 +64,15 @@ export class ChatPanelComponent implements OnInit, OnDestroy {
         } */
       }
     )
+
+    this.initalizationSubscription = this.connectionService.serviceInitializedEmitter.subscribe(
+      (n) => {
+        console.log('ChatPanelComponent.initalizationSubscription -> getting chat data via serviceInitializedEmitter')
+        this.chatData = this.chatService.getCurrentChatData()
+      }
+    )
+
+
 
     
     // we need to stay it because cannot insert Writing value via html. 
@@ -77,7 +93,9 @@ export class ChatPanelComponent implements OnInit, OnDestroy {
           if (this.chatData) {
             // nowe 
             this.chatService.markMessagesAsRead( this.chatData.chat.chatId ) 
-            // ta metoda powinna sama wysyłać event o aktualizację offsetu do backendu przez WS (zrobić to emiterem), ale tylko jeśli liczba nieprzeczytanych wiadomości jest >0, 
+            // ta metoda powinna sama wysyłać event o aktualizację offsetu do backendu przez WS (zrobić to emiterem), 
+            // ale tylko jeśli liczba nieprzeczytanych wiadomości jest >0, 
+            
             // natomiast samo zjechanie na dół powinno updejtować sesję niezależnie od liczby nieprzeczytanych wiadomości.
             this.htmlService.scrollDown( false )
           }
@@ -94,28 +112,34 @@ export class ChatPanelComponent implements OnInit, OnDestroy {
 
     const chatId = this.activated.snapshot.paramMap.get('chatId');
     if ( chatId ) { 
+      console.warn(`warn`)
       this.chatService.selectChat( chatId ) // required if we load page from webbrowser,
-      this.chatService.fetchOlderMessages( chatId ) // dodałem na samym końcu
+      this.chatService.updateChatPanel();
+      // this.chatService.fetchOlderMessages( chatId ) // dodałem na samym końcu
       // not chat list in web application
-    }
-        
+    }        
   }
 
 
 
 
   ngOnDestroy(): void {
+    console.log(`ChatPanelComponent.ngOnDestroy()`)
     if ( this.chatPanelSubscription )            this.chatPanelSubscription.unsubscribe()
     if ( this.receivingWritingSubscription )     this.receivingWritingSubscription.unsubscribe()
     if ( this.messageListScrollingSubscription ) this.messageListScrollingSubscription.unsubscribe()
+    if ( this.initalizationSubscription )        this.initalizationSubscription.unsubscribe()
     this.chatService.clearSelectedChat()
   }
 
 
 
 
+  /*
+  here we get message send via emmiter from subcomponent 
+  */
   sendMessage(m: Message) {
-    console.log(`sending message: ${m}`, m)
+    console.log(`ChatPanelComponent.sendMessage() -> sending message: `, m)
     this.connectionService.sendMessage( m )
   }
 
@@ -123,6 +147,7 @@ export class ChatPanelComponent implements OnInit, OnDestroy {
 
 
   goToChatSettings() {
+    console.log(`ChatPanelComponent.goToChatSettings()`)
     this.connectionService.updateSession()
     this.router.navigate(['user', 'editChat', `${this.chatData?.chat.chatId}`])
   }

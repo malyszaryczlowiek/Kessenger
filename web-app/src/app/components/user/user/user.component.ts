@@ -28,7 +28,7 @@ export class UserComponent implements OnInit, OnDestroy {
     console.log('UserComponent.ngOnInit()')
     // if ( ! this.userService.isWSconnectionDefined() ) this.userService.connectViaWebsocket() 
     // possibly to delete
-    if ( ! this.connectionService.isWSconnectionDefined() ) this.connectionService.connectViaWebsocket() 
+    // if ( ! this.connectionService.isWSconnectionDefined() ) this.connectionService.connectViaWebsocket() 
     
     // for printing notifications -> probably to delete because of existence the same subscription in main.component
     this.errorMessageSubscription = this.responseNotifier.responseEmitter.subscribe(
