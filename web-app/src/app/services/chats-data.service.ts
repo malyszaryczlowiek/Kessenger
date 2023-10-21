@@ -92,11 +92,11 @@ export class ChatsDataService {
     // here we check our path and if 
     const chatId = this.activated.snapshot.paramMap.get('chatId');
     if ( chatId ) { 
-      console.error(`ERRRRRORROOOOOOOORRRRRRRR`)
       this.selectChat( chatId )
     }
-
-
+    else {
+      console.warn(`ChatDataService.initialize() -> no chatId in path`)
+    }
   }
 
 
@@ -117,6 +117,7 @@ export class ChatsDataService {
   */
   addNewChat(c: ChatData) {
     this.changeChat(c)
+    // we need notify that ne chat was added
     this.updateChatListEmmiter.emit( 0 )
   }
 
@@ -460,12 +461,12 @@ export class ChatsDataService {
         })
         found.messages = found.messages.sort((a,b) => a.serverTime - b.serverTime )
         this.changeChat( found )
-        console.warn('ChatsDataService.insertOldMessage() inserting old messages')
+        console.warn('ChatsDataService.insertOldMessage() -> inserting old messages')
         // found.emitter.emit( found ) // w starej wersji
         this.updateChatPanelEmmiter.emit( 0 )
       }
     } else {
-      console.warn('ChatsDataService.insertOldMessages() => chatId NOT KNOWN. ')
+      console.warn('ChatsDataService.insertOldMessages() -> chatId NOT KNOWN. ')
     }
   }
   
@@ -611,23 +612,12 @@ export class ChatsDataService {
   
 
 
-/*   sendMessage(msg: Message) {
-    this.sendMessageEmitter.emit( msg )
-  }
- */
 
 
   fetchOlderMessages(chatId: string) {
     this.fetchOlderMessagesEmitter.emit( chatId )
     // this.connection.fetchOlderMessages( chatId )
   }
-
-
-
-/*   getWritingEmmiter() {
-    return this.connection.writingEmitter
-  }
- */
 
 
 
@@ -653,6 +643,30 @@ export class ChatsDataService {
 
 
 
+}
+
+
+
+
+
+
+
+
+
+/*   sendMessage(msg: Message) {
+    this.sendMessageEmitter.emit( msg )
+  }
+ */
+
+
+
+
+/*   getWritingEmmiter() {
+    return this.connection.writingEmitter
+  }
+ */
+
+
 /*   getChatData(chatId: string): Observable<HttpResponse<{chat: Chat, partitionOffsets: Array<{partition: number, offset: number}>}>> | undefined  {
     if (this.user) {
       this.updateSession(false)
@@ -676,21 +690,6 @@ export class ChatsDataService {
       this.restartLogoutTimer()
     }
   } */
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -775,9 +774,3 @@ insertNewMessages2(m: Message[]): number {
   }
  */
 
-
-
-
-
-
-}

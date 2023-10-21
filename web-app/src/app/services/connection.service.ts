@@ -2,7 +2,8 @@ import { HttpClient, HttpHeaders, HttpParams, HttpResponse } from '@angular/comm
 import { Injectable, Inject, EventEmitter } from '@angular/core';
 import { Observable, Subscription, of } from 'rxjs';
 import { v4 as uuidv4 } from 'uuid';
-import { Router } from '@angular/router';
+// import { Router } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 // services
 import { ChatsDataService } from './chats-data.service';
 import { LoadBalancerService } from './load-balancer.service';
@@ -101,6 +102,7 @@ export class ConnectionService {
               private responseNotifier: ResponseNotifierService,
               private loadBalancer: LoadBalancerService,
               private session: SessionService,
+              private activated:   ActivatedRoute,
               private router: Router) { 
 
                 console.log('ConnectionService.constructor()')
@@ -283,7 +285,7 @@ export class ConnectionService {
     this.initialized = true
     // this.assignSubscriptions()
     if ( ! this.wsConnection ) this.connectViaWebsocket()
-    this.serviceInitializedEmitter.emit( 0 )
+    // this.serviceInitializedEmitter.emit( 0 )
     // tuaj trzeba zaimpelemntować w każdym komponencie, który tylko korzysta z tych danych
     // że jak jest emitowany ten event to należy fetchować potrzebne dane
 
@@ -686,9 +688,14 @@ export class ConnectionService {
         }
         if (body.comm == 'opened correctly') {
           console.log('ConnectionService.wsConnection.onMessage -> WS connection opened correctly.');
+          const chatId = this.activated.snapshot.paramMap.get('chatId');
+          if ( chatId ) { 
+            console.error('WS opened -> chatId: ', chatId)
+          } else console.error('WS opened -> chatId: ', 'no chatId')
+          this.serviceInitializedEmitter.emit( 0 )
           if ( this.chatService.selectedChat ) {
 
-            tutaj 
+            // tutaj 
             // tutaj  coś trzeba zrobić aby jak połączenie zostaje otwarte to 
             // jeśli ścieżka jest poprawna to należy jeszcze sprawdzić ścieżkę 
             // i jeśli odpowiada ona chatowi to wszystko przygotować
@@ -699,7 +706,7 @@ export class ConnectionService {
             // old
             this.fetchOlderMessages( this.chatService.selectedChat )
             // this.updateSession() maybe required
-          } else console.log('ConnectionService.wsConnection.onMessage -> opened but no chat selected yet.');
+          } else console.warn('ConnectionService.wsConnection.onMessage -> opened but no chat selected yet.');
           // starting ping via WS for keep connection alive
           this.startPingSender()
           this.updateSession()

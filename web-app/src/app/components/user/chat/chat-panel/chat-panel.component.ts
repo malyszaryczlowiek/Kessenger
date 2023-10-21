@@ -44,14 +44,12 @@ export class ChatPanelComponent implements OnInit, OnDestroy {
               private chatService: ChatsDataService,
               private router:      Router,
               private activated:   ActivatedRoute) { 
-                console.log(`ChatPanelComponent.constructor()`)
+                // console.log(`ChatPanelComponent.constructor()`)
               }
 
   
 
   ngOnInit(): void {
-    console.log('ChatPanelComponent.ngOnInit()')
-
     this.chatPanelSubscription = this.chatService.updateChatPanelEmmiter.subscribe(
       (a) => {
         console.log('ChatPanelComponent.chatPanelSubscription -> getting chat data via updateChatPanelEmmiter')
@@ -110,14 +108,36 @@ export class ChatPanelComponent implements OnInit, OnDestroy {
     )    
 
 
+    /*
+      problem jest taki , że jak chatPanel się inicjuje to nie ma jeszcze czatów, dlatego selectedChat jest undefined
+      natomiast jak czaty zostaną pobrane to 
+
+      to się wykonuje zanim dane o chatach userze i settings zostaną zassane z servera
+    */
+
+
+
     const chatId = this.activated.snapshot.paramMap.get('chatId');
     if ( chatId ) { 
-      console.warn(`warn`)
+      console.log('ChatPanelComponent.ngOnInit() -> chatId: ', chatId)
+      // we need to change selected chatId only when current chatId is other than selected
+
+
       this.chatService.selectChat( chatId ) // required if we load page from webbrowser,
-      this.chatService.updateChatPanel();
+      // this.chatService.updateChatPanel();
+      this.chatData =  this.chatService.getCurrentChatData()
+      
+      // new
+      // this.htmlService.resizeMessageListImmediately()
+
+      
+      // old
       // this.chatService.fetchOlderMessages( chatId ) // dodałem na samym końcu
       // not chat list in web application
-    }        
+    } else {
+      console.error('ChatPanelComponent.ngOnInit() -> no chatId in path !!!')
+    }
+
   }
 
 

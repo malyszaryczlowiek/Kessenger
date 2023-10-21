@@ -16,7 +16,7 @@ import { ChatData } from 'src/app/models/ChatData';
 })
 export class ChatComponent implements OnInit, OnDestroy {
 
-  chats: ChatData[] = new Array<ChatData>()
+  // chats: ChatData[] = new Array<ChatData>()
   chatListSubscription:             Subscription | undefined
   // subscribe initalization finished
   initalizationSubscription:        Subscription | undefined
@@ -29,7 +29,8 @@ export class ChatComponent implements OnInit, OnDestroy {
 
 
   ngOnInit(): void {
-    this.chatListSubscription = this.chatService.updateChatListEmmiter.subscribe(
+    console.log('ChatComponent.ngOnInit()')
+    /* this.chatListSubscription = this.chatService.updateChatListEmmiter.subscribe(
       (n) => {
         console.log('ChatComponent.chatListSubscription -> fetched chat list from ChatDataService via updateChatListEmmiter ')
         this.chats = this.chatService.chatAndUsers
@@ -43,7 +44,7 @@ export class ChatComponent implements OnInit, OnDestroy {
       }
     )
 
-    this.chatService.updateChatList()
+    this.chatService.updateChatList() */
 
     /* const userId = this.chatService.user?.userId
     if ( this.chatService.chatAndUsers.length == 0 && userId ) {

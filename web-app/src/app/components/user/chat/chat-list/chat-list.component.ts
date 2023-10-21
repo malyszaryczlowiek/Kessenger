@@ -7,6 +7,7 @@ import { ChatsDataService } from 'src/app/services/chats-data.service';
 // models
 import { ChatData } from 'src/app/models/ChatData';
 import { Writing } from 'src/app/models/Writing';
+import { ConnectionService } from 'src/app/services/connection.service';
 
 
 @Component({
@@ -16,19 +17,15 @@ import { Writing } from 'src/app/models/Writing';
 })
 export class ChatListComponent implements OnInit, OnDestroy {
 
-  @Input() chats: Array<ChatData> = new Array<ChatData>(); 
+  chats: Array<ChatData> = new Array<ChatData>();  // @Input() -- was mark previously to injecting chat list from chat component
   
   wrt:                               Writing | undefined
   receivingWritingSubscription: Subscription | undefined
+  initalizationSubscription:    Subscription | undefined
+  upToDateChatListSubscription: Subscription | undefined
   
-  // trzeba napisać subscription, które będzie ponownie wczytywało chaty z już zaktualizowanego chat-service
-  // upToDateChatListSubscription: Subscription | undefined
-
-
-  // myUserId:                  string  | undefined // ##################################################################       TO zakomentowałem
-
-
-  constructor( private chatService: ChatsDataService,
+  constructor( private connectionService: ConnectionService,
+               private chatService: ChatsDataService,
                private router: Router,
                private htmlService: HtmlService ) {}
   
@@ -40,6 +37,8 @@ export class ChatListComponent implements OnInit, OnDestroy {
     console.log('ChatListComponent.ngOnInit() ')
     // this.myUserId = this.userService.user?.userId  // ##################################################################       TO zakomentowałem
     this.assignSubscriptions()
+    this.chatService.updateChatList()
+    this.chats = this.chatService.chatAndUsers
     this.htmlService.resizeChatList()
   }
 
@@ -53,34 +52,67 @@ export class ChatListComponent implements OnInit, OnDestroy {
         (w: Writing | undefined) => { this.wrt = w }
       )
     }
-    /* if ( ! this.upToDateChatListSubscription )  {
+
+
+
+    this.initalizationSubscription = this.connectionService.serviceInitializedEmitter.subscribe(
+      (n) => {
+        console.log('ChatListComponent.initalizationSubscription -> fetched chat list from ChatDataService via serviceInitializedEmitter ')
+        this.chats = this.chatService.chatAndUsers
+      }
+    )
+
+    if ( ! this.upToDateChatListSubscription )  {
       this.upToDateChatListSubscription =  this.chatService.updateChatListEmmiter.subscribe(
-        (c) => {
+        (n) => {
+          console.log('ChatListComponent.upToDateChatListSubscription -> fetched chat list from ChatDataService via updateChatListEmmiter ')
           this.chats = this.chatService.chatAndUsers
         }
       )
-    }     */
+    }    
+  }
+
+
+
+  /*
+  mamy trzy przypadki wczytania chatu:
+  1) klikamy na dany chat w chat listę i musi nam się utowrzyć chatpanel component - nie mamy wtedy jeszcze zdefiniowanej wartości chatId w ścieżce
+  2) odświerzamy stronę na danym czacie (wartość chatId powinna być zdefiniowana). w tym przypadku główną rolę odgrywa ngOnInit w chatPanelCompoenent
+  3) jesteśmy w jakimś czacie i z chat-list wybieramy inny chat -> wtedy chat component nie jest tworzony od nowa tylko powinny być do niego przez subskrypcję zapisaną w chOnInit wczytane dane chatu z chatService
+  */
+
+  onClick(c: ChatData) {
+    console.log('ChatListComponent.onClick() -> navigating to chat', c.chat.chatName)
+    this.chatService.selectChat( c.chat.chatId ) // required if we load page from webbrowser,
+    this.chatService.updateChatPanel() // called in case if we currently are in one of chat
+    this.router.navigate(['user', 'chat', c.chat.chatId]) 
+  }
+
+
+  ngOnDestroy(): void {
+    console.log('ChatListComponent.ngOnDestroy() called.')
+    if ( this.receivingWritingSubscription ) this.receivingWritingSubscription.unsubscribe()
+    if ( this.initalizationSubscription)     this.initalizationSubscription.unsubscribe()
+    if ( this.upToDateChatListSubscription)  this.upToDateChatListSubscription.unsubscribe()
+    // if ( this.upToDateChatListSubscription ) this.upToDateChatListSubscription.unsubscribe()
   }
 
 
 
 
-  onClick(c: ChatData) {
-    console.log('navigating to chat' + c.chat.chatName)
+
+}
+
+
+
+
+
     // this.chatService.selectChat( c.chat.chatId ) // this code is commented out,
     // beacause of chatService.selectChat() is called when we navigate to ChatPanelComponent
 
     // tutaj trzeba jeszcze zrobbić tak, zeby sprawdzić czy jesteśmy w tym czacie
     // i jak jesteśmy to po kliknięciu trzeba zjechać na sam dół 
     // oznaczyć wiadomości jako przeczytany
-    
-
-
-
-    this.router.navigate(['user', 'chat', c.chat.chatId]) 
-
-
-
 
     // tutaj w selectchat powinniśmy 
     // 1. jeśli lista wiadomości jest pusta powinniśmy fetchować stare wiadomości
@@ -102,17 +134,3 @@ export class ChatListComponent implements OnInit, OnDestroy {
     }
     this.router.navigate(['user', 'chat', c.chat.chatId]) 
     this.userService.selectedChatEmitter.emit(c)  */
-  }
-
-
-  ngOnDestroy(): void {
-    console.log('ChatListComponent.ngOnDestroy() called.')
-    if ( this.receivingWritingSubscription ) this.receivingWritingSubscription.unsubscribe()
-    // if ( this.upToDateChatListSubscription ) this.upToDateChatListSubscription.unsubscribe()
-  }
-
-
-
-
-
-}
