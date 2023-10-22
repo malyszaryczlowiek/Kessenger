@@ -116,12 +116,6 @@ export class HtmlService {
 
 
 
-
-
-
-
-
-
   startMessageListScrollListener() {
     const messageList = document.getElementById('messages')
     if ( messageList ) {
@@ -137,6 +131,9 @@ export class HtmlService {
       })
     }
   }
+
+  
+
 
   stopScrollEmmiter() {
     const messages = document.getElementById('messages')

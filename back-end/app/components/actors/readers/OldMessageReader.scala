@@ -65,11 +65,11 @@ class OldMessageReader(out: ActorRef, parentActor: ActorRef, conf: Configuration
                 logger.trace(s"fetchOlderMessages. Reading from chat: ${fetchingOffsetShift(t._1)}. actorGroupID(${actorGroupID.toString})")
                 consumer.assign(CollectionConverters.asJava(partitions.map(tt => tt._1).toList))
                 partitions.foreach(tt => consumer.seek(tt._1, tt._2))
-                readToOffset(consumer, t._1)
                 this.chats.get(chatId) match {
                   case Some(t) => this.chats.put(chatId, (fetchingOffsetShift(t._1), t._2))
                   case None =>
                 }
+                readToOffset(consumer, t._1)
               } else
                 logger.trace(s"fetchOlderMessages. Cannot load older messages, offset is below 0. actorGroupID(${actorGroupID.toString})")
             }

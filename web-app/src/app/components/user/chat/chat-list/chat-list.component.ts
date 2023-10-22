@@ -35,7 +35,6 @@ export class ChatListComponent implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     console.log('ChatListComponent.ngOnInit() ')
-    // this.myUserId = this.userService.user?.userId  // ##################################################################       TO zakomentowałem
     this.assignSubscriptions()
     this.chatService.updateChatList()
     this.chats = this.chatService.chatAndUsers
@@ -74,12 +73,6 @@ export class ChatListComponent implements OnInit, OnDestroy {
 
 
 
-  /*
-  mamy trzy przypadki wczytania chatu:
-  1) klikamy na dany chat w chat listę i musi nam się utowrzyć chatpanel component - nie mamy wtedy jeszcze zdefiniowanej wartości chatId w ścieżce
-  2) odświerzamy stronę na danym czacie (wartość chatId powinna być zdefiniowana). w tym przypadku główną rolę odgrywa ngOnInit w chatPanelCompoenent
-  3) jesteśmy w jakimś czacie i z chat-list wybieramy inny chat -> wtedy chat component nie jest tworzony od nowa tylko powinny być do niego przez subskrypcję zapisaną w chOnInit wczytane dane chatu z chatService
-  */
 
   onClick(c: ChatData) {
     console.log('ChatListComponent.onClick() -> navigating to chat', c.chat.chatName)
@@ -95,43 +88,10 @@ export class ChatListComponent implements OnInit, OnDestroy {
     if ( this.receivingWritingSubscription ) this.receivingWritingSubscription.unsubscribe()
     if ( this.initalizationSubscription)     this.initalizationSubscription.unsubscribe()
     if ( this.upToDateChatListSubscription)  this.upToDateChatListSubscription.unsubscribe()
-    // if ( this.upToDateChatListSubscription ) this.upToDateChatListSubscription.unsubscribe()
   }
-
-
-
 
 
 }
 
 
 
-
-
-    // this.chatService.selectChat( c.chat.chatId ) // this code is commented out,
-    // beacause of chatService.selectChat() is called when we navigate to ChatPanelComponent
-
-    // tutaj trzeba jeszcze zrobbić tak, zeby sprawdzić czy jesteśmy w tym czacie
-    // i jak jesteśmy to po kliknięciu trzeba zjechać na sam dół 
-    // oznaczyć wiadomości jako przeczytany
-
-    // tutaj w selectchat powinniśmy 
-    // 1. jeśli lista wiadomości jest pusta powinniśmy fetchować stare wiadomości
-    // 2. oznaczyć wszystkie wiadomości jako przeczytane
-    // 3. jeśli lista
-
-
-    // stare    
-    // this.chatService.fetchOlderMessages( c.chat.chatId ) // ##################################################################       TO zakomentowałem
-    /* this.chatService.markMessagesAsRead( c.chat.chatId )
-    this.userService.updateSession(true)
-    const selectedChat = this.userService.getAllChats().find(  (chatData, index, arr) => {
-      return chatData.chat.chatId == c.chat.chatId;
-    })
-    if ( selectedChat ) {
-      if ( selectedChat.messages.length == 0 && this.connectionService.isWSconnected() ) { // 
-        this.chatService.fetchOlderMessages( c.chat.chatId )
-      }      
-    }
-    this.router.navigate(['user', 'chat', c.chat.chatId]) 
-    this.userService.selectedChatEmitter.emit(c)  */
