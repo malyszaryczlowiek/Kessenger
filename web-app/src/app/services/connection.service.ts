@@ -43,16 +43,6 @@ export class ConnectionService {
   private initialized      = false
 
 
-  // public newMessagesEmitter: EventEmitter<Array<Message>>      = new EventEmitter<Array<Message>>()
-  // public oldMessagesEmitter: EventEmitter<Array<Message>>      = new EventEmitter<Array<Message>>()
-  // public invitationEmitter:  EventEmitter<Invitation>          = new EventEmitter<Invitation>()
-  // public writingEmitter:     EventEmitter<Writing | undefined> = new EventEmitter<Writing| undefined>()
-  
-  // to można usunąć bo to są eventy obsługiwane przez wewnętrzne  metody
-  //public restartWSEmitter:   EventEmitter<boolean>             = new EventEmitter<boolean>()
-
-
-
   // called only externally, when we want fetch data. 
   dataFetchedEmitter: EventEmitter<number> = new EventEmitter<number>()
 
@@ -60,10 +50,6 @@ export class ConnectionService {
   // wtedy podległe componenty mogą zaciągać dane poprzez uruchamianie innych emiterrów. 
   serviceInitializedEmitter: EventEmitter<number> = new EventEmitter<number>()
 
-
-  // subskrypcja wyłapująca, że jest potrzeba restartu websocketu
-  private restartWSSubscription:          Subscription | undefined
-  
   
   // jak przyjdzie event, żeby wylogować to clearowanie wszystkich servisów przez disconnect? 
   // i przekierowanie na /sessiontimeout
@@ -79,21 +65,7 @@ export class ConnectionService {
   private fetchOlderMessagesSubscription: Subscription | undefined
 
 
-
-  /*
-  założenia:
-
-  1. W zamyśle wszelkie zapytanie są wysyłane przez ten servis
-  2. jak przychodzi jakaś odpowiedź z serwera to jest ona następnie wstrzykiwana do odpowiedniej metody odpowiedniego podserwisu
-  3. jak podserwis przetworzy te dane to za pomocą emitera emituje jakiś event np aktualizuj czatlistę 
-  4. componenty subskrybują te emitery tak, ze jak tylko pojawia się event to wczytują dane z danego servisu 
-     i aktualizują komponent. 
-
-
-  Do wykonania:
-  1. przenieść wszystkie uaktualnienia sesji i restarty logout-service? z user-service do connection service     
-
-  */
+  
 
   constructor(private http: HttpClient, 
               // @Inject("API_URL") private api: string,
@@ -102,11 +74,10 @@ export class ConnectionService {
               private responseNotifier: ResponseNotifierService,
               private loadBalancer: LoadBalancerService,
               private session: SessionService,
-              private activated:   ActivatedRoute,
               private router: Router) { 
 
                 console.log('ConnectionService.constructor()')
-                this.assignSubscriptions()
+                // this.assignSubscriptions()
                 const uid = this.session.getSavedUserId();
                 if ( uid ) {
                   // poniższy update przeniosłem do subscribe po pobraniu danych o 
@@ -152,20 +123,17 @@ export class ConnectionService {
 
   assignSubscriptions() {
     console.log('ConnectionService.assignSubscriptions()')
-    
+
     if ( ! this.logoutSubscription ) {
       this.logoutSubscription = this.session.logoutEmitter.subscribe(
         (c) => {
           console.log('ConnectionService.logoutSubscription called from sessionService via logoutEmitter')
           this.disconnect()
-          // stare  czyszczę wszystko 
-          //this.clearService()
-          // i nawiguję na stronę session-timeout
           this.router.navigate([''])
-          // this.router.navigate([''])
         }
       )
     }
+
 
     if ( ! this.chatOffsetUpdateSubscription ) {
       this.chatOffsetUpdateSubscription = this.chatService.chatOffsetUpdateEmitter.subscribe(
@@ -176,31 +144,7 @@ export class ConnectionService {
       )
     }
 
-    /* if ( ! this.writingSubscription ) {
-      this.writingSubscription = this.chatService.sendingWritingEmitter.subscribe(
-        (w) => {
-          console.log('ConnectionService.writingSubscription')
-          if ( w ) this.sendWriting( w )
-        }
-      )
-    } */
 
-/*     if ( ! this.sendMessageSubscription ){
-      this.sendMessageSubscription  = this.chatService.sendMessageEmitter.subscribe(
-        (m) => {
-          console.log('ConnectionService.sendMessageSubscription')
-          if (this.userObj ){
-            const body = {
-              user:    this.userObj,
-              message: m
-            }
-            this.sendMessage( body )
-          }
-        }
-      )
-    }
-
- */
     if ( ! this.fetchOlderMessagesSubscription ) {
       this.fetchOlderMessagesSubscription = this.chatService.fetchOlderMessagesEmitter.subscribe(
         ( chatId ) => {
@@ -209,35 +153,7 @@ export class ConnectionService {
         }
       )
     }
-
-
-    // poniższe subskrypcje zastąpiłem bezpośrednim wywołaniem odpowiedniej metody
-
-    /* if ( ! this.restartWSSubscription ) {
-      this.restartWSSubscription = this.restartWSEmitter.subscribe(
-        (r: boolean) => {
-          // if we get true we need to start timer end trying to reconnect
-          
-        }
-      )
-    } */
-
-    /* if ( ! this.wsConnectionSubscription ) {
-      // here we simply notify that all needed data are loaded
-      // and WS connection is established 
-      // so all fetching sobscribers can load data. 
-      this.wsConnectionSubscription = this.wsConnEmitter.subscribe(
-        ( bool ) => { 
-          // this.dataFetched( 1 ) 
-        }
-      )
-    } */
-
   } 
-
-
-
-
 
 
 
@@ -273,22 +189,14 @@ export class ConnectionService {
 
 
 
-
-
-
   initialize(user: User, setttings: Settings, chatList: ChatData[]) {
     console.log('ConnectionService.initialize()')
     this.userObj = user
-    // this.userService.initialize( user )
+    this.assignSubscriptions()
     this.settingsService.initialize(user, setttings)
     this.chatService.initialize( chatList, user)
     this.initialized = true
-    // this.assignSubscriptions()
     if ( ! this.wsConnection ) this.connectViaWebsocket()
-    // this.serviceInitializedEmitter.emit( 0 )
-    // tuaj trzeba zaimpelemntować w każdym komponencie, który tylko korzysta z tych danych
-    // że jak jest emitowany ten event to należy fetchować potrzebne dane
-
   }
 
 
@@ -688,18 +596,7 @@ export class ConnectionService {
         }
         if (body.comm == 'opened correctly') {
           console.log('ConnectionService.wsConnection.onMessage -> WS connection opened correctly.');
-          const chatId = this.activated.snapshot.paramMap.get('chatId');
-          if ( chatId ) { 
-            console.error('WS opened -> chatId: ', chatId)
-          } else console.error('WS opened -> chatId: ', 'no chatId')
-          this.serviceInitializedEmitter.emit( 0 )
-          if ( this.chatService.selectedChat ) {
-
-            // tutaj 
-            // tutaj  coś trzeba zrobić aby jak połączenie zostaje otwarte to 
-            // jeśli ścieżka jest poprawna to należy jeszcze sprawdzić ścieżkę 
-            // i jeśli odpowiada ona chatowi to wszystko przygotować
-
+          /*           if ( this.chatService.selectedChat ) {
             // added for fetching data 
             this.chatService.updateChatList()
             this.chatService.updateChatPanel()
@@ -707,9 +604,14 @@ export class ConnectionService {
             this.fetchOlderMessages( this.chatService.selectedChat )
             // this.updateSession() maybe required
           } else console.warn('ConnectionService.wsConnection.onMessage -> opened but no chat selected yet.');
+ */
+
+
+
           // starting ping via WS for keep connection alive
           this.startPingSender()
           this.updateSession()
+          this.serviceInitializedEmitter.emit( 0 )
         }
         if ( body.num && body.message) {
           console.error('ConnectionService.wsConnection.onMessage -> Got some error in backend.', body.message);
@@ -1104,7 +1006,13 @@ export class ConnectionService {
     if ( this.logoutSubscription )             this.logoutSubscription.unsubscribe()
     if ( this.chatOffsetUpdateSubscription )   this.chatOffsetUpdateSubscription.unsubscribe()
     if ( this.fetchOlderMessagesSubscription ) this.fetchOlderMessagesSubscription.unsubscribe() 
-    if ( this.restartWSSubscription )          this.restartWSSubscription.unsubscribe()
+    // if ( this.restartWSSubscription )          this.restartWSSubscription.unsubscribe()
+    
+    this.logoutSubscription = undefined
+    this.chatOffsetUpdateSubscription = undefined
+    this.fetchOlderMessagesSubscription = undefined
+    // this.restartWSSubscription = undefined
+
     // if ( this.wsConnectionSubscription )       this.wsConnectionSubscription.unsubscribe()
   }
 

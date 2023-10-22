@@ -1,9 +1,12 @@
 import { Component, Input, OnDestroy, OnInit } from '@angular/core';
 import { Subscription } from 'rxjs';
-import { Message } from 'src/app/models/Message';
-import { ConnectionService } from 'src/app/services/connection.service';
+// services
 import { HtmlService } from 'src/app/services/html.service';
-import { UserService } from 'src/app/services/user.service';
+import { ConnectionService } from 'src/app/services/connection.service';
+// models
+import { Message } from 'src/app/models/Message';
+
+
 
 @Component({
   selector: 'app-message-list',
@@ -21,7 +24,7 @@ export class MessageListComponent implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     this.htmlService.startMessageListScrollListener()
-    this.messageListScrollSubscription = this.htmlService.messageListScrollEventEmitter.subscribe(
+    /* this.messageListScrollSubscription = this.htmlService.messageListScrollEventEmitter.subscribe(
       (s) => {
         if (s == 'top') {
           console.log('MessageListComponent.messageListScrollSubscription : scrolled to top')
@@ -31,8 +34,9 @@ export class MessageListComponent implements OnInit, OnDestroy {
         }          
         this.connectionService.updateSession()
       }
-    )
+    ) */
     this.htmlService.resizeMessageListAfter(100)
+    this.htmlService.scrollDown( true )
   }
 
 
@@ -42,3 +46,7 @@ export class MessageListComponent implements OnInit, OnDestroy {
   }
 
 }
+
+
+/*
+*/

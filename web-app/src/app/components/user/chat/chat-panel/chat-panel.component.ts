@@ -30,12 +30,15 @@ export class ChatPanelComponent implements OnInit, OnDestroy {
   messageListScrollingSubscription: Subscription | undefined
 
 
+
   // trzeba napisać subscription, które będzie ponownie wczytywało chaty z już zaktualizowanego chat-service
   chatPanelSubscription:            Subscription | undefined
 
 
   // subscribe initalization finished
   initalizationSubscription:        Subscription | undefined
+
+  firstLoad = true
 
 
 
@@ -54,11 +57,15 @@ export class ChatPanelComponent implements OnInit, OnDestroy {
       (a) => {
         console.log('ChatPanelComponent.chatPanelSubscription -> getting chat data via updateChatPanelEmmiter')
         this.chatData = this.chatService.getCurrentChatData()
-        
-        // if our services are initialized with data but chat was not found, we need to redirect to page-not-found
-        /* if ( this.connectionService.isInitlized() && ! this.chatData ) {
-          console.log('ChatPanelComponent.chatPanelSubscription  chatId from path not found in list of chats.')
-          this.router.navigate(['page-not-found']);
+        // added
+        if ( this.firstLoad )  {
+          // this.htmlService.scrollDown( true )
+          //this.htmlService.resizeMessageListImmediately()
+          this.firstLoad = false
+        } 
+        this.htmlService.resizeMessageListImmediately()
+        /* else {
+          
         } */
       }
     )
@@ -67,6 +74,16 @@ export class ChatPanelComponent implements OnInit, OnDestroy {
       (n) => {
         console.log('ChatPanelComponent.initalizationSubscription -> getting chat data via serviceInitializedEmitter')
         this.chatData = this.chatService.getCurrentChatData()
+        // if chat is not found we nned to redirect to page-not found
+        if ( this.chatData ) {
+          this.chatService.selectChat( this.chatData.chat.chatId )
+          
+          // this.htmlService.scrollDown( true ) // AAAAAAAAAAAAAAAAAAAAAAAAAA
+        }
+        else {
+          this.router.navigate(['page-not-found']);
+        } 
+        
       }
     )
 
@@ -85,8 +102,16 @@ export class ChatPanelComponent implements OnInit, OnDestroy {
     )
 
 
+    /*
+      Problem
+      problem z podwójnymi wiadomościami pojawia się jak mamy już otwarty czat i wchodzimy do innego 
+      chatu poprzez chat-list
+    */
+
+
     this.messageListScrollingSubscription = this.htmlService.messageListScrollEventEmitter.subscribe(
       (position) => {
+        console.log('position', position)
         if (position == 'down') {
           if (this.chatData) {
             // nowe 
@@ -98,14 +123,18 @@ export class ChatPanelComponent implements OnInit, OnDestroy {
             this.htmlService.scrollDown( false )
           }
         }
-        if (position == 'top') {
+        if (position == 'top' ) { // && ! this.firstLoad
           if (this.chatData) {
             console.log('fetching older messages')
             this.chatService.fetchOlderMessages( this.chatData.chat.chatId )
           }
         }
       } 
-    )    
+    )  
+
+
+
+  
 
 
     /*
@@ -120,13 +149,15 @@ export class ChatPanelComponent implements OnInit, OnDestroy {
     const chatId = this.activated.snapshot.paramMap.get('chatId');
     if ( chatId ) { 
       console.log('ChatPanelComponent.ngOnInit() -> chatId: ', chatId)
+      this.chatService.setChatId( chatId )
       // we need to change selected chatId only when current chatId is other than selected
 
 
-      this.chatService.selectChat( chatId ) // required if we load page from webbrowser,
-      // this.chatService.updateChatPanel();
-      this.chatData =  this.chatService.getCurrentChatData()
+      // this.chatService.selectChat( chatId ) // required if we load page from webbrowser,
       
+      this.chatData =  this.chatService.getCurrentChatData()
+      if (this.chatData) console.error('is not empty')
+
       // new
       // this.htmlService.resizeMessageListImmediately()
 

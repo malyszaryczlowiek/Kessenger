@@ -42,12 +42,14 @@ export class SignupComponent implements OnInit {
             if (response.status === 200) {
               const user = response.body?.user
               const settings = response.body?.settings
-              if (user && settings)
-              this.connectionService.initialize(
-                user,
-                settings,
-                new Array() // we create new user, so no chats 
-              )
+              if (user && settings) {
+                this.connectionService.initialize(
+                  user,
+                  settings,
+                  new Array() // we create new user, so no chats 
+                )
+              }
+              
               // stare
               //this.userService.assignSubscriptions()
               // this.userService.setUserAndSettings(

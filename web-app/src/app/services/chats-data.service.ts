@@ -73,7 +73,8 @@ export class ChatsDataService {
 
 
 
-  constructor(private htmlService: HtmlService, private activated: ActivatedRoute) {}
+  constructor(private htmlService: HtmlService,// private activated: ActivatedRoute
+    ) {}
   
 
 
@@ -89,14 +90,13 @@ export class ChatsDataService {
       }
     ).sort( (a,b) => this.compareLatestChatData(a,b) )
 
-    // here we check our path and if 
-    const chatId = this.activated.snapshot.paramMap.get('chatId');
-    if ( chatId ) { 
-      this.selectChat( chatId )
-    }
-    else {
-      console.warn(`ChatDataService.initialize() -> no chatId in path`)
-    }
+    /*
+      trzeba zrobić tak, ze najpierw w componentie przypisac wartość chatId (nawet jeśli jest fałszywa)
+      a następnie jak dojdzie do inicjalizacji to weryfikować czy mamy taki chat, jeśli będzie to 
+      wczytać jego dane, natomiast jeśli nie znajdziemy we wczytanych takiego czatum, 
+      to należy przekierować do page-not-found. 
+    */
+
   }
 
 
@@ -153,6 +153,10 @@ export class ChatsDataService {
     this.receivingWritingEmitter.emit( w )
   }
 
+  setChatId(cId: string ) {
+    this.selectedChat = cId;
+  }
+
 
 
   /*
@@ -199,6 +203,9 @@ export class ChatsDataService {
     } 
   }
  */
+
+
+
 
   // todo // zaimplementować,że w danym czacie wszystkie wiadomości są już przeczytane
   // po wywołaniu tej funkcji należy jeszcze fetchować ??? dane 
@@ -451,6 +458,7 @@ export class ChatsDataService {
     chyba, że trzeba tylko poinformować chat-panel 
     bo chat-list nie korzysta z informacji o starych wiadomościach. 
   */ 
+ tutaj // napisać w tej metodzie
   insertOldMessages(m: Message[]) {
     const chatId = m.at(0)?.chatId
     if ( chatId ) {
@@ -615,6 +623,7 @@ export class ChatsDataService {
 
 
   fetchOlderMessages(chatId: string) {
+    console.log(`ChatDataService.fetchOlderMessages() -> emitting signal to ConnectionService fetch older messages`)
     this.fetchOlderMessagesEmitter.emit( chatId )
     // this.connection.fetchOlderMessages( chatId )
   }

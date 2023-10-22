@@ -39,8 +39,6 @@ export class SendMessageComponent implements OnInit {
 
   ngOnInit(): void {
     console.log('SendMessageComponent.ngOnInit()')
-
-
   }
 
 

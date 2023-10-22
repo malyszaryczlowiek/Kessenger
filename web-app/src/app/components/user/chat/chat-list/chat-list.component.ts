@@ -84,7 +84,8 @@ export class ChatListComponent implements OnInit, OnDestroy {
   onClick(c: ChatData) {
     console.log('ChatListComponent.onClick() -> navigating to chat', c.chat.chatName)
     this.chatService.selectChat( c.chat.chatId ) // required if we load page from webbrowser,
-    this.chatService.updateChatPanel() // called in case if we currently are in one of chat
+    this.chatService.updateChatPanel() // called in case if we currently are in one chat
+    this.htmlService.scrollDown( true )
     this.router.navigate(['user', 'chat', c.chat.chatId]) 
   }
 
