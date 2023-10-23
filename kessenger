@@ -1,6 +1,6 @@
 #!/bin/zsh
 
-
+chmod +x ./stopkessenger
 chmod +x ./back-end/generateBin
 chmod +x ./spark-streaming-analyser/generateJAR
 chmod +x ./spark-graphx-analyser/generateJAR
