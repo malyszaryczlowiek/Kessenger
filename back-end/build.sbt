@@ -8,9 +8,9 @@ libraryDependencies ++= Seq(
   jdbc,
   // Own library with util and domain classes.
   // https://github.com/malyszaryczlowiek/kessenger-lib
-  "io.github.malyszaryczlowiek" %% "kessenger-lib" % "0.3.23",
+  "io.github.malyszaryczlowiek" %% "kessenger-lib" % "0.3.28",
 
-  "org.apache.kafka" %% "kafka"               % "3.1.0",
+  "org.apache.kafka" %% "kafka" % "3.1.0",
 
 
   // for connecting to PostgreSQL db

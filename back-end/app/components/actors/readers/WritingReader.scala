@@ -4,24 +4,30 @@ import akka.actor._
 import io.github.malyszaryczlowiek.kessengerlibrary.domain.Domain
 import io.github.malyszaryczlowiek.kessengerlibrary.domain.Domain.ChatId
 import io.github.malyszaryczlowiek.kessengerlibrary.model._
+import kafka.KafkaAdmin
 import org.apache.kafka.clients.consumer.{ConsumerRecord, ConsumerRecords, KafkaConsumer}
-import util.KafkaAdmin
 
+import java.util.UUID
 import java.util.concurrent.atomic.AtomicBoolean
 import scala.annotation.tailrec
 import scala.collection.concurrent.TrieMap
 import scala.concurrent.{ExecutionContext, Future}
 import scala.jdk.javaapi.CollectionConverters
 import scala.util.{Failure, Success, Using}
+import org.slf4j.LoggerFactory
+import ch.qos.logback.classic.Logger
 
 
-class WritingReader(out: ActorRef, parentActor: ActorRef, conf: Configuration, ka: KafkaAdmin, ec: ExecutionContext) extends Reader {
+class WritingReader(out: ActorRef, parentActor: ActorRef, conf: Configuration, ka: KafkaAdmin,
+                    ec: ExecutionContext, actorGroupID: UUID) extends Reader {
 
 
   private val chats: TrieMap[ChatId, Unit] = TrieMap.empty
   private val newChats: TrieMap[ChatId, Unit] = TrieMap.empty
   private val continueReading: AtomicBoolean = new AtomicBoolean(true)
   private var fut: Option[Future[Unit]] = None
+  private val logger: Logger = LoggerFactory.getLogger(classOf[WritingReader]).asInstanceOf[Logger]
+  logger.trace(s"WritingReader. Starting reader. actorGroupID(${actorGroupID.toString})")
 
   initializeChats()
   startReading()
@@ -29,11 +35,13 @@ class WritingReader(out: ActorRef, parentActor: ActorRef, conf: Configuration, k
 
   private def initializeChats(): Unit = {
     this.chats.addAll(this.conf.chats.map(c => (c.chatId, {})))
+    logger.trace(s"initializeChats. Chats initialized. actorGroupID(${actorGroupID.toString})")
   }
 
 
   override def startReading(): Unit = {
     if(this.chats.nonEmpty) this.fut = Option(futureBody())
+    logger.trace(s"initializeChats. Reading started. actorGroupID(${actorGroupID.toString})")
   }
 
 
@@ -46,19 +54,20 @@ class WritingReader(out: ActorRef, parentActor: ActorRef, conf: Configuration, k
         }
       } match {
         case Failure(exception) =>
-          println(s"WritingReader --> Future EXCEPTION ${exception.getMessage}")
+          logger.error(s"futureBody. Exception during reading: ${exception.getMessage}. actorGroupID(${actorGroupID.toString})")
           // if reading ended with error we need to close all actor system
           // and give a chance for web app to restart.
           out ! ResponseBody(44, "Kafka connection lost. Try refresh page in a few minutes.").toString
           Thread.sleep(250)
           parentActor ! PoisonPill
-        case Success(_) => println(s"WritingReader --> Future closed correctly.")
+        case Success(_) =>
+          logger.trace(s"futureBody. Future closed normally. actorGroupID(${actorGroupID.toString})")
       }
     }(ec)
   }
 
 
-  override protected def initializeConsumer[Writing](consumer: KafkaConsumer[String, Writing]): Unit = {
+  override protected def initializeConsumer[String, Writing](consumer: KafkaConsumer[String, Writing]): Unit = {
     val writingTopics = this.chats.map(t => Domain.generateWritingId(t._1))
     consumer.subscribe(CollectionConverters.asJavaCollection(writingTopics))
   }
@@ -108,13 +117,5 @@ class WritingReader(out: ActorRef, parentActor: ActorRef, conf: Configuration, k
 
   override def fetchOlderMessages(chatId: ChatId): Unit = {}
 
-
-
-  //  def isReading: Boolean = {
-  //    this.fut.isDefined && ! this.fut.get.isCompleted && this.continueReading.get()
-  //  }
-
-
-  // we start reading strait away
 
 }

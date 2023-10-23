@@ -1,0 +1,6 @@
+#!/bin/zsh
+
+rm -rf ./KafkaStreamsChatAnalyser/target/scala-2.13
+./KafkaStreamsChatAnalyser/generateJAR
+
+docker-compose -f docker-compose.dev.yml up -d

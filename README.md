@@ -2,11 +2,15 @@
 
 ## What the project is
 
-Project is simple CLI chat application build in Scala with Kafka, Kafka Streams, Spark, PostgreSQL, pgAdmin and contenerized with Docker. 
+Project is simple, scalable chat application built with [Kafka](https://kafka.apache.org/), [Play](https://www.playframework.com/),
+[Angular](https://angular.io/), [Spark](https://spark.apache.org/) ([Streaming](https://spark.apache.org/streaming/) 
+and [GraphX](https://spark.apache.org/graphx/)), [PostgreSQL](https://www.postgresql.org/) 
+and [pgAdmin](https://www.pgadmin.org/). Whole system is containerized with [Docker](https://www.docker.com/).
+
 
 ## Project Architecture
 
-TODO
+![System Architecture](architecture.jpeg)
 
 ## Before running project 
 
@@ -15,47 +19,45 @@ To build and run this project you need installed:
 - [Java JDK 11](https://adoptopenjdk.net/) at leased. 
 - [SBT](https://www.scala-sbt.org/).
 - [Docker](https://www.docker.com/).
+
  
+## Running project
 
-## How to run project
-
-At first download the project, unpack, start Docker desktop, open new terminal/console window and go to the Kessenger folder: <br>
+Simply open terminal/console and go to project folder. Then make scripts executable:
 
 ```bash
- cd Kessenger
+chmod +x kessenger
+chmod +x stopkessenger
 ```
 
-make scripts executable and run it.<br>
+Be sure that docker is running and start building script:
 
 ```bash
- chmod +x makeExecutable
- ./makeExecutable
+./kessenger
 ```
 
-And finally start project running `startProject` script:<br>
+Wait to building will end and then open new browser window or tab and go to `localhost:4200`. 
+
+> **Note!** <br>
+> First call with containers building takes some time. 
+
+Then open another browser and go to `localhost:4200` too. In both browsers create two different users and then create chat between them.
+
+## Running dev
+If you want to run system in dev mode run kessenger script with dev option: 
 
 ```bash
- ./startProject
+./kessenger --env=dev
 ```
 
-This script builds all required docker images, starts docker containers, compile all source files and build executable JAR files (a few of them are required by docker images). 
-
-## How to use project
-
-To play with project start ClientApp by opening new terminal/console window, go to Kessenger folder and run *ClientApp* with script `runClient`: 
+then open two new terminal windows, and run `devRunBackend`
 
 ```bash
- ./runClient
+./devRunBackend
 ```
 
-which runs JAR file with *ClientApp* application.
-
-Sign in with one of two predefined users (Walo <password 'aaa'>, Spejson <password 'bbb'>) or create another one following proper steps in program. 
-
-## How to close project
-
-If you want to stop playing with project close all running *ClientApp*s and then close and remove all docker containers in project by running `stopProject` script with `--all` option:
+and `devRunWebapp` scripts.
 
 ```bash
- ./stopProject --all
+./devRunWebapp
 ```

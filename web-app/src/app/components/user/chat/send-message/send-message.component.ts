@@ -1,11 +1,15 @@
 import { Component, EventEmitter, Input, OnInit, Output } from '@angular/core';
 import { FormControl, FormGroup, Validators } from '@angular/forms';
+import { ActivatedRoute, Router } from '@angular/router';
+// services
+import { ChatsDataService } from 'src/app/services/chats-data.service';
+import { ConnectionService } from 'src/app/services/connection.service';
+import { UserSettingsService } from 'src/app/services/user-settings.service';
+import { UtctimeService } from 'src/app/services/utctime.service';
+// models
 import { Chat } from 'src/app/models/Chat';
 import { Message } from 'src/app/models/Message';
 import { Writing } from 'src/app/models/Writing';
-import { UserSettingsService } from 'src/app/services/user-settings.service';
-import { UserService } from 'src/app/services/user.service';
-import { UtctimeService } from 'src/app/services/utctime.service';
 
 @Component({
   selector: 'app-send-message',
@@ -25,27 +29,36 @@ export class SendMessageComponent implements OnInit {
 
 
 
-  constructor(private userService: UserService, private utc: UtctimeService, private settings: UserSettingsService) { }
+  constructor( private connectionService: ConnectionService,
+    private chatService: ChatsDataService,
+    private utc: UtctimeService, 
+    private activated:   ActivatedRoute,
+    private settings: UserSettingsService) { }
+
+
 
   ngOnInit(): void {
     console.log('SendMessageComponent.ngOnInit()')
   }
 
+
+  
   onWriting() {
-    const me = this.userService.user
+    const me = this.chatService.user
     if ( me && this.chat ) {
       const w : Writing = {
         chatId:    this.chat.chatId,
         writerId:    me.userId,
         writerLogin: me.login        
       }
-      this.userService.sendWriting( w )
+      this.connectionService.sendWriting( w )
     }
   }
 
   onSubmit() {
+    console.log(`SendMessageComponent.onSubmit() -> sending message to ChatPanelComponent.sendMessage() function`)
     const messageContent = this.messageForm.controls.messageContent.value
-    const user = this.userService.user
+    const user = this.chatService.user
     const settings = this.settings.settings
     if (messageContent && this.chat && user) {
       const m: Message = {
@@ -60,9 +73,12 @@ export class SendMessageComponent implements OnInit {
         groupChat: this.chat.groupChat,
         partOff: {partition: -1, offset: -1}
       }
-      this.sendingMessage.emit( m );
+      // w componencie nadrzędnym używamy  (sendingMessage)="sendMessage($event)" co oznacza,
+      // że event tutaj emitowany (a właściwie jego wartość) trafia jako wejście do metody sendMessage()
+      // w componencie nadrzędnym (ChatPanelComponent), Dlatego też tutaj ten event jest oznaczony jako @Output().
+      this.sendingMessage.emit( m ); 
       this.messageForm.controls.messageContent.setValue('')
-      this.userService.updateSession(true)
+      this.connectionService.updateSession() 
     } 
   }
 

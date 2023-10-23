@@ -2,39 +2,43 @@ package components.actors
 
 
 import akka.actor._
-import io.github.malyszaryczlowiek.kessengerlibrary.model.{Configuration, Message}
+import io.github.malyszaryczlowiek.kessengerlibrary.model.{Configuration, Message, User}
+import kafka.KafkaAdmin
 import org.apache.kafka.clients.producer.{KafkaProducer, ProducerRecord}
-import util.KafkaAdmin
 
 import scala.util.Try
+import org.slf4j.LoggerFactory
+import ch.qos.logback.classic.{Level, Logger}
+
+import java.util.UUID
 
 
 object SendMessageActor {
 
-  def props(conf: Configuration, ka: KafkaAdmin): Props =
-    Props(new SendMessageActor(conf, ka))
+  def props( ka: KafkaAdmin, actorGroupID: UUID): Props =
+    Props(new SendMessageActor(ka, actorGroupID))
 
 }
 
-class SendMessageActor(conf: Configuration, ka: KafkaAdmin) extends Actor {
+class SendMessageActor(ka: KafkaAdmin, actorGroupID: UUID) extends Actor {
 
-  println(s"SendMessageActor --> started.")
+  private val logger: Logger = LoggerFactory.getLogger(classOf[SendMessageActor]).asInstanceOf[Logger]
+  logger.trace(s"SendMessageActor. Starting actor. actorGroupID(${actorGroupID.toString})")
 
-  private val messageProducer: KafkaProducer[String, Message] = ka.createMessageProducer
+  private val messageProducer: KafkaProducer[User, Message] = ka.createMessageProducer
 
   override def postStop(): Unit = {
-    println(s"SendMessageActor --> switch off")
     Try {
       messageProducer.close()
-      println(s"SendMessageActor --> postStop closed normally.")
+      logger.trace(s"postStop. messageProducer closed normally. actorGroupID(${actorGroupID.toString})")
     }
   }
 
 
   override def receive: Receive = {
-    case m: Message =>
-      println(s"SendMessageActor --> Message to send: $m")
-      messageProducer.send(new ProducerRecord[String, Message](m.chatId, m))
+    case m: (User, Message) =>
+      logger.trace(s"receive. Message to send: $m. actorGroupID(${actorGroupID.toString})")
+      messageProducer.send(new ProducerRecord[User, Message](m._2.chatId, m._1, m._2))
   }
 
 

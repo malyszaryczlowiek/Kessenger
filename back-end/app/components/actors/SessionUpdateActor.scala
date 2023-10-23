@@ -3,37 +3,40 @@ package components.actors
 
 import akka.actor._
 import play.api.db.Database
+
 import scala.concurrent.{ExecutionContext, Future}
-
 import components.db.DbExecutor
+import conf.KafkaConf
 import io.github.malyszaryczlowiek.kessengerlibrary.model.SessionInfo
-import io.github.malyszaryczlowiek.kessengerlibrary.kafka.configurators.KafkaProductionConfigurator
+import org.slf4j.LoggerFactory
+import ch.qos.logback.classic.{Level, Logger}
 
-
+import java.util.UUID
 
 
 object SessionUpdateActor {
 
-  def props(db: Database, dbec: ExecutionContext): Props =
-    Props(new SessionUpdateActor(db, dbec))
+  def props(db: Database, dbec: ExecutionContext, actorGroupID: UUID)(implicit configurator: KafkaConf): Props =
+    Props(new SessionUpdateActor(db, dbec, actorGroupID))
 
 }
 
-class SessionUpdateActor(db: Database, dbec: ExecutionContext) extends Actor{
+class SessionUpdateActor(db: Database, dbec: ExecutionContext, actorGroupID: UUID)(implicit configurator: KafkaConf) extends Actor{
 
-  println(s"SessionUpdateActor --> started.")
+  private val logger: Logger = LoggerFactory.getLogger(classOf[SessionUpdateActor]).asInstanceOf[Logger]
+  logger.trace(s"SessionUpdateActor. Starting actor. actorGroupID(${actorGroupID.toString})")
 
 
   override def postStop(): Unit = {
-    println(s"SessionUpdateActor --> switch off")
+    logger.trace(s"postStop. Stopping actor. actorGroupID(${actorGroupID.toString})")
   }
 
   override def receive: Receive = {
-    case sessionData: SessionInfo  =>
-      println(s"SessionUpdateActor --> GOT SESSION UPDATE.")
+    case sessionData: SessionInfo =>
+      logger.trace(s"receive. Updating session info. actorGroupID(${actorGroupID.toString})")
       Future {
         db.withConnection( implicit connection => {
-          val dbExecutor = new DbExecutor(new KafkaProductionConfigurator)
+          val dbExecutor = new DbExecutor(configurator)
           dbExecutor.updateSession(sessionData.sessionId, sessionData.userId, sessionData.validityTime)
           // dbExecutor.removeAllExpiredUserSessions(sessionData.userId, sessionData.validityTime)
         })

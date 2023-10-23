@@ -1,6 +1,7 @@
 -- CREATE DATABASE with user information
 CREATE TABLE IF NOT EXISTS users (
   user_id uuid DEFAULT gen_random_uuid () UNIQUE,
+  user_num_id BIGSERIAL NOT NULL UNIQUE, -- added for spark graphx analyser, works as vertex id
   login varchar(255) UNIQUE,
   pass  varchar(255) NOT NULL,
   PRIMARY KEY (user_id, login)
@@ -61,14 +62,49 @@ CREATE TABLE IF NOT EXISTS logging_attempts (
 
 
 
+CREATE TABLE IF NOT EXISTS page_ranks (
+  user_num_id BIGSERIAL REFERENCES users(user_num_id) ON DELETE CASCADE,
+  page_rank   REAL      DEFAULT 0.0 NOT NULL
+);
+
+
+
+
 -- add two users to db only for some tests
 -- in db we store truncated hashed password
 INSERT INTO users (user_id, login, pass) VALUES ( 'c8b8c9e6-8cb5-4e5c-86b3-84f55f012172', 'Walo',    '5gK1Ve3u3CosziY2B6ZUi8bffjEigTe'); -- password Password1!  salt: $2a$10$8K1p/a0dL1LXMIgoEDFrwO
 INSERT INTO users (user_id, login, pass) VALUES ( '7246bdb7-d4af-4195-a011-d82b13845580', 'Spejson', 'R0fLJZOJj.79gepc.MnAVSlFpq6cY16'); -- password Password2!
-INSERT INTO settings (user_id, zone_id) VALUES  ( 'c8b8c9e6-8cb5-4e5c-86b3-84f55f012172', 'Europe/Warsaw');
-INSERT INTO settings (user_id, zone_id) VALUES  ( '7246bdb7-d4af-4195-a011-d82b13845580', 'Europe/Warsaw');
+INSERT INTO settings (user_id, zone_id)  VALUES ( 'c8b8c9e6-8cb5-4e5c-86b3-84f55f012172', 'Europe/Warsaw');
+INSERT INTO settings (user_id, zone_id)  VALUES ( '7246bdb7-d4af-4195-a011-d82b13845580', 'Europe/Warsaw');
 
--- salt $2a$10$8K1p/a0dL1LXMIgoEDFrwO
+
+
+
+
+-- tables for analysis
+
+--CREATE TABLE IF NOT EXISTS avg_server_delay (
+--  window_start timestamp NOT NULL,
+--  window_end   timestamp NOT NULL,
+--  delay        BIGINT    NOT NULL
+--);
+--
+--CREATE TABLE IF NOT EXISTS avg_server_delay_by_user (
+--  window_start  timestamp    NOT NULL,
+--  window_end    timestamp    NOT NULL,
+--  user_id       varchar(255) NOT NULL,
+--  delay_by_user BIGINT       NOT NULL
+--);
+--
+--CREATE TABLE IF NOT EXISTS avg_server_delay_by_zone (
+--  window_start  timestamp    NOT NULL,
+--  window_end    timestamp    NOT NULL,
+--  zone_id       varchar(255) NOT NULL,
+--  delay_by_user BIGINT       NOT NULL
+--);
+
+
+
 
 
 -- to check execution open bash in container

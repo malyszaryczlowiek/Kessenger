@@ -6,7 +6,6 @@ import { CookieService } from 'ngx-cookie-service';
 
 import { AppRoutingModule } from './app-routing.module';
 import { AppComponent } from './app.component';
-import { FooComponent } from './components/foo/foo.component';
 import { MainComponent } from './components/main/main/main.component';
 import { SigninComponent } from './components/main/signin/signin.component';
 import { SignupComponent } from './components/main/signup/signup.component';
@@ -22,23 +21,15 @@ import { ChatPanelComponent } from './components/user/chat/chat-panel/chat-panel
 import { SendMessageComponent } from './components/user/chat/send-message/send-message.component';
 import { MessageListComponent } from './components/user/chat/message-list/message-list.component';
 import { MessageItemComponent } from './components/user/chat/message-item/message-item.component';
-import { FirstComponent } from './components/dummy/first/first.component';
-import { SecondComponent } from './components/dummy/second/second.component';
-import { InnerComponent } from './components/dummy/inner/inner.component';
-import { ChildAComponent } from './components/dummy/child-a/child-a.component';
-import { ChildBComponent } from './components/dummy/child-b/child-b.component';
-import { WebsocketComponent } from './components/dummy/websocket/websocket.component';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { SelectChatComponent } from './components/user/chat/select-chat/select-chat.component';
 import { SessionTimeoutComponent } from './components/session-timeout/session-timeout.component';
-import { TestComponent } from './components/dummy/test/test.component';
 import { ChatComponent } from './components/user/chat/chat/chat.component';
 import { RootComponent } from './components/root/root.component';
 
 @NgModule({
   declarations: [
     AppComponent,
-    FooComponent,
     MainComponent,
     SigninComponent,
     SignupComponent,
@@ -54,15 +45,8 @@ import { RootComponent } from './components/root/root.component';
     SendMessageComponent,
     MessageListComponent,
     MessageItemComponent,
-    FirstComponent,
-    SecondComponent,
-    InnerComponent,
-    ChildAComponent,
-    ChildBComponent,
-    WebsocketComponent,
     SelectChatComponent,
     SessionTimeoutComponent,
-    TestComponent,
     ChatComponent,
     RootComponent
   ],

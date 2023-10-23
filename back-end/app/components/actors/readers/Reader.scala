@@ -6,7 +6,7 @@ import org.apache.kafka.clients.consumer.KafkaConsumer
 
 trait Reader {
 
-  protected def initializeConsumer[A](consumer: KafkaConsumer[String, A]): Unit
+  protected def initializeConsumer[K,V](consumer: KafkaConsumer[K, V]): Unit
 
   def startReading(): Unit
 

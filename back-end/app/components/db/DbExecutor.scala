@@ -1,11 +1,11 @@
 package components.db
 
+import conf.KafkaConf
 import io.github.malyszaryczlowiek.kessengerlibrary.db.queries._
 import io.github.malyszaryczlowiek.kessengerlibrary.db.queries.ERROR
 import io.github.malyszaryczlowiek.kessengerlibrary.domain.Domain
 import io.github.malyszaryczlowiek.kessengerlibrary.model.{Chat, PartitionOffset, SessionInfo, Settings, User}
 import io.github.malyszaryczlowiek.kessengerlibrary.domain.Domain.{ChatId, ChatName, DbResponse, Login, Offset, Partition, Password, UserID}
-import io.github.malyszaryczlowiek.kessengerlibrary.kafka.configurators.KafkaConfigurator
 
 import java.sql.{Connection, PreparedStatement, ResultSet, Savepoint, Statement}
 import java.time.ZoneId
@@ -17,7 +17,7 @@ import scala.util.{Failure, Success, Try, Using}
 
 
 
-class DbExecutor(val kafkaConfigurator: KafkaConfigurator) {
+class DbExecutor(val kafkaConfigurator: KafkaConf) {
 
 
   def createUser(user: User, pass: Password, settings: Settings, sessionData: SessionInfo)(implicit connection: Connection): DbResponse[Int] = {
@@ -756,7 +756,7 @@ class DbExecutor(val kafkaConfigurator: KafkaConfigurator) {
 
 
 
-  def createGroupChat(me: User, users: List[UUID], chatId: ChatId, chatName: ChatName )(implicit connection: Connection): DbResponse[Map[Chat,Map[Int, Long]]] = {
+  private def createGroupChat(me: User, users: List[UUID], chatId: ChatId, chatName: ChatName )(implicit connection: Connection): DbResponse[Map[Chat,Map[Int, Long]]] = {
     val listSize = users.length
     if (listSize < 2)
       Left(QueryError(ERROR, AtLeastTwoUsers))
@@ -1061,9 +1061,9 @@ class DbExecutor(val kafkaConfigurator: KafkaConfigurator) {
     else if (ex.getMessage.toLowerCase.contains("timeout")) {
       Left(QueryError(ERROR, TimeOutDBError))
     }
-    else if (ex.getMessage == "Incorrect login or password") {
-      Left(QueryError(ERROR, IncorrectLoginOrPassword))
-    }
+//    else if (ex.getMessage == "Incorrect login or password") {
+//      Left(QueryError(ERROR, IncorrectLoginOrPassword))
+//    }
     else if (ex.getMessage.contains("duplicate key value violates unique constraint")
       || ex.getMessage == "Data processing error."
       || ex.getMessage.contains("violates foreign key constraint")) {
@@ -1074,26 +1074,6 @@ class DbExecutor(val kafkaConfigurator: KafkaConfigurator) {
   }
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-  /**
-   * DEPRECATED METHODS
-   */
-
-  @deprecated(s"use getUserData() instead")
   def findMyChats(userUUID: UserID)(implicit connection: Connection): DbResponse[Map[Chat, Map[Partition, Offset]]] = {
     val numOfPartitions = kafkaConfigurator.CHAT_TOPIC_PARTITIONS_NUMBER
     val range = 0 until numOfPartitions
@@ -1150,6 +1130,20 @@ class DbExecutor(val kafkaConfigurator: KafkaConfigurator) {
       case Success(either) => either
     }
   }
+
+
+
+
+
+
+
+
+
+
+  /**
+   * DEPRECATED METHODS
+   */
+
 
 
   @deprecated

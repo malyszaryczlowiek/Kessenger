@@ -1,8 +1,13 @@
-import { Component, EventEmitter, OnDestroy, OnInit } from '@angular/core';
+import { Component, OnDestroy, OnInit } from '@angular/core';
 import { Subscription } from 'rxjs';
-import { ChatData } from 'src/app/models/ChatData';
+// serivces
+import { ChatsDataService } from 'src/app/services/chats-data.service';
+import { ConnectionService } from 'src/app/services/connection.service';
 import { ResponseNotifierService } from 'src/app/services/response-notifier.service';
-import { UserService } from 'src/app/services/user.service';
+// models
+import { ChatData } from 'src/app/models/ChatData';
+
+
 
 @Component({
   selector: 'app-chat',
@@ -11,26 +16,39 @@ import { UserService } from 'src/app/services/user.service';
 })
 export class ChatComponent implements OnInit, OnDestroy {
 
-  chats: ChatData[] = new Array<ChatData>()
-  fetchingSubscription: Subscription | undefined
+  // chats: ChatData[] = new Array<ChatData>()
+  chatListSubscription:             Subscription | undefined
+  // subscribe initalization finished
+  initalizationSubscription:        Subscription | undefined
   
+  
+  constructor(private chatService: ChatsDataService,   
+      private connectionService: ConnectionService, 
+      private responseNotifier: ResponseNotifierService) { }
 
 
-  constructor(private userService: UserService, private responseNotifier: ResponseNotifierService) { }
 
   ngOnInit(): void {
-    // tutaj // sprawdzić czy nie można zostawić samego fetchowania danych przez poniższy emmiter. 
-    // i tylko użyć if (this.userService.isWSconnected() ) this.userService.dataFetched()
-    this.fetchingSubscription = this.userService.fetchingUserDataFinishedEmmiter.subscribe( (c) => {
-        if (c == 1 || c == 2) { 
-          console.log('ChatComponent fetched data from UserService via fetchEmmiter.')
-          this.chats = this.userService.getAllChats()
-        }
+    console.log('ChatComponent.ngOnInit()')
+    /* this.chatListSubscription = this.chatService.updateChatListEmmiter.subscribe(
+      (n) => {
+        console.log('ChatComponent.chatListSubscription -> fetched chat list from ChatDataService via updateChatListEmmiter ')
+        this.chats = this.chatService.chatAndUsers
       }
     )
 
-    if ( this.userService.getAllChats().length == 0 ) {
-      const c = this.userService.getChats()
+    this.initalizationSubscription = this.connectionService.serviceInitializedEmitter.subscribe(
+      (n) => {
+        console.log('ChatComponent.initalizationSubscription -> fetched chat list from ChatDataService via serviceInitializedEmitter ')
+        this.chats = this.chatService.chatAndUsers
+      }
+    )
+
+    this.chatService.updateChatList() */
+
+    /* const userId = this.chatService.user?.userId
+    if ( this.chatService.chatAndUsers.length == 0 && userId ) {
+      const c = this.connectionService.getChats( userId )
       if ( c ) {
         console.log('ChatComponent.ngOnInit() Reading chats from server...')
         c.subscribe({
@@ -38,8 +56,15 @@ export class ChatComponent implements OnInit, OnDestroy {
             if (response.status == 200) {
               const body = response.body              
               if (body) {
-                this.userService.setChats( body )
-                this.userService.connectViaWebsocket() // run websocket connection
+                this.chatService.setChats( body )
+                // if we do not have WS connection, we try to connect
+                // if ( this.connectionService.isWSconnected() ) this.connectionService.connectViaWebsocket()
+                // changed above to below command. we need to connect only when connection is undefined,
+                // otherwise connection may by in 'connecting' state. 
+                if ( this.connectionService.isWSconnectionDefined() ) this.connectionService.connectViaWebsocket()
+                // old
+                //this.userService.setChats( body )
+                //this.userService.connectViaWebsocket() // run websocket connection
               }
               else console.log('ChatComponent.ngOnInit() empty body')
             }
@@ -55,14 +80,17 @@ export class ChatComponent implements OnInit, OnDestroy {
       }
     } else {
       console.log('ChatComponent.constructor() chat data read from UserService directly')
-      this.chats = this.userService.getAllChats()
-    }
+      this.chats = this.chatService.chatAndUsers
+    } */
+
+
   }
 
 
 
   ngOnDestroy() {
-    if ( this.fetchingSubscription ) this.fetchingSubscription.unsubscribe()
+    if ( this.chatListSubscription )      this.chatListSubscription.unsubscribe()
+    if ( this.initalizationSubscription ) this.initalizationSubscription.unsubscribe()
     console.log('ChatComponent.ngOnDestroy()')
   }
 

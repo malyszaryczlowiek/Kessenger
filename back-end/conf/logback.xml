@@ -1,42 +1,147 @@
 <!-- https://www.playframework.com/documentation/latest/SettingsLogger -->
-<configuration>
+<configuration  > <!-- scan="true" scanPeriod="20 seconds" -->
 
   <conversionRule conversionWord="coloredLevel" converterClass="play.api.libs.logback.ColoredLevel" />
 
-  <appender name="FILE" class="ch.qos.logback.core.FileAppender">
-    <file>${application.home:-.}/logs/application.log</file>
-    <encoder>
-      <charset>UTF-8</charset>
-      <pattern>
-        %d{yyyy-MM-dd HH:mm:ss} %highlight(%-5level) %cyan(%logger{36}) %magenta(%X{akkaSource}) %msg%n
-      </pattern>
-    </encoder>
-  </appender>
+  <!-- DOCUMENTATION -->
+  <!-- https://www.playframework.com/documentation/2.8.x/SettingsLogger -->
+  <!-- https://logback.qos.ch/manual/index.html -->
+  <!-- https://www.baeldung.com/logback -->
 
-  <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
-    <withJansi>true</withJansi>
-    <encoder>
-      <charset>UTF-8</charset>
-      <pattern>
-        %d{yyyy-MM-dd HH:mm:ss} %highlight(%-5level) %cyan(%logger{36}) %magenta(%X{akkaSource}) %msg%n
-      </pattern>
-    </encoder>
-  </appender>
 
-  <appender name="ASYNCFILE" class="ch.qos.logback.classic.AsyncAppender">
-    <appender-ref ref="FILE" />
-  </appender>
 
-  <appender name="ASYNCSTDOUT" class="ch.qos.logback.classic.AsyncAppender">
-    <appender-ref ref="STDOUT" />
-  </appender>
+  <if condition='property("KESSENGER_LOGBACK_ENV").equals("PROD")'>
+    <then>
+      <!-- Here prod configuration -->
 
-  <logger name="play" level="INFO" />
-  <logger name="application" level="DEBUG" />
+      <appender name="FILE" class="ch.qos.logback.core.FileAppender">
+        <file>/var/logs/application.log</file>
+<!--        <file>${application.home:-.}/logs/application.log</file>-->
+        <encoder>
+        <charset>UTF-8</charset>
+        <pattern>
+          %d{yyyy-MM-dd HH:mm:ss} %-5level [%thread] %logger{36}  %X{akkaSource} %msg%n%xException{100}
+        </pattern>
+        </encoder>
+      </appender>
 
-  <root level="WARN">
-    <appender-ref ref="ASYNCFILE" />
-    <appender-ref ref="ASYNCSTDOUT" />
-  </root>
+      <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+        <withJansi>true</withJansi>
+        <encoder>
+          <charset>UTF-8</charset>
+          <pattern>
+            %d{yyyy-MM-dd HH:mm:ss} %highlight(%-5level) %cyan(%logger{36}) %magenta(%X{akkaSource}) %msg%n
+          </pattern>
+        </encoder>
+      </appender>
+
+      <appender name="ASYNCFILE" class="ch.qos.logback.classic.AsyncAppender">
+        <appender-ref ref="FILE" />
+      </appender>
+
+      <appender name="ASYNCSTDOUT" class="ch.qos.logback.classic.AsyncAppender">
+        <appender-ref ref="STDOUT" />
+      </appender>
+
+      <logger name="play" level="WARN" />
+      <logger name="application" level="WARN" />
+
+
+
+      <!-- Root logger sends WARN and ERROR to ASYNCFILE and ASYNCSTDOUT appenders -->
+
+      <root level="WARN">
+        <appender-ref ref="ASYNCFILE" />
+        <appender-ref ref="ASYNCSTDOUT" />
+      </root>
+
+    </then>
+    <else>
+
+
+      <!-- Here dev configuration, no KESSENGER_LOGBACK_ENV env defined-->
+
+
+      <appender name="FILE" class="ch.qos.logback.core.FileAppender">
+        <file>${HOME}/kessenger/dev/logs/backend/application.log</file>
+<!--        <file>${application.home:-.}/logs/application.log</file>-->
+        <encoder>
+          <charset>UTF-8</charset>
+          <pattern>
+            %d{yyyy-MM-dd HH:mm:ss} %-5level [%thread] %logger{36}  %X{akkaSource} %msg%n%xException{100}
+          </pattern>
+        </encoder>
+      </appender>
+
+      <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+        <withJansi>true</withJansi>
+        <encoder>
+          <charset>UTF-8</charset>
+          <pattern>
+            <!-- %logger{50}.%M\(%line\) -->
+<!--            %d{yyyy-MM-dd HH:mm:ss} %highlight(%-5level) %cyan(%logger{36}.%method %line ) %magenta(%X{akkaSource}) %msg%n-->
+            %d{yyyy-MM-dd HH:mm:ss} %highlight(%-5level) %cyan(%logger{50}) %magenta(%X{akkaSource}) %msg%n
+          </pattern>
+        </encoder>
+      </appender>
+
+      <appender name="ASYNCFILE" class="ch.qos.logback.classic.AsyncAppender">
+        <appender-ref ref="FILE" />
+      </appender>
+
+      <appender name="ASYNCSTDOUT" class="ch.qos.logback.classic.AsyncAppender">
+        <appender-ref ref="STDOUT" />
+      </appender>
+
+
+      <!-- loggers -->
+
+      <logger name="play"        level="WARN" />
+      <logger name="application" level="WARN" />
+
+      <logger name="controllers.HomeController"        level="ERROR" />
+      <logger name="controllers.ChatsController"       level="TRACE" />
+      <logger name="controllers.UserController"        level="TRACE" />
+      <logger name="controllers.WebSocketController"   level="TRACE" />
+
+      <logger name="filters.KsidFilter"                level="TRACE" />
+      <logger name="util.HeadersParser"                level="TRACE" />
+
+      <logger name="components.actions.SessionChecker" level="TRACE" />
+      <logger name="components.actions.SessionUpdater" level="TRACE" />
+
+      <logger name="components.actors.ChatOffsetUpdateActor" level="TRACE" />
+      <logger name="components.actors.InvitationReaderActor" level="TRACE" />
+      <logger name="components.actors.NewMessageReaderActor" level="TRACE" />
+      <logger name="components.actors.OldMessageReaderActor" level="TRACE" />
+      <logger name="components.actors.SendMessageActor"      level="TRACE" />
+      <logger name="components.actors.SendWritingActor"      level="TRACE" />
+      <logger name="components.actors.SessionUpdateActor"    level="TRACE" />
+      <logger name="components.actors.WebSocketActor"        level="TRACE" />
+      <logger name="components.actors.WritingReaderActor"    level="TRACE" />
+
+      <logger name="components.actors.readers.InvitationReader" level="TRACE" />
+      <logger name="components.actors.readers.NewMessageReader" level="TRACE" />
+      <logger name="components.actors.readers.OldMessageReader" level="TRACE" />
+      <logger name="components.actors.readers.WritingReader"    level="TRACE" />
+
+
+
+      <!-- Root logger sends WARN and ERROR to ASYNCFILE and ASYNCSTDOUT appenders -->
+
+      <root level="WARN">
+        <appender-ref ref="ASYNCFILE" />
+        <appender-ref ref="ASYNCSTDOUT" />
+      </root>
+
+
+    </else>
+  </if>
 
 </configuration>
+
+
+
+
+
+

@@ -26,7 +26,8 @@ export class HtmlService {
 
 
   closeService() {
-    
+    if ( this.scrollInterval ) clearTimeout( this.scrollInterval )
+    if ( this.resizeInterval ) clearTimeout( this.resizeInterval )    
   }
 
 
@@ -69,7 +70,6 @@ export class HtmlService {
         if (moveDown) this.messageListScrollEventEmitter.emit('down')
         if( this.scrollInterval ) clearInterval( this.scrollInterval )
       }
-      console.log('interval')
     }, 50)
   }
 
@@ -116,12 +116,6 @@ export class HtmlService {
 
 
 
-
-
-
-
-
-
   startMessageListScrollListener() {
     const messageList = document.getElementById('messages')
     if ( messageList ) {
@@ -137,6 +131,9 @@ export class HtmlService {
       })
     }
   }
+
+  
+
 
   stopScrollEmmiter() {
     const messages = document.getElementById('messages')

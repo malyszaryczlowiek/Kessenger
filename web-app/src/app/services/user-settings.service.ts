@@ -1,11 +1,14 @@
-import { Injectable } from '@angular/core';
+import { EventEmitter, Injectable } from '@angular/core';
 import { Settings } from '../models/Settings';
-import { ConnectionService } from './connection.service';
+import { User } from '../models/User';
+
 
 @Injectable({
   providedIn: 'root'
 })
 export class UserSettingsService {
+
+  private user: User | undefined
 
   public settings: Settings = {
     joiningOffset: 0,
@@ -14,19 +17,21 @@ export class UserSettingsService {
   };
 
   public initialized = false;
-  
 
-  constructor() { 
+  // to jest emitowane tylko jak wróci info od servera, że dane ustawień zostały tam zmienione
+  // subskrybent tego powinien restartować logoutTimer, który to pobiera informację o nowych ustawieniach i na ich bazie oblicza nowy czas do logoutu
+  settingsChangeEmitter: EventEmitter<Settings> = new EventEmitter<Settings>();
 
-    // todo tutaj w konstruktorze dodać rządanie o ustawienia ???
+  constructor() { }
 
 
-  }
 
   setSettings(s: Settings) {
     this.settings = s;
     this.initialized = true
   }
+
+
 
   clearSettings() {
     this.settings = {
@@ -35,6 +40,22 @@ export class UserSettingsService {
       zoneId: "UTC"
     };
   }
+
+
+
+  initialize(user: User, settings: Settings) {
+    this.settings = settings
+    this.user = user
+  } 
+
+
+  setUser(u: User) {
+    this.user = u
+  }
+
+
+
+
 
 
   public zones = [

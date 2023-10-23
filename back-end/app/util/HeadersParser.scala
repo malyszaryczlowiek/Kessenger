@@ -1,13 +1,18 @@
 package util
 
-import io.github.malyszaryczlowiek.kessengerlibrary.model.SessionInfo
-import play.api.mvc.Results.Unauthorized
+import io.github.malyszaryczlowiek.kessengerlibrary.model.{ResponseBody, SessionInfo}
+import play.api.mvc.Results.{Accepted, Unauthorized}
 import play.api.mvc.{Request, Result}
 
 import java.util.UUID
 import scala.concurrent.Future
 
+import org.slf4j.LoggerFactory
+import ch.qos.logback.classic.Logger
+
 class HeadersParser {
+
+  private val logger: Logger = LoggerFactory.getLogger(classOf[HeadersParser]).asInstanceOf[Logger]
 
   def parseKSID(ksid: String): Option[SessionInfo] = {
     val splitted = ksid.split("__")
@@ -29,14 +34,26 @@ class HeadersParser {
       case Some(ksid) =>
         parseKSID(ksid) match {
           case Some(sessionData) =>
-            if (sessionData.userId == userId) body(request, sessionData)
-            else
-              Future.successful(Unauthorized("Error 013. Session not valid. ").discardingHeader("KSID"))
+            if (sessionData.userId == userId) {
+              logger.trace(s"KSID header parsed correctly. userId(${userId.toString})")
+              body(request, sessionData)
+            }
+            else {
+              logger.error(s"Not compatible request path with KSID header. userId(${userId.toString})")
+              Future.successful(Unauthorized(ResponseBody(13, "Unauthorized").toString()).discardingHeader("KSID"))
+            }
           case None =>
-            Future.successful(Unauthorized("Error 013. Session not valid. ").discardingHeader("KSID"))
+            logger.error(s"Parsing KSID Error. userId(${userId.toString})")
+            Future.successful(Unauthorized(ResponseBody(13, "Unauthorized").toString()).discardingHeader("KSID"))
         }
       case None =>
-        Future.successful(Unauthorized("Error 013. Session not valid. ").discardingHeader("KSID"))
+        if (request.path.contains(s"logout")) {
+          logger.info(s"Logout call without KSID header. userId(${userId.toString})")
+          Future.successful(Accepted(ResponseBody(16, s"Logout accepted without credentials.").toString).discardingHeader("KSID"))
+        } else {
+          logger.error(s"Logout call without KSID header. userId(${userId.toString})")
+          Future.successful(Unauthorized(ResponseBody(13, "Unauthorized").toString()).discardingHeader("KSID"))
+        }
     }
   }
 

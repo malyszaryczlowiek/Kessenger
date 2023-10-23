@@ -3,6 +3,9 @@ package controllers
 import javax.inject._
 import play.api._
 import play.api.mvc._
+import ch.qos.logback.classic.{Level, Logger}
+
+import org.slf4j.LoggerFactory
 
 /**
  * This controller creates an `Action` to handle HTTP requests to the
@@ -10,6 +13,14 @@ import play.api.mvc._
  */
 @Singleton
 class HomeController @Inject()(val controllerComponents: ControllerComponents) extends BaseController {
+
+  private val logger: Logger = LoggerFactory.getLogger(classOf[HomeController]).asInstanceOf[Logger]
+  // logger.setLevel(Level.TRACE)
+  logger.trace(s"LOGUJĘ :D")
+  logger.debug(s"LOGUJĘ :D")
+  logger.info(s"LOGUJĘ :D")
+  logger.warn(s"LOGUJĘ :D")
+  logger.error(s"LOGUJĘ :D")
 
   /**
    * Create an Action to render an HTML page.

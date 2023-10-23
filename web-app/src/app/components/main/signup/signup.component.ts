@@ -1,8 +1,10 @@
 import { Component, OnInit } from '@angular/core';
 import { FormControl, FormGroup, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
+// services
+import { ConnectionService } from 'src/app/services/connection.service';
 import { ResponseNotifierService } from 'src/app/services/response-notifier.service';
-import { UserService } from 'src/app/services/user.service';
+
 
 @Component({
   selector: 'app-signup',
@@ -17,12 +19,13 @@ export class SignupComponent implements OnInit {
     password: new FormControl('', [Validators.required, Validators.minLength(6)])  
   });
 
-  constructor(private userService: UserService, 
+  constructor(private connectionService: ConnectionService,
               private responseNotifier: ResponseNotifierService,
               private router: Router) { }
 
   
   
+  // nothing to do 
   ngOnInit(): void { }
 
 
@@ -32,17 +35,28 @@ export class SignupComponent implements OnInit {
     const login = this.signUpForm.value.login;
     const pass = this.signUpForm.value.password;
     if (login && pass ) {
-      const signup = this.userService.signUp(login, pass)
+      const signup = this.connectionService.signUp(login, pass)
       if ( signup ){
         signup.subscribe({
           next: (response) => {
             if (response.status === 200) {
-              this.userService.assignSubscriptions()
-              this.userService.setUserAndSettings(
-                response.body?.user,
-                response.body?.settings
-              );
-              this.userService.connectViaWebsocket()
+              const user = response.body?.user
+              const settings = response.body?.settings
+              if (user && settings) {
+                this.connectionService.initialize(
+                  user,
+                  settings,
+                  new Array() // we create new user, so no chats 
+                )
+              }
+              
+              // stare
+              //this.userService.assignSubscriptions()
+              // this.userService.setUserAndSettings(
+              //   response.body?.user,
+              //  response.body?.settings
+              // );
+              // this.userService.connectViaWebsocket()
               // after successfull request we should update KSID cookie 
               // to have correct userId
               // this.userService.updateSession()
@@ -56,10 +70,8 @@ export class SignupComponent implements OnInit {
           error: (error) => {
             this.responseNotifier.handleError(error)
             console.log(error);
-            console.log('clearing UserService.')
-            this.userService.clearService();
+            this.connectionService.disconnect() 
             this.signUpForm.reset();
-
           },
           complete: () => {}
         })  

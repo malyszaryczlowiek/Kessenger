@@ -1,9 +1,9 @@
-import { Component, EventEmitter, OnInit, Output } from '@angular/core';
+import { Component, OnInit } from '@angular/core';
 import { FormControl, FormGroup, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
-import { LoadBalancerService } from 'src/app/services/load-balancer.service';
+// services
+import { ConnectionService } from 'src/app/services/connection.service';
 import { ResponseNotifierService } from 'src/app/services/response-notifier.service';
-import { UserService } from 'src/app/services/user.service';
 
 @Component({
   selector: 'app-signin',
@@ -14,13 +14,14 @@ export class SigninComponent implements OnInit {
  
   signInForm = new FormGroup({
     login: new FormControl('', [Validators.required, Validators.minLength(4)]),
-    password: new FormControl('', [Validators.required, Validators.minLength(6)])  //  todo dodać walidatory
+    password: new FormControl('', [Validators.required, Validators.minLength(6)])  //  todo add validators
   }); 
   
   // @Output() errorMessageEmitter: EventEmitter<string> = new EventEmitter<string>()
 
 
-  constructor(private userService: UserService, 
+  constructor(
+              private connectionService: ConnectionService,
               private responseNotifier: ResponseNotifierService,
               // private loadBalancer: LoadBalancerService,
               private router: Router) { }
@@ -39,7 +40,8 @@ export class SigninComponent implements OnInit {
 
 
   private signIn(login: string, pass: string) {
-    const signin = this.userService.signIn(login, pass)
+    const signin = this.connectionService.signIn(login, pass)
+    // const signin = this.userService.signIn(login, pass)
     if ( signin ){
       signin.subscribe({
         next: (response) => {
@@ -47,7 +49,17 @@ export class SigninComponent implements OnInit {
 
             const body = response.body
             if ( body ) {
-              this.userService.assignSubscriptions()
+              this.connectionService.initialize(
+                body.user,
+                body.settings,
+                body.chatList
+              )
+              this.router.navigate(['user']);
+              
+              
+              // old
+
+              /* this.userService.assignSubscriptions()
               this.userService.setUserAndSettings(
                 body.user,
                 body.settings
@@ -57,10 +69,9 @@ export class SigninComponent implements OnInit {
               this.userService.updateSession(false)
               this.userService.setChats( body.chatList )
               // this.userService.connectViaWebsocket() ttt
-              this.router.navigate(['user']);
+              this.router.navigate(['user']); */
             }              
           } else {
-            
           }            
         },
         error: (error) => {
@@ -74,9 +85,13 @@ export class SigninComponent implements OnInit {
           else { */
             this.responseNotifier.handleError(error)                                  
             console.log(error)
-            console.log('clearing UserService.')
-            this.userService.clearService();
+            this.connectionService.disconnect()
             this.signInForm.reset();
+
+
+            // old
+            // this.userService.clearService();
+            // this.signInForm.reset();
           //}          
         },
         complete: () => {}

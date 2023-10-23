@@ -1,23 +1,25 @@
 import { EventEmitter, Injectable } from '@angular/core';
+import { Router } from '@angular/router';
+import { HttpResponse } from '@angular/common/http';
 import { Observable, Subscription } from 'rxjs';
+// services
 import { ConnectionService } from './connection.service';
-// import { v4 as uuidv4 } from 'uuid';
+import { UserSettingsService } from './user-settings.service';
+import { ChatsDataService } from './chats-data.service';
+import { ResponseNotifierService } from './response-notifier.service';
+// models
 import { Message} from '../models/Message';
 import { User } from '../models/User';
-import { Router } from '@angular/router';
 import { ChatData } from '../models/ChatData';
 import { Settings } from '../models/Settings';
-import { HttpResponse } from '@angular/common/http';
-import { UserSettingsService } from './user-settings.service';
-import { Invitation } from '../models/Invitation';
+// import { Invitation } from '../models/Invitation';
 import { Chat } from '../models/Chat';
-import { ChatsDataService } from './chats-data.service';
 import { Configuration } from '../models/Configuration';
 import { ChatOffsetUpdate } from '../models/ChatOffsetUpdate';
 import { Writing } from '../models/Writing';
 import { PartitionOffset } from '../models/PartitionOffset';
 import { UserOffsetUpdate } from '../models/UserOffsetUpdate';
-import { ResponseNotifierService } from './response-notifier.service';
+// import { v4 as uuidv4 } from 'uuid';
 
 
 @Injectable({
@@ -29,45 +31,61 @@ export class UserService {
   user: User | undefined;
 
   /* codes:
-  0. do not update data
+  0. do not update chat list and chatPanel
   1. update both, chat list and chatPanel
   2. update chat list
   3. update chatPanel 
   */
-  fetchingUserDataFinishedEmmiter = new EventEmitter<number>() 
+  // here // ten emmiter trzeba przenieść do chat-service
+  
 
-  logoutTimer: NodeJS.Timeout | undefined;
-  logoutSeconds: number = this.settingsService.settings.sessionDuration / 1000    // number of seconds to logout
-  logoutSecondsEmitter: EventEmitter<number>   = new EventEmitter()
-  logoutSubscription:   Subscription | undefined
+  // fetchingUserDataFinishedEmmiter = new EventEmitter<number>() 
+  
+
+  //logoutTimer: NodeJS.Timeout | undefined;
+  // logoutSeconds: number = this.settingsService.settings.sessionDuration / 1000    // number of seconds to logout
+  // logoutSecondsEmitter: EventEmitter<number>   = new EventEmitter()
+  
 
   selectedChatEmitter:  EventEmitter<ChatData> = new EventEmitter<ChatData>()
 
-  newMessagesSubscription:  Subscription | undefined
-  oldMessagesSubscription:  Subscription | undefined
-  invitationSubscription:   Subscription | undefined
+  logoutSubscription:           Subscription | undefined
+  // newMessagesSubscription:      Subscription | undefined
+  // oldMessagesSubscription:      Subscription | undefined
+  // invitationSubscription:       Subscription | undefined
 
-  restartWSSubscription:    Subscription | undefined
-  wsConnectionSubscription: Subscription | undefined
-  reconnectWSTimer:       NodeJS.Timeout | undefined
+  // restartWSSubscription:        Subscription | undefined
+   wsConnectionSubscription:     Subscription | undefined
+  
+  // usunąłem
+  // chatOffsetUpdateSubscription: Subscription | undefined
+
+  // reconnectWSTimer:           NodeJS.Timeout | undefined
 
 
 
 
-
-  constructor(private connection: ConnectionService, 
+/*
+private connection: ConnectionService, 
               private chatsService: ChatsDataService,
               private settingsService: UserSettingsService, 
               private responseNotifier: ResponseNotifierService,
-              private router: Router) { 
+              private router: Router
+*/
+  constructor() { 
 
-    console.log('UserService constructor called.')
+/*     console.log('UserService constructor called.')
     this.assignSubscriptions()
     const userId = this.connection.getUserId();
     if ( userId ) {
       this.updateSessionViaUserId( userId )
       console.log('Session is valid.') 
-      // we get user's settings 
+      // we get user's settings j
+
+
+      tutaj // przenieść to wywołanie connection do signin ???
+
+
       const s = this.connection.user( userId )
       if ( s ) {
         s.subscribe({
@@ -78,7 +96,7 @@ export class UserService {
               this.setUserAndSettings(body.user, body.settings)
               this.logoutSeconds = this.settingsService.settings.sessionDuration / 1000
               this.restartLogoutTimer()
-              this.chatsService.initialize( body.chatList, body.user.login )
+              this.chatsService.initialize( body.chatList, body.user )
               this.connectViaWebsocket() 
             }
             else {
@@ -95,28 +113,33 @@ export class UserService {
         })
       }
     } else this.router.navigate([''])
-
+ */
   }
 
 
-
+/*   initialize( user: User) {
+    this.user = user
+  }
+ */
 
   assignSubscriptions() {
-    if ( ! this.newMessagesSubscription ) {
+    /* if ( ! this.newMessagesSubscription ) {
       this.newMessagesSubscription = this.connection.newMessagesEmitter.subscribe(
         (messageList: Message[]) => {
-          this.chatsService.insertNewMessages( messageList )
-          this.dataFetched( 1 ) // both
-          // this.dataFetched( this.chats.insertNewMessages( messageList ) ) 
+          let code = this.chatsService.insertNewMessages( messageList )
+
+          // error // tutaj należy wstawić wysyłanie chat offset update, 
+
+          this.dataFetched( code ) 
         },
         (error) => {
           console.log('Error in message emitter: ', error)
         },
         () => console.log('on message emitter completed.')
       )
-    }
+    } */
 
-    if ( ! this.oldMessagesSubscription ) {
+/*     if ( ! this.oldMessagesSubscription ) {
       this.oldMessagesSubscription = this.connection.oldMessagesEmitter.subscribe(
         (messageList: Message[]) => {
           console.log(`old messages from emitter: ${messageList}`)
@@ -129,8 +152,10 @@ export class UserService {
         () => console.log('on message emitter completed.')
       ) 
     }
-
-    if (! this.invitationSubscription ) {
+ */
+    
+    
+/*     if (! this.invitationSubscription ) {
       this.invitationSubscription = this.connection.invitationEmitter.subscribe(
         (invitation: Invitation) => {
           const c = this.getChatData( invitation.chatId )
@@ -151,6 +176,7 @@ export class UserService {
                     }
                     this.addNewChat( cd ) 
                     this.startListeningFromNewChat( cd.chat.chatId, cd.partitionOffsets )
+                    
                     this.dataFetched( 2 ) 
   
                     if ( this.user ) {
@@ -190,10 +216,10 @@ export class UserService {
         },
         () => {} 
       )
-    }
+    } */
 
 
-    if (! this.restartWSSubscription ) {
+/*     if (! this.restartWSSubscription ) {
       this.restartWSSubscription = this.connection.restartWSEmitter.subscribe(
         (r: boolean) => {
           // if we get true we need to start timer end trying to reconnect
@@ -216,30 +242,54 @@ export class UserService {
           }
         }
       )
-    }
+    } */
 
-    if ( ! this.wsConnectionSubscription ) {
+
+
+/*     if ( ! this.wsConnectionSubscription ) {
       // here we simply notify that all needed data are loaded
       // and WS connection is established 
       // so all fetching sobscribers can load data. 
       this.wsConnectionSubscription = this.connection.wsConnEmitter.subscribe(
         ( bool ) => { 
           if ( this.chatsService.selectedChat ) {
-            this.fetchOlderMessages( this.chatsService.selectedChat )
+            this.chatsService.fetchOlderMessages( this.chatsService.selectedChat )
           } else console.error('selected chat is not selected. ')
           this.dataFetched( 1 ) 
         }
       )
-    }
+    } */
 
-    if ( ! this.logoutSubscription ) {
+
+
+    /* if ( ! this.logoutSubscription ) {
       this.logoutSubscription = this.responseNotifier.logoutEmitter.subscribe(
         (anyy) => {
           this.clearService()
           this.router.navigate(['session-timeout'])
         }
       )
-    }
+    } */
+
+
+    // usunąłem
+    // to będzie do usunięcia bo w chatservice będą wysyłane wszelkie updaty do chatoffsetu
+    /* if ( ! this.chatOffsetUpdateSubscription ) {
+      this.chatOffsetUpdateSubscription = this.chatsService.updateChatOffsetEmmiter.subscribe(
+        ( update ) => {
+          const uid = this.user?.userId
+          if ( uid ) {
+            const chatOffsetUpdate: ChatOffsetUpdate = {
+              userId:           uid,
+              chatId:           update.chatId,
+              lastMessageTime:  update.lastMessageTime,
+              partitionOffsets: update.partitionOffsets 
+            } 
+            this.connection.sendChatOffsetUpdate( chatOffsetUpdate )
+          }          
+        }
+      )
+    } */
 
 
   }
@@ -253,7 +303,7 @@ export class UserService {
   // settings service
   // connection service
   
-  clearService() {
+/*   clearService() {
     this.user = undefined;
     this.chatsService.clear() 
     this.settingsService.clearSettings();
@@ -265,18 +315,18 @@ export class UserService {
       this.restartWSSubscription.unsubscribe()
       this.restartWSSubscription = undefined
     }
-    if (this.reconnectWSTimer) clearInterval(this.reconnectWSTimer)  
+    if (this.reconnectWSTimer) clearInterval(this.reconnectWSTimer)
     this.connection.disconnect();  
     if (this.logoutTimer) clearInterval(this.logoutTimer)  
-    if (this.newMessagesSubscription) {
+     if (this.newMessagesSubscription) {
       this.newMessagesSubscription.unsubscribe()
       this.newMessagesSubscription = undefined
-    }
-    if (this.oldMessagesSubscription) {
+    } 
+     if (this.oldMessagesSubscription) {
       this.oldMessagesSubscription.unsubscribe()
       this.oldMessagesSubscription = undefined
     }
-    if (this.invitationSubscription)  {
+     if (this.invitationSubscription)  {
       this.invitationSubscription.unsubscribe()
       this.invitationSubscription = undefined
     }
@@ -284,28 +334,34 @@ export class UserService {
       this.logoutSubscription.unsubscribe()
       this.logoutSubscription = undefined
     }
+    // usunąłęm
+    if ( this.chatOffsetUpdateSubscription ) {
+      this.chatOffsetUpdateSubscription.unsubscribe()
+      this.chatOffsetUpdateSubscription = undefined
+    }
     this.logoutTimer = undefined
     this.logoutSeconds = this.settingsService.settings.sessionDuration / 1000
     console.log('UserService clearservice')
-  }
+  } */
 
 
 
 
 
 
-  setUserAndSettings(u: User | undefined, s: Settings | undefined) {
+/*   setUserAndSettings(u: User | undefined, s: Settings | undefined) {
     if (u) {
       this.user = u;
       this.connection.setUserId( this.user.userId )
     }
     if (s) this.settingsService.setSettings(s);
-  }
+  } */
 
   
 
 
-  restartLogoutTimer() {
+  // moved to logout service 
+/*   restartLogoutTimer() {
     this.logoutSeconds = this.settingsService.settings.sessionDuration / 1000
     if (this.logoutTimer) {}
     else {
@@ -321,90 +377,102 @@ export class UserService {
       }, 1000)
     }
   }
+ */
 
 
 
-  updateSession(sendUpdateToServer: boolean) {
+/*   updateSession(sendUpdateToServer: boolean) {
     if (this.user) {
       this.connection.updateSession(sendUpdateToServer)
       //this.connection.updateSession(this.user.userId);
       this.restartLogoutTimer()
     }
   }
-
+ */
   
 
-
+/* 
   updateSessionViaUserId(userId: string) {
     this.connection.updateSession(false)
     //this.connection.updateSession(userId);
     this.restartLogoutTimer()
-  }
+  } */
 
 
 
 
-  isSessionValid(): boolean {
+/*   isSessionValid(): boolean {
     return this.connection.isSessionValid();
-  }
+  } */
 
 
 
-
-  dataFetched(code: number) {
+// do usunięcia
+/*   dataFetched(code: number) {
     this.fetchingUserDataFinishedEmmiter.emit( code )
   }
+ */
 
 
-
-
+/* 
   getAllChats() {
     return this.chatsService.chatAndUsers
-  }
+  } */
 
 
-
+/* 
   addNewChat(c: ChatData) {
     this.chatsService.addNewChat(c)
-  }
+  } */
 
 
-
+/* 
   setChats(chats: ChatData[]) {
     if (this.user) {
-      this.chatsService.initialize( chats, this.user.userId ) 
+      this.chatsService.initialize( chats, this.user ) 
     }    
-  }
+  } */
 
 
-
-  changeChat(chatD: ChatData) {
+  // sprawdzić gdzie używane i wywołać z chat-service zamiast stąd
+/*   changeChat(chatD: ChatData) {
     this.chatsService.changeChat(chatD)
     this.dataFetched( 1 )
   }
+ */
 
 
-
-  deleteChat(c: ChatData){
+  // użyć metody z chat-service
+/*   deleteChat(c: ChatData){
     this.chatsService.deleteChat(c)
     this.dataFetched( 1 )
   }
+ */
 
-  selectChat(chatId: string | undefined) {
+
+
+  /*   selectChat(chatId: string | undefined) {
     this.chatsService.selectChat(chatId)
   }
+ */
 
-
-  insertChatUsers(chatId: string, u: User[]) {
+  
+/*   insertChatUsers(chatId: string, u: User[]) {
     this.chatsService.insertChatUsers(chatId, u)
   }
+ */
 
-
-  updateLogin(newLogin: string) {
+  /* updateLogin(newLogin: string) {
     if (this.user) this.user.login = newLogin
-  }
+  } */
 
-  markMessagesAsRead(chatId: string): ChatData | undefined {
+
+
+  // error // zbadać tę metodę czy jest zawsze wywoływana wtedy kiedy trzeba. 
+  
+
+  // do przeniesienia do chat-serivce
+/*   markMessagesAsRead(chatId: string): ChatData | undefined {
     const cd = this.chatsService.markMessagesAsRead(chatId)
     if ( this.user && cd ) {
       if ( cd.num > 0 ) {
@@ -420,13 +488,11 @@ export class UserService {
       return cd.cd
     } else return undefined   
   }
+ */
 
 
 
 
-  getWritingEmmiter() {
-    return this.connection.writingEmitter
-  }
 
 
 
@@ -436,21 +502,21 @@ export class UserService {
 
 
 
-  signUp(log: string, pass: string): Observable<HttpResponse<{user: User, settings: Settings}>> | undefined {
+  /* signUp(log: string, pass: string): Observable<HttpResponse<{user: User, settings: Settings}>> | undefined {
     return this.connection.signUp(log, pass);
-  }
+  } */
 
 
 
 
-  signIn(login: string, pass: string): Observable<HttpResponse<{user: User, settings: Settings, chatList: Array<ChatData>}>> | undefined {
+  /* signIn(login: string, pass: string): Observable<HttpResponse<{user: User, settings: Settings, chatList: Array<ChatData>}>> | undefined {
     return this.connection.signIn(login, pass);
-  }
+  } */
 
 
 
 
-  logout() {
+  /* logout() {
     const l = this.connection.logout();
     if ( l ) l.subscribe({
       next: (response) => {
@@ -464,134 +530,141 @@ export class UserService {
     this.clearService();
     this.router.navigate(['']);
   }
+ */
+
 
 
 
   // unused
-  getUser(): Observable<HttpResponse<{user: User, settings: Settings}>> | undefined {
+  /* getUser(): Observable<HttpResponse<{user: User, settings: Settings}>> | undefined {
     if (this.user){ 
       this.updateSession(false)
       return this.connection.user(this.user.userId)
     }
     else 
       return undefined
-  }
+  } */
 
 
 
-  updateJoiningOffset(body: UserOffsetUpdate) {
+  /* updateJoiningOffset(body: UserOffsetUpdate) {
     if (this.user){ 
       this.updateSession(false)
       return this.connection.updateJoiningOffset(this.user.userId, body)
     }
     else 
       return undefined
-  }
+  } */
 
 
 
-  changeSettings(s: Settings): Observable<HttpResponse<any>> | undefined {
+  /* changeSettings(s: Settings): Observable<HttpResponse<any>> | undefined {
     if (this.user)  {
       this.updateSession(false)
-      return this.connection.changeSettings(this.user.userId, s)
+      return this.connection.changeSettings( s)
     }      
     else 
       return undefined
-  }
+  } */
 
 
 
-  changeLogin(newLogin: string): Observable<HttpResponse<any>> | undefined {
+/*   changeLogin(newLogin: string): Observable<HttpResponse<any>> | undefined {
     if (this.user) {
       this.updateSession(false)
       return this.connection.changeLogin(this.user.userId, newLogin)
     }
     else
       return undefined
-  }
+  } */
 
 
 
-  changePassword(oldPassword: string, newPassword: string): Observable<HttpResponse<any>> | undefined {
+/*   changePassword(oldPassword: string, newPassword: string): Observable<HttpResponse<any>> | undefined {
     if (this.user) {
       this.updateSession(false)
       return this.connection.changePassword(this.user.userId, oldPassword, newPassword);
     }
     else return undefined;  
-  }
+  } */
 
 
-  searchUser(search: string): Observable<HttpResponse<User[]>> | undefined {
+/*   searchUser(search: string): Observable<HttpResponse<User[]>> | undefined {
     if (this.user) {
       this.updateSession(false)
       return this.connection.searchUser(this.user.userId, search);
     }
     else return undefined;
-  }
+  } */
 
   // chats
 
 
-  newChat(chatName: string, usersIds: string[]): Observable<HttpResponse<ChatData[]>> | undefined {
+/*   newChat(chatName: string, usersIds: string[]): Observable<HttpResponse<ChatData[]>> | undefined {
     if (this.user) {
       this.updateSession(false)
       return this.connection.newChat(this.user, chatName, usersIds);
     } 
     else return undefined;    
-  }
+  } */
   
 
-  getChats(): Observable<HttpResponse<ChatData[]>> | undefined {
+/*   getChats(): Observable<HttpResponse<ChatData[]>> | undefined {
     if ( this.user ) {
       this.updateSession(false)
       return this.connection.getChats(this.user.userId);
     }
     else return undefined;
-  }
+  } */
 
-  getChatData(chatId: string): Observable<HttpResponse<{chat: Chat, partitionOffsets: Array<{partition: number, offset: number}>}>> | undefined  {
+
+  // moved to chat-service
+
+/*   getChatData(chatId: string): Observable<HttpResponse<{chat: Chat, partitionOffsets: Array<{partition: number, offset: number}>}>> | undefined  {
     if (this.user) {
       this.updateSession(false)
       return this.connection.getChatData(this.user.userId, chatId);
     }
     else return undefined;
   }
+ */
 
 
-  getChatUsers(chatId: string): Observable<HttpResponse<User[]>> | undefined {
+
+/*   getChatUsers(chatId: string): Observable<HttpResponse<User[]>> | undefined {
     if (this.user) {
       this.updateSession(false)
       return this.connection.getChatUsers(this.user.userId, chatId);
     }
     else return undefined;
-  }
+  } */
 
 
-  leaveChat(chatId: string): Observable<HttpResponse<any>> | undefined {
+/*   leaveChat(chatId: string): Observable<HttpResponse<any>> | undefined {
     if (this.user) {
       this.updateSession(false)
       return this.connection.leaveChat(this.user.userId, chatId);
     }
     else return undefined;
-  }
+  } */
 
 
-  setChatSettings(chat: Chat): Observable<HttpResponse<any>> | undefined {
+/*   setChatSettings(chat: Chat): Observable<HttpResponse<any>> | undefined {
     if (this.user) {
       this.updateSession(false)
       return this.connection.setChatSettings(this.user.userId, chat);
     } 
     else return undefined;
-  }
+  } */
 
   
-  addUsersToChat(chatId: string, chatName: string, usersIds: string[], partitionOffsets: PartitionOffset[]) {
+/*   addUsersToChat(chatId: string, chatName: string, usersIds: string[], partitionOffsets: PartitionOffset[]) {
     if (this.user)  {
       this.updateSession(false)
       return this.connection.addUsersToChat(this.user.userId, this.user.login, chatId, chatName, usersIds, partitionOffsets);
     }    
     else return undefined;    
-  }
+  } */
 
  
 
@@ -599,7 +672,7 @@ export class UserService {
     WEBSOCKET methods
   */
 
-  connectViaWebsocket() {
+/*   connectViaWebsocket() {
     if (this.user) {
       const conf: Configuration = {
         me: this.user,
@@ -623,101 +696,52 @@ export class UserService {
       this.connection.connectViaWS( conf );
     }
   }
-
-  
-
-  sendMessage(msg: Message) {
-    this.connection.sendMessage(msg);
-  }
+ */
 
 
-  sendInvitation(inv: Invitation) {
+
+
+/*   sendInvitation(inv: Invitation) {
     this.connection.sendInvitation(inv)
-  }
+  } */
 
 
 
-  sendWriting(w: Writing){
+  /* sendWriting(w: Writing){
     this.connection.sendWriting( w )
   }
+ */
 
 
-
-  sendChatOffsetUpdate(update: ChatOffsetUpdate) {
+  /* sendChatOffsetUpdate(update: ChatOffsetUpdate) {
     this.connection.sendChatOffsetUpdate( update )
-  }
+  } */
 
 
 
-  startListeningFromNewChat(chatId: string, partitionOffsets: PartitionOffset[]) {
+/*   startListeningFromNewChat(chatId: string, partitionOffsets: PartitionOffset[]) {
     this.connection.startListeningFromNewChat( chatId , partitionOffsets)
   }
+ */
 
 
 
-  fetchOlderMessages(chatId: string) {
-    this.connection.fetchOlderMessages( chatId )
-  }
   
 
 
-  isWSconnected(): boolean {
+  /* isWSconnected(): boolean {
     return this.connection.isWSconnected()
-  }
+  } */
 
 
 
-  isWSconnectionDefined(): boolean {
+  /* isWSconnectionDefined(): boolean {
     return this.connection.isWSconnectionDefined()
-  }
+  } */
 
 
 
   
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-  /*
-  Methods to delete.
-  */
-
-  
-  callAngular() {
-    this.connection.callAngular();
-  }
-
-
-  createKSID(): string | undefined {
-    return this.connection.getSessionToken();
-  }
-
-
-  getUsers() { 
-    return this.connection.getUsers()
-  }
-
-  postNothing() {
-    return this.connection.postNothing();
-  }
-
-  postUser() {
-    return this.connection.postUser();
-  }
 }

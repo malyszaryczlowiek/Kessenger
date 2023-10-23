@@ -1,4 +1,5 @@
 import { Component, OnDestroy, OnInit } from '@angular/core';
+import { ConnectionService } from 'src/app/services/connection.service';
 import { UserService } from 'src/app/services/user.service';
 
 
@@ -9,7 +10,7 @@ import { UserService } from 'src/app/services/user.service';
 })
 export class RootComponent implements OnInit, OnDestroy {
 
-  constructor(private userService: UserService) { }
+  constructor(private connectionService: ConnectionService) { }
 
   ngOnInit(): void {
     console.log('RootComponent.ngOnInit()')
@@ -20,7 +21,7 @@ export class RootComponent implements OnInit, OnDestroy {
     // it is required during page reload, because possible 
     // data and resources leakage. 
     console.log('RootComponent.ngOnDestroy()')
-    if (this.userService.user) this.userService.clearService()
+    if ( this.connectionService.getUser() ) this.connectionService.disconnect()   // userService.clearService()
   }
 
 }

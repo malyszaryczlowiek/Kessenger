@@ -1,6 +1,9 @@
 <div class="row " id="chat">
     <div class="col-3 align-self-start" >
-        <app-chat-list [chats]="chats"></app-chat-list>
+        <app-chat-list></app-chat-list>
+        
+        <!-- old solution which inject chats from chat component to chat-list component  -->
+        <!-- <app-chat-list [chats]="chats"></app-chat-list> -->
     </div>
     <div class="col-9 align-self-start " id="chat_panel" >
         <div class="container-fluid ">

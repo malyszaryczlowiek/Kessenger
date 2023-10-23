@@ -14,6 +14,10 @@ import javax.inject.Inject
 import scala.concurrent.duration.{Duration, SECONDS}
 import scala.concurrent.{Await, ExecutionContext, Future}
 
+import org.slf4j.LoggerFactory
+import ch.qos.logback.classic.{Level, Logger}
+
+
 
 case class SessionChecker @Inject()(parserr: BodyParser[AnyContent], userId: UUID)
                                    (
@@ -28,6 +32,9 @@ case class SessionChecker @Inject()(parserr: BodyParser[AnyContent], userId: UUI
   override protected def executionContext: ExecutionContext = ec
   override def parser: BodyParser[AnyContent] = parserr
 
+  private val logger: Logger = LoggerFactory.getLogger(classOf[SessionChecker]).asInstanceOf[Logger]
+  // logger.setLevel(Level.TRACE)
+
 
   override def invokeBlock[A](request: Request[A], block: Request[A] => Future[Result]): Future[Result] = {
     headerParser.processKsid(request, userId) {
@@ -35,7 +42,9 @@ case class SessionChecker @Inject()(parserr: BodyParser[AnyContent], userId: UUI
         val f: Future[Either[Result, Boolean]] = Future {
           db.withConnection(implicit connection => {
             dbExecutor.checkUsersSession(sessionData.sessionId, sessionData.userId, System.currentTimeMillis()) match {
-              case Left(_) => Left(InternalServerError("Error 016. Session parsing error. "))
+              case Left(e)  =>
+                logger.error(s"invokeBlock. Error during DB calling: ${e.description.toString()}. userId($userId)")
+                Left(InternalServerError(ResponseBody(16, "Database Error").toString))
               case Right(i) => Right(i)
             }
           })
@@ -46,15 +55,18 @@ case class SessionChecker @Inject()(parserr: BodyParser[AnyContent], userId: UUI
             case Left(error) => Future.successful(error)
             case Right(b) =>
               if (b) block(req)
-              else Future.successful(Unauthorized(ResponseBody(19, "Session timeout").toString))
-                //Future.successful(Unauthorized(s"laskdjf"))
+              else {
+                logger.trace(s"invokeBlock. Session Timeout. userId($userId)")
+                Future.successful(Unauthorized(ResponseBody(19, "Session timeout").toString).discardingHeader("KSID"))
+              }
           }
         } catch {
-          case e: concurrent.TimeoutException =>
-            // note here we do not delete session information
-            Future.successful(InternalServerError("Error 017. Timeout Server Error."))
-          case _: Throwable =>
-            Future.successful(InternalServerError("Error 018. Other internal Server Error."))
+          case _: concurrent.TimeoutException =>
+            logger.warn(s"invokeBlock. Database Timeout Error. userId($userId)")
+            Future.successful(InternalServerError(ResponseBody(17, "Database Timeout Error").toString))
+          case ee: Throwable =>
+            logger.error(s"invokeBlock. Unknown Error: ${ee.getMessage}. userId($userId)")
+            Future.successful(InternalServerError(ResponseBody(18, "Internal Server Error").toString))
         }
       }
     }

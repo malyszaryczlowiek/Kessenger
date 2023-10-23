@@ -1,0 +1,71 @@
+#!/bin/zsh
+
+docker stop pgadmin
+docker rm -v pgadmin
+
+
+docker stop web-app
+docker rm -v web-app
+docker rmi kessenger_web-app
+
+
+docker stop play-app-1
+docker rm -v play-app-1
+docker rmi kessenger_play-app-1
+
+
+docker stop play-app-2
+docker rm -v play-app-2
+docker rmi kessenger_play-app-2
+
+
+docker stop kessenger-db
+docker rm -v kessenger-db
+docker rmi kessenger_db      ##   delete unused image
+
+
+docker stop kafka_streams_chat_analyser
+docker rm -v kafka_streams_chat_analyser
+docker rmi  kessenger_kafka_streams
+
+
+docker stop spark-streaming-analyser
+docker rm -v spark-streaming-analyser
+docker rmi spark-streaming-analyser-image
+
+
+docker stop spark-graphx-analyser
+docker rm -v spark-graphx-analyser
+docker rmi spark-graphx-analyser-image
+
+
+docker stop spark-worker-1
+docker rm -v spark-worker-1
+docker rmi kessenger_spark-worker-1
+
+
+docker stop spark-worker-2
+docker rm -v spark-worker-2
+docker rmi kessenger_spark-worker-2
+
+
+docker stop spark-master
+docker rm -v spark-master
+docker rmi kessenger_spark-master
+
+
+docker stop kafka1
+docker rm -v kafka1
+#docker rmi kessenger_kafka1
+
+
+docker stop kafka2
+docker rm -v kafka2
+
+
+docker stop kafka3
+docker rm -v kafka3
+
+
+docker stop zookeeper
+docker rm -v zookeeper

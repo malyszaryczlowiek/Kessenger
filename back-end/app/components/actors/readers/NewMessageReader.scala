@@ -3,10 +3,11 @@ package components.actors.readers
 import akka.actor._
 import io.github.malyszaryczlowiek.kessengerlibrary.domain.Domain.ChatId
 import io.github.malyszaryczlowiek.kessengerlibrary.model._
+import kafka.KafkaAdmin
 import org.apache.kafka.clients.consumer.{ConsumerRecord, ConsumerRecords, KafkaConsumer}
 import org.apache.kafka.common.TopicPartition
-import util.KafkaAdmin
 
+import java.util.UUID
 import java.util.concurrent.atomic.AtomicBoolean
 import scala.annotation.tailrec
 import scala.collection.concurrent.TrieMap
@@ -14,16 +15,23 @@ import scala.collection.mutable.ListBuffer
 import scala.concurrent.{ExecutionContext, Future}
 import scala.jdk.javaapi.CollectionConverters
 import scala.util.{Failure, Success, Using}
+import org.slf4j.LoggerFactory
+import ch.qos.logback.classic.{Level, Logger}
 
 
 
 
-class NewMessageReader(out: ActorRef, parentActor: ActorRef, conf: Configuration, ka: KafkaAdmin, ec: ExecutionContext) extends Reader {
+
+class NewMessageReader(out: ActorRef, parentActor: ActorRef, conf: Configuration, ka: KafkaAdmin,
+                       ec: ExecutionContext, actorGroupID: UUID) extends Reader {
 
   private val chats: TrieMap[ChatId, List[PartitionOffset]] = TrieMap.empty
   private val newChats: TrieMap[ChatId, List[PartitionOffset]] = TrieMap.empty
   private val continueReading: AtomicBoolean = new AtomicBoolean(true)
   private var fut: Option[Future[Unit]] = None
+  private val logger: Logger = LoggerFactory.getLogger(classOf[NewMessageReader]).asInstanceOf[Logger]
+
+  logger.trace(s"NewMessageReader. Starting reader. actorGroupID(${actorGroupID.toString})")
 
   this.chats.addAll(this.conf.chats.map(c => (c.chatId, c.partitionOffset)))
 
@@ -44,20 +52,21 @@ class NewMessageReader(out: ActorRef, parentActor: ActorRef, conf: Configuration
         }
       } match {
         case Failure(exception) =>
-          println(s"NewMessageReader --> Future EXCEPTION ${exception.getMessage}")
+          logger.error(s"futureBody. Exception thrown: ${exception.getMessage}. actorGroupID(${actorGroupID.toString})")
           // if reading ended with error we need to close all actor system
           // and give a chance for web app to restart.
           out ! ResponseBody(44, "Kafka connection lost. Try refresh page in a few minutes.").toString
           Thread.sleep(250)
           parentActor ! PoisonPill
-        case Success(_) => println(s"NewMessageReader --> Future closed normally.")
+        case Success(_) =>
+          logger.trace(s"futureBody. Consumer closed normally. actorGroupID(${actorGroupID.toString})")
       }
     }(ec)
   }
 
 
 
-  override protected def initializeConsumer[Message](consumer: KafkaConsumer[String, Message]): Unit = {
+  override protected def initializeConsumer[User, Message](consumer: KafkaConsumer[User, Message]): Unit = {
     val partitions: Iterable[(TopicPartition, Long)] = this.chats.flatMap(
       kv => kv._2.map(po => (new TopicPartition(kv._1, po.partition), po.offset))
     )
@@ -67,12 +76,13 @@ class NewMessageReader(out: ActorRef, parentActor: ActorRef, conf: Configuration
     // offset is always set as last read message offset + 1
     // so we dont have duplicated messages.
     partitions.foreach(t => consumer.seek(t._1, t._2))
+    logger.trace(s"initializeConsumer. Consumer initialized normally. actorGroupID(${actorGroupID.toString})")
   }
 
 
 
   @tailrec
-  private def readingLoop(consumer: KafkaConsumer[String, Message]): Unit = {
+  private def readingLoop(consumer: KafkaConsumer[User, Message]): Unit = {
     if (this.newChats.nonEmpty) reassignConsumer(consumer)
     if (this.continueReading.get()) {
       read(consumer)
@@ -82,7 +92,7 @@ class NewMessageReader(out: ActorRef, parentActor: ActorRef, conf: Configuration
 
 
 
-  private def reassignConsumer(consumer: KafkaConsumer[String, Message]): Unit = {
+  private def reassignConsumer(consumer: KafkaConsumer[User, Message]): Unit = {
     consumer.unsubscribe()
     newChats.foreach(kv => this.chats.put(kv._1, kv._2))
     val partitions: Iterable[(TopicPartition, Long)] = this.chats.flatMap(
@@ -99,11 +109,11 @@ class NewMessageReader(out: ActorRef, parentActor: ActorRef, conf: Configuration
 
 
 
-  private def read(consumer: KafkaConsumer[String, Message]): Unit = {
-    val messages: ConsumerRecords[String, Message] = consumer.poll(java.time.Duration.ofMillis(250))
+  private def read(consumer: KafkaConsumer[User, Message]): Unit = {
+    val messages: ConsumerRecords[User, Message] = consumer.poll(java.time.Duration.ofMillis(250))
     val buffer = ListBuffer.empty[Message]
     messages.forEach(
-      (r: ConsumerRecord[String, Message]) => {
+      (r: ConsumerRecord[User, Message]) => {
         val m = r.value().copy(serverTime = r.timestamp(), partOff = Some(PartitionOffset(r.partition(), r.offset())))
         this.chats.get(m.chatId) match {
           case Some(po) =>
@@ -129,16 +139,14 @@ class NewMessageReader(out: ActorRef, parentActor: ActorRef, conf: Configuration
   }
 
 
-
   override def addNewChat(newChat: ChatPartitionsOffsets): Unit = {
     if (this.chats.isEmpty) {
-      println(s"################ Adding new CHat. ")
       this.chats.addOne(newChat.chatId -> newChat.partitionOffset)
-      println(s"################ Starting Future. ")
+      logger.trace(s"addNewChat. Adding new chat, chat list is empty. actorGroupID(${actorGroupID.toString})")
       startReading()
     }
     else {
-      println(s"################ Added to newCHatList and Future should be started already: ${this.fut.nonEmpty}. ")
+      logger.trace(s"addNewChat. Adding new chat, chat list is NOT empty. actorGroupID(${actorGroupID.toString})")
       this.newChats.addOne(newChat.chatId -> newChat.partitionOffset)
     }
   }
@@ -147,11 +155,6 @@ class NewMessageReader(out: ActorRef, parentActor: ActorRef, conf: Configuration
 
   override def fetchOlderMessages(chatId: ChatId): Unit = {}
 
-
-
-  //  def isReading: Boolean = {
-  //    this.fut.isDefined && ! this.fut.get.isCompleted && this.continueReading.get()
-  //  }
 
 
 

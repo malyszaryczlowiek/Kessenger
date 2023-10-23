@@ -1,12 +1,16 @@
 import { Component, OnDestroy, OnInit } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Subscription } from 'rxjs';
+// services
+import { ChatsDataService } from 'src/app/services/chats-data.service';
+import { HtmlService } from 'src/app/services/html.service';
+// models
 import { ChatData } from 'src/app/models/ChatData';
 import { Message } from 'src/app/models/Message';
 import { Writing } from 'src/app/models/Writing';
-import { ChatsDataService } from 'src/app/services/chats-data.service';
-import { HtmlService } from 'src/app/services/html.service';
-import { UserService } from 'src/app/services/user.service';
+import { ConnectionService } from 'src/app/services/connection.service';
+
+
 
 @Component({
   selector: 'app-chat-panel',
@@ -17,95 +21,63 @@ export class ChatPanelComponent implements OnInit, OnDestroy {
 
   wrt:                              Writing      | undefined
   chatData:                         ChatData     | undefined
-  fetchingSubscription:             Subscription | undefined
-  writingSubscription:              Subscription | undefined
-  selectedChatSubscription:         Subscription | undefined
-  chatModificationSubscription:     Subscription | undefined
+
+  // here we subscribe if we get notification if someone is writing in any chat
+  receivingWritingSubscription:     Subscription | undefined
+  
+  
+  // subscribe if we go to top or down of message list
   messageListScrollingSubscription: Subscription | undefined
 
 
 
+  // trzeba napisać subscription, które będzie ponownie wczytywało chaty z już zaktualizowanego chat-service
+  chatPanelSubscription:            Subscription | undefined
 
-  constructor(private userService: UserService, 
-              private htmlService: HtmlService, 
+
+  // subscribe initalization finished
+  initalizationSubscription:        Subscription | undefined
+
+  
+
+
+
+  constructor(private htmlService: HtmlService, 
+              private connectionService: ConnectionService,
               private chatService: ChatsDataService,
-              private router: Router,
-              private activated: ActivatedRoute) { }
+              private router:      Router,
+              private activated:   ActivatedRoute) { 
+                // console.log(`ChatPanelComponent.constructor()`)
+              }
 
   
 
   ngOnInit(): void {
-    console.log('ChatPanelComponent.ngOnInit')
-
-
-    this.fetchingSubscription = this.userService.fetchingUserDataFinishedEmmiter.subscribe(
-      (c) => {
-        if (c == 1 || c == 3 || c == 4) { 
-          const chatId = this.activated.snapshot.paramMap.get('chatId');
-          if ( chatId ) { 
-            console.log('ChatPanelComponent fetchingSubscription fetched data from UserService via fetchEmmiter.')
-            const currentChat = this.userService.getAllChats().find(  (chatData, index, arr) => {
-              return chatData.chat.chatId == chatId;
-            })
-            if ( currentChat ) {
-              const unreadMessLength = currentChat.unreadMessages.length
-              if (unreadMessLength > 0){ 
-                if ( this.htmlService.isScrolledDown() == 1 ) { 
-                  console.warn('New messages and scrolled DOWN')
-                  this.chatData = this.userService.markMessagesAsRead( chatId )
-                  this.userService.dataFetched( 2 ) // refresh chat list
-                  this.htmlService.scrollDown( false )
-                  if (this.chatModificationSubscription) this.chatModificationSubscription.unsubscribe()
-                  if ( this.chatData ) { // this subscription is only to reassign older messages
-                    this.chatModificationSubscription = this.chatData.emitter.subscribe(
-                      (cd) => this.chatData = cd
-                    )  
-                  }                  
-                } else {
-                  this.chatData = currentChat // this chat data has unread messages 
-                }
-              } else { // no new messages
-                this.chatData = currentChat
-                this.userService.markMessagesAsRead( this.chatData.chat.chatId )
-                this.htmlService.scrollDown( false )
-                console.warn('no new messages')
-              }
-            } else {
-              console.log('ChatPanelComponent.ngOnInit() fetchingSubscription chat not found in list.')
-              this.chatService.selectChat( undefined )
-              this.router.navigate(['page-not-found']);
-            }            
-          } 
-        }
+    this.chatPanelSubscription = this.chatService.updateChatPanelEmmiter.subscribe(
+      (a) => {
+        console.log('ChatPanelComponent.chatPanelSubscription -> getting chat data via updateChatPanelEmmiter')
+        this.chatData = this.chatService.getCurrentChatData()
+        this.htmlService.resizeMessageListImmediately()
       }
-    );
+    )
 
-    // this subscription is called when user select another chat. from list.
-    this.selectedChatSubscription = this.userService.selectedChatEmitter.subscribe( 
-      (cd) =>  {
-        // we modify only when new chat is selected
-        if (cd.chat.chatId != this.chatData?.chat.chatId) {
-          // switch off subscription of prewous chat
-          if (this.chatModificationSubscription) this.chatModificationSubscription.unsubscribe()
-          this.chatData = this.userService.markMessagesAsRead( cd.chat.chatId )
-          if ( this.chatData ) {
-            this.htmlService.resizeMessageListImmediately()
-            this.htmlService.scrollDown( false )
-            // tutaj trzeba wymusić resize chat listy do rozmiarów pasujących do okna. 
-            this.chatModificationSubscription = this.chatData.emitter.subscribe(
-              (cd) => { this.chatData = cd }
-            )              
-          } else {
-            console.log('ChatPanelComponent.ngOnInit() selectedChatSubscription chat not found in list.')
-            this.router.navigate(['page-not-found']);
-          }
+    this.initalizationSubscription = this.connectionService.serviceInitializedEmitter.subscribe(
+      (n) => {
+        console.log('ChatPanelComponent.initalizationSubscription -> getting chat data via serviceInitializedEmitter')
+        this.chatData = this.chatService.getCurrentChatData()
+        // if chat is not found we nned to redirect to page-not found
+        if ( this.chatData ) {
+          this.chatService.selectChat( this.chatData.chat.chatId )
         }
+        else {
+          this.router.navigate(['page-not-found']);
+        } 
+        
       }
-    )   
-
+    )
 
     // we need to stay it because cannot insert Writing value via html. 
-    this.writingSubscription = this.userService.getWritingEmmiter().subscribe(
+    this.receivingWritingSubscription = this.chatService.receivingWritingEmitter.subscribe(
       (w: Writing | undefined) => { 
         if (w && w.chatId == this.chatData?.chat.chatId) {
           this.wrt = w 
@@ -115,79 +87,66 @@ export class ChatPanelComponent implements OnInit, OnDestroy {
       }
     )
 
-
     this.messageListScrollingSubscription = this.htmlService.messageListScrollEventEmitter.subscribe(
       (position) => {
+        console.log('position', position)
         if (position == 'down') {
           if (this.chatData) {
-            const unreadMessLength = this.chatData.unreadMessages.length
-            if (unreadMessLength > 0){ 
-              this.chatData = this.userService.markMessagesAsRead( this.chatData.chat.chatId )
-              this.userService.dataFetched( 2 ) // refresh chat list
-              this.htmlService.scrollDown( false )
-              if (this.chatModificationSubscription) this.chatModificationSubscription.unsubscribe()
-              if ( this.chatData ) { // this subscription is only to reassign older messages
-                this.chatModificationSubscription = this.chatData.emitter.subscribe(
-                  (cd) => { 
-                    console.warn('Adding older messages.')
-                    this.chatData = cd
-                  }
-                )  
-              } 
-            }
+            this.chatService.markMessagesAsRead( this.chatData.chat.chatId ) 
+            this.htmlService.scrollDown( false )
           }
         }
-        if (position == 'top') {
+        if (position == 'top' ) { 
           if (this.chatData) {
             console.log('fetching older messages')
-            this.userService.fetchOlderMessages( this.chatData.chat.chatId )
+            this.chatService.fetchOlderMessages( this.chatData.chat.chatId )
           }
         }
       } 
-    )    
-
+    )  
 
     const chatId = this.activated.snapshot.paramMap.get('chatId');
-    if ( chatId ) { this.chatService.selectChat( chatId )}
-    
-
-    
-    if ( this.userService.isWSconnected() ) {
-      this.userService.dataFetched( 4 ) // here we need to only fetch to chat panel. 
-    } 
-    
+    if ( chatId ) { 
+      console.log('ChatPanelComponent.ngOnInit() -> chatId: ', chatId)
+      this.chatService.setChatId( chatId )
+      this.chatData =  this.chatService.getCurrentChatData()
+      // if (this.chatData) console.error('is not empty')
+    } else {
+      console.error('ChatPanelComponent.ngOnInit() -> no chatId in path !!!')
+    }
   }
 
 
 
 
   ngOnDestroy(): void {
-    if ( this.chatModificationSubscription )  this.chatModificationSubscription.unsubscribe()
-    if ( this.fetchingSubscription )          this.fetchingSubscription.unsubscribe()
-    if ( this.writingSubscription )           this.writingSubscription.unsubscribe()
-    if ( this.selectedChatSubscription )      this.selectedChatSubscription.unsubscribe()
+    console.log(`ChatPanelComponent.ngOnDestroy()`)
+    if ( this.chatPanelSubscription )            this.chatPanelSubscription.unsubscribe()
+    if ( this.receivingWritingSubscription )     this.receivingWritingSubscription.unsubscribe()
     if ( this.messageListScrollingSubscription ) this.messageListScrollingSubscription.unsubscribe()
-    this.userService.selectChat( undefined )
+    if ( this.initalizationSubscription )        this.initalizationSubscription.unsubscribe()
+    this.chatService.clearSelectedChat()
   }
 
 
 
 
+  /*
+  here we get message send via emmiter from subcomponent 
+  */
   sendMessage(m: Message) {
-    console.log('sending message', m)
-    this.userService.updateSession(true)
-    this.userService.sendMessage( m )                        
+    console.log(`ChatPanelComponent.sendMessage() -> sending message: `, m)
+    this.connectionService.sendMessage( m )
   }
 
 
 
 
   goToChatSettings() {
-    this.userService.updateSession(true)
+    console.log(`ChatPanelComponent.goToChatSettings()`)
+    this.connectionService.updateSession()
     this.router.navigate(['user', 'editChat', `${this.chatData?.chat.chatId}`])
   }
-
-
 
 
 

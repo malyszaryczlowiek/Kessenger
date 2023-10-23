@@ -1,0 +1,301 @@
+version: "3.9"
+
+networks:
+  kessenger-network:
+    driver: bridge
+    name: kessenger-network
+
+
+services:
+  # https://hub.docker.com/_/zookeeper
+  # https://hub.docker.com/r/bitnami/zookeeper
+  zookeeper:
+    container_name: zookeeper
+    image: zookeeper:3.8.0
+    #hostname: zoo1
+    ports:
+      - "2181:2181"
+    networks:
+      - kessenger-network
+    restart: always
+
+
+
+  # https://hub.docker.com/r/bitnami/kafka
+  # create cluster build from three brokers
+  kafka1:
+    container_name: kafka1
+    #hostname: kafka1
+    build: ./kafka-broker # kafka-broker is folder where Dockerfile can be found
+    ports:
+      - "9092:9092"
+      - "9093:9093"
+    environment:
+      - ALLOW_PLAINTEXT_LISTENER=yes
+      - KAFKA_CFG_ZOOKEEPER_CONNECT=zookeeper:2181
+      - KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP=CLIENT:PLAINTEXT,EXTERNAL:PLAINTEXT
+      - KAFKA_CFG_LISTENERS=CLIENT://:9092,EXTERNAL://:9093
+      - KAFKA_CFG_ADVERTISED_LISTENERS=CLIENT://kafka1:9092,EXTERNAL://localhost:9093
+      - KAFKA_CFG_INTER_BROKER_LISTENER_NAME=CLIENT
+      - KAFKA_CFG_AUTO_CREATE_TOPICS_ENABLE=false
+    depends_on:
+      - zookeeper
+    restart: always
+    networks:
+      - kessenger-network
+#    volumes:
+#      - ./kafka-broker/kafka-volume:/bitnami/kafka
+
+
+
+  kafka2:
+    container_name: kafka2
+    build: ./kafka-broker
+    ports:
+      - "9091:9092"
+      - "9094:9094"
+    environment:
+      - ALLOW_PLAINTEXT_LISTENER=yes
+      - KAFKA_CFG_ZOOKEEPER_CONNECT=zookeeper:2181
+      - KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP=CLIENT:PLAINTEXT,EXTERNAL:PLAINTEXT
+      - KAFKA_CFG_LISTENERS=CLIENT://:9092,EXTERNAL://:9094
+      - KAFKA_CFG_ADVERTISED_LISTENERS=CLIENT://kafka2:9092,EXTERNAL://localhost:9094
+      - KAFKA_CFG_INTER_BROKER_LISTENER_NAME=CLIENT
+      - KAFKA_CFG_AUTO_CREATE_TOPICS_ENABLE=false
+    depends_on:
+      - zookeeper
+    restart: always
+    networks:
+      - kessenger-network
+
+
+
+  kafka3:
+    container_name: kafka3
+    build: ./kafka-broker
+    ports:
+      - "9090:9092"
+      - "9095:9095"
+    environment:
+      - ALLOW_PLAINTEXT_LISTENER=yes
+      - KAFKA_CFG_ZOOKEEPER_CONNECT=zookeeper:2181
+      - KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP=CLIENT:PLAINTEXT,EXTERNAL:PLAINTEXT
+      - KAFKA_CFG_LISTENERS=CLIENT://:9092,EXTERNAL://:9095
+      - KAFKA_CFG_ADVERTISED_LISTENERS=CLIENT://kafka3:9092,EXTERNAL://localhost:9095
+      - KAFKA_CFG_INTER_BROKER_LISTENER_NAME=CLIENT
+      - KAFKA_CFG_AUTO_CREATE_TOPICS_ENABLE=false
+    depends_on:
+      - zookeeper
+    restart: always
+    networks:
+      - kessenger-network
+
+
+
+  db:
+    container_name: kessenger-db
+    build: ./db
+    # image: postgres:14.2
+    restart: always
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: passw
+      POSTGRES_DB: kessenger_schema
+    networks:
+      - kessenger-network
+    ports:
+      - '5438:5432'
+
+
+
+  play-app-1:
+    container_name: play-app-1
+    build: ./back-end
+    depends_on:
+      - db
+      - kafka1
+      - kafka2
+      - kafka3
+    ports:
+      - '9000:9000'
+    networks:
+      - kessenger-network
+    volumes:
+      - ${HOME}/kessenger/prod/logs/backend_1:/var/logs
+
+
+
+  play-app-2:
+    container_name: play-app-2
+    build: ./back-end
+    depends_on:
+      - db
+      - kafka1
+      - kafka2
+      - kafka3
+    ports:
+      - '9001:9000'
+    networks:
+      - kessenger-network
+    volumes:
+      - ${HOME}/kessenger/prod/logs/backend_2:/var/logs
+
+  
+#  reverse-proxy:
+#    container_name: reverse-proxy
+#    build: ./reverse-proxy
+##    depends_on:
+##      - db
+##      - kafka1
+##      - kafka2
+##      - kafka3
+#    ports:
+#      - '8999:9000'
+#    networks:
+#      - my-simple-network
+
+
+
+  web-app:
+    container_name: web-app
+    build: ./web-app
+    depends_on:
+      - play-app-1
+    ports:
+      - '4200:4200'
+    networks:
+      - kessenger-network
+
+
+
+  pgadmin:
+    container_name: pgadmin
+    image: dpage/pgadmin4:6.15
+    depends_on:
+      - db
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@admin.com
+      PGADMIN_DEFAULT_PASSWORD: root
+    ports:
+      - "5050:80"
+    networks:
+      - kessenger-network
+    restart: unless-stopped
+    logging:
+      driver: "none"
+
+# opening PgAdmin
+# open localhost:5050
+# add new server:
+  # host: KessengerDB
+  # port: 5432
+  # maintenence schema: kessenger_schema
+  # user: admin
+  # password: passw
+#
+
+
+
+  # Kafka streams chat Analyser
+  kafka_streams:
+    container_name: kafka_streams_chat_analyser
+    build: ./kafka-streams-chat-analyser    # KafkaStreamsChatAnalyser is folder where Dockerfile can be found
+    ports:
+      - "8081:8080"
+    depends_on:
+      - kafka1
+      - kafka2
+      - kafka3
+    restart: always
+    networks:
+      - kessenger-network
+    environment:
+      - KAFKA_STREAMS_ENV=PROD
+    volumes:
+      - ${HOME}/kessenger/prod/logs/kafkastreaming:/opt/kessenger-app/kafka-streams/logs
+
+
+
+  # spark cluster
+
+  spark-master:
+    container_name: spark-master
+    build:
+      context: ./spark-cluster
+      dockerfile: ./master.dockerfile
+    depends_on:
+      - kafka1
+      - kafka2
+      - kafka3
+    environment:
+      - SPARK_MODE=master
+      - SPARK_MASTER_HOST=spark-master           # added
+      - SPARK_RPC_AUTHENTICATION_ENABLED=no
+      - SPARK_RPC_ENCRYPTION_ENABLED=no
+      - SPARK_LOCAL_STORAGE_ENCRYPTION_ENABLED=no
+      - SPARK_SSL_ENABLED=no
+      - SPARK_ENV=PROD
+    ports:
+      - '8082:8080'
+      - '7077:7077'
+    networks:
+      - kessenger-network
+#    volumes:
+#      - ${HOME}/kessenger/prod/logs/sparkanalyser:/opt/kessenger-app/spark-master/logs
+#      - ${HOME}/kessenger/prod/analysis/sparkanalyser:/opt/kessenger-app/spark-master/analysis
+      # - ${HOME}/kessenger/spark-volumes:/opt/work-dir      # /opt/work-dir is ${SPARK_HOME}
+
+
+
+  spark-worker-1:
+    container_name: spark-worker-1
+    build:
+      context: ./spark-cluster
+      dockerfile: ./worker.dockerfile
+    depends_on:
+      - spark-master
+    environment:
+      - SPARK_MODE=worker
+      - SPARK_MASTER_URL=spark://spark-master:7077
+      - SPARK_WORKER_MEMORY=1G
+      - SPARK_WORKER_CORES=2
+      - SPARK_RPC_AUTHENTICATION_ENABLED=no
+      - SPARK_RPC_ENCRYPTION_ENABLED=no
+      - SPARK_LOCAL_STORAGE_ENCRYPTION_ENABLED=no
+      - SPARK_SSL_ENABLED=no
+      - SPARK_ENV=prod
+    networks:
+      - kessenger-network
+    ports:
+      - '8083:8080'
+      - '7078:7077'
+#    volumes:
+#      - ${HOME}/kessenger/spark-volumes:/opt/work-dir      #${SPARK_HOME}
+
+
+
+
+  spark-worker-2:
+    container_name: spark-worker-2
+    build:
+      context: ./spark-cluster
+      dockerfile: ./worker.dockerfile
+    depends_on:
+      - spark-master
+    environment:
+      - SPARK_MODE=worker
+      - SPARK_MASTER_URL=spark://spark-master:7077
+      - SPARK_WORKER_MEMORY=1G
+      - SPARK_WORKER_CORES=2
+      - SPARK_RPC_AUTHENTICATION_ENABLED=no
+      - SPARK_RPC_ENCRYPTION_ENABLED=no
+      - SPARK_LOCAL_STORAGE_ENCRYPTION_ENABLED=no
+      - SPARK_SSL_ENABLED=no
+    networks:
+      - kessenger-network
+    ports:
+      - '8084:8080'
+      - '7079:7077'
+#    volumes:
+#      - ${HOME}/kessenger/spark-volumes:/opt/work-dir      #${SPARK_HOME}
+

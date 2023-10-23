@@ -2,8 +2,9 @@ import { Component, OnDestroy, OnInit } from '@angular/core';
 import { Router } from '@angular/router';
 import { Subscription } from 'rxjs';
 import { Toast } from 'bootstrap'
-import { UserService } from 'src/app/services/user.service';
+// services
 import { ResponseNotifierService } from 'src/app/services/response-notifier.service';
+import { ConnectionService } from 'src/app/services/connection.service';
 
 @Component({
   selector: 'app-main',
@@ -20,15 +21,19 @@ export class MainComponent implements OnInit, OnDestroy {
 
   constructor(private router: Router, 
               private responseNotifier: ResponseNotifierService,
-              private userService: UserService) {
+              private connectionService: ConnectionService ) {
   }
 
 
 
   ngOnInit(): void {
-    if ( this.userService.user ) 
+    console.log('MainComponent.ngOnInit()')
+    // zakomentowałem po pierwszym uruchomieniu 
+    /* if ( this.connectionService.isInitlized() ) {
       this.router.navigate(['user'])
+    }       */
 
+    // this subscription shows all error and information notification as toast object
     this.errorMessageSubscription = this.responseNotifier.responseEmitter.subscribe(
       (e) => {
         this.error = e
@@ -44,6 +49,7 @@ export class MainComponent implements OnInit, OnDestroy {
 
 
   ngOnDestroy(): void {
+    console.log('MainComponent.ngOnDestroy()')
     if (this.errorMessageSubscription) this.errorMessageSubscription.unsubscribe()
   }
 

@@ -1,5 +1,5 @@
 import { Component, OnInit } from '@angular/core';
-import { UserService } from 'src/app/services/user.service';
+import { ConnectionService } from 'src/app/services/connection.service';
 
 @Component({
   selector: 'app-session-timeout',
@@ -8,11 +8,11 @@ import { UserService } from 'src/app/services/user.service';
 })
 export class SessionTimeoutComponent implements OnInit {
 
-  constructor(private userService: UserService) { }
+  constructor(private connectionService: ConnectionService) { }
 
   // we need to clear user Service
   ngOnInit(): void {
-    this.userService.clearService();
+    this.connectionService.disconnect()
   }
 
 }

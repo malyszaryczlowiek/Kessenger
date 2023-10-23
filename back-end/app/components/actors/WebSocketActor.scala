@@ -1,104 +1,111 @@
 package components.actors
 
-
 import io.github.malyszaryczlowiek.kessengerlibrary.model.{ChatOffsetUpdate, ChatPartitionsOffsets, Configuration}
 import io.github.malyszaryczlowiek.kessengerlibrary.model.Configuration.parseConfiguration
-import io.github.malyszaryczlowiek.kessengerlibrary.model.Message.parseMessage
 import io.github.malyszaryczlowiek.kessengerlibrary.model.ChatOffsetUpdate.parseChatOffsetUpdate
 import io.github.malyszaryczlowiek.kessengerlibrary.model.FetchMessagesFrom.parseFetchingOlderMessagesRequest
 import io.github.malyszaryczlowiek.kessengerlibrary.model.ChatPartitionsOffsets.parseChatPartitionOffsets
 import io.github.malyszaryczlowiek.kessengerlibrary.model.Writing.parseWriting
 import io.github.malyszaryczlowiek.kessengerlibrary.model.SessionInfo.parseSessionInfo
-import util.KafkaAdmin
+
+import util.JsonParsers
+import kafka.KafkaAdmin
+
 import akka.actor._
 import akka.actor.PoisonPill
-import components.actors.readers.{InvitationReader, NewMessageReader, OldMessageReader, WritingReader}
-import play.api.db.Database
-
+import ch.qos.logback.classic.Logger
 import collection.concurrent.TrieMap
+import conf.KafkaConf
 import java.util.UUID
+import org.slf4j.LoggerFactory
+import play.api.db.Database
 import scala.concurrent.ExecutionContext
 
+
+
 object WebSocketActor {
-  //, be: BrokerExecutor
-  def props(out: ActorRef, ka: KafkaAdmin, kec: ExecutionContext, db: Database, dbec: ExecutionContext): Props =
-    Props(new WebSocketActor(out, ka, kec, db, dbec))
+  def props(out: ActorRef, ka: KafkaAdmin, kec: ExecutionContext, db: Database,
+            dbec: ExecutionContext, actorId: UUID)(implicit configurator: KafkaConf): Props =
+    Props(new WebSocketActor(out, ka, kec, db, dbec, actorId))
 }
 
-// , be: BrokerExecutor
-class WebSocketActor(out: ActorRef, ka: KafkaAdmin, kec: ExecutionContext, db: Database, dbec: ExecutionContext ) extends Actor {
 
-  sealed trait ActorNameKey
-  case object NewMessageReaderKey  extends ActorNameKey
-  case object MessageSenderKey     extends ActorNameKey
-  case object OldMessageReaderKey  extends ActorNameKey
-  case object WritingSenderKey     extends ActorNameKey
-  case object InvitationReaderKey  extends ActorNameKey
-  case object ChatOffsetUpdaterKey extends ActorNameKey
-  case object WritingReaderKey     extends ActorNameKey
-  case object SessionUpdateKey     extends ActorNameKey
-
-
-  private val actorId = UUID.randomUUID()
+class WebSocketActor(out: ActorRef, ka: KafkaAdmin, kec: ExecutionContext, db: Database,
+                     dbec: ExecutionContext, actorGroupID: UUID)(implicit configurator: KafkaConf)  extends Actor {
 
 
 
+  private val logger: Logger = LoggerFactory.getLogger(classOf[WebSocketActor]).asInstanceOf[Logger]
+  logger.trace(s"WebSocketActor. Starting actor. actorGroupID(${actorGroupID.toString})")
+
+  private sealed trait ActorNameKey
+  private case object NewMessageReaderKey  extends ActorNameKey
+  private case object MessageSenderKey     extends ActorNameKey
+  private case object OldMessageReaderKey  extends ActorNameKey
+  private case object WritingSenderKey     extends ActorNameKey
+  private case object InvitationReaderKey  extends ActorNameKey
+  private case object ChatOffsetUpdaterKey extends ActorNameKey
+  private case object WritingReaderKey     extends ActorNameKey
+  private case object SessionUpdateKey     extends ActorNameKey
+
+
+  private val jsonParser:     JsonParsers                     = new JsonParsers
   private val childrenActors: TrieMap[ActorNameKey, ActorRef] = TrieMap.empty
 
 
   override def postStop(): Unit = {
-//     this.be.clearBroker()
-    println(s"9. SWITCH OFF ACTOR.")
+    logger.trace(s"WebSocketActor. SWITCH OFF. actorGroupID(${actorGroupID.toString})")
   }
 
   def receive: Receive = {
     case s: String =>
-      println(s"1. ACTOR_ID: $actorId")
+      // logger.trace(s"receive. New WS message. actorGroupID(${actorGroupID.toString})")
       parseWriting( s ) match {
         case Left(_) =>
-          println(s"2. CANNOT PARSE WRITING")
-          parseMessage(s) match {
+          // logger.trace(s"receive. cannot parse writing. actorGroupID(${actorGroupID.toString})")
+          jsonParser.parseUserAndMessage(s) match {
             case Left(_) =>
-              println(s"3. CANNOT PARSE MESSAGE")
+              // logger.trace(s"receive. cannot parse message. actorGroupID(${actorGroupID.toString})")
               parseConfiguration(s) match {
                 case Left(_) =>
-                  println(s"4. CANNOT PARSE CONFIGURATION")
+                  // logger.trace(s"receive. cannot parse configuration. actorGroupID(${actorGroupID.toString})")
                   parseChatOffsetUpdate(s) match {
                     case Left(_) =>
-                      println(s"5. CANNOT PARSE CHAT_OFFSET_UPDATE")
+                      // logger.trace(s"receive. cannot parse chat offset update. actorGroupID(${actorGroupID.toString})")
                       parseChatPartitionOffsets(s) match {
                         case Left(_) =>
-                          println(s"6. CANNOT PARSE NewChatId")
+                          // logger.trace(s"receive. cannot parse NewChatId. actorGroupID(${actorGroupID.toString})")
                           parseSessionInfo(s) match {
                             case Left(_) =>
-                              println(s"7. CANNOT PARSE SessionInfo")
+                              // logger.trace(s"receive. cannot parse SessionInfo. actorGroupID(${actorGroupID.toString})")
                               parseFetchingOlderMessagesRequest(s) match {
                                 case Left(_) =>
-                                  println(s"8. CANNOT PARSE FetchingOlderMessages")
+                                  // logger.trace(s"receive. Cannot parse FetchingOlderMessages. actorGroupID(${actorGroupID.toString})")
                                   if (s.equals("PoisonPill")) {
-                                    println(s"9. GOT PoisonPill '$s'")
+                                    // logger.trace(s"receive. got PoisonPill. actorGroupID(${actorGroupID.toString})")
                                     self ! PoisonPill
                                   }
+                                  else if (s.equals("ping")) {
+                                    // logger.trace(s"receive. Ping message. ${actorGroupID.toString})")
+                                  }
                                   else
-                                    println(s"9. '$s' is different from PoisonPill.")
+                                    logger.warn(s"receive. cannot parse message $s. actorGroupID(${actorGroupID.toString})")
                                 case Right(c) =>
-                                  println(s"8. GOT FETCHING OLDER MESSAGES REQUEST FROM: $c.chatId")
+                                  logger.trace(s"receive. got FetchingOlderMessages. actorGroupID(${actorGroupID.toString})")
                                   this.childrenActors.get(OldMessageReaderKey) match {
                                     case Some(ref) => ref ! c.chatId
                                     case None =>
                                   }
                               }
                             case Right(sessionInfo) =>
-                              println(s"7. GOT SessionInfo $sessionInfo")
+                              logger.trace(s"receive. got SessionInfo. actorGroupID(${actorGroupID.toString})")
                               this.childrenActors.get(SessionUpdateKey) match {
                                 case Some(ref) => ref ! sessionInfo
                                 case None =>
                               }
                           }
                         case Right(newChat: ChatPartitionsOffsets) =>
-                          println(s"6. GOT NEW_CHAT_ID: $newChat")
-                          // this.be.addNewChat(newChat)
-
+                          logger.trace(s"receive. got newChatID $newChat. actorGroupID(${actorGroupID.toString})")
                           // we add new chat to listen new messages, old messages and writing
                           this.childrenActors.get(NewMessageReaderKey) match {
                             case Some(ref) => ref ! newChat
@@ -118,43 +125,37 @@ class WebSocketActor(out: ActorRef, ka: KafkaAdmin, kec: ExecutionContext, db: D
                           }
                       }
                     case Right(update: ChatOffsetUpdate) =>
-                      println(s"5. GOT CHAT_OFFSET_UPDATE: $update")
-                      // this.be.updateChatOffset(update)
+                      logger.trace(s"receive. got chatOffsetUpdate. actorGroupID(${actorGroupID.toString})")
                       this.childrenActors.get(ChatOffsetUpdaterKey) match {
                         case Some(ref) => ref ! update
                         case None =>
                       }
-
                   }
                 case Right(conf: Configuration) =>
-                  println(s"4. GOT CONFIGURATION: $conf")
-                  // this.be.initialize(conf)
-                  // initialize all child actors
+                  logger.trace(s"receive. got Configuration. actorGroupID(${actorGroupID.toString})")
                   this.childrenActors.addAll(
                     List(
-                      (ChatOffsetUpdaterKey, context.actorOf( ChatOffsetUpdateActor.props(conf, db, dbec) )),
-                      (InvitationReaderKey,  context.actorOf( InvitationReaderActor.props(new InvitationReader(out, self, conf, this.ka, this.kec) ))),
-                      (NewMessageReaderKey,  context.actorOf( NewMessageReaderActor.props(new NewMessageReader(out, self, conf, this.ka, this.kec) ))),
-                      (OldMessageReaderKey,  context.actorOf( OldMessageReaderActor.props(new OldMessageReader(out, self, conf, this.ka, this.kec) ))),
-                      (MessageSenderKey,     context.actorOf( SendMessageActor.props(     conf, ka) )),
-                      (WritingSenderKey,     context.actorOf( SendWritingActor.props(     conf, ka) )),
-                      (WritingReaderKey,     context.actorOf( WritingReaderActor.props(   new WritingReader(out, self, conf, ka, this.kec) ))),
-                      (SessionUpdateKey,     context.actorOf( SessionUpdateActor.props(   db, dbec ))),
+                      (ChatOffsetUpdaterKey, context.actorOf( ChatOffsetUpdateActor.props(conf, db, dbec, actorGroupID)           )),
+                      (InvitationReaderKey,  context.actorOf( InvitationReaderActor.props(out, self, conf, ka, kec, actorGroupID) )),
+                      (NewMessageReaderKey,  context.actorOf( NewMessageReaderActor.props(out, self, conf, ka, kec, actorGroupID) )),
+                      (OldMessageReaderKey,  context.actorOf( OldMessageReaderActor.props(out, self, conf, ka, kec, actorGroupID) )),
+                      (MessageSenderKey,     context.actorOf( SendMessageActor.     props(ka, actorGroupID)                       )),
+                      (WritingSenderKey,     context.actorOf( SendWritingActor.     props(ka, actorGroupID)                       )),
+                      (WritingReaderKey,     context.actorOf( WritingReaderActor.   props(out, self, conf, ka, kec, actorGroupID) )),
+                      (SessionUpdateKey,     context.actorOf( SessionUpdateActor.   props(db, dbec, actorGroupID )                )),
                     )
                   )
                   out ! "{\"comm\":\"opened correctly\"}"
               }
-            case Right(message) =>
-              println(s"3. GOT MESSAGE: $s")
-              // this.be.sendMessage(message)
+            case Right((user, message)) =>
+              logger.trace(s"receive. got MESSAGE to send. actorGroupID(${actorGroupID.toString})")
               this.childrenActors.get(MessageSenderKey) match {
-                case Some(ref) => ref ! message
+                case Some(ref) => ref ! (user, message)
                 case None =>
               }
           }
         case Right(w) =>
-          println(s"2. GOT WRITING: $w")
-          // this.be.sendWriting( w )
+          // logger.trace(s"receive. got Writing. actorGroupID(${actorGroupID.toString})")
           this.childrenActors.get(WritingSenderKey) match {
             case Some(ref) => ref ! w
             case None =>
@@ -162,15 +163,12 @@ class WebSocketActor(out: ActorRef, ka: KafkaAdmin, kec: ExecutionContext, db: D
       }
 
     case _ =>
-      println(s". Unreadable message. ")
-      out ! ("Got Unreadable message")
+      logger.warn(s"receive. Unreadable message. actorGroupID(${actorGroupID.toString})")
+      out ! "Got Unreadable message"
       self ! PoisonPill
 
   }
 
-//   this.be.setSelfReference( self )
-
-  println(s"0. Actor started")
 
 }
 

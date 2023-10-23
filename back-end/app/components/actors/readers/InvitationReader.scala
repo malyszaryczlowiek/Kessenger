@@ -4,22 +4,29 @@ import akka.actor._
 import io.github.malyszaryczlowiek.kessengerlibrary.domain.Domain
 import io.github.malyszaryczlowiek.kessengerlibrary.domain.Domain.ChatId
 import io.github.malyszaryczlowiek.kessengerlibrary.model._
+import kafka.KafkaAdmin
 import org.apache.kafka.clients.consumer.{ConsumerRecord, ConsumerRecords, KafkaConsumer}
 import org.apache.kafka.common.TopicPartition
-import util.KafkaAdmin
 
+import java.util.UUID
 import java.util.concurrent.atomic.AtomicBoolean
 import scala.annotation.tailrec
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success, Using}
+import org.slf4j.LoggerFactory
+import ch.qos.logback.classic.Logger
 
 
 
 
-class InvitationReader(out: ActorRef, parentActor: ActorRef, conf: Configuration, ka: KafkaAdmin, ec: ExecutionContext) extends Reader {
+class InvitationReader(out: ActorRef, parentActor: ActorRef, conf: Configuration, ka: KafkaAdmin,
+                       ec: ExecutionContext, actorGroupID: UUID) extends Reader {
 
   private val continueReading: AtomicBoolean = new AtomicBoolean(true)
   private var fut: Option[Future[Unit]] = None
+  private val logger: Logger = LoggerFactory.getLogger(classOf[InvitationReader]).asInstanceOf[Logger]
+  logger.trace(s"InvitationReader. Starting reader. actorGroupID(${actorGroupID.toString})")
+
   startReading()
 
 
@@ -38,26 +45,27 @@ class InvitationReader(out: ActorRef, parentActor: ActorRef, conf: Configuration
         }
       } match {
         case Failure(exception) =>
-          println(s"InvitationReader --> Future EXCEPTION ${exception.getMessage}")
+          logger.error(s"futureBody. Exception thrown: ${exception.getMessage}. actorGroupID(${actorGroupID.toString})")
           // if reading ended with error we need to close all actor system
           // and give a chance for web app to restart.
           out ! ResponseBody(44, "Kafka connection lost. Try refresh page in a few minutes.").toString
           Thread.sleep(250)
           parentActor ! PoisonPill
-        case Success(_) => println(s"InvitationReader --> Future closed correctly.")
+        case Success(_) =>
+          logger.trace(s"futureBody. Consumer closed normally. actorGroupID(${actorGroupID.toString})")
       }
     }(ec)
   }
 
 
 
-  override protected def initializeConsumer[Invitation](consumer: KafkaConsumer[String, Invitation]): Unit = {
+  override protected def initializeConsumer[String, Invitation](consumer: KafkaConsumer[String, Invitation]): Unit = {
     val myJoinTopic = new TopicPartition(Domain.generateJoinId(conf.me.userId), 0)
     // assign this toopic to kafka consumer
     consumer.assign(java.util.List.of(myJoinTopic))
     // and assign offset for that topic partition
     consumer.seek(myJoinTopic, conf.joiningOffset)
-    println(s"InvitationReader --> Invitation consumer initialized. ")
+    logger.trace(s"initializeConsumer. Consumer initialized normally. actorGroupID(${actorGroupID.toString})")
   }
 
 
@@ -69,7 +77,7 @@ class InvitationReader(out: ActorRef, parentActor: ActorRef, conf: Configuration
       invitations.forEach(
         (r: ConsumerRecord[String, Invitation]) => {
           val i: Invitation = r.value().copy(myJoiningOffset = Option(r.offset() + 1L))
-          println(s"InvitationReader --> sending Invitation to web app.")
+          logger.trace(s"poolInvitations. Got Invitation. actorGroupID(${actorGroupID.toString})")
           out ! Invitation.toWebsocketJSON(i)
         }
       )

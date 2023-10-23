@@ -10,6 +10,6 @@ export interface ChatData {
     users: Array<User>;
     messages: Array<Message>;
     unreadMessages: Array<Message>;
-    isNew?: boolean;
+    isNew?: boolean;  // if chat is newly added
     emitter: EventEmitter<ChatData>;
 }

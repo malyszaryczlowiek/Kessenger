@@ -3,6 +3,7 @@ import { FormControl, FormGroup, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
 import { Subscription } from 'rxjs';
 import { Settings } from 'src/app/models/Settings';
+import { ConnectionService } from 'src/app/services/connection.service';
 import { ResponseNotifierService } from 'src/app/services/response-notifier.service';
 import { UserSettingsService } from 'src/app/services/user-settings.service';
 import { UserService } from 'src/app/services/user.service';
@@ -32,7 +33,7 @@ export class EditAccountComponent implements OnInit, OnDestroy {
     loginForm: new FormControl('', [Validators.required, Validators.minLength(4)])
   });
 
-  // TODO write validators
+  // TODO write custom validators
   passGroup = new FormGroup({
     old: new FormControl('', [Validators.required, Validators.minLength(8)]),
     neww: new FormControl('', [Validators.required, Validators.minLength(8)])
@@ -42,31 +43,31 @@ export class EditAccountComponent implements OnInit, OnDestroy {
   
 
 
-  constructor(private userService: UserService, 
+  constructor(private connectionService: ConnectionService, 
               private settingsService: UserSettingsService, 
               private responseNotifier: ResponseNotifierService,
               private router: Router) { }
 
   ngOnInit(): void {
-    this.fechingSubscription = this.userService.fetchingUserDataFinishedEmmiter.subscribe(
+    this.fechingSubscription = this.connectionService.dataFetchedEmitter.subscribe(
       ( b ) => {
-        if ( b ){
-          this.zones = this.settingsService.zones
-          this.settings = this.settingsService.settings
-          this.settingsGroup.controls.zoneControl.setValue( this.settings.zoneId )
-          this.settingsGroup.controls.sessionControl.setValue( this.settings.sessionDuration / (60000) )
-        }
+        this.zones = this.settingsService.zones
+        this.settings = this.settingsService.settings
+        this.settingsGroup.controls.zoneControl.setValue( this.settings.zoneId )
+        this.settingsGroup.controls.sessionControl.setValue( this.settings.sessionDuration / (60000) )
       }
     )
-    if ( this.userService.isWSconnected() ) this.userService.dataFetched( 0 ) 
+    if ( this.connectionService.isWSconnected() ) this.connectionService.dataFetchedEmitter.emit( 0 )
   }
+
+
 
 
   ngOnDestroy(): void {
     if (this.fechingSubscription) this.fechingSubscription.unsubscribe()
   }
 
-
+ 
 
 
   saveSettings() {
@@ -78,14 +79,18 @@ export class EditAccountComponent implements OnInit, OnDestroy {
         sessionDuration: time * 60 * 1000,
         zoneId: zone
       }
-      const oldSett = this.settingsService.settings
-      this.settingsService.setSettings( body )
-      const obs = this.userService.changeSettings( body )
+      // const oldSett = this.settingsService.settings
+      // this.settingsService.setSettings( body )        
+      // to powinno być zrobione dopiero po otrzymaniu zwrotnej informacji, że dane zostały updejtowane w backendzie
+      // wtedy w settingsService powinien zostać wysłany event, żeby np. ustawienia wylogowania wczytały i przypisały nową wartość czasu do wylogowania. 
+      const obs = this.connectionService.changeSettings( body )
       if ( obs ) {
         obs.subscribe({
           next: (response) => {
             // this.settingsResponse = response.body
             // this.userService.updateSession()
+            this.settingsService.setSettings( body )
+            this.connectionService.updateSession()
             const print = {
               header: 'Update',
               //code: 0,
@@ -94,7 +99,7 @@ export class EditAccountComponent implements OnInit, OnDestroy {
             this.responseNotifier.printNotification( print )
           },
           error: (error) => {
-            this.settingsService.setSettings( oldSett )
+            // this.settingsService.setSettings( oldSett )
             this.responseNotifier.handleError( error ) 
           },
           complete: () => {}
@@ -111,13 +116,15 @@ export class EditAccountComponent implements OnInit, OnDestroy {
   saveLogin() {
     const newLogin = this.loginFormGroup.controls.loginForm.value
     if ( newLogin ) {
-      const l = this.userService.changeLogin(newLogin)
+      // const l = this.userService.changeLogin(newLogin)
+      const l = this.connectionService.changeLogin(newLogin)
       if ( l ) {
         l.subscribe({
           next: (response) => {
             const b = response.body
             if ( b ) { 
-              this.userService.updateLogin(newLogin)
+              // this.userService.updateLogin(newLogin)
+              this.connectionService.updateUserLogin( newLogin )
               const print = {
                 header: 'Update',
                 //code: 0,
@@ -145,7 +152,8 @@ export class EditAccountComponent implements OnInit, OnDestroy {
     const oldPass = this.passGroup.controls.old.value
     const newPass = this.passGroup.controls.neww.value
     if (oldPass && newPass) {
-      const p = this.userService.changePassword(oldPass, newPass)
+      // const p = this.userService.changePassword(oldPass, newPass)
+      const p = this.connectionService.changePassword(oldPass, newPass)
       if ( p ) {
         //tutuaj kontynuowaća
         p.subscribe({
@@ -172,7 +180,8 @@ export class EditAccountComponent implements OnInit, OnDestroy {
             }
             if (err.status == 401){
               console.log('Session is out.')
-              this.userService.clearService()
+              // this.userService.clearService()
+              this.connectionService.disconnect()
               this.router.navigate(['session-timeout'])
             }
           },
