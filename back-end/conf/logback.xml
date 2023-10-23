@@ -57,11 +57,13 @@
 
     </then>
     <else>
-      <!-- Here dev configuration -->
+
+
+      <!-- Here dev configuration, no KESSENGER_LOGBACK_ENV env defined-->
 
 
       <appender name="FILE" class="ch.qos.logback.core.FileAppender">
-        <file>${home}/kessenger/dev/logs/backend/application.log</file>
+        <file>${HOME}/kessenger/dev/logs/backend/application.log</file>
 <!--        <file>${application.home:-.}/logs/application.log</file>-->
         <encoder>
           <charset>UTF-8</charset>
@@ -128,7 +130,7 @@
       <!-- Root logger sends WARN and ERROR to ASYNCFILE and ASYNCSTDOUT appenders -->
 
       <root level="WARN">
-<!--        <appender-ref ref="ASYNCFILE" />-->
+        <appender-ref ref="ASYNCFILE" />
         <appender-ref ref="ASYNCSTDOUT" />
       </root>
 
