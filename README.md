@@ -23,23 +23,22 @@ To build and run this project you need installed:
  
 ## Running project
 
-Simply open terminal/console and go to project folder. Then make scripts executable:
+Simply open terminal/console, go to project folder and then make scripts executable:
 
 ```bash
 chmod +x kessenger
-chmod +x stopkessenger
 ```
 
-Be sure that docker is running and start building script:
+Be sure that docker is running and run building script:
 
 ```bash
 ./kessenger
 ```
 
-Wait to building will end and then open new browser window or tab and go to `localhost:4200`. 
+Wait building process will end and then open new browser window or tab and go to `localhost:4200`. 
 
 > **Note!** <br>
-> First call with containers building takes some time. 
+> First build will take some time (several minutes).
 
 Then open another browser and go to `localhost:4200` too. In both browsers create two different users and then create chat between them.
 
