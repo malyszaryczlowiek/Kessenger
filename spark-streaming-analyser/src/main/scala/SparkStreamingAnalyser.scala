@@ -27,10 +27,6 @@ import kessengerlibrary.serdes.messagesperzone.MessagesPerZoneSerializer
 
 
 class  SparkStreamingAnalyser
-
-// error
-// TODO sprawić by aplikacja próbowała pobrać od razu 15 ostatnich wiadomości a nie 5
-
 object SparkStreamingAnalyser {
 
 
@@ -127,15 +123,15 @@ object SparkStreamingAnalyser {
   private def prepareSparkSession: SparkSession = {
     val sparkSession = SparkSession
       .builder
-      .appName("SparkStreamingAnalyser")
+      .appName( appId )
       // two config below added to solve
       // Initial job has not accepted any resources;
       // check your cluster UI to ensure that workers
       // are registered and have sufficient resources
       //      .config("spark.shuffle.service.enabled", "false")
       //      .config("spark.dynamicAllocation.enabled", "false")
-      .master("local[2]")
-      //  .master("spark://spark-master:7077")    // option for cluster  spark://spark-master:7077
+      // .master("local[2]")
+      .master("spark://spark-master:7077")    // option for cluster  spark://spark-master:7077
       .getOrCreate()
 
     // we initialize shutdownhook only once.
@@ -148,7 +144,7 @@ object SparkStreamingAnalyser {
       }
     })
 
-//    val context = sparkSession.sparkContext
+    // val context = sparkSession.sparkContext
     // context.setLogLevel("WARN")
     sparkSession
   }

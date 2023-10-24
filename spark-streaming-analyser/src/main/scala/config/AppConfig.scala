@@ -14,21 +14,9 @@ object AppConfig {
 
   logger.trace(s"AppConfig started.")
 
-  private var config: Config = null
-  private val env = System.getenv("SPARK_ENV")
+  private val config: Config = ConfigFactory.load("application.conf").getConfig("kessenger.spark-streaming-analyser")
+  logger.trace(s"Loading configuration from application.conf.")
 
-  if (env != null) {
-    if (env.equals("PROD")) {
-      logger.trace(s"Loading PROD configuration.")
-      config = ConfigFactory.load("application.conf").getConfig("kessenger.spark-streaming-analyser.prod")
-    } else {
-      logger.trace(s"Loading DEV configuration.")
-      config = ConfigFactory.load("application.conf").getConfig("kessenger.spark-streaming-analyser.dev")
-    }
-  } else {
-    logger.error(s"No SPARK_ENV environment variable defined. ")
-    throw new IllegalStateException("No SPARK_ENV environment variable defined. ")
-  }
 
   // "jdbc:postgresql://localhost:5438/kessenger_schema"
   case class DbConfig(driver: String, protocol: String, server: String, port: Int, schema: String, user: String, pass: String, dbUrlWithSchema: String )
@@ -54,6 +42,9 @@ object AppConfig {
   )
 
   val analysisDir: String = config.getString("output-analysis-dir")
+
+
+  val appId: String = config.getString(s"application-id")
 
 
 }

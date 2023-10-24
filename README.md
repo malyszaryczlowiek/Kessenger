@@ -40,7 +40,7 @@ Wait building process will end and then open new browser window or tab and go to
 > **Note!** <br>
 > First build will take some time (several minutes).
 
-Then open another browser and go to `localhost:4200` too. In both browsers create two different users and then create 
+Then open *another browser* and go to `localhost:4200` too. In both browsers create two different users and then create 
 chat between them.
 
 ## Running Analysers
@@ -55,7 +55,7 @@ operate, so it is required to run them when some data are generated. Both applic
 These scripts build docker images and create containers which are thereafter connected to existing inner docker network. 
 
 ## Running dev
-If you want to run system in dev mode run `kessenger` script with dev option: 
+If you want to run system in *dev* mode run `kessenger` script with dev option: 
 
 ```bash
 ./kessenger --env=dev

@@ -17,7 +17,7 @@ object AppConfig {
   private var config: Config = null
   // private val env = System.getenv("SPARK_ENV")
 
-  config = ConfigFactory.load("application.conf").getConfig("kessenger.spark-streaming-analyser")
+  config = ConfigFactory.load("application.conf").getConfig("kessenger.spark-graphx-analyser")
 
 //  if (env != null) {
 //    // tutaj po prostu wczytuję configurację z prod

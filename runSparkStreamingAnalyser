@@ -62,12 +62,14 @@ if [[ $REBUILD = true ]] ; then
   # ./generateJAR
   #  rm -rf $HOME/kessenger/prod/logs/sparkanalyser/APPlication.log
   if [[ $APP_ENV = "dev" ]] ; then
-    jar -uf ./target/$SCALA_V/$APP.jar ./conf/dev/application.conf
-    cp ./target/$SCALA_V/$APP.jar ./conf/dev/$APP.jar
+    cp ./conf/dev/application.conf ./application.conf
+    jar -uf ./target/$SCALA_V/$APP.jar application.conf
+    cp ./target/$SCALA_V/$APP.jar      ./conf/dev/$APP.jar
     cp ./../driver-jars/$DB_DRIVER.jar ./conf/dev/$DB_DRIVER.jar
     cd ./conf/dev
   else
-    jar -uf ./target/$SCALA_V/$APP.jar ./conf/prod/application.conf
+    cp ./conf/prod/application.conf ./application.conf
+    jar -uf ./target/$SCALA_V/$APP.jar application.conf
     cp ./target/$SCALA_V/$APP.jar      ./conf/prod/$APP.jar
     cp ./../driver-jars/$DB_DRIVER.jar ./conf/prod/$DB_DRIVER.jar
     cd ./conf/prod
@@ -104,5 +106,4 @@ docker run -d \
 
 
 
-#  # todo add logging folder
 
