@@ -5,10 +5,8 @@ import org.apache.logging.log4j.Logger
 import org.apache.kafka.common.config.TopicConfig
 import org.apache.spark.sql.{Dataset, ForeachWriter, Row, SparkSession}
 import org.apache.spark.sql.functions.{avg, count, window}
-import org.apache.spark.sql.streaming.Trigger
+import org.apache.spark.sql.streaming.{OutputMode, Trigger}
 import org.apache.spark.sql.streaming.Trigger.ProcessingTime
-
-
 import config.AppConfig._
 import db.savers.AvgServerDelayByUserDatabaseSaver
 import db.DbTable
@@ -16,12 +14,14 @@ import mappers.KafkaMappers._
 import output.KafkaOutput
 import parsers.RowParser.kafkaInputRowParser
 import writers.PostgresWriter
-
-
 import kessengerlibrary.model.{MessagesPerZone, SparkMessage}
 import kessengerlibrary.kafka
 import kessengerlibrary.kafka.{Done, TopicCreator, TopicSetup}
 import kessengerlibrary.serdes.messagesperzone.MessagesPerZoneSerializer
+
+import config.Database
+
+import config.Database.connection // implicit
 
 
 
@@ -50,10 +50,10 @@ object SparkStreamingAnalyser {
 
   private val avgServerDelayByUser = DbTable("avg_server_delay_by_user",
     Map(
-      "window_start"  -> "timestamp",
-      "window_end"    -> "timestamp",
-      "user_id"       -> "uuid",
-      "delay_by_user" -> "BIGINT",
+      "window_start"     -> "timestamp",
+      "window_end"       -> "timestamp",
+      "user_id"          -> "uuid",
+      "avg_diff_time_ms" -> "BIGINT",
     )
   )
 
@@ -113,6 +113,8 @@ object SparkStreamingAnalyser {
       case kafka.Error(error) =>
         logger.error(s"Creation topic '${avgServerDelayByZone.tableName}' failed with error: $error")
     }
+
+    val db = new Database
   }
 
 
@@ -131,6 +133,7 @@ object SparkStreamingAnalyser {
       //      .config("spark.shuffle.service.enabled", "false")
       //      .config("spark.dynamicAllocation.enabled", "false")
       // .master("local[2]")
+      .config("spark.worker.cleanup.enabled", "true")
       .master("spark://spark-master:7077")    // option for cluster  spark://spark-master:7077
       .getOrCreate()
 
@@ -140,6 +143,7 @@ object SparkStreamingAnalyser {
       override
       def run(): Unit = {
         logger.warn(s"SparkSession closed from ShutdownHook.")
+        Database.closeConnection()
         sparkSession.close()
       }
     })
@@ -166,7 +170,11 @@ object SparkStreamingAnalyser {
 
     // save data to proper sinks
     // saveStreamToKafka( avgServerDelayByUserStream, avgDelayByUserToKafkaMapper, avgServerDelayByUser.tableName)
-    saveStreamToDatabase( avgServerDelayByUserStream, new PostgresWriter(new AvgServerDelayByUserDatabaseSaver(avgServerDelayByUser) ))
+
+
+    val saver  = new AvgServerDelayByUserDatabaseSaver(avgServerDelayByUser)
+    val writer = new PostgresWriter( saver )
+    saveStreamToDatabase( avgServerDelayByUserStream, writer )
 
     //getNumberOfMessagesPerTime( inputStream )
     // getAvgNumOfMessInChatPerZonePerWindowTime( inputStream )
@@ -183,6 +191,7 @@ object SparkStreamingAnalyser {
       .format("kafka")
       .option("kafka.bootstrap.servers", kafkaConfig.servers) //
       .option("subscribePattern",        allChatsRegex) // we subscribe all chat topics
+
       .load()
 
 
@@ -323,6 +332,9 @@ object SparkStreamingAnalyser {
 
     s2.createOrReplaceTempView(s"delay_by_user")
 
+    println(s"Avg server time delay by user delay_by_user")
+    s2.printSchema()
+
 
     /*
     date_format() - zwraca string, stąd error
@@ -339,7 +351,9 @@ object SparkStreamingAnalyser {
         |""".stripMargin
         // java_method('java.util.UUID', 'fromString', user_id) TODO zamienić na tę metodę jak będę chciał uuid zamiast string
 
-    s2.sqlContext.sql( sqlSplitter )
+    val s3 = s2.sqlContext.sql( sqlSplitter )
+    s3.createOrReplaceTempView(s"avg_server_delay_by_user")
+    s3
   }
 
 
@@ -352,13 +366,14 @@ object SparkStreamingAnalyser {
   wyniki zapisać do
   1. kafki
   2. pliku csv
-  3. bazy danych
+  3. bazy danych (nie da się, connection jest nieserializowalne)
    */
 
   /**
    * This method requires input stream as Dataset[Row] (not Dataset[SparkMessage])
    * because Kafka can only read string or binary key-value input.
    */
+     // to musze użyć
   private def saveStreamToKafka(stream: Dataset[Row], mapper: Row => KafkaOutput, topic: String): Unit = {
     import stream.sparkSession.implicits._
     stream
@@ -375,17 +390,36 @@ object SparkStreamingAnalyser {
 
 
   /**
-   * TODO tutaj jako input stream trzeba dać NIESERIALIZOWANY stream czyli zawierający
-   *  wszyskie
    */
+    // nierobialne bo zawiera nieserializowalny obiekt jakim jest connection,
+    // nie da się go wysłać do różnych partycji
   private def saveStreamToDatabase(stream: Dataset[Row], writer: ForeachWriter[Row]): Unit = {
-    stream.writeStream
+    stream
+      .writeStream
+      .option("checkpointLocation",      kafkaConfig.fileStore)
       .foreach( writer )
-      .trigger(Trigger.ProcessingTime("5 seconds"))
-      .outputMode("append")
+      //.trigger(Trigger.ProcessingTime("2 seconds"))
+      //.outputMode("append")
       .start()
       .awaitTermination()
 
+
+
+
+    // jdbc not work for streaming
+    //      .option("checkpointLocation",      kafkaConfig.fileStore)
+//      .format("jdbc")
+//      .option("driver",   "org.postgresql.Driver")
+//      .option("url",       dbConfig.dbUrlWithSchema)
+//      .option("dbtable",  "avg_server_delay_by_user")
+//      .option("user",      dbConfig.user)
+//      .option("password",  dbConfig.pass)
+//      .option("createTableColumnTypes", "window_start TIMESTAMP, window_end TIMESTAMP, user_id varchar(255), avg_diff_time_ms BIGINT")
+//      // .outputMode(OutputMode.Update)
+//      .start()
+
+
+ // trzeba wrócić do writera
   }
 
 

@@ -21,6 +21,35 @@
             <AppenderRef ref="FILE" level="trace"/>
             <AppenderRef ref="CONSOLE" level="trace"/>
         </Logger>
+
+
+
+        <Logger name="io.github.malyszaryczlowiek.config.AppConfig" level="trace" additivity="false">
+            <!-- <Property name="user">${sys:user.name}</Property>-->
+            <AppenderRef ref="FILE" level="trace"/>
+            <AppenderRef ref="CONSOLE" level="trace"/>
+        </Logger>
+        <Logger name="io.github.malyszaryczlowiek.config.Database" level="trace" additivity="false">
+            <!-- <Property name="user">${sys:user.name}</Property>-->
+            <AppenderRef ref="FILE" level="trace"/>
+            <AppenderRef ref="CONSOLE" level="trace"/>
+        </Logger>
+
+        <Logger name="io.github.malyszaryczlowiek.db.DatabaseSaver" level="trace" additivity="false">
+            <!-- <Property name="user">${sys:user.name}</Property>-->
+            <AppenderRef ref="FILE" level="trace"/>
+            <AppenderRef ref="CONSOLE" level="trace"/>
+        </Logger>
+        <Logger name="io.github.malyszaryczlowiek.writers.PostgresWriter" level="trace" additivity="false">
+            <!-- <Property name="user">${sys:user.name}</Property>-->
+            <AppenderRef ref="FILE" level="trace"/>
+            <AppenderRef ref="CONSOLE" level="trace"/>
+        </Logger>
+
+
+
+
+
         <Root level="warn">
             <AppenderRef ref="CONSOLE"/>
             <AppenderRef ref="FILE"/>

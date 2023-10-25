@@ -59,7 +59,6 @@ if [[ $REBUILD = true ]] ; then
   cd ./$APP_NAME
   rm -rf ./target/$SCALA_V/
   sbt assembly
-  # ./generateJAR
   #  rm -rf $HOME/kessenger/prod/logs/sparkanalyser/APPlication.log
   if [[ $APP_ENV = "dev" ]] ; then
     cp ./conf/dev/application.conf ./application.conf

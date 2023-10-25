@@ -10,9 +10,9 @@ import java.sql.{Connection, PreparedStatement}
 import scala.util.Using
 
 
-class AvgServerDelayDatabaseSaver(table: DbTable) extends DatabaseSaver(table) {
+class AvgServerDelayDatabaseSaver(table: DbTable)(implicit connection: Connection) extends DatabaseSaver(table)(connection) {
 
-  override def save(r: Row)(implicit connection: Connection): Unit = {
+  override def save(r: Row): Unit = {
     val sql = s"INSERT INTO ${table.tableName} ${table.getTableColumnsNames} VALUES ${table.getQuestionMarks}"
     val w = avgServerDelayParser( r )
     Using(connection.prepareStatement(sql)) {

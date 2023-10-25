@@ -7,7 +7,7 @@ import org.apache.spark.sql.{ForeachWriter, Row}
 
 
 import config.Database
-import Database.connection
+//
 import db.DatabaseSaver
 
 
@@ -20,7 +20,7 @@ class PostgresWriter(saver: DatabaseSaver) extends ForeachWriter[Row]{
     val c = Database.isConnected
     if ( c ) {
       logger.warn(s"open(). Connection is opened.")
-      saver.createTable > 0
+      saver.createTable >= 0
     }
     else {
       logger.error(s"open(). Connection is still closed.")

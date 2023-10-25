@@ -20,10 +20,10 @@ object Database {
   Class.forName( dbConfig.driver )
 
   implicit var connection: Connection = DriverManager.getConnection(dbConfig.dbUrlWithSchema, dbProps)
-  logger.trace(s"Database connection enabled.")
+  logger.trace(s"Database connection enabled. And connection is valid: ${isConnected}")
 
 
-  private def closeConnection(): Unit = Using(connection){ connection => connection.close() }
+  def closeConnection(): Unit = Using(connection){ connection => connection.close() }
 
   def restartConnection(): Unit  = {
     closeConnection()

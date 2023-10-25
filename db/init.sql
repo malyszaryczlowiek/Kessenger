@@ -69,6 +69,15 @@ CREATE TABLE IF NOT EXISTS page_ranks (
 
 
 
+CREATE TABLE IF NOT EXISTS avg_server_delay_by_user (
+  window_start     timestamp    NOT NULL,
+  window_end       timestamp    NOT NULL,
+  user_id          varchar(255) NOT NULL,
+  avg_diff_time_ms BIGINT       NOT NULL
+);
+
+
+
 
 -- add two users to db only for some tests
 -- in db we store truncated hashed password

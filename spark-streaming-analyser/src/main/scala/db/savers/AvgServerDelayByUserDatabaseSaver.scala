@@ -7,9 +7,11 @@ import org.apache.spark.sql.Row
 import java.sql.{Connection, PreparedStatement}
 import scala.util.Using
 
-class AvgServerDelayByUserDatabaseSaver(table: DbTable) extends DatabaseSaver(table) {
+class AvgServerDelayByUserDatabaseSaver(table: DbTable)(implicit connection: Connection) extends DatabaseSaver(table)(connection) {
 
-  override def save(r: Row)(implicit connection: Connection): Unit = {
+  createTable()
+
+  override def save(r: Row): Unit = {
     val sql = s"INSERT INTO ${table.tableName} ${table.getTableColumnsNames} VALUES ${table.getQuestionMarks}"
     val w = avgServerDelayByUserParser( r )
     Using(connection.prepareStatement(sql)) {
