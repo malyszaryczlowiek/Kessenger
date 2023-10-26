@@ -40,6 +40,8 @@ object SparkStreamingAnalyser {
 
   private val allChatsRegex        = "chat--([\\p{Alnum}-]*)"
 
+
+
   private val avgServerDelay       = DbTable("avg_server_delay",
     Map(
       "window_start" -> "timestamp",
@@ -166,18 +168,21 @@ object SparkStreamingAnalyser {
     println(s"\n avgServerTimeDelayByUser SCHEMA: \n")
     avgServerDelayByUserStream.printSchema()
 
-
-
     // save data to proper sinks
-    // saveStreamToKafka( avgServerDelayByUserStream, avgDelayByUserToKafkaMapper, avgServerDelayByUser.tableName)
+    saveStreamToKafka( avgServerDelayByUserStream, avgDelayByUserToKafkaMapper, avgServerDelayByUser.tableName)
 
 
-    val saver  = new AvgServerDelayByUserDatabaseSaver(avgServerDelayByUser)
-    val writer = new PostgresWriter( saver )
-    saveStreamToDatabase( avgServerDelayByUserStream, writer )
 
-    //getNumberOfMessagesPerTime( inputStream )
+
+
+    // deprecated
+    // getNumberOfMessagesPerTime( inputStream )
     // getAvgNumOfMessInChatPerZonePerWindowTime( inputStream )
+
+//    val saver = new AvgServerDelayByUserDatabaseSaver(avgServerDelayByUser)
+//    val writer = new PostgresWriter(saver)
+//    saveStreamToDatabase(avgServerDelayByUserStream, writer)
+
   }
 
 
@@ -373,7 +378,6 @@ object SparkStreamingAnalyser {
    * This method requires input stream as Dataset[Row] (not Dataset[SparkMessage])
    * because Kafka can only read string or binary key-value input.
    */
-     // to musze użyć
   private def saveStreamToKafka(stream: Dataset[Row], mapper: Row => KafkaOutput, topic: String): Unit = {
     import stream.sparkSession.implicits._
     stream
@@ -390,9 +394,10 @@ object SparkStreamingAnalyser {
 
 
   /**
+   * nierobialne bo zawiera nieserializowalny obiekt jakim jest connection,
+   * nie da się go wysłać do różnych partycji
    */
-    // nierobialne bo zawiera nieserializowalny obiekt jakim jest connection,
-    // nie da się go wysłać do różnych partycji
+  @deprecated
   private def saveStreamToDatabase(stream: Dataset[Row], writer: ForeachWriter[Row]): Unit = {
     stream
       .writeStream
@@ -402,25 +407,8 @@ object SparkStreamingAnalyser {
       //.outputMode("append")
       .start()
       .awaitTermination()
-
-
-
-
-    // jdbc not work for streaming
-    //      .option("checkpointLocation",      kafkaConfig.fileStore)
-//      .format("jdbc")
-//      .option("driver",   "org.postgresql.Driver")
-//      .option("url",       dbConfig.dbUrlWithSchema)
-//      .option("dbtable",  "avg_server_delay_by_user")
-//      .option("user",      dbConfig.user)
-//      .option("password",  dbConfig.pass)
-//      .option("createTableColumnTypes", "window_start TIMESTAMP, window_end TIMESTAMP, user_id varchar(255), avg_diff_time_ms BIGINT")
-//      // .outputMode(OutputMode.Update)
-//      .start()
-
-
- // trzeba wrócić do writera
   }
+
 
 
 
@@ -450,7 +438,7 @@ object SparkStreamingAnalyser {
 
 
   /**
-   *
+   * works
    */
   private def saveStreamToCSV(stream: Dataset[Row], subFolder: String): Unit = {
     // filename
