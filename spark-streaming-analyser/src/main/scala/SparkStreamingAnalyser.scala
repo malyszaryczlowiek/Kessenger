@@ -203,8 +203,8 @@ object SparkStreamingAnalyser {
       .readStream
       .format("kafka")
       .option("kafka.bootstrap.servers", kafkaConfig.servers) //
-      //.option("subscribePattern",        allChatsRegex) // we subscribe all chat topics
-      .option("subscribe", "chat--541e7401-f332-4f21-9e1d-15a616e7ce3c--79df5513-28f5-437a-8ec8-c9e571e1e662")
+      .option("subscribePattern",        allChatsRegex) // we subscribe all chat topics
+      // .option("subscribe", "chat--541e7401-f332-4f21-9e1d-15a616e7ce3c--79df5513-28f5-437a-8ec8-c9e571e1e662")
       // newly added
       // .option("startingOffsets", "earliest")
       //.option("endingOffsets",   "latest")
