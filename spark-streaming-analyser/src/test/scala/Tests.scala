@@ -40,4 +40,12 @@ class Tests extends munit.FunSuite {
 
   }
 
+
+  test("regex") {
+    assert (java.util.regex.Pattern.matches("chat--[\\p{Alnum}-]*", "chat--541e7401-f332-4f21-9e1d-15a616e7ce3c--79df5513-28f5-437a-8ec8-c9e571e1e662") )
+    assert (java.util.regex.Pattern.matches("chat--([\\p{Alnum}-]*)", "chat--541e7401-f332-4f21-9e1d-15a616e7ce3c--79df5513-28f5-437a-8ec8-c9e571e1e662") )
+    //assert (java.util.regex.Pattern.matches("chat--([\\p{Alnum}-]*)", "chat--541e7401-f332-4f21-9e1d-15a616e7ce3c--79df5513-28f5-437a-8ec8-c9e571e1e662") )
+
+  }
+
 }

@@ -47,7 +47,16 @@
             <AppenderRef ref="FILE" level="trace"/>
             <AppenderRef ref="CONSOLE" level="trace"/>
         </Logger>
-
+<!--        <Logger name="io.github.malyszaryczlowiek.parsers.RowParser" level="trace" additivity="false">-->
+<!--            &lt;!&ndash; <Property name="user">${sys:user.name}</Property>&ndash;&gt;-->
+<!--            <AppenderRef ref="FILE" level="trace"/>-->
+<!--            <AppenderRef ref="CONSOLE" level="trace"/>-->
+<!--        </Logger>-->
+<!--        <Logger name="io.github.malyszaryczlowiek.mappers.KafkaMappers" level="trace" additivity="false">-->
+<!--            &lt;!&ndash; <Property name="user">${sys:user.name}</Property>&ndash;&gt;-->
+<!--            <AppenderRef ref="FILE" level="trace"/>-->
+<!--            <AppenderRef ref="CONSOLE" level="trace"/>-->
+<!--        </Logger>-->
 
 
 

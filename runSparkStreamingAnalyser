@@ -56,17 +56,24 @@ fi
 
 # build image
 if [[ $REBUILD = true ]] ; then
+
+  docker stop $APP_NAME
+  docker rm -v $APP_NAME
+  docker rmi $APP_NAME-image
+
   cd ./$APP_NAME
   rm -rf ./target/$SCALA_V/
   sbt assembly
   #  rm -rf $HOME/kessenger/prod/logs/sparkanalyser/APPlication.log
   if [[ $APP_ENV = "dev" ]] ; then
+    rm -rf $HOME/kessenger/dev/logs/spark-streaming-analyser/application.log
     cp ./conf/dev/application.conf ./application.conf
     jar -uf ./target/$SCALA_V/$APP.jar application.conf
     cp ./target/$SCALA_V/$APP.jar      ./conf/dev/$APP.jar
     cp ./../driver-jars/$DB_DRIVER.jar ./conf/dev/$DB_DRIVER.jar
     cd ./conf/dev
   else
+    rm -rf $HOME/kessenger/prod/logs/spark-streaming-analyser/application.log
     cp ./conf/prod/application.conf ./application.conf
     jar -uf ./target/$SCALA_V/$APP.jar application.conf
     cp ./target/$SCALA_V/$APP.jar      ./conf/prod/$APP.jar
@@ -102,7 +109,3 @@ docker run -d \
   --network=kessenger-network \
   --name $APP_NAME \
   $APP_NAME-image
-
-
-
-

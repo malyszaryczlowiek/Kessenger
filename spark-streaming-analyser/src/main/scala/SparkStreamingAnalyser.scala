@@ -19,7 +19,7 @@ import kessengerlibrary.kafka
 import kessengerlibrary.kafka.{Done, TopicCreator, TopicSetup}
 import kessengerlibrary.serdes.messagesperzone.MessagesPerZoneSerializer
 
-import config.Database
+// import config.Database
 
 import config.Database.connection // implicit
 
@@ -116,7 +116,7 @@ object SparkStreamingAnalyser {
         logger.error(s"Creation topic '${avgServerDelayByZone.tableName}' failed with error: $error")
     }
 
-    val db = new Database
+    // val db = new Database
   }
 
 
@@ -145,7 +145,7 @@ object SparkStreamingAnalyser {
       override
       def run(): Unit = {
         logger.warn(s"SparkSession closed from ShutdownHook.")
-        Database.closeConnection()
+        // Database.closeConnection()
         sparkSession.close()
       }
     })
@@ -165,24 +165,32 @@ object SparkStreamingAnalyser {
     val avgServerDelayByUserStream = avgServerTimeDelayByUser( inputStream )
 
     // printing schema of output stream
-    println(s"\n avgServerTimeDelayByUser SCHEMA: \n")
-    avgServerDelayByUserStream.printSchema()
+    // println(s"\n avgServerTimeDelayByUser SCHEMA: \n")
+    // avgServerDelayByUserStream.printSchema()
 
     // save data to proper sinks
     saveStreamToKafka( avgServerDelayByUserStream, avgDelayByUserToKafkaMapper, avgServerDelayByUser.tableName)
+    // saveStreamToCSV(  avgServerDelayByUserStream, "analysis" )
 
 
 
 
+
+
+
+    //    inputStream
+//      .writeStream
+//      .format("console")
+//      .start()
+//      .awaitTermination()
 
     // deprecated
     // getNumberOfMessagesPerTime( inputStream )
     // getAvgNumOfMessInChatPerZonePerWindowTime( inputStream )
 
-//    val saver = new AvgServerDelayByUserDatabaseSaver(avgServerDelayByUser)
-//    val writer = new PostgresWriter(saver)
-//    saveStreamToDatabase(avgServerDelayByUserStream, writer)
-
+    //    val saver = new AvgServerDelayByUserDatabaseSaver(avgServerDelayByUser)
+    //    val writer = new PostgresWriter(saver)
+    //    saveStreamToDatabase(avgServerDelayByUserStream, writer)
   }
 
 
@@ -195,8 +203,11 @@ object SparkStreamingAnalyser {
       .readStream
       .format("kafka")
       .option("kafka.bootstrap.servers", kafkaConfig.servers) //
-      .option("subscribePattern",        allChatsRegex) // we subscribe all chat topics
-
+      //.option("subscribePattern",        allChatsRegex) // we subscribe all chat topics
+      .option("subscribe", "chat--541e7401-f332-4f21-9e1d-15a616e7ce3c--79df5513-28f5-437a-8ec8-c9e571e1e662")
+      // newly added
+      // .option("startingOffsets", "earliest")
+      //.option("endingOffsets",   "latest")
       .load()
 
 
@@ -339,13 +350,13 @@ object SparkStreamingAnalyser {
 
     println(s"Avg server time delay by user delay_by_user")
     s2.printSchema()
-
-
     /*
     date_format() - zwraca string, stąd error
     | date_format(window.start, 'yyyy-MM-dd HH:mm:ss' ) AS window_start,
     | date_format(window.end, 'yyyy-MM-dd HH:mm:ss' ) AS window_end,
      */
+
+
     val sqlSplitter =
       """SELECT
         | window.start AS window_start,
@@ -380,59 +391,22 @@ object SparkStreamingAnalyser {
    */
   private def saveStreamToKafka(stream: Dataset[Row], mapper: Row => KafkaOutput, topic: String): Unit = {
     import stream.sparkSession.implicits._
-    stream
+    val temp = stream
       .map( mapper )
-      .writeStream
-      .outputMode("append") // append us default mode for kafka output
+      .toDF()
+
+    println(s"Final schema to save in kafka")
+    temp.printSchema()
+
+    temp.writeStream
+      //.outputMode("append") // append is default mode for kafka output
       .format("kafka")
       .option("checkpointLocation",      kafkaConfig.fileStore)
       .option("kafka.bootstrap.servers", kafkaConfig.servers)
-      .option("topic", topic)
+      .option("topic",                   topic)
       .start()
       .awaitTermination()
   }
-
-
-  /**
-   * nierobialne bo zawiera nieserializowalny obiekt jakim jest connection,
-   * nie da się go wysłać do różnych partycji
-   */
-  @deprecated
-  private def saveStreamToDatabase(stream: Dataset[Row], writer: ForeachWriter[Row]): Unit = {
-    stream
-      .writeStream
-      .option("checkpointLocation",      kafkaConfig.fileStore)
-      .foreach( writer )
-      //.trigger(Trigger.ProcessingTime("2 seconds"))
-      //.outputMode("append")
-      .start()
-      .awaitTermination()
-  }
-
-
-
-
-//  stream
-//    .write
-//    .format("jdbc")
-//    // TODO sprawdzić czy nie trzeba też podać też drivera jako JAR
-//    //  przy uruchamianiu kontenera w Dockerfile
-//    //  --driver-class-path postgresql-9.4.1207.jar --jars postgresql-9.4.1207.jar
-//    .option("driver", "org.postgresql.Driver")
-//    .option("url", dbConfig.dbUrlWithSchema)
-//    .option("dbtable", saveToTable)
-//    .option("user", dbConfig.user)
-//    .option("password", dbConfig.pass)
-//    .save()
-
-  //    val connectionProperties = new Properties()
-  //    connectionProperties.put("user",     dbConfig.user)
-  //    connectionProperties.put("password", dbConfig.pass)
-  //
-  //
-  //    stream.write
-  //      .option("createTableColumnTypes", "name CHAR(64), comments VARCHAR(1024)") // create new table
-  //      .jdbc(ERRORR)
 
 
 
@@ -474,27 +448,46 @@ object SparkStreamingAnalyser {
 
 
 
+  /**
+   * nierobialne bo zawiera nieserializowalny obiekt jakim jest connection,
+   * nie da się go wysłać do różnych partycji
+   */
+  @deprecated
+  private def saveStreamToDatabase(stream: Dataset[Row], writer: ForeachWriter[Row]): Unit = {
+    stream
+      .writeStream
+      .option("checkpointLocation", kafkaConfig.fileStore)
+      .foreach(writer)
+      //.trigger(Trigger.ProcessingTime("2 seconds"))
+      //.outputMode("append")
+      .start()
+      .awaitTermination()
+  }
 
 
 
 
+  //  stream
+  //    .write
+  //    .format("jdbc")
+  //    // TODO sprawdzić czy nie trzeba też podać też drivera jako JAR
+  //    //  przy uruchamianiu kontenera w Dockerfile
+  //    //  --driver-class-path postgresql-9.4.1207.jar --jars postgresql-9.4.1207.jar
+  //    .option("driver", "org.postgresql.Driver")
+  //    .option("url", dbConfig.dbUrlWithSchema)
+  //    .option("dbtable", saveToTable)
+  //    .option("user", dbConfig.user)
+  //    .option("password", dbConfig.pass)
+  //    .save()
 
-
-
-
-
-
-
-
-
-
-
-
-
-  // topic names
-  //  private val outputTopicName     = s"analysis--num-of-messages-per-1min-per-zone"
-  //  private val testTopicName       = s"tests--$outputTopicName"
-  //  private val averageNumTopicName = s"analysis--avg-num-of-messages-in-chat-per-1min-per-zone"
+  //    val connectionProperties = new Properties()
+  //    connectionProperties.put("user",     dbConfig.user)
+  //    connectionProperties.put("password", dbConfig.pass)
+  //
+  //
+  //    stream.write
+  //      .option("createTableColumnTypes", "name CHAR(64), comments VARCHAR(1024)") // create new table
+  //      .jdbc(ERRORR)
 
 
 
@@ -515,7 +508,7 @@ object SparkStreamingAnalyser {
       .withColumnRenamed("count", "num_of_messages_per_time")
 
 
-    println(s"\n COUNTED SCHEMA: \n")  // todo DELETE for testing
+    println(s"\n COUNTED SCHEMA: \n")  //  DELETE for testing
     numMessagesPerMinutePerZone.printSchema()
     /*
     root
@@ -543,7 +536,7 @@ object SparkStreamingAnalyser {
       .sql( sqlQuery )
 
 
-    println(s"\n SPLIT COUNTED SCHEMA: \n")  // todo DELETE for testing
+    println(s"\n SPLIT COUNTED SCHEMA: \n")  //  DELETE for testing
     numOfMessagesPerZoneWithinWindow.printSchema()
     /*
     root
@@ -566,7 +559,7 @@ object SparkStreamingAnalyser {
         val mesPerZone   = MessagesPerZone(window_start, window_end, zone, number)
         val serializer   = new MessagesPerZoneSerializer
         serializer.serialize("", mesPerZone ) // output is binary
-        s"start: $window_start, end: $window_end, zone: $zone, number: $number" // todo for testing
+        s"start: $window_start, end: $window_end, zone: $zone, number: $number" //  for testing
       }
     ) // output column name is 'value' so do not need change it.
 
@@ -586,7 +579,7 @@ object SparkStreamingAnalyser {
       .format("kafka")
       .option("checkpointLocation"     , kafkaConfig.fileStore)
       .option("kafka.bootstrap.servers", kafkaConfig.servers) //
-      .option("topic"                  , "foo") // todo this topic does not exist
+      .option("topic"                  , "foo") //  this topic does not exist
       .start()
       .awaitTermination()
 
@@ -595,7 +588,7 @@ object SparkStreamingAnalyser {
 
 
     // print data to console only appending new data
-    // we print each item to console // TODO delete it
+    // we print each item to console //  delete it
     //    outputStream
     //      .outputMode("complete") // previous append
     //      .format("console")
@@ -612,7 +605,7 @@ object SparkStreamingAnalyser {
     //
     //
     //    // saving to file
-    //    // TODO DELETE for testing
+    //    //  DELETE for testing
     //    outputStream
     //      .outputMode("append")
     //      .format("csv")
@@ -668,7 +661,7 @@ object SparkStreamingAnalyser {
     import inputStream.sparkSession.implicits._
 
     // sql aggregation
-    // TODO edit zamiast window trzeba napisać całe wyrażenie window(server_time, '1 minute', '30 seconds')
+    //  edit zamiast window trzeba napisać całe wyrażenie window(server_time, '1 minute', '30 seconds')
     val sql =
     """SELECT date_format(window.start, 'yyyy-MM-dd HH:mm:ss' ) AS from,
       | date_format(window.end, 'yyyy-MM-dd HH:mm:ss' ) AS to,
@@ -738,7 +731,7 @@ object SparkStreamingAnalyser {
       .format("kafka")
       .option("checkpointLocation",      kafkaConfig.fileStore )
       .option("kafka.bootstrap.servers", kafkaConfig.servers ) //
-      .option("topic",                   "foo") // todo this topic does not exist
+      .option("topic",                   "foo") //  this topic does not exist
       .start()
       .awaitTermination()
 
@@ -756,6 +749,12 @@ object SparkStreamingAnalyser {
 } // end SparkStreamingAnalyser
 
 
+
+
+
+
+
+
 /*
 // implemented in kafka streams analyser
 
@@ -766,17 +765,6 @@ averageNumberOfWordsInMessageWithin1MinutePerZone
 averageNumberOfWordsInMessageWithin1MinutePerChat
  */
 
-
-
-
-
-
-
-
-
-
-
-
   /* Util notes
 
   // to print list of topics
@@ -785,8 +773,6 @@ averageNumberOfWordsInMessageWithin1MinutePerChat
   // finally, checking incoming messages is possible via kafka-console-consumer.sh script
   // docker exec -ti kafka1 /opt/bitnami/kafka/bin/kafka-console-consumer.sh --topic analysis--num-of-messages-per-1min-per-zone --from-beginning --bootstrap-server localhost:9092
   */
-
-
 
 
 /*

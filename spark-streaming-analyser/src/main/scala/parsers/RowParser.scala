@@ -10,13 +10,18 @@ import java.time.{Instant, ZoneId}
 import java.util.UUID
 import scala.math.BigDecimal.RoundingMode
 import org.apache.spark.sql.Row
+import org.apache.logging.log4j.LogManager
+import org.apache.logging.log4j.Logger
 
 
-
-
+class  RowParser
 object RowParser {
 
+  private val logger: Logger = LogManager.getLogger(classOf[RowParser])
+
   def kafkaInputRowParser:  Row => SparkMessage = (r: Row) => {
+    logger.warn(s"processing input Row")
+
     val mByteArray: Array[Byte] = r.getAs[Array[Byte]]("value") // we know that value is Array[Byte] type
     val serverTime: Timestamp   = r.getAs[Timestamp]("timestamp") // .getTime
     // deserializer must be created inside mapper, otherwise initialization causes exceptions
