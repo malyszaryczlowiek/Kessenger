@@ -19,9 +19,9 @@ object RowParser {
 
   private val logger: Logger = LogManager.getLogger(classOf[RowParser])
 
+
   def kafkaInputRowParser:  Row => SparkMessage = (r: Row) => {
     logger.warn(s"processing input Row")
-
     val mByteArray: Array[Byte] = r.getAs[Array[Byte]]("value") // we know that value is Array[Byte] type
     val serverTime: Timestamp   = r.getAs[Timestamp]("timestamp") // .getTime
     // deserializer must be created inside mapper, otherwise initialization causes exceptions
@@ -42,6 +42,19 @@ object RowParser {
       message.authorLogin // String
     )
   }
+
+
+
+
+
+
+//  def numOfMessagesPerTimeParser: Row => WindowedNumOfMessages = (r: Row) => {
+//    WindowedNumOfMessages(
+//      r.getAs[Timestamp]("window_start"),
+//      r.getAs[Timestamp]("window_end"),
+//      r.getAs[Long]("num_of_messages_per_time")
+//    )
+//  }
 
 
   def avgServerDelayParser: Row => WindowedAvgServerDelay = (r: Row) => {
@@ -65,11 +78,12 @@ object RowParser {
 
 
   def avgServerDelayByZoneParser: Row => WindowedAvgServerDelayByZone = (r: Row) => {
+    val avg = BigDecimal.decimal( r.getAs[Double]("avg_diff_time_ms") ).setScale(0, RoundingMode.HALF_UP).toLong
     WindowedAvgServerDelayByZone(
       r.getAs[Timestamp]("window_start"),
       r.getAs[Timestamp]("window_end"),
       ZoneId.of(r.getAs[String]("zone_id")),
-      r.getAs[Long]("avg_diff_time_ms")
+      avg
     )
   }
 

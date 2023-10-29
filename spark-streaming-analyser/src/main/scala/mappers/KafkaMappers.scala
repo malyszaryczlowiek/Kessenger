@@ -16,6 +16,13 @@ object KafkaMappers {
 
   private val logger: Logger = LogManager.getLogger(classOf[KafkaMappers])
 
+//  def numOfMessagesPerTimeMapper: Row => KafkaOutput = (r: Row) => {
+//    val w = numOfMessagesPerTimeParser(r)
+//    val serializer = new WindowedNumOfMessagesSerializer
+//    val serialized = serializer.serialize("", w)
+//    KafkaOutput(null, serialized)
+//  }
+
   def avgDelayToKafkaMapper: Row => KafkaOutput = (r: Row) => {
     val w = avgServerDelayParser(r)
     val serializer = new WindowedAvgServerDelaySerializer
@@ -29,7 +36,6 @@ object KafkaMappers {
     val w = avgServerDelayByUserParser(r)
     val serializer = new WindowedAvgServerDelayByUserSerializer
     val serialized = serializer.serialize("", w)
-    logger.warn(s"avgDelayByUserToKafkaMapper data serialized and KafkaOutput object should be send to kafka.  ")
     KafkaOutput(null, serialized)
   }
 
