@@ -25,9 +25,7 @@ export class SignupComponent implements OnInit {
 
   
   
-  // nothing to do 
   ngOnInit(): void { }
-
 
 
 
@@ -49,19 +47,6 @@ export class SignupComponent implements OnInit {
                   new Array() // we create new user, so no chats 
                 )
               }
-              
-              // stare
-              //this.userService.assignSubscriptions()
-              // this.userService.setUserAndSettings(
-              //   response.body?.user,
-              //  response.body?.settings
-              // );
-              // this.userService.connectViaWebsocket()
-              // after successfull request we should update KSID cookie 
-              // to have correct userId
-              // this.userService.updateSession()
-              // this.userService.setLogoutTimer()
-              // and redirect to user site
               this.router.navigate(['user']);
             } else {
               console.log('sign in status other than 200.')
@@ -76,13 +61,7 @@ export class SignupComponent implements OnInit {
           complete: () => {}
         })  
       }
-      
     }    
   }
-
-
-
-
-  
 
 }

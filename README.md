@@ -2,9 +2,8 @@
 
 ## What the project is
 
-Project is simple, scalable chat application built with [Kafka](https://kafka.apache.org/), [Play](https://www.playframework.com/),
-[Angular](https://angular.io/), [Spark](https://spark.apache.org/) ([Streaming](https://spark.apache.org/streaming/) 
-and [GraphX](https://spark.apache.org/graphx/)), [PostgreSQL](https://www.postgresql.org/) 
+Project is simple, horizontally-scalable chat application built with [Kafka](https://kafka.apache.org/), [Play](https://www.playframework.com/), [Angular](https://angular.io/),
+[Spark](https://spark.apache.org/) ([Streaming](https://spark.apache.org/streaming/), [GraphX](https://spark.apache.org/graphx/)), [PostgreSQL](https://www.postgresql.org/) 
 and [pgAdmin](https://www.pgadmin.org/). Whole system is containerized with [Docker](https://www.docker.com/).
 
 
@@ -54,24 +53,6 @@ operate, so it is required to run them when some data are generated. Both applic
 
 These scripts build docker images and create containers which are thereafter connected to existing inner docker network. 
 
-## Running dev
-If you want to run system in *dev* mode run `kessenger` script with dev option: 
-
-```bash
-./kessenger --env=dev
-```
-
-then open two new terminal windows, and run `devRunBackend`
-
-```bash
-./devRunBackend
-```
-
-and `devRunWebapp` scripts.
-
-```bash
-./devRunWebapp
-```
 
 ## System State Monitoring
 System allows monitoring states of database and spark cluster.

@@ -28,11 +28,6 @@ export class MainComponent implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     console.log('MainComponent.ngOnInit()')
-    // zakomentowałem po pierwszym uruchomieniu 
-    /* if ( this.connectionService.isInitlized() ) {
-      this.router.navigate(['user'])
-    }       */
-
     // this subscription shows all error and information notification as toast object
     this.errorMessageSubscription = this.responseNotifier.responseEmitter.subscribe(
       (e) => {

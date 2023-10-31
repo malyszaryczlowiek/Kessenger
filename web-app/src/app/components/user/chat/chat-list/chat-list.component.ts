@@ -52,8 +52,6 @@ export class ChatListComponent implements OnInit, OnDestroy {
       )
     }
 
-
-
     this.initalizationSubscription = this.connectionService.serviceInitializedEmitter.subscribe(
       (n) => {
         console.log('ChatListComponent.initalizationSubscription -> fetched chat list from ChatDataService via serviceInitializedEmitter ')

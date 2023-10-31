@@ -23,8 +23,11 @@ export class SigninComponent implements OnInit {
   constructor(
               private connectionService: ConnectionService,
               private responseNotifier: ResponseNotifierService,
-              // private loadBalancer: LoadBalancerService,
-              private router: Router) { }
+              private router: Router
+              // private loadBalancer: LoadBalancerService, 
+              // in case if we have already opened session in other server than current one
+              // and we need to rebalance to opened one
+              ) { }
 
   ngOnInit(): void {
   }
@@ -41,12 +44,10 @@ export class SigninComponent implements OnInit {
 
   private signIn(login: string, pass: string) {
     const signin = this.connectionService.signIn(login, pass)
-    // const signin = this.userService.signIn(login, pass)
     if ( signin ){
       signin.subscribe({
         next: (response) => {
           if (response.status === 200) {
-
             const body = response.body
             if ( body ) {
               this.connectionService.initialize(
@@ -55,44 +56,15 @@ export class SigninComponent implements OnInit {
                 body.chatList
               )
               this.router.navigate(['user']);
-              
-              
-              // old
-
-              /* this.userService.assignSubscriptions()
-              this.userService.setUserAndSettings(
-                body.user,
-                body.settings
-              );
-              // after successfull request we should update KSID cookie 
-              // to have correct userId
-              this.userService.updateSession(false)
-              this.userService.setChats( body.chatList )
-              // this.userService.connectViaWebsocket() ttt
-              this.router.navigate(['user']); */
             }              
           } else {
           }            
         },
         error: (error) => {
-          // if status is 0 this means backend service is 
-          // unavailable so we need rebalance and try call 
-          // again
-          /* if (error.status == 0) {
-            this.loadBalancer.rebalance()
-            this.signIn(login, pass)
-          } 
-          else { */
-            this.responseNotifier.handleError(error)                                  
-            console.log(error)
-            this.connectionService.disconnect()
-            this.signInForm.reset();
-
-
-            // old
-            // this.userService.clearService();
-            // this.signInForm.reset();
-          //}          
+          this.responseNotifier.handleError(error)                                  
+          console.log(error)
+          this.connectionService.disconnect()
+          this.signInForm.reset();
         },
         complete: () => {}
       })

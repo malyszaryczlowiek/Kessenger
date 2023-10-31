@@ -1,14 +1,15 @@
 import { EventEmitter, Injectable } from '@angular/core';
+import { Router } from '@angular/router';
 import { CookieService } from 'ngx-cookie-service';
 import { v4 as uuidv4 } from 'uuid';
-import { Router } from '@angular/router';
+import { Subscription } from 'rxjs';
 // services
 import { UserSettingsService } from './user-settings.service';
 import { UtctimeService } from './utctime.service';
 // models
 import { Ksid } from '../models/Ksid';
 import { User } from '../models/User';
-import { Subscription } from 'rxjs';
+
 
 
 
@@ -20,8 +21,7 @@ export class SessionService {
   private ksid?: Ksid;
 
   logoutTimer: NodeJS.Timeout | undefined;
-  // logoutSeconds:       number | undefined;
-  logoutSeconds:        number = 0; // to może powodować błędy i będzie jakoś trzeba 
+  logoutSeconds: number = 0; 
 
   logoutSecondsEmitter: EventEmitter<number> = new EventEmitter()
   logoutEmitter:        EventEmitter<number> = new EventEmitter()
@@ -30,10 +30,7 @@ export class SessionService {
   settingsChangeSubscription: Subscription | undefined
 
 
-
-
-
-
+  
   constructor(private cookieService: CookieService,
               private utcService: UtctimeService,
               private userSettings: UserSettingsService,
@@ -50,17 +47,12 @@ export class SessionService {
     if ( ! this.settingsChangeSubscription ) {
       this.settingsChangeSubscription = this.userSettings.settingsChangeEmitter.subscribe(
         (settings) => {
-          // zmiana ilości sekund do wylogowania
           this.logoutSeconds = settings.sessionDuration / 1000
-          // restart logoutTimera
           this.restartLogoutTimer()
         }
       )
     }
   }
-
-
-
 
 
 
@@ -84,14 +76,16 @@ export class SessionService {
   }
    
 
+
   setNewSession(userId: string) {
     console.log('SessionService.setNewSession()')
     // time is validity time of session. after this time session will be invalid 
-    //   unless user will actualize  session making some request. 
+    // unless user will actualize  session making some request. 
     const time: number = this.utcService.getUTCmilliSeconds() + this.userSettings.settings.sessionDuration; 
     this.ksid = new Ksid(uuidv4(), userId , time);
     this.cookieService.set('KSID', this.ksid.toString(), this.getExpirationTime(), '/');
   }
+
 
 
   updateSession(userId: string) {
@@ -109,9 +103,12 @@ export class SessionService {
     }   
   }
 
+
+
   getKsid(): Ksid | undefined {
     return this.ksid
   }
+
 
 
   invalidateSession() {
@@ -122,12 +119,6 @@ export class SessionService {
 
 
 
-/*   isDefined(): boolean {
-    if (this.ksid) return true;
-    else return false;
-  }
- */
-
   getSessionToken(): string | undefined  {
     this.fetchKsid();
     if (this.ksid) {
@@ -135,20 +126,13 @@ export class SessionService {
     } else  return undefined 
   }
 
-
   
-
-
-
-
-
 
   // private // expiration time (in days) used in cookies
   private getExpirationTime(): number {
     const part = this.userSettings.settings.sessionDuration / 3600000
     return part / 24;
   }
-
 
 
   
@@ -159,18 +143,12 @@ export class SessionService {
   }
 
 
-  
-  
-
-
-  // newly added
-
 
   restartLogoutTimer() {
     console.log('SessionService.restartLogoutTimer()')
     this.logoutSeconds = this.userSettings.settings.sessionDuration / 1000
     if ( this.logoutSeconds ) {
-      if (this.logoutTimer ) clearInterval( this.logoutTimer )    //   To DODAŁEM
+      if (this.logoutTimer ) clearInterval( this.logoutTimer )   
       this.logoutTimer = setInterval(() => {
         this.logoutSeconds = this.logoutSeconds - 1
         this.logoutSecondsEmitter.emit(this.logoutSeconds)
@@ -192,20 +170,12 @@ export class SessionService {
   }
 
 
+
   clearService() {
     console.log('SessionService.clearService()')
     if (this.logoutTimer) clearInterval(this.logoutTimer)  
     if ( this.settingsChangeSubscription ) { this.settingsChangeSubscription.unsubscribe(); }
     this.logoutTimer = undefined
   }
-
-
-
-/*   saveKsid(userId: string) {
-    const time: number = this.utcService.getUTCmilliSeconds();
-    this.ksid = new Ksid(uuidv4(), userId, time);    //  `${uuidv4()}__${userId}__${time}`;
-    this.cookieService.set('ksid', this.ksid.toString(), 0.01041667);
-  }
- */
 
 }

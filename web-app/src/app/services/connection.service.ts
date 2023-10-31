@@ -2,8 +2,7 @@ import { HttpClient, HttpHeaders, HttpParams, HttpResponse } from '@angular/comm
 import { Injectable, Inject, EventEmitter } from '@angular/core';
 import { Observable, Subscription, of } from 'rxjs';
 import { v4 as uuidv4 } from 'uuid';
-// import { Router } from '@angular/router';
-import { ActivatedRoute, Router } from '@angular/router';
+import { Router } from '@angular/router';
 // services
 import { ChatsDataService } from './chats-data.service';
 import { LoadBalancerService } from './load-balancer.service';
@@ -77,12 +76,8 @@ export class ConnectionService {
               private router: Router) { 
 
                 console.log('ConnectionService.constructor()')
-                // this.assignSubscriptions()
                 const uid = this.session.getSavedUserId();
                 if ( uid ) {
-                  // poniższy update przeniosłem do subscribe po pobraniu danych o 
-                  // użytkowniku, który jest zapisany w ciasteczku.
-                  // this.updateSessionViaUserId( userId )
                   console.log('ConnectionService.constructor() -> session.getSavedUserId() -> user session is VALID')
                   // to avoid logout 
                   this.session.updateSession( uid ) 
@@ -193,6 +188,7 @@ export class ConnectionService {
     console.log('ConnectionService.initialize()')
     this.userObj = user
     this.assignSubscriptions()
+    this.session.updateSession( this.userObj.userId )
     this.settingsService.initialize(user, setttings)
     this.chatService.initialize( chatList, user)
     this.initialized = true
@@ -533,7 +529,6 @@ export class ConnectionService {
     if (this.wsConnection === undefined && server) {
       console.log(`ConnectionService.connectViaWS() -> Initializing Connection via WebSocket to: ws://${server.getURIwithoutProtocol()}`)
       this.wsConnection = new WebSocket(`ws://${server.getURIwithoutProtocol()}/user/${conf.me.userId}/ws`);
-      // this.wsConnection = new WebSocket(`ws://localhost:9000/user/${conf.me.userId}/ws`);
       this.wsConnection.onopen = () => {
         console.log('ConnectionService.connectViaWS() onOpen -> WebSocket connection opened.');
         this.wsConnection?.send( JSON.stringify( conf ) )
@@ -617,10 +612,10 @@ export class ConnectionService {
       this.wsConnection.onerror = (error) => {
         console.error('ConnectionService.wsConnection.onerror -> WS connection returned error ???', error);
         if ( this.wsConnection ) this.wsConnection = undefined
-        // here probably we should close connection ??? and restart it ???
       };
     }
   }
+
 
 
   private restartWS(b: boolean) {
@@ -674,24 +669,6 @@ export class ConnectionService {
       console.error('ConnectionService.sendMessage() -> Cannot send data via WS, open a connection first');
     }
   }
-
-
-  
-  /*
-    DEPRECATED
-
-    metoda nie jest używana bo, zaproszenia są wysyłane automatycznie przez backend 
-    jak tylko czat zostanie poprawnie utworzony. 
-  */
-  /* private sendInvitation(inv: Invitation) {
-    if (this.wsConnection) {
-      console.log('sending invitation to server.');
-      this.wsConnection.send(JSON.stringify( inv ));
-    } else {
-      console.error('Did not send data, open a connection first');
-    }
-  }  */
-
 
 
 
@@ -779,10 +756,10 @@ export class ConnectionService {
   
   updateSession() {
     if (this.wsConnection && this.userObj) {
-      console.log('ConnectionService.updateSession() -> sending update to backend via WS.');
       this.session.updateSession(this.userObj.userId)
       const ksid = this.session.getKsid()
       if ( ksid ) { 
+        console.log('ConnectionService.updateSession() -> sending update to backend via WS.');
         const session = {
           sessionId: ksid.sessId,
           userId:    ksid.userId,
@@ -841,28 +818,6 @@ export class ConnectionService {
 
 
 
-  // DEPRECATED
-  /* private closeWebSocket() {
-    if (this.wsConnection) {
-      this.reconnectWS = false
-      console.log('sending PoisonPill to server.');
-      this.wsConnection.send('PoisonPill')
-      this.someoneIsWriting = false
-      if ( this.writerCleaner ) { 
-        clearTimeout( this.writerCleaner )
-        this.writerCleaner = undefined
-      }
-      this.sendPoisonPill()
-      this.wsConnection.close()
-      console.log('connection deeactivated.');
-      this.wsConnection = undefined;
-    }
-  }
- */
-
-
-
-
   isWSconnected(): boolean {
     if ( this.wsConnection ) {
       console.log('ConnectionService.isWSconnected() -> true');
@@ -891,12 +846,10 @@ export class ConnectionService {
 
   updateUserLogin(newLogin: string) {
     if ( this.userObj ) {
-      // muszę przenieść tę funkcję do Settings service. 
       this.userObj.login = newLogin
       console.log(`ConnectionService.updateUserLogin() -> ${this.userObj}`);
       this.chatService.setUser( this.userObj )
       this.settingsService.setUser( this.userObj ) 
-      // chyba jakaś notyfikacja, że mój login został zmieniony
     }
   }
 
@@ -908,11 +861,9 @@ export class ConnectionService {
 
   clearSubscriptions() {
     console.log(`ConnectionService.clearSubscriptions() `);
-
     if ( this.logoutSubscription )             this.logoutSubscription.unsubscribe()
     if ( this.chatOffsetUpdateSubscription )   this.chatOffsetUpdateSubscription.unsubscribe()
     if ( this.fetchOlderMessagesSubscription ) this.fetchOlderMessagesSubscription.unsubscribe() 
-    
     this.logoutSubscription = undefined
     this.chatOffsetUpdateSubscription = undefined
     this.fetchOlderMessagesSubscription = undefined

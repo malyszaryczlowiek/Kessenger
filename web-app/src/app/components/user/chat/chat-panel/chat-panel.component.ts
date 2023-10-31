@@ -4,11 +4,12 @@ import { Subscription } from 'rxjs';
 // services
 import { ChatsDataService } from 'src/app/services/chats-data.service';
 import { HtmlService } from 'src/app/services/html.service';
+import { ConnectionService } from 'src/app/services/connection.service';
 // models
 import { ChatData } from 'src/app/models/ChatData';
 import { Message } from 'src/app/models/Message';
 import { Writing } from 'src/app/models/Writing';
-import { ConnectionService } from 'src/app/services/connection.service';
+
 
 
 
@@ -65,14 +66,9 @@ export class ChatPanelComponent implements OnInit, OnDestroy {
       (n) => {
         console.log('ChatPanelComponent.initalizationSubscription -> getting chat data via serviceInitializedEmitter')
         this.chatData = this.chatService.getCurrentChatData()
-        // if chat is not found we nned to redirect to page-not found
         if ( this.chatData ) {
           this.chatService.selectChat( this.chatData.chat.chatId )
         }
-        else {
-          this.router.navigate(['page-not-found']);
-        } 
-        
       }
     )
 
@@ -110,7 +106,6 @@ export class ChatPanelComponent implements OnInit, OnDestroy {
       console.log('ChatPanelComponent.ngOnInit() -> chatId: ', chatId)
       this.chatService.setChatId( chatId )
       this.chatData =  this.chatService.getCurrentChatData()
-      // if (this.chatData) console.error('is not empty')
     } else {
       console.error('ChatPanelComponent.ngOnInit() -> no chatId in path !!!')
     }

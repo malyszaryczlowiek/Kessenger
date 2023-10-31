@@ -101,7 +101,6 @@ export class ChatsDataService {
 
 
 
-
   /*
     method called when we get info from connectionService that someone whas writing in any
     of our chat. emitter emits this event and subscribers 
@@ -113,12 +112,9 @@ export class ChatsDataService {
 
 
 
-
   setChatId(cId: string ) {
     this.selectedChat = cId;
   }
-
-
 
 
 
@@ -172,42 +168,11 @@ export class ChatsDataService {
 
 
 
-
-
-
-
-/*
-
-  1. jak przychodzi nowa wiadomość to sprawdzamy czy wiadomość pochodzi z chatu, który jest aktualnie selected
-    -- jest SELECTED
-       2. sprawdzamy czy jesteśmy na samym dole w htmlService
-         -- TAK jesteśmy na dole
-            3. dodajemy do przeczytanych
-            4. akualizujemy listę czatów (tutaj chodzi o to by nie było info o nieprzeczytanych wiadomościach i by czaty były w kolejności zgodnej z najświeższymi wiadomościami od góry)
-            5. wysyłamy informację o update chat offset
-            6. aktualizujemy chatPanel stosując emmiter w chatData (tutaj chodzi o to by lista wiadomości w czacie już zawierała nowo dodane wiadomości)
-            <koniec>
-         -- NIE 
-            3. dodajemy do NIEPRZECZYTANYCH
-            4. akualizujemy listę czatów  (tutaj chodzi o to by BYŁA informacja o nieprzeczytanych wiadomościach i by czaty były w kolejności zgodnej z najświeższymi wiadomościami od góry)
-
-            w chat-panel mamy subscrybenta, który sprawdza czy zjechaliśmy na sam dół czatu
-            -- TAK, zjechaliśmy to 
-              1. wymuszamy dodanie wszystkich nieprzeczytanych wiadomości w chacie do przeczytanych
-              2. aktualizujemy chat-listę, bo nie powinna wyświetlać, że mamy nieprzeczytane wiadomości
-    -- NIE jest selected
-      2. dodajemy do nieprzeczytanych
-      3. aktualizujemy listę czatów po lewej stronie, tak aby wyświetlała, że mamy nieprzeczytane wiadomości 
-
-  */
-
-
-
   insertNewMessages2(m: Message[]) {
     console.log('ChatsDataService.insertNewMessages2() ')
     m.forEach((mm, i, arr) => {
       if (mm.chatId == this.selectedChat) {
-        // jeśli jesteśmy na dole to dodajemy do przeczytanych
+        // we are on the bottom of chat so add to read messages
         if ( this.htmlService.isScrolledDown() == 1 )  {
           const c = this.findChat( mm.chatId )
           if ( c ) {
@@ -225,7 +190,7 @@ export class ChatsDataService {
             )
             if (this.user) {
               const chatOffsetUpdate: ChatOffsetUpdate = {
-                userId:           this.user.userId, // 'undefined'
+                userId:           this.user.userId, 
                 chatId:           c.chat.chatId,
                 lastMessageTime:  c.chat.lastMessageTime,
                 partitionOffsets: c.partitionOffsets 
@@ -237,7 +202,7 @@ export class ChatsDataService {
             this.htmlService.scrollDown( true )
           }          
         } 
-        // jeśli nie jesteśmy na dole to dodajemy do nieprzeczytanych
+        // if we are not at the bottom of chat, so we do not see new message(s) and need add them to unreadMessages
         else  {
           const c = this.findChat( mm.chatId )
           if ( c ) {
@@ -246,7 +211,7 @@ export class ChatsDataService {
             this.changeChat( c )
           }
         }
-      } else { // inny czat niż aktualnie wybrany
+      } else { // other chat than actually selected
         const c = this.findChat( mm.chatId )
         if ( c ) {
           console.log('ChatsDataService.insertNewMessages2() -> adding NEW messages to UNREAD messages, because of we are in other chat than selected')
@@ -255,35 +220,18 @@ export class ChatsDataService {
         }
       }
     })
-    // updejtujemy wszystko co trzeba
     this.updateChatListEmmiter.emit( 0 )
     this.updateChatPanelEmmiter.emit( 0 )
   } 
 
 
 
-   
-
-  /*
-    sprawdzić jeszcze czy mechanizm informowania (wysyłąnia do wszystkich komponnentów) 
-    // o przyjściu starej wiadomości jest poprawny
-    chyba, że trzeba tylko poinformować chat-panel 
-    bo chat-list nie korzysta z informacji o starych wiadomościach. 
-  */ 
- // tutaj // napisać w tej metodzie
   insertOldMessages(m: Message[]) {
     const chatId = m.at(0)?.chatId
     if ( chatId ) {
       const found = this.chatAndUsers.find( (cd, i , arr) => { return cd.chat.chatId == chatId } )
       if ( found ) {
         m.forEach((mess, i, arr) => {
-          /* const duplicatedMessage = found.messages.find((mm, ii, arrr) => {
-            return mm.partOff === mess.partOff;
-          })
-          if ( ! duplicatedMessage ) {
-            found.messages.push(mess)
-          }  */
-          // old
           found.messages.push(mess)
         })
         found.messages = found.messages.sort((a,b) => a.serverTime - b.serverTime )
@@ -444,88 +392,3 @@ export class ChatsDataService {
 
 
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-  //tutaj // jest problem z wczytaniem wielu wiadomości 
-  // oraz z tym że jak jesteśmy w liście czatów i zrobimy refresh
-  // to wszystkie wiadomości są wczytywane do nowych wiadomości 
-  // dlatego trzeba jeszcze zimplementować mechanizm sprawdzający
-  // czy dana wiadomość ma offset poniżej czy powyżej offsetu w danym chacie.
-
-  /*
-  method returns code informing if we should update chat list, chat panel, both, 
-  or do not update nothing
-  */
-  //  DEPRECATED
-/*   insertNewMessages1(m: Message[]): number {
-    let code = 0
-    // tutaj należy dodać  wysyłanie przez ws update chat offset
-    // error
-    m.forEach((mm,i,arr) => {
-      const foundCD = this.chatAndUsers.find((cd, i, arr) => {
-        return cd.chat.chatId == mm.chatId
-      })
-      if ( foundCD ) {
-//         tutaj jest problem ######################################################################################################################################################
-        // nalezy zrobić tak aby sprawdzać czy jak przychodzi wiadomość w nowo utworzonym chacie 
-        // to należy dodać te wiadomości do unread a nie do przeczytanych 
-
-        if (foundCD.chat.lastMessageTime < mm.serverTime) foundCD.chat.lastMessageTime = mm.serverTime
-        if ( foundCD.isNew ) {
-          foundCD.unreadMessages.push( mm ) 
-          if ( code == 0 ) code = 2
-          if ( code == 3 ) code = 1
-        } else {
-          const unread = foundCD.partitionOffsets.some((po,i,arr) => {
-            return po.partition == mm.partOff.partition && po.offset < mm.partOff.offset // ##### tutaj zmieniłem
-          })
-          if ( unread  ) {
-            foundCD.unreadMessages.push( mm )  // && mm.authorId != this.myUserId
-            if ( code == 0 ) code = 2
-            if ( code == 3 ) code = 1
-          }
-          else {
-            console.log('WIADOMOŚĆ DODANA DO PRZECZYTANYCH')
-            foundCD.messages.push( mm )
-            foundCD.messages = foundCD.messages.sort((a,b) => a.serverTime - b.serverTime )
-            foundCD.partitionOffsets = foundCD.partitionOffsets.map(
-              (po, i, arr) => {
-                if (po.partition == mm.partOff.partition && po.offset < mm.partOff.offset){ 
-                  po.offset = mm.partOff.offset
-                  return po
-                } else  {
-                  return po
-                }
-              }
-            )
-            if (this.user) {
-              const chatOffsetUpdate: ChatOffsetUpdate = {
-                userId:           this.user.userId, // 'undefined'
-                chatId:           foundCD.chat.chatId,
-                lastMessageTime:  foundCD.chat.lastMessageTime,
-                partitionOffsets: foundCD.partitionOffsets 
-              } 
-              this.chatOffsetUpdateEmitter.emit( chatOffsetUpdate )
-            }            
-            // if ( code != 1 ) code = 1
-          }  
-        }
-        this.changeChat( foundCD )
-      }
-    })
-
-    return code;
-  } */
-
-

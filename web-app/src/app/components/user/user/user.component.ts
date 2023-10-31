@@ -1,10 +1,10 @@
 import { Component, OnDestroy, OnInit } from '@angular/core';
 import { Subscription } from 'rxjs';
-import { Toast } from 'bootstrap'
+import { Toast } from 'bootstrap';
 // services
-// import { HtmlService } from 'src/app/services/html.service';
 import { ResponseNotifierService } from 'src/app/services/response-notifier.service';
-import { ConnectionService } from 'src/app/services/connection.service';
+// import { HtmlService } from 'src/app/services/html.service';
+// import { ConnectionService } from 'src/app/services/connection.service';
 
 
 
@@ -19,7 +19,7 @@ export class UserComponent implements OnInit, OnDestroy {
   errorMessageSubscription: Subscription | undefined
 
 
-  constructor(private connectionService: ConnectionService,
+  constructor(//private connectionService: ConnectionService,
               private responseNotifier: ResponseNotifierService) { }
 
 
