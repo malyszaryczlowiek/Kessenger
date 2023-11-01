@@ -4,6 +4,7 @@ import { Router } from '@angular/router';
 // services
 import { ConnectionService } from 'src/app/services/connection.service';
 import { ResponseNotifierService } from 'src/app/services/response-notifier.service';
+import { SessionService } from 'src/app/services/session.service';
 
 @Component({
   selector: 'app-signin',
@@ -22,6 +23,7 @@ export class SigninComponent implements OnInit {
 
   constructor(
               private connectionService: ConnectionService,
+              private sessionService: SessionService,
               private responseNotifier: ResponseNotifierService,
               private router: Router
               // private loadBalancer: LoadBalancerService, 
@@ -50,6 +52,7 @@ export class SigninComponent implements OnInit {
           if (response.status === 200) {
             const body = response.body
             if ( body ) {
+              this.sessionService.setNewSession( body.user.userId )
               this.connectionService.initialize(
                 body.user,
                 body.settings,
