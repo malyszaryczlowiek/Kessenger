@@ -269,6 +269,35 @@ class KafkaAdmin @Inject() (@Named("KafkaConfiguration") configurator: KafkaConf
   }
 
 
+
+  /**
+   *
+   * @param userId
+   * @return
+   */
+  def deleteInvitationTopic(userId: UserID): Either[KafkaError, UserID] = {
+    Try {
+      val wId: JoinId = Domain.generateJoinId(userId)
+      val deleteTopicResult: DeleteTopicsResult = admin.deleteTopics(java.util.List.of(wId))
+      val topicMap = CollectionConverters.asScala[String, KafkaFuture[Void]](deleteTopicResult.topicNameValues()).toMap
+      if (topicMap.nonEmpty) {
+        val optionKafkaFuture = topicMap.get(wId)
+        optionKafkaFuture.get // may throw NoSuchElementException
+          .get(5L, TimeUnit.SECONDS) // we give five seconds to complete removing chat
+        // may throw  InterruptedException ExecutionException TimeoutException
+        // Right( topicMap.keys.head )
+        Right(userId)
+      }
+      else Left(KafkaError(FatalError, UndefinedError))
+    } match {
+      case Success(either) => either
+      case Failure(ex) =>
+        logger.error(s"deleteInvitationTopic. Exception thrown: ${ex.getMessage}")
+        KafkaErrorsHandler.handleWithErrorMessage[UserID](ex)
+    }
+  }
+
+
   /**
    * Key is not used in producer, so we default set it to String
    *
