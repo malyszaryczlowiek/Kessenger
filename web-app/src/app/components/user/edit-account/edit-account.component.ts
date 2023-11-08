@@ -79,16 +79,11 @@ export class EditAccountComponent implements OnInit, OnDestroy {
         sessionDuration: time * 60 * 1000,
         zoneId: zone
       }
-      // const oldSett = this.settingsService.settings
-      // this.settingsService.setSettings( body )        
-      // to powinno być zrobione dopiero po otrzymaniu zwrotnej informacji, że dane zostały updejtowane w backendzie
-      // wtedy w settingsService powinien zostać wysłany event, żeby np. ustawienia wylogowania wczytały i przypisały nową wartość czasu do wylogowania. 
       const obs = this.connectionService.changeSettings( body )
       if ( obs ) {
         obs.subscribe({
           next: (response) => {
-            // this.settingsResponse = response.body
-            // this.userService.updateSession()
+
             this.settingsService.setSettings( body )
             this.connectionService.updateSession()
             const print = {
@@ -99,7 +94,6 @@ export class EditAccountComponent implements OnInit, OnDestroy {
             this.responseNotifier.printNotification( print )
           },
           error: (error) => {
-            // this.settingsService.setSettings( oldSett )
             this.responseNotifier.handleError( error ) 
           },
           complete: () => {}
@@ -116,14 +110,12 @@ export class EditAccountComponent implements OnInit, OnDestroy {
   saveLogin() {
     const newLogin = this.loginFormGroup.controls.loginForm.value
     if ( newLogin ) {
-      // const l = this.userService.changeLogin(newLogin)
       const l = this.connectionService.changeLogin(newLogin)
       if ( l ) {
         l.subscribe({
           next: (response) => {
             const b = response.body
             if ( b ) { 
-              // this.userService.updateLogin(newLogin)
               this.connectionService.updateUserLogin( newLogin )
               const print = {
                 header: 'Update',
@@ -152,21 +144,18 @@ export class EditAccountComponent implements OnInit, OnDestroy {
     const oldPass = this.passGroup.controls.old.value
     const newPass = this.passGroup.controls.neww.value
     if (oldPass && newPass) {
-      // const p = this.userService.changePassword(oldPass, newPass)
       const p = this.connectionService.changePassword(oldPass, newPass)
       if ( p ) {
-        //tutuaj kontynuowaća
         p.subscribe({
           next: (response) => {
             if (response.status == 200) {
-              //this.passwordResponse = response.body
               const print = {
                 header: 'Update',
                 //code: 0,
                 message: 'Password changed.'
               }
               this.responseNotifier.printNotification( print )
-
+              this.connectionService.updateSession()
             }
           },
           error: (err) => {
@@ -180,7 +169,6 @@ export class EditAccountComponent implements OnInit, OnDestroy {
             }
             if (err.status == 401){
               console.log('Session is out.')
-              // this.userService.clearService()
               this.connectionService.disconnect()
               this.router.navigate(['session-timeout'])
             }
@@ -192,24 +180,6 @@ export class EditAccountComponent implements OnInit, OnDestroy {
         this.router.navigate(['session-timeout'])
     }
   }
-
- /*  clearSettingsNotification() {
-    this.userService.updateSession(true)
-    this.settingsResponse = undefined
-  }
-
-  clearLoginNotification() {
-    this.userService.updateSession(true)
-    this.loginResponse = undefined
-  }
-
-  clearPasswordNotification() {
-    this.userService.updateSession()
-    this.passwordResponse = undefined
-  }
- */
-
-
 
 
 }
