@@ -87,15 +87,32 @@ class UserController @Inject()
                                       dbExecutor.deleteUser(user.userId)
                                       InternalServerError(ResponseBody(7, "User Creation Error. Try again later").toString)
                                     case Right(_) =>
-                                      logger.trace(s"User created successfully. userId(${userId.toString})")
-                                      Ok(jsonParser.toJSON((user, settings)))
+                                      val validityTime = System.currentTimeMillis() + settings.sessionDuration
+                                      dbExecutor.createSession(sessionData.sessionId, user.userId, validityTime) match {
+                                        case Left(_) =>
+                                          logger.error(s"SignUp. Database Error. Cannot create user Session. userId(${loginCredentials.userId})")
+                                          dbExecutor.deleteUser(user.userId)
+                                          // kafkaAdmin.deleteInvitationTopic(userId) todo implement
+                                          InternalServerError(ResponseBody(14, "Internal Server Error.").toString)
+                                        case Right(v) =>
+                                          dbExecutor.removeAllExpiredUserSessions(user.userId, System.currentTimeMillis())
+                                          if (v == 1) {
+                                            logger.trace(s"User created successfully. userId(${userId.toString})")
+                                            Ok(jsonParser.toJSON((user, settings)))
+                                          }
+                                          else {
+                                            logger.error(s"SignUp. Cannot create user Session. userId(${loginCredentials.userId})")
+                                            dbExecutor.deleteUser(user.userId)
+                                            // kafkaAdmin.deleteInvitationTopic(userId) todo implement
+                                            InternalServerError(ResponseBody(15, "Internal Server Error.").toString)
+                                          }
+                                      }
                                   }
                                 }
                                 else {
                                   logger.error(s"Cannot create new user. userId(${userId.toString})")
                                   InternalServerError(ResponseBody(7, "Error. Cannot create new user.").toString)
                                 }
-
                             }
                           })
                         }(databaseExecutionContext)
