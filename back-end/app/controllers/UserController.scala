@@ -92,7 +92,7 @@ class UserController @Inject()
                                         case Left(_) =>
                                           logger.error(s"SignUp. Database Error. Cannot create user Session. userId(${loginCredentials.userId})")
                                           dbExecutor.deleteUser(user.userId)
-                                          // kafkaAdmin.deleteInvitationTopic(userId) todo implement
+                                          kafkaAdmin.deleteInvitationTopic(userId)
                                           InternalServerError(ResponseBody(14, "Internal Server Error.").toString)
                                         case Right(v) =>
                                           dbExecutor.removeAllExpiredUserSessions(user.userId, System.currentTimeMillis())
@@ -103,7 +103,7 @@ class UserController @Inject()
                                           else {
                                             logger.error(s"SignUp. Cannot create user Session. userId(${loginCredentials.userId})")
                                             dbExecutor.deleteUser(user.userId)
-                                            // kafkaAdmin.deleteInvitationTopic(userId) todo implement
+                                            kafkaAdmin.deleteInvitationTopic(userId)
                                             InternalServerError(ResponseBody(15, "Internal Server Error.").toString)
                                           }
                                       }
