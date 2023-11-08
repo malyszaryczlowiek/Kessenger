@@ -850,6 +850,7 @@ export class ConnectionService {
       console.log(`ConnectionService.updateUserLogin() -> ${this.userObj}`);
       this.chatService.setUser( this.userObj )
       this.settingsService.setUser( this.userObj ) 
+      this.updateSession()
     }
   }
 
