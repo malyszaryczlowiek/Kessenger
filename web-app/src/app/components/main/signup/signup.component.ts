@@ -4,7 +4,7 @@ import { Router } from '@angular/router';
 // services
 import { ConnectionService } from 'src/app/services/connection.service';
 import { ResponseNotifierService } from 'src/app/services/response-notifier.service';
-import { SessionService } from 'src/app/services/session.service';
+
 
 
 @Component({
@@ -21,7 +21,6 @@ export class SignupComponent implements OnInit {
   });
 
   constructor(private connectionService: ConnectionService,
-              private sessionService: SessionService,
               private responseNotifier: ResponseNotifierService,
               private router: Router) { }
 
@@ -43,7 +42,6 @@ export class SignupComponent implements OnInit {
               const user = response.body?.user
               const settings = response.body?.settings
               if (user && settings) {
-                this.sessionService.setNewSession( user.userId )
                 this.connectionService.initialize(
                   user,
                   settings,
