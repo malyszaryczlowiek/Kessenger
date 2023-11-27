@@ -12,7 +12,7 @@ done
 
 
 if [[ $KESSENGER_MODE = "dev" ]] ; then
-  ./scripts/stopDev
+  ./scripts/stopDevZsh
 else
-  ./scripts/stopProd
+  ./scripts/stopProdZsh
 fi
