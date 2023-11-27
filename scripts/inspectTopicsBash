@@ -1,4 +1,4 @@
-#!/bin/zsh
-# TODO implement script to show information of all topics
+#!/bin/bash
+
 docker exec kafka1 kafka-topics.sh --list --bootstrap-server=localhost:9092
 #--zookeeper localhost:2181

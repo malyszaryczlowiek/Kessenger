@@ -1,0 +1,4 @@
+#!/bin/bash
+
+cd ./back-end
+sbt run

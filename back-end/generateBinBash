@@ -1,0 +1,7 @@
+#!/bin/bash
+cd back-end
+echo "${$(sbt playGenerateSecret | grep "Generated new secret: ")/Generated new secret: /}" > generatedKey
+sbt dist
+unzip target/universal/back-end-1.0-SNAPSHOT.zip
+mv back-end-1.0-SNAPSHOT target/universal/back-end-1.0-SNAPSHOT
+cd ..

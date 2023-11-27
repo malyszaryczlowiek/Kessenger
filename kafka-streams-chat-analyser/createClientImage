@@ -1,6 +1,0 @@
-#!/bin/zsh
-
-# this script is not used.
-
-docker build --tag kessenger-kafka-streams-chat-analyser ./KafkaStreamsChatAnalyser
-docker tag kessenger-kafka-streams-chat-analyser:latest  # kessenger-client-cli:v0.1.0

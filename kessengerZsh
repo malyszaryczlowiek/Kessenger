@@ -1,0 +1,96 @@
+#!/bin/zsh
+
+chmod +x ./stopkessengerZsh
+chmod +x ./back-end/generateBinZsh
+chmod +x ./kafka-streams-chat-analyser/generateJARZsh
+chmod +x ./scripts/stopDevZsh
+chmod +x ./scripts/stopProdZsh
+chmod +x ./scripts/inspectTopicsZsh
+chmod +x ./runGraphAnalyserZsh
+chmod +x ./runSparkStreamingAnalyserZsh
+chmod +x ./topicContentZsh
+chmod +x ./devRunBackendZsh
+chmod +x ./devRunWebappZsh
+
+
+KESSENGER_MODE="prod"
+GENERATE_BACKEND=true
+GENERATE_KAFKA_STREAMS=true
+RESTART_KESSENGER=false
+
+
+# check if driver-jars folder exists
+# if not, create it
+if [[ -d "driver-jars" ]]; then
+  echo "Folder 'driver-jars' already exists."
+else
+  mkdir driver-jars
+  echo "Folder 'driver-jars' created."
+fi
+
+
+for arr in $@ ; do
+  if [[ $arr = "--gen-backend-bin=false" ]] ; then
+    echo "Not generating backend binaries."
+    GENERATE_BACKEND=false
+  fi
+  if [[ $arr = "--gen-kafka-streams-bin=false" ]] ; then
+    echo "Not generating kafka streams binaries."
+    GENERATE_KAFKA_STREAMS=false
+  fi
+  if [[ $arr = "--env=dev" ]] ; then
+    echo "RUNNING IN DEVELOPMENT MODE"
+    KESSENGER_MODE="dev"
+  fi
+  if [[ $arr = "--restart" ]] ; then
+    RESTART_KESSENGER=true
+  fi
+done
+
+
+if [[ $GENERATE_KAFKA_STREAMS = true ]] ; then
+  rm -rf ./kafka-streams-chat-analyser/target/scala-2.13
+  ./kafka-streams-chat-analyser/generateJARZsh
+  rm -rf $HOME/kessenger/prod/logs/kafkastreaming/application.log
+fi
+if [[ $KESSENGER_MODE = "prod" ]] ; then
+  if [[ $GENERATE_BACKEND = true ]] ; then
+    rm -rf ./back-end/target/universal
+    ./back-end/generateBinZsh
+    rm -rf $HOME/kessenger/prod/logs/backend_*/application.log
+  fi
+fi
+if [[ $RESTART_KESSENGER = true ]] ; then
+  if [[ $GENERATE_KAFKA_STREAMS = true ]] ; then
+    echo "restarting kafka streams"
+    docker stop kafka_streams_chat_analyser
+    docker rm -v kafka_streams_chat_analyser
+    docker rmi  kessenger_kafka_streams
+  fi
+  if [[ $KESSENGER_MODE = "prod" ]] ; then
+    if [[ $GENERATE_BACKEND = true ]] ; then
+      echo "restarting backend"
+
+      docker stop play-app-1
+      docker rm -v play-app-1
+      docker rmi kessenger_play-app-1
+
+      docker stop play-app-2
+      docker rm -v play-app-2
+      docker rmi kessenger_play-app-2
+
+    fi
+  fi
+fi
+
+
+
+if [[ $KESSENGER_MODE = "dev" ]] ; then
+  docker-compose -f docker-compose.dev.yml up -d
+else
+  docker-compose -f docker-compose.prod.yml up -d
+fi
+
+
+
+exit 0

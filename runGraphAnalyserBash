@@ -1,0 +1,115 @@
+#!/bin/bash
+
+# rebuild will cause rebuild image and restarting container
+REBUILD=true
+APP_ENV="PROD"
+
+SCALA_V="scala-2.12"
+
+APP_NAME="spark-graphx-analyser"
+APP_VERSION="0.1.0"
+APP=$APP_NAME-$APP_VERSION
+APP_VOLUME=$HOME/kessenger/prod/logs/$APP_NAME:/opt/kessenger/$APP_NAME/logs
+
+DB_DRIVER_NAME="postgresql"
+DB_DRIVER_V="42.3.3"
+DB_DRIVER=$DB_DRIVER_NAME-$DB_DRIVER_V
+
+
+for arr in $@ ; do
+  if [[ $arr = "--rebuild=false" ]] ; then
+    REBUILD=false
+  fi
+  if [[ $arr = "--env=dev" ]] ; then
+    APP_ENV="DEV"
+    APP_VOLUME=$HOME/kessenger/dev/logs/$APP_NAME:/opt/kessenger/$APP_NAME/logs
+  fi
+done
+
+
+if [[ -d "./driver-jars" ]]; then
+  echo "Folder 'driver-jars' already exists."
+else
+  mkdir driver-jars
+  echo "Folder 'driver-jars' created."
+fi
+
+
+
+if [[ -e "./driver-jars/"$DB_DRIVER".jar" ]]; then
+  echo "postgresql jar exists."
+else
+  echo "Downloading postgresql JAR"
+    cd ./driver-jars
+    curl -O https://jdbc.postgresql.org/download/$DB_DRIVER.jar
+    if [[ -e "./"$DB_DRIVER".jar" ]]; then
+      echo "postgresql jar downloaded."
+    else
+      echo "Check internet connection and run script again."
+      cd ..
+      exit 1
+    fi
+
+    cd ..
+fi
+
+
+# build image
+if [[ $REBUILD = true ]] ; then
+
+  docker stop  $APP_NAME
+  docker rm -v $APP_NAME
+  docker rmi   $APP_NAME-image
+
+  cd ./$APP_NAME
+  rm -rf ./target/$SCALA_V/
+  sbt assembly
+#  ./generateJAR
+  #  rm -rf $HOME/kessenger/prod/logs/sparkanalyser/APPlication.log
+  if [[ $APP_ENV = "DEV" ]] ; then
+    cp ./conf/dev/application.conf ./application.conf
+    jar -uf ./target/$SCALA_V/$APP.jar application.conf
+    cp ./target/$SCALA_V/$APP.jar ./conf/dev/$APP.jar
+    cp ./../driver-jars/$DB_DRIVER.jar ./conf/dev/$DB_DRIVER.jar
+    cd ./conf/dev
+  else
+    cp ./conf/prod/application.conf ./application.conf
+    jar -uf ./target/$SCALA_V/$APP.jar application.conf
+    cp ./target/$SCALA_V/$APP.jar ./conf/prod/$APP.jar
+    cp ./../driver-jars/$DB_DRIVER.jar ./conf/prod/$DB_DRIVER.jar
+    cd ./conf/prod
+  fi
+
+  docker build --build-arg E=$APP_ENV -t $APP_NAME-image .
+  # --build-arg S_ENV=$APP_ENV
+  rm -rf ./*.jar
+
+  # back to kessenger folder
+  cd ../..
+  rm -rf ./*.conf
+  cd ..
+
+fi
+
+
+
+# run container from built image
+docker run -d \
+  -p 8085:8080 \
+  -p 7080:7077 \
+  -e SPARK_MODE=worker \
+  -e SPARK_MASTER_URL=spark://spark-master:7077 \
+  -e SPARK_WORKER_MEMORY=1G \
+  -e SPARK_WORKER_CORES=1 \
+  -e SPARK_RPC_AUTHENTICATION_ENABLED=no \
+  -e SPARK_RPC_ENCRYPTION_ENABLED=no \
+  -e SPARK_LOCAL_STORAGE_ENCRYPTION_ENABLED=no \
+  -e SPARK_SSL_ENABLED=no \
+  -v $APP_VOLUME \
+  --network=kessenger-network \
+  --name $APP_NAME \
+  $APP_NAME-image
+
+
+
+# -e SPARK_ENV=$APP_ENV \

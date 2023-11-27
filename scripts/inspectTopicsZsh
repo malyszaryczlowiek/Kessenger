@@ -1,0 +1,4 @@
+#!/bin/zsh
+
+docker exec kafka1 kafka-topics.sh --list --bootstrap-server=localhost:9092
+#--zookeeper localhost:2181
