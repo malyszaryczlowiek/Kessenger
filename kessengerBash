@@ -1,15 +1,16 @@
-#!/bin/zsh
+#!/bin/bash
 
-chmod +x ./stopkessenger
-chmod +x ./back-end/generateBin
-chmod +x ./kafka-streams-chat-analyser/generateJAR
-chmod +x ./scripts/stopDev
-chmod +x ./scripts/stopProd
-chmod +x ./scripts/inspectTopics
-chmod +x ./runGraphAnalyser
-chmod +x ./runSparkStreamingAnalyser
-chmod +x ./devRunBackend
-chmod +x ./devRunWebapp
+chmod +x ./stopkessengerBash
+chmod +x ./back-end/generateBinBash
+chmod +x ./kafka-streams-chat-analyser/generateJARBash
+chmod +x ./scripts/stopDevBash
+chmod +x ./scripts/stopProdBash
+chmod +x ./scripts/inspectTopicsBash
+chmod +x ./runGraphAnalyserBash
+chmod +x ./runSparkStreamingAnalyserBash
+chmod +x ./topicContentBash
+chmod +x ./devRunBackendBash
+chmod +x ./devRunWebappBash
 
 
 KESSENGER_MODE="prod"
@@ -49,13 +50,13 @@ done
 
 if [[ $GENERATE_KAFKA_STREAMS = true ]] ; then
   rm -rf ./kafka-streams-chat-analyser/target/scala-2.13
-  ./kafka-streams-chat-analyser/generateJAR
+  ./kafka-streams-chat-analyser/generateJARBash
   rm -rf $HOME/kessenger/prod/logs/kafkastreaming/application.log
 fi
 if [[ $KESSENGER_MODE = "prod" ]] ; then
   if [[ $GENERATE_BACKEND = true ]] ; then
     rm -rf ./back-end/target/universal
-    ./back-end/generateBin
+    ./back-end/generateBinBash
     rm -rf $HOME/kessenger/prod/logs/backend_*/application.log
   fi
 fi

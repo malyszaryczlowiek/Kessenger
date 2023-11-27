@@ -1,0 +1,7 @@
+#!/bin/bash
+
+docker exec -ti kafka1 /opt/bitnami/kafka/bin/kafka-console-consumer.sh --topic $1 --from-beginning --bootstrap-server localhost:9092
+
+
+# to print list of topics in kafka broker
+# docker exec -ti kafka1 /opt/bitnami/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --list

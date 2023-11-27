@@ -1,0 +1,7 @@
+#!/bin/bash
+cd kafka-streams-chat-analyser
+sbt assembly
+jar -uf ./target/scala-2.13/kafka-streams-chat-analyser-0.1.0.jar application.conf
+jar -uf ./target/scala-2.13/kafka-streams-chat-analyser-0.1.0.jar logback.xml
+# jar -uf ./target/scala-2.13/KafkaStreamsChatAnalyser-0.1.0.jar -C ./conf ./conf/logback.xml    # not works
+cd ..

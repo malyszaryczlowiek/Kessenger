@@ -22,17 +22,23 @@ To build and run this project you need installed:
  
 ## Running Project
 
-Simply open terminal/console, go to project folder and then make scripts executable:
+Simply open terminal/console, go to project folder and then make scripts executable (Mac):
 
-```bash
-chmod +x kessenger
+```zsh
+chmod +x kessengerZsh
 ```
+or
+```bash
+chmod +x kessengerBash
+```
+in Linux systems with bash shell.
 
 Be sure that docker is running and run building script:
 
-```bash
-./kessenger
+```zsh
+./kessengerZsh
 ```
+
 
 Wait building process will end and then open new browser window or tab and go to `localhost:4200`. 
 
@@ -42,20 +48,27 @@ Wait building process will end and then open new browser window or tab and go to
 Then open *another browser* and go to `localhost:4200` too. In both browsers create two different users and then create 
 chat between them.
 
-## Running Analysers
+## Spark Analysers
+**Spark-streaming-analyser** and **Spark-graphx-analyser** are [driver apps](https://spark.apache.org/docs/latest/cluster-overview.html) 
+running within spark cluster. **Spark-streaming-analyser** is simple stream analyser which poll data from kafka brokers, 
+analyse and save calculated results back (in real time) to specific topic in kafka brokers. **Spark-graphx-analyser** 
+is app taking users data from database and calculating page rank of each user based on number of users chat number. 
+Calculated result is saved back to database. 
+
+### Running Analysers
 **Spark-streaming-analyser** and **Spark-graphx-analyser** do not start with system right away. They need data to 
 operate, so it is required to run them when some data are generated. Both applications are runnable with scripts:
 
-```bash
-./runGraphAnalyser
-./runSparkStreamingAnalyser
+```zsh
+./runSparkStreamingAnalyserZsh
+./runGraphAnalyserZsh
 ```
 
 These scripts build docker images and create containers which are thereafter connected to existing inner docker network. 
 
 
 ## System State Monitoring
-System allows monitoring states of database and spark cluster.
+System allows monitoring database and spark cluster states.
 
 
 ### Database state
@@ -70,10 +83,10 @@ finished spark application as well Spark Workers condition.
 
 
 ## Shut Down and Cleaning System
-If you run system with `./kessenger` script, you can shut down whole system using command below
+If you run system with `./kessengerZsh` script, you can shut down whole system using command below
 
-```bash
-./stopkessenger
+```zsh
+./stopkessengerZsh
 ```
 
 This script stops and removes all containers, and then removes built docker images, so no disk space is wasted for 
