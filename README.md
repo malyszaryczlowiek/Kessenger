@@ -93,7 +93,15 @@ These scripts build docker images and create containers which are thereafter con
 
 
 ### Kafka Streaming Analyser
-TODO description.
+This part of system is Kafka Streaming application which calculates simple time windowed operations and saves  
+results back to kafka broker. 
+
+As in case of [**Spark-streaming-analyser**](#spark-analysers) it is simple to check analysis results 
+looking at topics contents, for example:   
+
+```zsh
+./topicContentZsh average-number-of-words-in-message-within-1-minute-per-zone
+```
 
 ### Database state
 System gives possibility to monitor Database state using PgAdmin. To check it, open new browser tab and go to 
